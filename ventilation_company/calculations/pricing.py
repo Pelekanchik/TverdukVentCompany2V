@@ -1,23 +1,24 @@
 """Двигун ціноутворення — Cost-plus, Competitive, Value-based."""
 
-from ventilation_company.config import MARKUP_PERCENTAGE, VAT_RATE, OVERHEAD_PERCENTAGE
+from ventilation_company.config import VAT_RATE, OVERHEAD_PERCENTAGE
 
 
 class PricingEngine:
     """Розрахунок ціни виробу/проєкту різними методами."""
 
-    def __init__(self, base_cost: float = 10000):
+    def __init__(self, base_cost: float = 10000, markup_percent: float = None):
         self.base_cost = float(base_cost)
+        self.markup_percent = markup_percent if markup_percent is not None else 30.0
 
     def cost_plus_pricing(self) -> dict:
-        markup_amount = self.base_cost * MARKUP_PERCENTAGE / 100
+        markup_amount = self.base_cost * self.markup_percent / 100
         price_without_vat = self.base_cost + markup_amount
         vat_amount = price_without_vat * VAT_RATE / 100
         final_price = price_without_vat + vat_amount
         return {
             "method": "cost_plus",
             "base_cost": self.base_cost,
-            "markup_percent": MARKUP_PERCENTAGE,
+            "markup_percent": self.markup_percent,
             "markup_amount": round(markup_amount, 2),
             "price_without_vat": round(price_without_vat, 2),
             "vat_percent": VAT_RATE,

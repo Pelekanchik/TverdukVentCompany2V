@@ -40,6 +40,7 @@
     "welding_percent": 3.0,
     "plasma_percent": 6.0
   },
+  "markup_percent": 30.0,
   "products": [
     {
       "name": "Повітропровід прямокутний",

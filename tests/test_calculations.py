@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from ventilation_company.calculations.pricing import PricingEngine
 from ventilation_company.calculations.salary_calculator import SalaryCalculator
-from ventilation_company.config import MARKUP_PERCENTAGE
+MARKUP_PERCENTAGE = 30.0
 
 
 class TestPricingEngine(unittest.TestCase):
