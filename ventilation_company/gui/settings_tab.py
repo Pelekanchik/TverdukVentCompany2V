@@ -62,6 +62,8 @@ DEFAULT_DEPRECIATION = {
     "plasma_percent": 6.0,          # % амортизації плазми
 }
 
+DEFAULT_MARKUP_PERCENT = 30.0  # % націнки за замовчуванням
+
 DEFAULT_LABOR_RATES = {
     "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty_percent": 0.0},
     "повітропровід круглий": {"rate_per_m2": 130.0, "difficulty_percent": 5.0},
@@ -174,6 +176,7 @@ class PricingSettings:
         self.material_prices = {}
         self.overhead = {}
         self.depreciation = {}
+        self.markup_percent = DEFAULT_MARKUP_PERCENT
         self.products = []
         self.custom_params = {}
         self.labor_rates = {}
@@ -186,6 +189,7 @@ class PricingSettings:
             self.material_prices = data.get("material_prices", DEFAULT_MATERIAL_PRICES)
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
+            self.markup_percent = data.get("markup_percent", DEFAULT_MARKUP_PERCENT)
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
             self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
@@ -195,6 +199,7 @@ class PricingSettings:
             self.material_prices = DEFAULT_MATERIAL_PRICES.copy()
             self.overhead = DEFAULT_OVERHEAD.copy()
             self.depreciation = DEFAULT_DEPRECIATION.copy()
+            self.markup_percent = DEFAULT_MARKUP_PERCENT
             self.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
@@ -208,6 +213,7 @@ class PricingSettings:
                     "material_prices": self.material_prices,
                     "overhead": self.overhead,
                     "depreciation": self.depreciation,
+                    "markup_percent": self.markup_percent,
                     "products": self.products,
                     "custom_params": self.custom_params,
                     "labor_rates": self.labor_rates,
@@ -343,6 +349,9 @@ class PricingSettings:
         # Електроенергія (грн/кг — через вагу, для статистики)
         elec = weight * self.overhead.get("electricity_per_kg", 2.5)
         price += elec
+
+        # === НАЦІНКА ===
+        price *= 1 + self.markup_percent / 100
 
         return round(price, 2)
 
@@ -569,19 +578,27 @@ class SettingsTab:
             ttk.Entry(right, textvariable=var, width=12).grid(row=i, column=1, padx=5, pady=3)
             self.depr_vars[key] = var
 
+                # ── Процентна націнка ──
+        markup_frame = ttk.LabelFrame(self.costs_frame, text="💰 Процентна націнка", padding=10)
+        markup_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+
+        ttk.Label(markup_frame, text="Націнка (%):").grid(row=0, column=0, sticky=tk.W, pady=3)
+        self.markup_var = tk.StringVar(value="30.0")
+        ttk.Entry(markup_frame, textvariable=self.markup_var, width=12).grid(row=0, column=1, padx=5, pady=3)
+
         # Пояснення
+        info_text = """💡 Формула ціни:
+ (метал × товщина × ціна × коефіцієнт) × (1 + відходи%)
+ + зарплата (грн/м² × площа × важкість) + електроенергія × вага
+ × (1 + середня амортизація%) × (1 + націнка%)"""
         info = ttk.Label(
             self.costs_frame,
-            text="💡 Формула ціни:\n"
-                 " (метал × товщина × ціна × коефіцієнт) × (1 + відходи%)\n"
-                 " + зарплата (грн/м² × площа × важкість) + електроенергія × вага\n"
-                 " × (1 + середня амортизація%)",
+            text=info_text,
             foreground="#555",
             justify=tk.LEFT,
             font=("Consolas", 9),
         )
         info.pack(side=tk.BOTTOM, pady=10, padx=10, anchor=tk.W)
-
     # ── ЗАРПЛАТА РОБІТНИКІВ (НОВЕ) ──────────────────────────────
 
     def _build_labor_tab(self):
@@ -1060,6 +1077,9 @@ class SettingsTab:
         for key, var in self.depr_vars.items():
             var.set(str(self.settings.depreciation.get(key, 0)))
 
+        # Націнка
+        self.markup_var.set(str(self.settings.markup_percent))
+
         # Каталог
         self._refresh_catalog()
 
@@ -1100,6 +1120,10 @@ class SettingsTab:
             with contextlib.suppress(ValueError):
                 self.settings.depreciation[key] = float(var.get())
 
+        # Зберігаємо націнку
+        with contextlib.suppress(ValueError):
+            self.settings.markup_percent = float(self.markup_var.get())
+
         self.settings.save()
         messagebox.showinfo("Успіх", "Налаштування збережено!")
 
@@ -1108,6 +1132,7 @@ class SettingsTab:
             self.settings.material_prices = DEFAULT_MATERIAL_PRICES.copy()
             self.settings.overhead = DEFAULT_OVERHEAD.copy()
             self.settings.depreciation = DEFAULT_DEPRECIATION.copy()
+            self.settings.markup_percent = DEFAULT_MARKUP_PERCENT
             self.settings.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.settings.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.settings.labor_rates = DEFAULT_LABOR_RATES.copy()

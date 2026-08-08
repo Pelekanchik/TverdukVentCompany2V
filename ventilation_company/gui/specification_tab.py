@@ -472,10 +472,8 @@ class SpecificationTab:
         """Розрахувати фінансові показники проєкту по всім виробам."""
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
-            from ventilation_company.config import MARKUP_PERCENTAGE
-
             pricing = PricingSettings()
-            markup = MARKUP_PERCENTAGE / 100.0
+            markup = pricing.markup_percent / 100.0
 
             total_material = 0.0
             total_labor = 0.0
@@ -523,7 +521,7 @@ class SpecificationTab:
                 "cost_price": round(cost_price, 2),
                 "salary_total": round(total_labor, 2),
                 "profit": round(profit, 2),
-                "markup": MARKUP_PERCENTAGE,
+                "markup": pricing.markup_percent,
             }
         except Exception as e:
             print(f"[DEBUG] _calc_project_finance error: {e}")
@@ -532,7 +530,7 @@ class SpecificationTab:
                 "cost_price": 0,
                 "salary_total": 0,
                 "profit": 0,
-                "markup": 30,
+                "markup": pricing.markup_percent if 'pricing' in dir() else 30,
             }
 
     def _auto_save_to_archive(self, products: list[dict]):
