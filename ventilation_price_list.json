@@ -1,0 +1,50 @@
+[
+  {
+    "id": "00394d61",
+    "date_added": "07.08.2026 18:34",
+    "name": "Вентилятор осьовий ВО-300",
+    "price_per_unit": 1250.0,
+    "quantity": 2.0,
+    "length": 0.0,
+    "width": 0.0,
+    "height": 0.0,
+    "diameter": 0.0,
+    "material": "цинк",
+    "thickness": 0.0,
+    "category": "Вентилятор",
+    "notes": "",
+    "price_history": []
+  },
+  {
+    "id": "1dd17c04",
+    "date_added": "07.08.2026 18:34",
+    "name": "Труба прямокутна ТП-100",
+    "price_per_unit": 450.0,
+    "quantity": 5.0,
+    "length": 1000.0,
+    "width": 100.0,
+    "height": 50.0,
+    "diameter": 0.0,
+    "material": "цинк",
+    "thickness": 0.5,
+    "category": "Труба прямокутна",
+    "notes": "",
+    "price_history": []
+  },
+  {
+    "id": "25cd8d2d",
+    "date_added": "07.08.2026 18:34",
+    "name": "Труба кругла ТК-125",
+    "price_per_unit": 320.0,
+    "quantity": 10.0,
+    "length": 500.0,
+    "width": 125.0,
+    "height": 125.0,
+    "diameter": 125.0,
+    "material": "нержавійка",
+    "thickness": 0.4,
+    "category": "Труба кругла",
+    "notes": "",
+    "price_history": []
+  }
+]

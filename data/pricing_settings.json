@@ -1,0 +1,182 @@
+{
+  "material_prices": {
+    "оцинкована сталь": {
+      "0.5": 260.0,
+      "0.7": 580.0,
+      "0.9": 650.0,
+      "1.0": 750.0,
+      "1.2": 850.0,
+      "1.5": 950.0,
+      "2.0": 1200.0
+    },
+    "нержавіюча сталь": {
+      "0.5": 950.0,
+      "0.7": 1100.0,
+      "0.9": 1200.0,
+      "1.0": 1200.0,
+      "1.2": 1400.0,
+      "1.5": 1600.0,
+      "2.0": 2000.0
+    },
+    "алюміній": {
+      "0.5": 320.0,
+      "0.7": 380.0,
+      "0.9": 420.0,
+      "1.0": 450.0,
+      "1.2": 500.0,
+      "1.5": 600.0,
+      "2.0": 750.0
+    }
+  },
+  "overhead": {
+    "electricity_per_kg": 2.5,
+    "rent_per_month": 15000.0,
+    "transport_per_project": 500.0,
+    "waste_percent": 8.0
+  },
+  "depreciation": {
+    "guillotine_percent": 5.0,
+    "bending_percent": 4.0,
+    "welding_percent": 3.0,
+    "plasma_percent": 6.0
+  },
+  "products": [
+    {
+      "name": "Повітропровід прямокутний",
+      "formula": "metal_area * material_price * 1.15",
+      "labor_hours": 0.15,
+      "description": "Прямокутний канал — розгортка + згин"
+    },
+    {
+      "name": "Повітропровід круглий",
+      "formula": "metal_area * material_price * 1.20",
+      "labor_hours": 0.2,
+      "description": "Спірально-навивна труба"
+    },
+    {
+      "name": "Фланець прямокутний",
+      "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5",
+      "labor_hours": 0.25,
+      "description": "Розкрій + свердління отворів"
+    },
+    {
+      "name": "Фланець круглий",
+      "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5",
+      "labor_hours": 0.25,
+      "description": "Токарка + свердління"
+    },
+    {
+      "name": "Трійник прямокутний",
+      "formula": "metal_area * material_price * 1.50",
+      "labor_hours": 0.8,
+      "description": "Розкрій + врізка + згин"
+    },
+    {
+      "name": "Трійник круглий",
+      "formula": "metal_area * material_price * 1.55",
+      "labor_hours": 0.9,
+      "description": "Врізка в трубу + зварка"
+    },
+    {
+      "name": "Перехід прямокутний",
+      "formula": "metal_area * material_price * 1.40",
+      "labor_hours": 0.6,
+      "description": "Трапецієподібна розгортка"
+    },
+    {
+      "name": "Перехід круглий",
+      "formula": "metal_area * material_price * 1.45",
+      "labor_hours": 0.7,
+      "description": "Конусна розгортка"
+    },
+    {
+      "name": "Відвід прямокутний",
+      "formula": "metal_area * material_price * 1.60",
+      "labor_hours": 1.0,
+      "description": "Сегментне коліно"
+    },
+    {
+      "name": "Відвід круглий",
+      "formula": "metal_area * material_price * 1.65",
+      "labor_hours": 1.1,
+      "description": "Гнуте коліно"
+    },
+    {
+      "name": "Заглушка прямокутна",
+      "formula": "metal_area * material_price * 1.25",
+      "labor_hours": 0.2,
+      "description": "Дно + фальци"
+    },
+    {
+      "name": "Заглушка кругла",
+      "formula": "metal_area * material_price * 1.25",
+      "labor_hours": 0.2,
+      "description": "Витиск + фальци"
+    },
+    {
+      "name": "Гнучка вставка",
+      "formula": "metal_area * 35.0 + 25.0",
+      "labor_hours": 0.1,
+      "description": "Тканина + обжим"
+    }
+  ],
+  "custom_params": {
+    "flange_price": 150.0,
+    "coating_price": 0.0,
+    "transport_km": 0.0
+  },
+  "labor_rates": {
+    "повітропровід прямокутний": {
+      "rate_per_m2": 120.0,
+      "difficulty_percent": 0.0
+    },
+    "повітропровід круглий": {
+      "rate_per_m2": 130.0,
+      "difficulty_percent": 5.0
+    },
+    "фланець прямокутний": {
+      "rate_per_m2": 200.0,
+      "difficulty_percent": 15.0
+    },
+    "фланець круглий": {
+      "rate_per_m2": 180.0,
+      "difficulty_percent": 10.0
+    },
+    "трійник прямокутний": {
+      "rate_per_m2": 250.0,
+      "difficulty_percent": 25.0
+    },
+    "трійник круглий": {
+      "rate_per_m2": 280.0,
+      "difficulty_percent": 30.0
+    },
+    "перехід прямокутний": {
+      "rate_per_m2": 180.0,
+      "difficulty_percent": 15.0
+    },
+    "перехід круглий": {
+      "rate_per_m2": 200.0,
+      "difficulty_percent": 20.0
+    },
+    "відвід прямокутний": {
+      "rate_per_m2": 220.0,
+      "difficulty_percent": 20.0
+    },
+    "відвід круглий": {
+      "rate_per_m2": 240.0,
+      "difficulty_percent": 25.0
+    },
+    "заглушка прямокутна": {
+      "rate_per_m2": 150.0,
+      "difficulty_percent": 5.0
+    },
+    "заглушка кругла": {
+      "rate_per_m2": 160.0,
+      "difficulty_percent": 5.0
+    },
+    "гнучка вставка": {
+      "rate_per_m2": 80.0,
+      "difficulty_percent": 0.0
+    }
+  }
+}
