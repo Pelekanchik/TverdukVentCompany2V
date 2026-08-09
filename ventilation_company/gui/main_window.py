@@ -71,7 +71,7 @@ class MainWindow:
         self.products_tab = ProductsTab(
             self.notebook, on_products_changed=self._on_products_changed
         )
-        self.spec_tab = SpecificationTab(self.notebook, get_products_callback=self._get_products)
+        self.spec_tab = SpecificationTab(self.notebook,get_products_callback=self._get_products,on_cutting_request=self._open_cutting_for_project,)
         self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products)
         self.freecad_tab = FreeCADTab(self.notebook, get_products_callback=self._get_products)
         self.settings_tab = SettingsTab(self.notebook)
@@ -179,6 +179,12 @@ class MainWindow:
         self.current_project_id = project_id
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
+        
+    def _open_cutting_for_project(self, project_id: int):
+        """Відкрити розкрій для проєкту з архіву (контекстне меню)."""
+        products = self.db.get_project_products(project_id)
+        self.notebook.select(self.cutting_tab.frame)
+        self.cutting_tab.run_cutting_for_products(products)
 
     def _export_freecad(self):
         self.notebook.select(self.freecad_tab.frame)
