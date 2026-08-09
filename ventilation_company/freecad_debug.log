@@ -1,0 +1,6 @@
+=== FreeCAD search started ===
+Platform: Windows
+Python: C:\Users\Admin\AppData\Local\Programs\Python\Python313\python.exe
+Check CMD path: C:\Program Files\FreeCAD 1.1\bin\freecadcmd.exe -> True
+Check GUI path: C:\Program Files\FreeCAD 1.1\bin\freecad.exe -> True
+=== Result: AVAILABLE=True, CMD=C:\Program Files\FreeCAD 1.1\bin\freecadcmd.exe, GUI=C:\Program Files\FreeCAD 1.1\bin\freecad.exe ===
