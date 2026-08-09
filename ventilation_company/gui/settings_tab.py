@@ -16,6 +16,14 @@ import os
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from ventilation_company.gui.markup_matrix_tab import (
+    MarkupMatrixTab,
+    PRODUCT_TYPE_LABELS,
+    build_default_markup_matrix,
+    classify_product,
+    is_standard_size,
+)
+
 SETTINGS_FILE = "data/pricing_settings.json"
 
 DEFAULT_MATERIAL_PRICES = {
@@ -62,7 +70,8 @@ DEFAULT_DEPRECIATION = {
     "plasma_percent": 6.0,          # % амортизації плазми
 }
 
-DEFAULT_MARKUP_PERCENT = 30.0  # % націнки за замовчуванням
+DEFAULT_MARKUP_PERCENT = 30.0  # % націнки за замовчуванням (залишено для сумісності)
+DEFAULT_MARKUP_MATRIX = build_default_markup_matrix()
 
 DEFAULT_LABOR_RATES = {
     "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty_percent": 0.0},
@@ -177,6 +186,7 @@ class PricingSettings:
         self.overhead = {}
         self.depreciation = {}
         self.markup_percent = DEFAULT_MARKUP_PERCENT
+        self.markup_matrix = build_default_markup_matrix()
         self.products = []
         self.custom_params = {}
         self.labor_rates = {}
@@ -190,6 +200,7 @@ class PricingSettings:
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
             self.markup_percent = data.get("markup_percent", DEFAULT_MARKUP_PERCENT)
+            self.markup_matrix = data.get("markup_matrix", build_default_markup_matrix())
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
             self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
@@ -200,6 +211,7 @@ class PricingSettings:
             self.overhead = DEFAULT_OVERHEAD.copy()
             self.depreciation = DEFAULT_DEPRECIATION.copy()
             self.markup_percent = DEFAULT_MARKUP_PERCENT
+            self.markup_matrix = build_default_markup_matrix()
             self.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
@@ -214,6 +226,7 @@ class PricingSettings:
                     "overhead": self.overhead,
                     "depreciation": self.depreciation,
                     "markup_percent": self.markup_percent,
+                    "markup_matrix": self.markup_matrix,
                     "products": self.products,
                     "custom_params": self.custom_params,
                     "labor_rates": self.labor_rates,
@@ -239,6 +252,30 @@ class PricingSettings:
             if key in ptype or ptype in key:
                 return value
         return {"rate_per_m2": 120.0, "difficulty_percent": 0.0}
+
+    def get_markup_percent(self, product_data: dict) -> float:
+        """Отримати націнку для конкретного виробу з матриці націнок.
+
+        Враховує: тип металу, тип виробу, товщину, стандартність розмірів.
+        """
+        name = product_data.get("name", "")
+        ptype = product_data.get("type", product_data.get("product_type", ""))
+        material = product_data.get("material", "оцинкована сталь")
+        thickness = str(product_data.get("thickness", 0.7))
+        width = product_data.get("width", 0)
+        height = product_data.get("height", 0)
+        length = product_data.get("length", 0)
+        diameter = product_data.get("diameter", 0)
+
+        mat_key, cat_key = classify_product(name, ptype, material)
+        is_std = is_standard_size(width, height, length, diameter)
+        size_key = "standard" if is_std else "nonstandard"
+
+        # Захист від відсутніх ключів
+        mat_data = self.markup_matrix.get(mat_key, {})
+        cat_data = mat_data.get(cat_key, {})
+        th_data = cat_data.get(thickness, {})
+        return th_data.get(size_key, 30.0)
 
     def sync_labor_rates(self):
         """Синхронізувати labor_rates з каталогом продукції.
@@ -350,8 +387,9 @@ class PricingSettings:
         elec = weight * self.overhead.get("electricity_per_kg", 2.5)
         price += elec
 
-        # === НАЦІНКА ===
-        price *= 1 + self.markup_percent / 100
+        # === НАЦІНКА (з матриці) ===
+        markup = self.get_markup_percent(product_data)
+        price *= 1 + markup / 100
 
         return round(price, 2)
 
@@ -416,7 +454,25 @@ class PricingSettings:
         # Крок 5: Електроенергія
         elec_rate = self.overhead.get("electricity_per_kg", 2.5)
         elec_cost = weight * elec_rate
-        final_price = after_depr + elec_cost
+        after_elec = after_depr + elec_cost
+
+        # Крок 6: Процентна націнка (з матриці)
+        markup_pct = self.get_markup_percent(product_data)
+        final_price = after_elec * (1 + markup_pct / 100)
+
+        # Інфо для відображення
+        mat_key, cat_key = classify_product(
+            product_data.get("name", ""),
+            ptype,
+            material
+        )
+        is_std = is_standard_size(
+            product_data.get("width", 0),
+            product_data.get("height", 0),
+            product_data.get("length", 0),
+            product_data.get("diameter", 0)
+        )
+        size_label = "стандарт" if is_std else "нестандарт"
 
         return {
             "formula": formula,
@@ -450,6 +506,11 @@ class PricingSettings:
                     "name": "6. Електроенергія",
                     "calc": f"{weight:.3f} кг × {elec_rate:.2f} грн/кг",
                     "value": round(elec_cost, 2),
+                },
+                {
+                    "name": "7. Процентна націнка",
+                    "calc": f"× (1 + {markup_pct:.1f}%) — {mat_key} / {PRODUCT_TYPE_LABELS.get(cat_key, cat_key)} / {thickness} мм / {size_label}",
+                    "value": round(final_price, 2),
                 },
             ],
             "total": round(final_price, 2),
@@ -508,6 +569,10 @@ class SettingsTab:
         self.params_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.params_frame, text="⚙️ Параметри формул")
         self._build_params_tab()
+
+        # ── Вкладка 6: Матриця націнок ────────────────────────────
+        self.markup_tab = MarkupMatrixTab(self.notebook, self.settings)
+        self.notebook.add(self.markup_tab.frame, text="📐 Націнки по категоріях")
 
     # ── ЦІНИ НА МЕТАЛ ────────────────────────────────────────────
 
@@ -578,15 +643,7 @@ class SettingsTab:
             ttk.Entry(right, textvariable=var, width=12).grid(row=i, column=1, padx=5, pady=3)
             self.depr_vars[key] = var
 
-                # ── Процентна націнка ──
-        markup_frame = ttk.LabelFrame(self.costs_frame, text="💰 Процентна націнка", padding=10)
-        markup_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
-
-        ttk.Label(markup_frame, text="Націнка (%):").grid(row=0, column=0, sticky=tk.W, pady=3)
-        self.markup_var = tk.StringVar(value="30.0")
-        ttk.Entry(markup_frame, textvariable=self.markup_var, width=12).grid(row=0, column=1, padx=5, pady=3)
-
-        # Пояснення
+                # Пояснення
         info_text = """💡 Формула ціни:
  (метал × товщина × ціна × коефіцієнт) × (1 + відходи%)
  + зарплата (грн/м² × площа × важкість) + електроенергія × вага
@@ -1077,9 +1134,6 @@ class SettingsTab:
         for key, var in self.depr_vars.items():
             var.set(str(self.settings.depreciation.get(key, 0)))
 
-        # Націнка
-        self.markup_var.set(str(self.settings.markup_percent))
-
         # Каталог
         self._refresh_catalog()
 
@@ -1120,10 +1174,6 @@ class SettingsTab:
             with contextlib.suppress(ValueError):
                 self.settings.depreciation[key] = float(var.get())
 
-        # Зберігаємо націнку
-        with contextlib.suppress(ValueError):
-            self.settings.markup_percent = float(self.markup_var.get())
-
         self.settings.save()
         messagebox.showinfo("Успіх", "Налаштування збережено!")
 
@@ -1132,7 +1182,7 @@ class SettingsTab:
             self.settings.material_prices = DEFAULT_MATERIAL_PRICES.copy()
             self.settings.overhead = DEFAULT_OVERHEAD.copy()
             self.settings.depreciation = DEFAULT_DEPRECIATION.copy()
-            self.settings.markup_percent = DEFAULT_MARKUP_PERCENT
+            self.settings.markup_matrix = build_default_markup_matrix()
             self.settings.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.settings.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.settings.labor_rates = DEFAULT_LABOR_RATES.copy()
