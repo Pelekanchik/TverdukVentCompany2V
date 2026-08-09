@@ -94,6 +94,8 @@ class FreeCADTab:
         return products if products else []
 
     def _refresh_list(self):
+        if not hasattr(self, "tree"):
+            return
         for item in self.tree.get_children():
             self.tree.delete(item)
 
