@@ -226,13 +226,14 @@ class SpecificationTab:
         "HTML (.html)": "html",
     }
 
-    def __init__(self, parent: ttk.Notebook, get_products_callback):
+    def __init__(self, parent: ttk.Notebook, get_products_callback, on_cutting_request=None):
         self.frame = ttk.Frame(parent)
 
         self.get_products = get_products_callback
         self.current_spec = None
         self.current_project_id = None
         self.db = ProjectDatabase("data/company.db")
+        self.on_cutting_request = on_cutting_request
 
         self._build_ui()
         self._load_archive()
@@ -463,7 +464,10 @@ class SpecificationTab:
             label="🖨️ Друк звіту", command=self._print_archive_project
         )
         self.arch_ctx.add_command(
-            label="📄 Відкрити PDF-звіт", command=self._open_pdf_report   # ← НОВИЙ ПУНКТ
+            label="📄 Відкрити PDF-звіт", command=self._open_pdf_report
+        )
+        self.arch_ctx.add_command(
+            label="✂️ Розкрій металу", command=self._open_cutting_for_project
         )
         self.arch_ctx.add_separator()
         self.arch_ctx.add_command(
@@ -824,6 +828,16 @@ class SpecificationTab:
 
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося створити PDF:\n{str(e)}")
+
+    def _open_cutting_for_project(self):
+        """Відкрити розкрій для обраного архівного проєкту."""
+        sel = self.archive_tree.selection()
+        if not sel:
+            messagebox.showwarning("Увага", "Оберіть проєкт для розкрою.")
+            return
+        pid = int(sel[0])
+        if self.on_cutting_request:
+            self.on_cutting_request(pid)
             
     def _print_archive_project(self):
         sel = self.archive_tree.selection()

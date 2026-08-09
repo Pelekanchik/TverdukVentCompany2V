@@ -13,17 +13,21 @@ class CuttingTab:
     """Вкладка розкрою металу."""
 
     SHEET_SIZES = {
-        "1250 × 2500 мм": (1250, 2500),
-        "1000 × 2000 мм": (1000, 2000),
-        "1500 × 3000 мм": (1500, 3000),
-        "1250 × 3000 мм": (1250, 3000),
+        "1250 x 2500 мм": (1250, 2500),
+        "1000 x 2000 мм": (1000, 2000),
+        "1500 x 3000 мм": (1500, 3000),
+        "1250 x 3000 мм": (1250, 3000),
     }
+
+    THICKNESSES = ["0.5", "0.7", "1.0", "1.2", "1.5", "2.0"]
 
     def __init__(self, parent: ttk.Notebook, get_products_callback):
         self.frame = ttk.Frame(parent)
 
         self.get_products = get_products_callback
         self.current_plan = None
+        self._tooltip_win = None  # Toplevel для tooltip
+        self._tooltip_after = None
 
         self._build_ui()
 
@@ -32,7 +36,7 @@ class CuttingTab:
         left.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
 
         ttk.Label(left, text="Розмір листа:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        self.sheet_var = tk.StringVar(value="1250 × 2500 мм")
+        self.sheet_var = tk.StringVar(value="1250 x 2500 мм")
         ttk.Combobox(
             left,
             textvariable=self.sheet_var,
@@ -43,7 +47,13 @@ class CuttingTab:
 
         ttk.Label(left, text="Товщина (мм):").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.thick_var = tk.StringVar(value="0.7")
-        ttk.Entry(left, textvariable=self.thick_var, width=12).grid(row=1, column=1, pady=2)
+        ttk.Combobox(
+            left,
+            textvariable=self.thick_var,
+            values=self.THICKNESSES,
+            state="readonly",
+            width=12,
+        ).grid(row=1, column=1, pady=2)
 
         ttk.Label(left, text="Матеріал:").grid(row=2, column=0, sticky=tk.W, pady=2)
         self.material_var = tk.StringVar(value="оцинкована сталь")
@@ -55,7 +65,7 @@ class CuttingTab:
             width=18,
         ).grid(row=2, column=1, pady=2)
 
-        ttk.Button(left, text="🧮 Розрахувати розкрій", command=self._calculate).grid(
+        ttk.Button(left, text="Розрахувати розкрій", command=self._calculate).grid(
             row=3, column=0, columnspan=2, pady=15, sticky=tk.EW
         )
 
@@ -96,15 +106,18 @@ class CuttingTab:
         legend = ttk.Frame(right)
         legend.pack(fill=tk.X, pady=5)
         ttk.Label(
-            legend, text="🟦 деталь  |  ⬜ вільне місце  |  масштаб: 1:4", foreground="#666"
+            legend, text="[кольоровий] деталь  |  [сірий] вільне місце  |  масштаб: 1:4", foreground="#666"
         ).pack(side=tk.LEFT)
 
     def _calculate(self):
         products = self.get_products()
-        if not products:
-            messagebox.showwarning("Увага", "Додайте вироби у вкладці 'Вироби'.")
-            return
+        self.run_cutting_for_products(products)
 
+    def run_cutting_for_products(self, products):
+        """Запустити розкрій для конкретного списку виробів (напр. з архіву)."""
+        if not products:
+            messagebox.showwarning("Увага", "У цьому проєкті немає виробів для розкрою.")
+            return
         try:
             sheet_size = self.SHEET_SIZES[self.sheet_var.get()]
             thickness = float(self.thick_var.get())
@@ -121,7 +134,7 @@ class CuttingTab:
             self._draw_sheets()
 
         except Exception as e:
-            messagebox.showerror("Помилка", f"Помилка розрахунку:\n{str(e)}")
+            messagebox.showerror("Помилка", "Помилка розрахунку: " + str(e))
 
     def _update_results(self):
         if not self.current_plan:
@@ -165,7 +178,7 @@ class CuttingTab:
             self.canvas.create_text(
                 x_offset + 5,
                 y_offset - 15,
-                text=f"Лист {sheet_idx + 1}  ({sheet.width:.0f}×{sheet.height:.0f} мм)",
+                text=f"Лист {sheet_idx + 1}  ({sheet.width:.0f}x{sheet.height:.0f} мм)",
                 anchor=tk.W,
                 font=("Arial", 9, "bold"),
             )
@@ -178,12 +191,19 @@ class CuttingTab:
                 ph = placed.height * scale
                 color = colors[i % len(colors)]
 
-                self.canvas.create_rectangle(
+                rect_id = self.canvas.create_rectangle(
                     px, py, px + pw, py + ph, outline="white", width=1, fill=color
                 )
 
+                # Привязка tooltip через Toplevel (безпечно, не зависає)
+                self.canvas.tag_bind(
+                    rect_id, "<Enter>",
+                    lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s)
+                )
+                self.canvas.tag_bind(rect_id, "<Leave>", lambda e: self._cancel_tooltip())
+
                 if pw > 40 and ph > 20:
-                    self.canvas.create_text(
+                    text_id = self.canvas.create_text(
                         px + pw / 2,
                         py + ph / 2,
                         text=placed.detail.name[:15],
@@ -191,6 +211,11 @@ class CuttingTab:
                         font=("Arial", 7),
                         anchor=tk.CENTER,
                     )
+                    self.canvas.tag_bind(
+                        text_id, "<Enter>",
+                        lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s)
+                    )
+                    self.canvas.tag_bind(text_id, "<Leave>", lambda e: self._cancel_tooltip())
 
             util = sheet.utilization * 100
             self.canvas.create_text(
@@ -205,6 +230,63 @@ class CuttingTab:
             y_offset += sh + sheet_gap
 
         self.canvas.configure(scrollregion=(0, 0, 1500, y_offset + 50))
+
+    # ── Tooltip через Toplevel (виправлення зависання) ──
+    def _schedule_tooltip(self, event, placed, sheet_idx):
+        """Запланувати показ tooltip через 300 мс — уникаємо миготіння."""
+        self._cancel_tooltip()
+        self._tooltip_after = self.canvas.after(300, lambda: self._show_tooltip(event, placed, sheet_idx))
+
+    def _show_tooltip(self, event, placed, sheet_idx):
+        """Показати tooltip у вигляді плаваючого Toplevel вікна."""
+        self._cancel_tooltip()
+
+        detail = placed.detail
+        w = placed.width
+        h = placed.height
+        area = w * h / 1_000_000
+
+        text = (
+            detail.name + "\n" +
+            f"Розмір: {w:.1f} x {h:.1f} мм\n" +
+            f"Площа: {area:.4f} м²\n" +
+            "Повернуто: " + ("Так" if placed.rotated else "Ні") + "\n" +
+            f"Лист: {sheet_idx + 1}"
+        )
+
+        # Створити Toplevel без рамки
+        self._tooltip_win = tk.Toplevel(self.canvas)
+        self._tooltip_win.overrideredirect(True)
+        self._tooltip_win.attributes("-topmost", True)
+        self._tooltip_win.configure(bg="#fff9c4")
+
+        lbl = tk.Label(
+            self._tooltip_win,
+            text=text,
+            bg="#fff9c4",
+            fg="#333",
+            font=("Arial", 9),
+            justify=tk.LEFT,
+            padx=8,
+            pady=5,
+            relief=tk.SOLID,
+            borderwidth=1,
+        )
+        lbl.pack()
+
+        # Позиція: поруч з курсором, але трохи зміщено
+        x = event.x_root + 12
+        y = event.y_root + 12
+        self._tooltip_win.geometry(f"+{x}+{y}")
+
+    def _cancel_tooltip(self):
+        """Сховати tooltip і скасувати відкладений показ."""
+        if self._tooltip_after:
+            self.canvas.after_cancel(self._tooltip_after)
+            self._tooltip_after = None
+        if self._tooltip_win:
+            self._tooltip_win.destroy()
+            self._tooltip_win = None
 
     def get_plan(self):
         return self.current_plan

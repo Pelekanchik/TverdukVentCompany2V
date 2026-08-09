@@ -20,13 +20,14 @@ class SheetSize(Enum):
 
 @dataclass
 class Detail:
-    """Деталь для розкрою (розгорнута площа виробу)."""
-
     name: str
-    width: float  # мм (розгорнута ширина заготовки)
-    height: float  # мм (розгорнута довжина заготовки)
-    quantity: int = 1
+    width: float
+    height: float
     product_type: str = ""
+    quantity: int = 1
+    notes: str = ""
+    material: str = ""
+    thickness: float = 0.5
 
     # Припуски
     bend_allowance: float = 3.0  # мм, припуск на згин з кожного боку
@@ -300,97 +301,168 @@ class MetalCutter:
                 details.append(detail)
         return details
 
-    def _product_to_detail(self, product: dict) -> Detail | None:
-        """Конвертувати виріб у деталь для розкрою."""
-        ptype = product.get("type", "").lower()
-        w = product.get("width", 0)
-        h = product.get("height", 0)
-        l = product.get("length", 0)
-        qty = product.get("quantity", 1)
+    def _product_to_detail(self, product: dict) -> Detail:
+        """Перетворити виріб (dict) у деталь для розкрою з нормалізацією типу."""
         name = product.get("name", "Деталь")
+        raw_type = product.get("product_type", product.get("type", "")).lower().strip()
+        quantity = int(product.get("quantity", 1))
+        notes = product.get("notes", "")
 
-        # Розгорнуті розміри для різних типів виробів
-        if "повітропровід" in ptype and "прямокутний" in ptype:
-            # Розгортка: периметр × довжина
-            perimeter = 2 * (w + h)
-            return Detail(name=name, width=perimeter, height=l, quantity=qty, product_type=ptype)
-
-        elif "повітропровід" in ptype and "круглий" in ptype:
-            # Розгортка: π × діаметр × довжина → ширина = π×d, висота = l
-            unfolded_w = math.pi * h  # h = діаметр
-            return Detail(name=name, width=unfolded_w, height=l, quantity=qty, product_type=ptype)
-
-        elif "фланець" in ptype and "прямокутний" in ptype:
-            border = product.get("flange_border", 30)
-            return Detail(
-                name=name,
-                width=w + 2 * border,
-                height=h + 2 * border,
-                quantity=qty,
-                product_type=ptype,
-            )
-
-        elif "фланець" in ptype and "круглий" in ptype:
-            border = product.get("flange_width", 30)
-            d = h  # діаметр
-            return Detail(
-                name=name,
-                width=d + 2 * border,
-                height=d + 2 * border,
-                quantity=qty,
-                product_type=ptype,
-            )
-
-        elif "трійник" in ptype and "прямокутний" in ptype:
-            # Складна розгортка — наближено
-            bw = product.get("branch_width", w)
-            bh = product.get("branch_height", h)
-            bl = product.get("branch_length", l)
-            main_perim = 2 * (w + h)
-            branch_perim = 2 * (bw + bh)
-            # Розгортка як прямокутник з "відгалуженням"
-            return Detail(
-                name=name,
-                width=max(main_perim, branch_perim),
-                height=l + bl,
-                quantity=qty,
-                product_type=ptype,
-            )
-
-        elif "перехід" in ptype and "прямокутний" in ptype:
-            ew = product.get("end_width", w)
-            eh = product.get("end_height", h)
-            p1 = 2 * (w + h)
-            p2 = 2 * (ew + eh)
-            return Detail(name=name, width=max(p1, p2), height=l, quantity=qty, product_type=ptype)
-
-        elif "відвід" in ptype or "коліно" in ptype:
-            angle = product.get("angle", 90)
-            r = product.get("radius", 150)
-            arc_len = math.radians(angle) * r
-            perim = 2 * (w + h) if "прямокутний" in ptype else math.pi * h
-            return Detail(name=name, width=perim, height=arc_len, quantity=qty, product_type=ptype)
-
-        elif "заглушка" in ptype and "прямокутна" in ptype:
-            border = product.get("flange_border", 25)
-            return Detail(
-                name=name,
-                width=w + 2 * border,
-                height=h + 2 * border,
-                quantity=qty,
-                product_type=ptype,
-            )
-
-        elif "заглушка" in ptype and "кругла" in ptype:
-            depth = product.get("depth", 30)
-            d = h
-            return Detail(
-                name=name, width=math.pi * d, height=d / 2 + depth, quantity=qty, product_type=ptype
-            )
-
+        # ── НОРМАЛІЗАЦІЯ ТИПУ ──
+        pt = raw_type
+        if "прямокутн" in pt and "повітропровід" in pt:
+            product_type = "rect_duct"
+        elif "кругл" in pt and "повітропровід" in pt:
+            product_type = "round_duct"
+        elif "фланець" in pt and "прямокутн" in pt:
+            product_type = "rect_flange"
+        elif "фланець" in pt and "кругл" in pt:
+            product_type = "round_flange"
+        elif "трійник" in pt and "прямокутн" in pt:
+            product_type = "rect_tee"
+        elif "трійник" in pt and "кругл" in pt:
+            product_type = "round_tee"
+        elif "перехід" in pt and "прямокутн" in pt:
+            product_type = "rect_transition"
+        elif "перехід" in pt and "кругл" in pt:
+            product_type = "round_transition"
+        elif ("відвід" in pt or "коліно" in pt) and "прямокутн" in pt:
+            product_type = "rect_elbow"
+        elif ("відвід" in pt or "коліно" in pt) and "кругл" in pt:
+            product_type = "round_elbow"
+        elif ("заглушка" in pt or "кап" in pt) and "прямокутн" in pt:
+            product_type = "rect_cap"
+        elif ("заглушка" in pt or "кап" in pt) and "кругл" in pt:
+            product_type = "round_cap"
+        elif "гнучк" in pt or "вставка" in pt:
+            product_type = "flexible"
+        elif "rect_duct" in pt:
+            product_type = "rect_duct"
+        elif "round_duct" in pt:
+            product_type = "round_duct"
+        elif "rect_flange" in pt:
+            product_type = "rect_flange"
+        elif "round_flange" in pt:
+            product_type = "round_flange"
+        elif "rect_tee" in pt:
+            product_type = "rect_tee"
+        elif "round_tee" in pt:
+            product_type = "round_tee"
+        elif "rect_transition" in pt:
+            product_type = "rect_transition"
+        elif "round_transition" in pt:
+            product_type = "round_transition"
+        elif "rect_elbow" in pt:
+            product_type = "rect_elbow"
+        elif "round_elbow" in pt:
+            product_type = "round_elbow"
+        elif "rect_cap" in pt:
+            product_type = "rect_cap"
+        elif "round_cap" in pt:
+            product_type = "round_cap"
         else:
-            # За замовчуванням — прямокутник
-            return Detail(name=name, width=w, height=h, quantity=qty, product_type=ptype)
+            product_type = pt
+
+        # ── ПРЯМОКУТНИЙ ПОВІТРОПРОВІД ──
+        if product_type == "rect_duct":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            length = float(product.get("length", 0))
+            perimeter = 2 * (width + height)
+            return Detail(
+                name=name,
+                width=perimeter,
+                height=length,
+                product_type="прямокутний повітропровід",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── КРУГЛИЙ ПОВІТРОПРОВІД ──
+        elif product_type == "round_duct":
+            diameter = float(product.get("width", product.get("height", 0)))
+            length = float(product.get("length", 0))
+            return Detail(
+                name=name,
+                width=3.141592653589793 * diameter,
+                height=length,
+                product_type="круглий повітропровід",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ФЛАНЕЦЬ ПРЯМОКУТНИЙ ──
+        elif product_type == "rect_flange":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            profile = float(product.get("profile", 30))
+            return Detail(
+                name=name,
+                width=width + 2 * profile,
+                height=height + 2 * profile,
+                product_type="фланець прямокутний",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ФЛАНЕЦЬ КРУГЛИЙ ──
+        elif product_type == "round_flange":
+            diameter = float(product.get("width", product.get("height", 0)))
+            profile = float(product.get("profile", 30))
+            return Detail(
+                name=name,
+                width=diameter + 2 * profile,
+                height=diameter + 2 * profile,
+                product_type="фланець круглий",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ТРІЙНИК ПРЯМОКУТНИЙ ──
+        elif product_type == "rect_tee":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            length = float(product.get("length", 0))
+            branch_w = float(product.get("branch_width", width * 0.5))
+            branch_h = float(product.get("branch_height", height * 0.5))
+            branch_l = float(product.get("branch_length", 400))
+            offset = float(product.get("branch_offset", 300))
+            main_p = 2 * (width + height)
+            branch_p = 2 * (branch_w + branch_h)
+            return Detail(
+                name=name,
+                width=max(main_p, branch_p),
+                height=length + branch_l + offset,
+                product_type="трійник прямокутний",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ТРІЙНИК КРУГЛИЙ ──
+        elif product_type == "round_tee":
+            d = float(product.get("width", product.get("height", 0)))
+            length = float(product.get("length", 0))
+            branch_d = float(product.get("branch_diameter", d * 0.5))
+            branch_l = float(product.get("branch_length", 400))
+            offset = float(product.get("branch_offset", 300))
+            main_p = 3.141592653589793 * d
+            branch_p = 3.141592653589793 * branch_d
+            return Detail(
+                name=name,
+                width=max(main_p, branch_p),
+                height=length + branch_l + offset,
+                product_type="трійник круглий",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ПЕРЕХІД ПРЯМОКУТНИЙ ──
+        elif product_type == "rect_transition":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            length = float(product.get("length", 0))
+            end_w = float(product.get("end_width", width * 0.5))
+            end
 
     def calculate_cutting(
         self, details: list[Detail], allow_rotation: bool = True, sort_by_area: bool = True
