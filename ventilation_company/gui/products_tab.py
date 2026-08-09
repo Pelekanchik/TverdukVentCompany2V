@@ -28,6 +28,9 @@ from ventilation_company.standard_products import (
     make_round_duct,
 )
 
+from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
+from ventilation_company.gui.settings_tab import PricingSettings
+
 
 # ── TOOLTIP КЛАС ────────────────────────────────────────────
 
@@ -287,6 +290,8 @@ class ProductsTab:
         self.qty_var = tk.StringVar(value="1")
         ttk.Entry(left_frame, textvariable=self.qty_var, width=12).grid(row=12, column=1, pady=2)
 
+
+
         ttk.Button(left_frame, text="➕ Додати виріб", command=self._add_product).grid(
             row=13, column=0, columnspan=2, pady=10, sticky=tk.EW
         )
@@ -334,6 +339,21 @@ class ProductsTab:
             # Ефект при наведенні
             btn.bind("<Enter>", lambda e, b=btn: b.config(bg="#e0e0e0"))
             btn.bind("<Leave>", lambda e, b=btn: b.config(bg="#f0f0f0"))
+
+        # --- Інфо про категорію націнки (поруч з іконками) ---
+        info_frame = ttk.LabelFrame(right_frame, text="Категорія націнки", padding=5)
+        info_frame.pack(fill=tk.X, pady=(5, 5))
+
+        info_inner = ttk.Frame(info_frame)
+        info_inner.pack(fill=tk.X)
+
+        ttk.Label(info_inner, text="Матеріал / Тип / Розмір:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.category_label = ttk.Label(info_inner, text="—", foreground="#1565C0", font=("Consolas", 10, "bold"))
+        self.category_label.pack(side=tk.LEFT, padx=(0, 15))
+
+        ttk.Label(info_inner, text="Націнка:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.markup_label = ttk.Label(info_inner, text="—", foreground="#C62828", font=("Consolas", 12, "bold"))
+        self.markup_label.pack(side=tk.LEFT)
 
         self.summary_label = ttk.Label(
             right_frame,
@@ -608,8 +628,43 @@ class ProductsTab:
         self.type_var.trace_add("write", lambda *args: self._update_formula_preview())
 
     def _update_formula_preview(self):
+        # --- Спочатку оновлюємо категорію (завжди, навіть якщо розрахунок ще не готовий) ---
         try:
-            from ventilation_company.gui.settings_tab import PricingSettings
+            selected_name = self.type_var.get()
+            ptype = self.PRODUCT_TYPES.get(selected_name, "")
+            if not ptype:
+                ptype = self._dynamic_types.get(selected_name, "")
+
+            w = self._safe_float(self.width_var.get(), 0)
+            h = self._safe_float(self.height_var.get(), w) if self.height_entry.winfo_ismapped() else w
+            length = self._safe_float(self.length_var.get(), 0) if self.length_entry.winfo_ismapped() else 0
+            material = self.MATERIALS.get(self.material_var.get(), MaterialType.GALVANIZED)
+            thickness = self.THICKNESSES.get(self.thickness_var.get(), Thickness.T0_7)
+
+            product_data = {
+                "name": selected_name,
+                "type": ptype if not ptype.startswith("custom_") else selected_name,
+                "material": material.value if hasattr(material, 'value') else str(material),
+                "thickness": thickness.value if hasattr(thickness, 'value') else float(thickness),
+                "width": w, "height": h, "length": length,
+            }
+
+            mat_key, cat_key = classify_product(selected_name, ptype, material.value if hasattr(material, 'value') else str(material))
+            is_round_prod = "кругл" in selected_name.lower() or "round" in selected_name.lower() or "спірал" in selected_name.lower()
+            is_std = is_standard_size(w, h, length, w if is_round_prod else 0)
+            size_label = "стандарт" if is_std else "нестандарт"
+
+            pricing = PricingSettings()
+            markup_pct = pricing.get_markup_percent(product_data)
+
+            self.category_label.config(text=f"{mat_key} / {cat_key} / {size_label}")
+            self.markup_label.config(text=f"{markup_pct:.1f}%")
+        except Exception:
+            self.category_label.config(text="—")
+            self.markup_label.config(text="—")
+
+        # --- Тепер розрахунок ціни ---
+        try:
             pricing = PricingSettings()
 
             selected_name = self.type_var.get()
@@ -653,6 +708,7 @@ class ProductsTab:
                     extra_values[key] = 0
 
             product_data = {
+                "name": selected_name,
                 "type": ptype if not ptype.startswith("custom_") else selected_name,
                 "material": material.value,
                 "thickness": thickness.value,
@@ -665,9 +721,15 @@ class ProductsTab:
             product_data.update(dynamic_values)
             product_data.update(extra_values)
 
+            mat_key, cat_key = classify_product(selected_name, ptype, material.value if hasattr(material, 'value') else str(material))
+            is_round_prod = "кругл" in selected_name.lower() or "round" in selected_name.lower() or "спірал" in selected_name.lower()
+            is_std = is_standard_size(w, h, length, w if is_round_prod else 0)
+            size_label = "стандарт" if is_std else "нестандарт"
+
             result = pricing.calculate_product_price_detailed(product_data)
 
             lines = []
+            lines.append(f"📂 Категорія: {mat_key} / {cat_key} / {size_label}")
             lines.append(f"📝 Формула: {result['formula']}")
             lines.append("")
             lines.append("─" * 36)
@@ -680,7 +742,7 @@ class ProductsTab:
             lines.append(f"💰 ВСЬОГО за 1 шт: {result['total']:.2f} грн")
             lines.append(f"💰 Загальна ({qty} шт): {result['total'] * qty:.2f} грн")
 
-            text = "\n".join(lines)
+            text = chr(10).join(lines)
 
             self.preview_text.config(state=tk.NORMAL)
             self.preview_text.delete("1.0", tk.END)
@@ -690,7 +752,7 @@ class ProductsTab:
         except Exception as e:
             self.preview_text.config(state=tk.NORMAL)
             self.preview_text.delete("1.0", tk.END)
-            self.preview_text.insert(tk.END, f"🔍 Попередній перегляд\n\nЗаповніть поля,\nщоб побачити розрахунок.\n\n[{str(e)[:80]}]")
+            self.preview_text.insert(tk.END, "🔍 Попередній перегляд\n\nЗаповніть поля,\nщоб побачити розрахунок.\n\n[" + str(e)[:80] + "]")
             self.preview_text.config(state=tk.DISABLED)
 
     def _calc_preview_area(self, ptype, selected_name, w, h, length, profile):

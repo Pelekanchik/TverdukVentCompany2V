@@ -41,6 +41,374 @@
     "plasma_percent": 6.0
   },
   "markup_percent": 30.0,
+  "markup_matrix": {
+    "цинк": {
+      "прямокутні_труби": {
+        "0.5": {
+          "standard": 40.0,
+          "nonstandard": 36.0
+        },
+        "0.7": {
+          "standard": 31.4,
+          "nonstandard": 36.4
+        },
+        "0.9": {
+          "standard": 31.8,
+          "nonstandard": 36.8
+        },
+        "1.0": {
+          "standard": 32.0,
+          "nonstandard": 37.0
+        },
+        "1.2": {
+          "standard": 32.4,
+          "nonstandard": 37.4
+        },
+        "1.5": {
+          "standard": 33.0,
+          "nonstandard": 38.0
+        },
+        "2.0": {
+          "standard": 34.0,
+          "nonstandard": 39.0
+        }
+      },
+      "прямокутні_фасонні": {
+        "0.5": {
+          "standard": 36.0,
+          "nonstandard": 41.0
+        },
+        "0.7": {
+          "standard": 36.4,
+          "nonstandard": 41.4
+        },
+        "0.9": {
+          "standard": 36.8,
+          "nonstandard": 41.8
+        },
+        "1.0": {
+          "standard": 37.0,
+          "nonstandard": 42.0
+        },
+        "1.2": {
+          "standard": 37.4,
+          "nonstandard": 42.4
+        },
+        "1.5": {
+          "standard": 38.0,
+          "nonstandard": 43.0
+        },
+        "2.0": {
+          "standard": 39.0,
+          "nonstandard": 44.0
+        }
+      },
+      "круглі_труби": {
+        "0.5": {
+          "standard": 31.0,
+          "nonstandard": 36.0
+        },
+        "0.7": {
+          "standard": 31.4,
+          "nonstandard": 36.4
+        },
+        "0.9": {
+          "standard": 31.8,
+          "nonstandard": 36.8
+        },
+        "1.0": {
+          "standard": 32.0,
+          "nonstandard": 37.0
+        },
+        "1.2": {
+          "standard": 32.4,
+          "nonstandard": 37.4
+        },
+        "1.5": {
+          "standard": 33.0,
+          "nonstandard": 38.0
+        },
+        "2.0": {
+          "standard": 34.0,
+          "nonstandard": 39.0
+        }
+      },
+      "круглі_фасонні": {
+        "0.5": {
+          "standard": 36.0,
+          "nonstandard": 41.0
+        },
+        "0.7": {
+          "standard": 36.4,
+          "nonstandard": 41.4
+        },
+        "0.9": {
+          "standard": 36.8,
+          "nonstandard": 41.8
+        },
+        "1.0": {
+          "standard": 37.0,
+          "nonstandard": 42.0
+        },
+        "1.2": {
+          "standard": 37.4,
+          "nonstandard": 42.4
+        },
+        "1.5": {
+          "standard": 38.0,
+          "nonstandard": 43.0
+        },
+        "2.0": {
+          "standard": 39.0,
+          "nonstandard": 44.0
+        }
+      }
+    },
+    "нержавійка": {
+      "прямокутні_труби": {
+        "0.5": {
+          "standard": 46.0,
+          "nonstandard": 51.0
+        },
+        "0.7": {
+          "standard": 46.4,
+          "nonstandard": 51.4
+        },
+        "0.9": {
+          "standard": 46.8,
+          "nonstandard": 51.8
+        },
+        "1.0": {
+          "standard": 47.0,
+          "nonstandard": 52.0
+        },
+        "1.2": {
+          "standard": 47.4,
+          "nonstandard": 52.4
+        },
+        "1.5": {
+          "standard": 48.0,
+          "nonstandard": 53.0
+        },
+        "2.0": {
+          "standard": 49.0,
+          "nonstandard": 54.0
+        }
+      },
+      "прямокутні_фасонні": {
+        "0.5": {
+          "standard": 51.0,
+          "nonstandard": 56.0
+        },
+        "0.7": {
+          "standard": 51.4,
+          "nonstandard": 56.4
+        },
+        "0.9": {
+          "standard": 51.8,
+          "nonstandard": 56.8
+        },
+        "1.0": {
+          "standard": 52.0,
+          "nonstandard": 57.0
+        },
+        "1.2": {
+          "standard": 52.4,
+          "nonstandard": 57.4
+        },
+        "1.5": {
+          "standard": 53.0,
+          "nonstandard": 58.0
+        },
+        "2.0": {
+          "standard": 54.0,
+          "nonstandard": 59.0
+        }
+      },
+      "круглі_труби": {
+        "0.5": {
+          "standard": 46.0,
+          "nonstandard": 51.0
+        },
+        "0.7": {
+          "standard": 46.4,
+          "nonstandard": 51.4
+        },
+        "0.9": {
+          "standard": 46.8,
+          "nonstandard": 51.8
+        },
+        "1.0": {
+          "standard": 47.0,
+          "nonstandard": 52.0
+        },
+        "1.2": {
+          "standard": 47.4,
+          "nonstandard": 52.4
+        },
+        "1.5": {
+          "standard": 48.0,
+          "nonstandard": 53.0
+        },
+        "2.0": {
+          "standard": 49.0,
+          "nonstandard": 54.0
+        }
+      },
+      "круглі_фасонні": {
+        "0.5": {
+          "standard": 51.0,
+          "nonstandard": 56.0
+        },
+        "0.7": {
+          "standard": 51.4,
+          "nonstandard": 56.4
+        },
+        "0.9": {
+          "standard": 51.8,
+          "nonstandard": 56.8
+        },
+        "1.0": {
+          "standard": 52.0,
+          "nonstandard": 57.0
+        },
+        "1.2": {
+          "standard": 52.4,
+          "nonstandard": 57.4
+        },
+        "1.5": {
+          "standard": 53.0,
+          "nonstandard": 58.0
+        },
+        "2.0": {
+          "standard": 54.0,
+          "nonstandard": 59.0
+        }
+      }
+    },
+    "алюміній": {
+      "прямокутні_труби": {
+        "0.5": {
+          "standard": 36.0,
+          "nonstandard": 41.0
+        },
+        "0.7": {
+          "standard": 36.4,
+          "nonstandard": 41.4
+        },
+        "0.9": {
+          "standard": 36.8,
+          "nonstandard": 41.8
+        },
+        "1.0": {
+          "standard": 37.0,
+          "nonstandard": 42.0
+        },
+        "1.2": {
+          "standard": 37.4,
+          "nonstandard": 42.4
+        },
+        "1.5": {
+          "standard": 38.0,
+          "nonstandard": 43.0
+        },
+        "2.0": {
+          "standard": 39.0,
+          "nonstandard": 44.0
+        }
+      },
+      "прямокутні_фасонні": {
+        "0.5": {
+          "standard": 41.0,
+          "nonstandard": 46.0
+        },
+        "0.7": {
+          "standard": 41.4,
+          "nonstandard": 46.4
+        },
+        "0.9": {
+          "standard": 41.8,
+          "nonstandard": 46.8
+        },
+        "1.0": {
+          "standard": 42.0,
+          "nonstandard": 47.0
+        },
+        "1.2": {
+          "standard": 42.4,
+          "nonstandard": 47.4
+        },
+        "1.5": {
+          "standard": 43.0,
+          "nonstandard": 48.0
+        },
+        "2.0": {
+          "standard": 44.0,
+          "nonstandard": 49.0
+        }
+      },
+      "круглі_труби": {
+        "0.5": {
+          "standard": 36.0,
+          "nonstandard": 41.0
+        },
+        "0.7": {
+          "standard": 36.4,
+          "nonstandard": 41.4
+        },
+        "0.9": {
+          "standard": 36.8,
+          "nonstandard": 41.8
+        },
+        "1.0": {
+          "standard": 37.0,
+          "nonstandard": 42.0
+        },
+        "1.2": {
+          "standard": 37.4,
+          "nonstandard": 42.4
+        },
+        "1.5": {
+          "standard": 38.0,
+          "nonstandard": 43.0
+        },
+        "2.0": {
+          "standard": 39.0,
+          "nonstandard": 44.0
+        }
+      },
+      "круглі_фасонні": {
+        "0.5": {
+          "standard": 41.0,
+          "nonstandard": 46.0
+        },
+        "0.7": {
+          "standard": 41.4,
+          "nonstandard": 46.4
+        },
+        "0.9": {
+          "standard": 41.8,
+          "nonstandard": 46.8
+        },
+        "1.0": {
+          "standard": 42.0,
+          "nonstandard": 47.0
+        },
+        "1.2": {
+          "standard": 42.4,
+          "nonstandard": 47.4
+        },
+        "1.5": {
+          "standard": 43.0,
+          "nonstandard": 48.0
+        },
+        "2.0": {
+          "standard": 44.0,
+          "nonstandard": 49.0
+        }
+      }
+    }
+  },
   "products": [
     {
       "name": "Повітропровід прямокутний",
