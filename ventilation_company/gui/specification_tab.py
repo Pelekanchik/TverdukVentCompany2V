@@ -13,7 +13,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.auto_specification import SpecBuilder
 from ventilation_company.db_integration import ProjectDatabase
-
+from ventilation_company.pdf_generator import generate_project_pdf
 
 class ArchiveProjectDialog(tk.Toplevel):
     """Діалог додавання/редагування проєкту в архіві."""
@@ -390,6 +390,9 @@ class SpecificationTab:
         ttk.Button(
             arch_toolbar, text="🔄 Оновити", command=self._load_archive
         ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(
+            arch_toolbar, text="📄 PDF-звіт", command=self._open_pdf_report
+        ).pack(side=tk.LEFT, padx=2)
 
         table_frame = ttk.Frame(self.archive_tab)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -446,7 +449,7 @@ class SpecificationTab:
         self.archive_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         a_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.archive_tree.bind("<Double-1>", lambda e: self._edit_archive_project())
+        self.archive_tree.bind("<Double-1>", lambda e: self._open_pdf_report())
         self.archive_tree.bind("<Button-3>", self._archive_context_menu)
 
         self.arch_ctx = tk.Menu(self.frame, tearoff=0)
@@ -458,6 +461,9 @@ class SpecificationTab:
         )
         self.arch_ctx.add_command(
             label="🖨️ Друк звіту", command=self._print_archive_project
+        )
+        self.arch_ctx.add_command(
+            label="📄 Відкрити PDF-звіт", command=self._open_pdf_report   # ← НОВИЙ ПУНКТ
         )
         self.arch_ctx.add_separator()
         self.arch_ctx.add_command(
@@ -788,7 +794,37 @@ class SpecificationTab:
             messagebox.showerror("Помилка", f"Файл не знайдено:\n{path}")
         else:
             messagebox.showinfo("Інфо", "Креслення не додано.")
+    def _open_pdf_report(self):
+        """Згенерувати та відкрити PDF-звіт по обраному проєкту."""
+        sel = self.archive_tree.selection()
+        if not sel:
+            messagebox.showwarning("Увага", "Оберіть проєкт для формування PDF.")
+            return
+        pid = int(sel[0])
+        project = self.db.get_project(pid)
+        products = self.db.get_project_products(pid)
 
+        try:
+            import tempfile
+            import platform
+            import subprocess
+
+            fd, pdf_path = tempfile.mkstemp(suffix=".pdf", prefix=f"project_{pid}_")
+            os.close(fd)
+
+            generate_project_pdf(project, products, pdf_path)
+
+            # Відкрити PDF у стандартному переглядачі
+            if platform.system() == "Windows":
+                os.startfile(pdf_path)
+            elif platform.system() == "Darwin":
+                subprocess.call(["open", pdf_path])
+            else:
+                subprocess.call(["xdg-open", pdf_path])
+
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося створити PDF:\n{str(e)}")
+            
     def _print_archive_project(self):
         sel = self.archive_tree.selection()
         if not sel:
