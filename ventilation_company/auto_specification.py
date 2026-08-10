@@ -251,118 +251,120 @@ class Specification:
         for item in self.items:
             rows += f"""
             <tr>
-              <td>{item.position}</td>
-              <td>{html.escape(item.name)}</td>
-              <td>{html.escape(item.product_type)}</td>
-              <td>{html.escape(item.dimensions)}</td>
-              <td>{html.escape(item.material)}</td>
-              <td>{item.thickness}</td>
-              <td>{item.unit}</td>
-              <td>{item.quantity}</td>
-              <td>{item.weight_per_unit:.4f}</td>
-              <td>{item.weight_total:.4f}</td>
-              <td>{item.area_per_unit:.4f}</td>
-              <td>{item.area_total:.4f}</td>
-              <td>{item.price_per_unit:.2f}</td>
-              <td>{item.price_total:.2f}</td>
-              <td>{html.escape(item.notes)}</td>
+                <td>{item.position}</td>
+                <td>{html.escape(item.name)}</td>
+                <td>{html.escape(item.product_type)}</td>
+                <td>{html.escape(item.dimensions)}</td>
+                <td>{html.escape(item.material)}</td>
+                <td>{item.thickness}</td>
+                <td>{item.unit}</td>
+                <td>{item.quantity}</td>
+                <td>{item.weight_per_unit:.4f}</td>
+                <td>{item.weight_total:.4f}</td>
+                <td>{item.area_per_unit:.4f}</td>
+                <td>{item.area_total:.4f}</td>
+                <td>{item.price_per_unit:.2f}</td>
+                <td>{item.price_total:.2f}</td>
+                <td>{html.escape(item.notes)}</td>
             </tr>
             """
         by_type_rows = ""
         for s in self.get_summary_by_type():
             by_type_rows += f"""
             <tr>
-              <td>{html.escape(s['product_type'])}</td>
-              <td>{s['count']}</td>
-              <td>{s['total_quantity']}</td>
-              <td>{s['total_weight_kg']:.3f}</td>
-              <td>{s['total_area_m2']:.4f}</td>
-              <td>{s['total_price']:.2f}</td>
+                <td>{html.escape(s['product_type'])}</td>
+                <td>{s['count']}</td>
+                <td>{s['total_quantity']}</td>
+                <td>{s['total_weight_kg']:.3f}</td>
+                <td>{s['total_area_m2']:.4f}</td>
+                <td>{s['total_price']:.2f}</td>
             </tr>
             """
         by_mat_rows = ""
         for s in self.get_summary_by_material():
             by_mat_rows += f"""
             <tr>
-              <td>{html.escape(s['material'])}</td>
-              <td>{s['thickness_mm']}</td>
-              <td>{s['total_quantity']}</td>
-              <td>{s['total_weight_kg']:.3f}</td>
-              <td>{s['total_area_m2']:.4f}</td>
-              <td>{s['total_price']:.2f}</td>
+                <td>{html.escape(s['material'])}</td>
+                <td>{s['thickness_mm']}</td>
+                <td>{s['total_quantity']}</td>
+                <td>{s['total_weight_kg']:.3f}</td>
+                <td>{s['total_area_m2']:.4f}</td>
+                <td>{s['total_price']:.2f}</td>
             </tr>
             """
 
-        return f"""
-        <!DOCTYPE html>
-        <html lang="uk">
-        <head>
-          <meta charset="UTF-8">
-          <title>Специфікація — {html.escape(self.project_name)}</title>
-          <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; }}
-            h1, h2 {{ color: #333; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
-            th, td {{ border: 1px solid #ccc; padding: 6px 10px; text-align: left; }}
-            th {{ background: #f0f0f0; }}
-            .summary {{ background: #e8f5e9; font-weight: bold; }}
-            .footer {{ margin-top: 30px; color: #666; font-size: 12px; }}
-          </style>
-        </head>
-        <body>
-          <h1>🏭 Специфікація виробів</h1>
-          <p><strong>Проєкт:</strong> {html.escape(self.project_name)}</p>
-          <p><strong>Дата:</strong> {self.created_at}</p>
-          {f'<p><strong>ID:</strong> {self.project_id}</p>' if self.project_id else ''}
+        return f"""<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Специфікація — {html.escape(self.project_name)}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        h1, h2 {{ color: #333; }}
+        table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
+        th, td {{ border: 1px solid #ccc; padding: 6px; text-align: left; }}
+        th {{ background: #f0f0f0; }}
+        .summary {{ font-weight: bold; background: #e8f4e8; }}
+    </style>
+</head>
+<body>
+    <h1>🏭 Специфікація виробів</h1>
+    <p><strong>Проєкт:</strong> {html.escape(self.project_name)}</p>
+    <p><strong>Дата:</strong> {self.created_at}</p>
+    {f'<p><strong>ID:</strong> {self.project_id}</p>' if self.project_id else ''}
+    <p class="summary">
+        Позицій: {self.total_items} | Кількість: {self.total_quantity} шт |
+        Вага: {self.total_weight:.3f} кг | Площа: {self.total_area:.4f} м² |
+        Вартість: {self.total_price:.2f} грн
+    </p>
 
-          <p>
-            Позицій: {self.total_items} | Кількість: {self.total_quantity} шт |
-            Вага: {self.total_weight:.3f} кг | Площа: {self.total_area:.4f} м² |
-            Вартість: {self.total_price:.2f} грн
-          </p>
-
-          <h2>📋 Детальна специфікація</h2>
-          <table>
-            <thead>
-              <tr>
+    <h2>📋 Детальна специфікація</h2>
+    <table>
+        <thead>
+            <tr>
                 <th>№</th><th>Найменування</th><th>Тип</th><th>Розміри</th>
                 <th>Матеріал</th><th>Товщ.</th><th>Од.</th><th>К-ть</th>
-                <th>Вага 1 шт</th><th>Вага заг.</th>
-                <th>Площа 1 шт</th><th>Площа заг.</th>
+                <th>Вага 1 шт</th><th>Вага заг.</th><th>Площа 1 шт</th><th>Площа заг.</th>
                 <th>Ціна 1 шт</th><th>Ціна заг.</th><th>Примітки</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows}
-              <tr class="summary">
+            </tr>
+        </thead>
+        <tbody>
+            {rows}
+            <tr class="summary">
                 <td colspan="7">ВСЬОГО:</td>
                 <td>{self.total_quantity}</td>
-                <td></td><td>{self.total_weight:.4f}</td>
-                <td></td><td>{self.total_area:.4f}</td>
-                <td></td><td>{self.total_price:.2f}</td><td></td>
-              </tr>
-            </tbody>
-          </table>
+                <td></td>
+                <td>{self.total_weight:.4f}</td>
+                <td></td>
+                <td>{self.total_area:.4f}</td>
+                <td></td>
+                <td>{self.total_price:.2f}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
 
-          <h2>📊 Зведення за типами</h2>
-          <table>
-            <thead>
-              <tr><th>Тип виробу</th><th>Позицій</th><th>Кількість</th><th>Вага, кг</th><th>Площа, м²</th><th>Вартість, грн</th></tr>
-            </thead>
-            <tbody>{by_type_rows}</tbody>
-          </table>
+    <h2>📊 Зведення за типами</h2>
+    <table>
+        <thead>
+            <tr><th>Тип виробу</th><th>Позицій</th><th>Кількість</th><th>Вага, кг</th><th>Площа, м²</th><th>Вартість, грн</th></tr>
+        </thead>
+        <tbody>
+            {by_type_rows}
+        </tbody>
+    </table>
 
-          <h2>🔧 Зведення за матеріалами</h2>
-          <table>
-            <thead>
-              <tr><th>Матеріал</th><th>Товщина, мм</th><th>Кількість</th><th>Вага, кг</th><th>Площа, м²</th><th>Вартість, грн</th></tr>
-            </thead>
-            <tbody>{by_mat_rows}</tbody>
-          </table>
-
-          <p class="footer">Сформовано автоматично системою VentCompany</p>
-        </body>
-        </html>
+    <h2>🔧 Зведення за матеріалами</h2>
+    <table>
+        <thead>
+            <tr><th>Матеріал</th><th>Товщина, мм</th><th>Кількість</th><th>Вага, кг</th><th>Площа, м²</th><th>Вартість, грн</th></tr>
+        </thead>
+        <tbody>
+            {by_mat_rows}
+        </tbody>
+    </table>
+</body>
+</html>
         """
 
 
@@ -478,18 +480,25 @@ def build_specification_from_library(
     builder = SpecBuilder(project_name, project_id)
     spec_data = library.get_specification()
     for item in spec_data:
+        # FIX: Бібліотека повертає 'product_type', а не 'type'
+        # FIX: Бібліотека повертає 'metal_area_m2' (на 1 шт), а не 'total_weight_kg'/'total_area_m2'
+        qty = max(item.get("quantity", 1), 1)
+        metal_area_per_unit = item.get("metal_area_m2", 0)
+        thickness_mm = item.get("thickness", 0.7)
+        # Вага 1 шт = площа м² * товщину(м) * щільність(кг/м³)
+        weight_per_unit = metal_area_per_unit * (thickness_mm / 1000) * 7850
         builder.add_product(
             {
                 "name": item["name"],
-                "type": item["type"],
+                "type": item.get("type", item.get("product_type", "")),
                 "width": item.get("width", 0),
                 "height": item.get("height", 0),
                 "length": item.get("length", 0),
                 "material": item["material"],
-                "thickness": item["thickness"],
-                "quantity": item["quantity"],
-                "weight_kg": item["total_weight_kg"] / max(item["quantity"], 1),
-                "metal_area_m2": item["total_area_m2"] / max(item["quantity"], 1),
+                "thickness": thickness_mm,
+                "quantity": qty,
+                "weight_kg": weight_per_unit,
+                "metal_area_m2": metal_area_per_unit,
             }
         )
     return builder.export(format)
