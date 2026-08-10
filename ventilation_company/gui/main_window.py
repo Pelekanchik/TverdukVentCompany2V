@@ -10,7 +10,8 @@ from ventilation_company.gui.cutting_tab import CuttingTab
 from ventilation_company.gui.freecad_tab import FreeCADTab
 from ventilation_company.gui.products_tab import ProductsTab
 from ventilation_company.gui.settings_tab import SettingsTab
-from ventilation_company.price_list_tab import PriceListTab as PriceListCore
+from ventilation_company.gui.price_list_tab import PriceListTab
+from ventilation_company.gui.metal_prices_tab import MetalPricesTab
 from ventilation_company.gui.specification_tab import SpecificationTab
 
 
@@ -83,9 +84,12 @@ class MainWindow:
         self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
 
         # Прайс-лист
-        price_frame = ttk.Frame(self.notebook)
-        self.notebook.add(price_frame, text="📊 Прайс-лист")
-        self.price_tab = PriceListCore(price_frame, self.root)
+        self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
+        self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
+
+        # Ціни на метал
+        self.metal_prices_tab = MetalPricesTab(self.notebook)
+        self.notebook.add(self.metal_prices_tab.frame, text="🔧 Ціни на метал")
 
         self.status_bar = ttk.Label(self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
@@ -97,6 +101,13 @@ class MainWindow:
         self.status_bar.config(text=f"Виробів: {len(self.products_tab.get_library())}")
         self.freecad_tab._refresh_list()
 
+    def _get_products_for_price(self):
+        """Повернути список виробів для синхронізації з прайсом."""
+        try:
+            return self.products_tab.library.to_dict()
+        except Exception:
+            return []
+        
     def _save_project(self):
         products = self._get_products()
         if not products:
