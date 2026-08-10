@@ -134,7 +134,10 @@ class CuttingTab:
             self._draw_sheets()
 
         except Exception as e:
-            messagebox.showerror("Помилка", "Помилка розрахунку: " + str(e))
+            import traceback
+            err = traceback.format_exc()
+            print(err)  # виведе в консоль
+            messagebox.showerror("Помилка", "Помилка розрахунку:\n" + str(e) + "\n\nДеталі в консолі.")
 
     def _update_results(self):
         if not self.current_plan:
