@@ -1,5 +1,4 @@
-"""
-Модуль розкрою листового металу.
+"""Модуль розкрою листового металу.
 Алгоритми розкладки деталей на стандартних листах з мінімізацією відходів.
 Підтримує Bottom-Left heuristic та Guillotine cutting.
 """
@@ -462,7 +461,119 @@ class MetalCutter:
             height = float(product.get("height", 0))
             length = float(product.get("length", 0))
             end_w = float(product.get("end_width", width * 0.5))
-            end
+            end_h = float(product.get("end_height", height * 0.5))
+            avg_p = 2 * ((width + end_w) / 2 + (height + end_h) / 2)
+            return Detail(
+                name=name,
+                width=avg_p,
+                height=length,
+                product_type="перехід прямокутний",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ПЕРЕХІД КРУГЛИЙ ──
+        elif product_type == "round_transition":
+            d = float(product.get("width", product.get("height", 0)))
+            length = float(product.get("length", 0))
+            end_d = float(product.get("end_diameter", d * 0.5))
+            avg_p = 3.141592653589793 * (d + end_d) / 2
+            return Detail(
+                name=name,
+                width=avg_p,
+                height=length,
+                product_type="перехід круглий",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── КОЛІНО ПРЯМОКУТНЕ ──
+        elif product_type == "rect_elbow":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            angle = float(product.get("angle", 90))
+            radius = float(product.get("radius", 150))
+            arc = radius * math.radians(angle)
+            p = 2 * (width + height)
+            return Detail(
+                name=name,
+                width=p,
+                height=arc,
+                product_type="коліно прямокутне",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── КОЛІНО КРУГЛЕ ──
+        elif product_type == "round_elbow":
+            d = float(product.get("width", product.get("height", 0)))
+            angle = float(product.get("angle", 90))
+            radius = float(product.get("radius", 150))
+            arc = radius * math.radians(angle)
+            p = 3.141592653589793 * d
+            return Detail(
+                name=name,
+                width=p,
+                height=arc,
+                product_type="коліно кругле",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ЗАГЛУШКА ПРЯМОКУТНА ──
+        elif product_type == "rect_cap":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            profile = float(product.get("profile", 30))
+            return Detail(
+                name=name,
+                width=width + 2 * profile,
+                height=height + 2 * profile,
+                product_type="заглушка прямокутна",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ЗАГЛУШКА КРУГЛА ──
+        elif product_type == "round_cap":
+            d = float(product.get("width", product.get("height", 0)))
+            depth = float(product.get("depth", 30))
+            return Detail(
+                name=name,
+                width=3.141592653589793 * d,
+                height=depth,
+                product_type="заглушка кругла",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        # ── ГНУЧКА ВСТАВКА ──
+        elif product_type == "flexible":
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            length = float(product.get("length", 0))
+            p = 2 * (width + height)
+            return Detail(
+                name=name,
+                width=p,
+                height=length,
+                product_type="гнучка вставка",
+                quantity=quantity,
+                notes=notes,
+            )
+
+        else:
+            # Невідомий тип — повертаємо як є
+            width = float(product.get("width", 0))
+            height = float(product.get("height", 0))
+            return Detail(
+                name=name,
+                width=width,
+                height=height,
+                product_type=product_type,
+                quantity=quantity,
+                notes=notes,
+            )
 
     def calculate_cutting(
         self, details: list[Detail], allow_rotation: bool = True, sort_by_area: bool = True
@@ -519,8 +630,8 @@ class MetalCutter:
                         plan.sheets.append(new_sheet)
                         placed = True
 
-                if not placed:
-                    unplaced.append(detail)
+            if not placed:
+                unplaced.append(detail)
 
         plan.unplaced_details = unplaced
         return plan
@@ -541,7 +652,8 @@ class MetalCutter:
             "details_count": sum(d.quantity for d in details),
             "details_area_m2": round(total_detail_area, 4),
             "sheets_required": plan.total_sheets,
-            "sheet_size": f"{self.sheet_width}×{self.height} мм",
+            # FIX: self.height → self.sheet_height
+            "sheet_size": f"{self.sheet_width}×{self.sheet_height} мм",
             "total_metal_area_m2": round(plan.total_area, 4),
             "waste_percent": round(plan.total_waste_percent, 2),
             "utilization_percent": round(plan.overall_utilization * 100, 2),
@@ -552,7 +664,6 @@ class MetalCutter:
 # =========================================================
 # ШВИДКІ ФУНКЦІЇ
 # =========================================================
-
 
 def calculate_sheet_cutting(
     products: list[dict], sheet_size: tuple[float, float] = (1250, 2500), thickness: float = 0.7
