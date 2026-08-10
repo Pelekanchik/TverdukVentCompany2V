@@ -209,9 +209,7 @@ class MetalPricesTab:
         self.summary_label.pack(fill=tk.X, padx=5)
 
         # Примітка
-        note = ttk.Label(
-            self.frame,
-            text="💡 Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. "
+        note = ttk.Label(self.frame,text="💡 Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. " 
                  "Ціна за м² обчислюється автоматично: ціна_за_кг × (товщина/1000) × щільність",
             font=("Arial", 9), foreground="#1565C0", wraplength=800, justify=tk.LEFT
         )
