@@ -262,10 +262,7 @@ class RectElbow(StandardProduct):
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         arc_length = r * angle_rad
-        top_ext = self.top_extension / 1000
-        bottom_ext = self.bottom_extension / 1000
-        total_length = top_ext + arc_length + bottom_ext
-        return 2 * (w + h) * total_length
+        return 2 * (w + h) * arc_length
 
 
 @dataclass
@@ -281,10 +278,7 @@ class RoundElbow(StandardProduct):
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         arc_length = r * angle_rad
-        top_ext = self.top_extension / 1000
-        bottom_ext = self.bottom_extension / 1000
-        total_length = top_ext + arc_length + bottom_ext
-        return math.pi * d * total_length
+        return math.pi * d * arc_length
 
 
 @dataclass

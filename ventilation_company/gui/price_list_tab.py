@@ -192,12 +192,15 @@ class PriceListManager:
         self.items.clear()
         self.save()
 
-    def import_from_products(self, products: list[dict]):
-        """Імпортувати вироби з вкладки 'Вироби'."""
+    def import_from_products(self, products: list[dict], project_id: str = ""):
+        """Імпортувати вироби з вкладки 'Вироби' для конкретного проєкту."""
         imported = 0
         for p in products:
             name = p.get("name", "Виріб")
-            exists = any(i.name == name and i.source == "products" for i in self.items)
+            exists = any(
+                i.name == name and i.source == "products" and i.project_id == str(project_id)
+                for i in self.items
+            )
             if exists:
                 continue
             item = PriceItem(
@@ -210,9 +213,12 @@ class PriceListManager:
                 unit="шт",
                 quantity=p.get("quantity", 1),
                 cost_price=p.get("cost_price", 0),
+                labor_cost=p.get("labor_cost", 0),
+                overhead_cost=p.get("overhead_cost", 0),
                 unit_price=p.get("unit_price", 0),
                 total_price=p.get("total_price", 0),
                 source="products",
+                project_id=str(project_id),
             )
             self.items.append(item)
             imported += 1
@@ -220,92 +226,77 @@ class PriceListManager:
             self.save()
         return imported
 
-    def import_from_archive(self, db_path: str = "data/company.db") -> int:
-        """Імпортувати вироби з архіву проєктів (SQLite БД)."""
+    def import_from_archive(self, project_id: str = None, db_path: str = "data/company.db") -> int:
+        """Імпортувати вироби з конкретного проєкту в архіві (SQLite БД)."""
         imported = 0
-        
-        # Спробуємо спочатку з SQLite (нові проєкти)
+        if not project_id:
+            return 0
         if os.path.exists(db_path):
             try:
                 import sqlite3
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                
-                # Отримуємо всі проєкти
-                cursor.execute("SELECT id, name FROM projects")
-                projects = cursor.fetchall()
-                
-                for project in projects:
-                    project_id = project["id"]
-                    project_name = project["name"]
-                    
-                    cursor.execute(
-                        "SELECT * FROM project_products WHERE project_id = ?",
-                        (project_id,)
+                cursor.execute("SELECT id, name FROM projects WHERE id = ?", (project_id,))
+                project = cursor.fetchone()
+                if not project:
+                    conn.close()
+                    return 0
+                project_id_db = project["id"]
+                project_name = project["name"]
+                cursor.execute("SELECT * FROM project_products WHERE project_id = ?", (project_id_db,))
+                products = cursor.fetchall()
+                for p in products:
+                    item_name = p["name"]
+                    if not item_name:
+                        continue
+                    exists = any(
+                        i.name == item_name and i.project_id == str(project_id_db) and i.source == "archive"
+                        for i in self.items
                     )
-                    products = cursor.fetchall()
-                    
-                    for p in products:
-                        item_name = p["name"]
-                        if not item_name:
-                            continue
-                        
-                        # Перевіряємо, чи вже є
-                        exists = any(
-                            i.name == item_name and i.project_id == str(project_id) and i.source == "archive"
-                            for i in self.items
-                        )
-                        if exists:
-                            continue
-                        
-                        # Формуємо розміри
-                        w = p["width"] or 0
-                        h = p["height"] or 0
-                        l = p["length"] or 0
-                        dims = f"{w}×{h}×{l}" if l else f"{w}×{h}"
-                        
-                        # Розраховуємо ціну
-                        unit_price = p["unit_price"] or 0
-                        qty = p["quantity"] or 1
-                        if unit_price == 0 and p["metal_area_m2"]:
-                            material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
-                            area = p["metal_area_m2"] or 0
-                            mat = p["material"] or "оцинкована сталь"
-                            price_per_m2 = material_prices.get(mat, 120.0)
-                            unit_price = area * (price_per_m2 + 50)
-                        
-                        total_price = unit_price * qty
-                        cost = unit_price / 1.3 if unit_price > 0 else 0
-                        
-                        item = PriceItem(
-                            name=item_name,
-                            category="власне виробництво",
-                            product_type=p["product_type"] or "",
-                            dimensions=dims,
-                            material=p["material"] or "",
-                            thickness=p["thickness"] or 0,
-                            unit="шт",
-                            quantity=qty,
-                            cost_price=cost,
-                            unit_price=unit_price,
-                            total_price=total_price,
-                            source="archive",
-                            project_id=str(project_id),
-                            notes_internal=f"З проєкту: {project_name}",
-                        )
-                        self.items.append(item)
-                        imported += 1
-                
+                    if exists:
+                        continue
+                    w = p["width"] or 0
+                    h = p["height"] or 0
+                    l = p["length"] or 0
+                    dims = f"{w}×{h}×{l}" if l else f"{w}×{h}"
+                    unit_price = p["unit_price"] or 0
+                    qty = p["quantity"] or 1
+                    if unit_price == 0 and p["metal_area_m2"]:
+                        material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                        area = p["metal_area_m2"] or 0
+                        mat = p["material"] or "оцинкована сталь"
+                        price_per_m2 = material_prices.get(mat, 120.0)
+                        unit_price = area * (price_per_m2 + 50)
+                    total_price = unit_price * qty
+                    cost = unit_price / 1.3 if unit_price > 0 else 0
+                    item = PriceItem(
+                        name=item_name,
+                        category="власне виробництво",
+                        product_type=p["product_type"] or "",
+                        dimensions=dims,
+                        material=p["material"] or "",
+                        thickness=p["thickness"] or 0,
+                        unit="шт",
+                        quantity=qty,
+                        cost_price=cost,
+                        labor_cost=0,
+                        overhead_cost=0,
+                        unit_price=unit_price,
+                        total_price=total_price,
+                        source="archive",
+                        project_id=str(project_id_db),
+                        notes_internal=f"З проєкту: {project_name}",
+                    )
+                    self.items.append(item)
+                    imported += 1
                 conn.close()
                 if imported > 0:
                     self.save()
                 return imported
             except Exception as e:
                 print(f"[PriceList] Помилка читання з БД: {e}")
-        
-        # Fallback: старі ZIP-архіви
-        return self._import_from_zip_archives()
+        return 0
 
     def _import_from_zip_archives(self, archive_dir: str = ARCHIVE_DIR) -> int:
         """Імпортувати вироби з ZIP-архівів (старий формат)."""
@@ -625,6 +616,7 @@ class PriceListTab:
         sync_frame.pack(side=tk.LEFT, padx=(10, 0))
         ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(side=tk.LEFT, padx=2)
         ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(side=tk.LEFT, padx=2)
+        ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(side=tk.LEFT, padx=2)
 
         # Експорт
         export_frame = ttk.LabelFrame(top, text="Експорт", padding=3)
@@ -1018,25 +1010,84 @@ class PriceListTab:
         self._refresh_tree()
 
     def _sync_from_products(self):
+        """Синхронізувати вироби з вкладки 'Вироби' для поточного проєкту."""
+        project_id = getattr(self, '_current_project_id', '') or 'current'
         if self.get_products_callback:
             products = self.get_products_callback()
             if products:
-                count = self.manager.import_from_products(products)
+                count = self.manager.import_from_products(products, project_id=project_id)
                 self._refresh_tree()
-                messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з виробів")
+                if count > 0:
+                    messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з виробів")
+                else:
+                    messagebox.showinfo("Синхронізація", "Усі вироби вже в прайсі")
             else:
                 messagebox.showinfo("Синхронізація", "Немає виробів для імпорту")
         else:
             messagebox.showwarning("Увага", "Функція синхронізації з виробами недоступна")
 
     def _sync_from_archive(self):
-        """Синхронізувати з архіву проєктів (SQLite БД)."""
-        count = self.manager.import_from_archive()
+        """Синхронізувати з конкретного проєкту в архіві."""
+        project_id = getattr(self, '_current_project_id', None)
+        if not project_id:
+            try:
+                from ventilation_company.db_integration import ProjectDatabase
+                db = ProjectDatabase("data/company.db")
+                projects = db.list_projects()
+                if not projects:
+                    messagebox.showinfo("Архів", "Архів проєктів порожній")
+                    return
+                dialog = tk.Toplevel(self.frame)
+                dialog.title("Виберіть проєкт")
+                dialog.geometry("400x300")
+                dialog.transient(self.frame)
+                dialog.grab_set()
+                listbox = tk.Listbox(dialog, font=("Arial", 11))
+                listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+                project_map = {}
+                for p in projects:
+                    display = f"{p.get('name', 'Без назви')} (ID: {p.get('id', '?')})"
+                    project_map[display] = p.get('id')
+                    listbox.insert(tk.END, display)
+                def on_select():
+                    sel = listbox.curselection()
+                    if not sel:
+                        return
+                    selected_id = project_map[listbox.get(sel[0])]
+                    dialog.destroy()
+                    self._do_archive_sync(selected_id)
+                ttk.Button(dialog, text="Імпортувати", command=on_select).pack(pady=5)
+            except Exception as e:
+                messagebox.showerror("Помилка", f"Не вдалося відкрити архів: {e}")
+        else:
+            self._do_archive_sync(project_id)
+
+    def _do_archive_sync(self, project_id: str):
+        """Виконати імпорт з архіву для конкретного проєкту."""
+        count = self.manager.import_from_archive(project_id=project_id)
         self._refresh_tree()
         if count > 0:
-            messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з архіву проєктів")
+            messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з архіву")
         else:
-            messagebox.showinfo("Синхронізація", "Усі позиції вже синхронізовані або архів порожній")
+            messagebox.showinfo("Синхронізація", "Усі позиції вже синхронізовані або проєкт порожній")
+
+    def _refresh_current_project(self):
+        """Оновити прайс-лист для поточного проєкту (перезавантажити дані)."""
+        project_id = getattr(self, '_current_project_id', None)
+        if not project_id:
+            messagebox.showwarning("Увага", "Спочатку відкрийте або створіть проєкт")
+            return
+        old_count = len(self.manager.items)
+        self.manager.items = [
+            i for i in self.manager.items
+            if not (i.source in ("products", "archive") and i.project_id == str(project_id))
+        ]
+        removed = old_count - len(self.manager.items)
+        self.manager.save()
+        self._sync_from_products()
+        self._do_archive_sync(project_id)
+        self._refresh_tree()
+        messagebox.showinfo("Оновлення", f"Прайс оновлено. Видалено старих: {removed}")
 
     def _export(self, fmt: str):
         items = self._get_filtered_items()

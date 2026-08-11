@@ -220,6 +220,32 @@ class Sheet:
         _, rx, ry, rotated, _, _, _, _ = candidates[0]
         return (rx, ry, rotated)
 
+    def to_dict(self) -> dict:
+        """Серіалізація листа в словник."""
+        return {
+            "width": self.width,
+            "height": self.height,
+            "thickness": self.thickness,
+            "material": self.material,
+            "total_area_m2": round(self.total_area, 4),
+            "used_area_m2": round(self.used_area, 4),
+            "waste_area_m2": round(self.waste_area, 4),
+            "utilization": round(self.utilization, 4),
+            "placed_count": len(self.placed_details),
+            "placed_details": [
+                {
+                    "name": p.detail.name,
+                    "x": p.x,
+                    "y": p.y,
+                    "width": p.width,
+                    "height": p.height,
+                    "rotated": p.rotated,
+                }
+                for p in self.placed_details
+            ],
+        }
+
+
 
 @dataclass
 class CuttingPlan:
