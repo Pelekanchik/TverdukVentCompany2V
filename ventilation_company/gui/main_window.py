@@ -87,6 +87,9 @@ class MainWindow:
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
 
+        # ═══ ВИПРАВЛЕННЯ: прив'язка project_id до прайс-листа ═══
+        self.price_list_tab._current_project_id = self.current_project_id
+
         # Ціни на метал
         self.metal_prices_tab = MetalPricesTab(self.notebook)
         self.notebook.add(self.metal_prices_tab.frame, text="🔧 Ціни на метал")
@@ -107,7 +110,7 @@ class MainWindow:
             return self.products_tab.library.to_dict()
         except Exception:
             return []
-        
+
     def _save_project(self):
         products = self._get_products()
         if not products:
@@ -140,6 +143,9 @@ class MainWindow:
             )
             self.status_bar.config(text=f"✅ Проєкт збережено. ID: {self.current_project_id}")
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
+
+            # ═══ ВИПРАВЛЕННЯ: оновлюємо project_id у прайс-листі ═══
+            self.price_list_tab._current_project_id = self.current_project_id
 
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося зберегти:\n{str(e)}")
@@ -188,9 +194,13 @@ class MainWindow:
         self.freecad_tab._refresh_list()
 
         self.current_project_id = project_id
+
+        # ═══ ВИПРАВЛЕННЯ: оновлюємо project_id у прайс-листі ═══
+        self.price_list_tab._current_project_id = self.current_project_id
+
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
-        
+
     def _open_cutting_for_project(self, project_id: int):
         """Відкрити розкрій для проєкту з архіву (контекстне меню)."""
         products = self.db.get_project_products(project_id)

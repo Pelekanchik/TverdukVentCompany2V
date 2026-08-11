@@ -16,10 +16,9 @@ class MeshData:
     color: Tuple[float, float, float] = (0.7, 0.7, 0.7)
     position: Tuple[float, float, float] = (0, 0, 0)
     name: str = ""
-    bounds: Tuple[float, float, float] = (0, 0, 0)  # width, height, depth
+    bounds: Tuple[float, float, float] = (0, 0, 0)
 
     def transform(self, offset: Tuple[float, float, float]) -> "MeshData":
-        """Return new MeshData with translated vertices."""
         ox, oy, oz = offset
         new_vertices = [(x + ox, y + oy, z + oz) for x, y, z in self.vertices]
         return MeshData(
@@ -37,36 +36,29 @@ class VentGeometry:
     """Geometry builder for all ventilation product types."""
 
     COLORS = {
-        "rect_duct":    (0.50, 0.75, 0.90),  # steel blue
-        "round_duct":   (0.50, 0.75, 0.90),  # steel blue
-        "rect_elbow":   (0.90, 0.55, 0.55),  # red
-        "round_elbow":  (0.90, 0.55, 0.55),  # red
-        "rect_tee":     (0.55, 0.90, 0.55),  # green
-        "round_tee":    (0.55, 0.90, 0.55),  # green
-        "rect_transition": (0.90, 0.85, 0.40),  # yellow
-        "round_transition": (0.90, 0.85, 0.40), # yellow
-        "rect_flange":  (0.60, 0.60, 0.60),  # dark gray
-        "round_flange": (0.60, 0.60, 0.60),  # dark gray
-        "rect_cap":     (0.80, 0.50, 0.80),  # purple
-        "round_cap":    (0.80, 0.50, 0.80),  # purple
-        "flexible":     (0.90, 0.65, 0.35),  # orange
-        "default":      (0.70, 0.70, 0.70),  # gray
+        "rect_duct":    (0.50, 0.75, 0.90),
+        "round_duct":   (0.50, 0.75, 0.90),
+        "rect_elbow":   (0.90, 0.55, 0.55),
+        "round_elbow":  (0.90, 0.55, 0.55),
+        "rect_tee":     (0.55, 0.90, 0.55),
+        "round_tee":    (0.55, 0.90, 0.55),
+        "rect_transition": (0.90, 0.85, 0.40),
+        "round_transition": (0.90, 0.85, 0.40),
+        "rect_flange":  (0.60, 0.60, 0.60),
+        "round_flange": (0.60, 0.60, 0.60),
+        "rect_cap":     (0.80, 0.50, 0.80),
+        "round_cap":    (0.80, 0.50, 0.80),
+        "flexible":     (0.90, 0.65, 0.35),
+        "default":      (0.70, 0.70, 0.70),
     }
 
     @classmethod
     def detect_type(cls, data: Dict[str, Any]) -> str:
-        """Detect product type from dictionary data."""
         ptype = (data.get("product_type", "") + " " + data.get("name", "")).lower()
-
-        # Check for flexible first
         if any(k in ptype for k in ("hnuchk", "vstavka", "flexible", "гнучк")):
             return "flexible"
-
-        # Check shape
         is_rect = any(k in ptype for k in ("pryamokutn", "rect", "прямокутн"))
         is_round = any(k in ptype for k in ("krugl", "round", "кругл"))
-
-        # Check product category
         if any(k in ptype for k in ("povitroprovid", "duct", "повітропровід")):
             return "rect_duct" if is_rect else "round_duct"
         if any(k in ptype for k in ("flanets", "flange", "фланець")):
@@ -79,8 +71,6 @@ class VentGeometry:
             return "rect_transition" if is_rect else "round_transition"
         if any(k in ptype for k in ("zahlushka", "cap", "заглушка")):
             return "rect_cap" if is_rect else "round_cap"
-
-        # Fallback based on dimensions
         w = data.get("width", 0)
         h = data.get("height", 0)
         if h > 0 and abs(w - h) > 1:
@@ -91,7 +81,6 @@ class VentGeometry:
 
     @classmethod
     def build(cls, data: Dict[str, Any], position=(0, 0, 0)) -> MeshData:
-        """Build mesh for a product at given position."""
         ptype = cls.detect_type(data)
         method = getattr(cls, f"_build_{ptype}", cls._build_default)
         mesh = method(data)
@@ -102,12 +91,10 @@ class VentGeometry:
 
     @classmethod
     def get_bounds(cls, data: Dict[str, Any]) -> Tuple[float, float, float]:
-        """Get bounding box (width, height, depth) for positioning."""
         ptype = cls.detect_type(data)
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
         l = float(data.get("length", 1000))
-
         if ptype in ("rect_duct", "round_duct", "flexible"):
             return (w, h, l)
         elif ptype in ("rect_flange", "round_flange"):
@@ -134,19 +121,25 @@ class VentGeometry:
             return (w + 2*profile, h + 2*profile if h > 0 else w + 2*profile, depth)
         return (w, h, l)
 
-    # ── Helper: box wireframe ──
     @staticmethod
     def _box_wireframe(w, h, l, t=0):
-        """Generate wireframe for a box. If t>0, both outer and inner."""
         ow, oh = w/2, h/2
         outer = [
             (-ow, -oh, 0), (ow, -oh, 0), (ow, oh, 0), (-ow, oh, 0),
             (-ow, -oh, l), (ow, -oh, l), (ow, oh, l), (-ow, oh, l),
         ]
         edges = [
-            (0,1),(1,2),(2,3),(3,0),      # bottom
-            (4,5),(5,6),(6,7),(7,4),      # top
-            (0,4),(1,5),(2,6),(3,7),      # vertical
+            (0,1),(1,2),(2,3),(3,0),
+            (4,5),(5,6),(6,7),(7,4),
+            (0,4),(1,5),(2,6),(3,7),
+        ]
+        faces = [
+            (0, 1, 2, 3),
+            (4, 7, 6, 5),
+            (0, 4, 5, 1),
+            (1, 5, 6, 2),
+            (2, 6, 7, 3),
+            (3, 7, 4, 0),
         ]
         if t > 0 and t < min(w, h)/2:
             iw, ih = ow - t, oh - t
@@ -159,18 +152,15 @@ class VentGeometry:
                 (12,13),(13,14),(14,15),(15,12),
                 (8,12),(9,13),(10,14),(11,15),
             ]
-            return outer + inner, edges + inner_edges
-        return outer, edges
+            return outer + inner, edges + inner_edges, faces
+        return outer, edges, faces
 
-    # ── Helper: cylinder wireframe ──
     @staticmethod
     def _cylinder_wireframe(diameter, length, segments=16, t=0):
-        """Generate wireframe for a cylinder (hollow if t>0)."""
         r = diameter / 2
         vertices = []
         edges = []
-
-        # Bottom and top circles
+        faces = []
         for z in [0, length]:
             base_idx = len(vertices)
             for i in range(segments):
@@ -178,11 +168,10 @@ class VentGeometry:
                 vertices.append((r * math.cos(angle), r * math.sin(angle), z))
             for i in range(segments):
                 edges.append((base_idx + i, base_idx + (i + 1) % segments))
-
-        # Vertical lines
         for i in range(segments):
             edges.append((i, i + segments))
-
+            jj = (i + 1) % segments
+            faces.append((i, jj, jj + segments, i + segments))
         if t > 0 and t < r:
             ri = r - t
             for z in [0, length]:
@@ -194,26 +183,26 @@ class VentGeometry:
                     edges.append((base_idx + i, base_idx + (i + 1) % segments))
             for i in range(segments):
                 edges.append((2*segments + i, 2*segments + i + segments))
+                jj = (i + 1) % segments
+                faces.append((2*segments + i, 2*segments + jj, jj + 3*segments, i + 3*segments))
+        return vertices, edges, faces
 
-        return vertices, edges
-
-    # ── Build methods ──
     @classmethod
     def _build_rect_duct(cls, data):
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
         l = float(data.get("length", 1000))
         t = float(data.get("thickness", 0.7))
-        vertices, edges = cls._box_wireframe(w, h, l, t)
-        return MeshData(vertices=vertices, edges=edges, faces=[], bounds=(w, h, l))
+        vertices, edges, faces = cls._box_wireframe(w, h, l, t)
+        return MeshData(vertices=vertices, edges=edges, faces=faces, bounds=(w, h, l))
 
     @classmethod
     def _build_round_duct(cls, data):
         d = float(data.get("width", data.get("diameter", 100)))
         l = float(data.get("length", 1000))
         t = float(data.get("thickness", 0.7))
-        vertices, edges = cls._cylinder_wireframe(d, l, t=t)
-        return MeshData(vertices=vertices, edges=edges, faces=[], bounds=(d, d, l))
+        vertices, edges, faces = cls._cylinder_wireframe(d, l, t=t)
+        return MeshData(vertices=vertices, edges=edges, faces=faces, bounds=(d, d, l))
 
     @classmethod
     def _build_rect_elbow(cls, data):
@@ -225,7 +214,6 @@ class VentGeometry:
         bottom_ext = float(data.get("bottom_extension", 100))
         t = float(data.get("thickness", 0.7))
         segments = max(3, int(angle / 15))
-
         vertices = []
         edges = []
         rad = math.radians(angle)
@@ -244,17 +232,13 @@ class VentGeometry:
                 prev = base - 4
                 for j in range(4):
                     edges.append((prev + j, base + j))
-                for j in range(4):
                     edges.append((base + j, base + (j+1)%4))
 
-        # Bottom extension: along -Z
         if bottom_ext > 0:
             bs = max(2, int(bottom_ext / 50))
             for i in range(bs + 1):
                 z = -bottom_ext + bottom_ext * i / bs
                 connect(add_cs(0, 0, z, 1, 0, 0, 0, 1, 0))
-
-        # Elbow arc: center (0,0,0), arc in XZ plane from +Z toward +X
         arc_start = 1 if bottom_ext > 0 else 0
         for i in range(arc_start, segments + 1):
             a = rad * i / segments
@@ -262,8 +246,6 @@ class VentGeometry:
             cz = radius * (1 - math.cos(a))
             nx, nz = -math.sin(a), math.cos(a)
             connect(add_cs(cx, 0, cz, nx, 0, nz, 0, 1, 0))
-
-        # Top extension: along tangent at end
         if top_ext > 0:
             ts = max(2, int(top_ext / 50))
             sx = radius * math.sin(rad)
@@ -272,7 +254,6 @@ class VentGeometry:
             for i in range(1, ts + 1):
                 d = top_ext * i / ts
                 connect(add_cs(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
-
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))
 
@@ -286,7 +267,6 @@ class VentGeometry:
         t = float(data.get("thickness", 0.7))
         segments = max(8, int(angle / 5))
         ring_segments = 16
-
         vertices = []
         edges = []
         r = d / 2
@@ -308,17 +288,13 @@ class VentGeometry:
                 prev = base - ring_segments
                 for j in range(ring_segments):
                     edges.append((prev + j, base + j))
-                for j in range(ring_segments):
                     edges.append((base + j, base + (j+1) % ring_segments))
 
-        # Bottom extension
         if bottom_ext > 0:
             bs = max(2, int(bottom_ext / 50))
             for i in range(bs + 1):
                 z = -bottom_ext + bottom_ext * i / bs
                 connect_ring(add_ring(0, 0, z, 1, 0, 0, 0, 1, 0))
-
-        # Elbow arc
         arc_start = 1 if bottom_ext > 0 else 0
         for i in range(arc_start, segments + 1):
             a = rad * i / segments
@@ -326,8 +302,6 @@ class VentGeometry:
             cz = radius * (1 - math.cos(a))
             nx, nz = -math.sin(a), math.cos(a)
             connect_ring(add_ring(cx, 0, cz, nx, 0, nz, 0, 1, 0))
-
-        # Top extension
         if top_ext > 0:
             ts = max(2, int(top_ext / 50))
             sx = radius * math.sin(rad)
@@ -336,7 +310,6 @@ class VentGeometry:
             for i in range(1, ts + 1):
                 d = top_ext * i / ts
                 connect_ring(add_ring(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
-
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))
 
@@ -349,18 +322,14 @@ class VentGeometry:
         bh = float(data.get("branch_height", 200))
         bl = float(data.get("branch_length", 400))
         t = float(data.get("thickness", 0.7))
-
-        # Main duct
-        v1, e1 = cls._box_wireframe(w, h, l, t)
-        # Branch duct (perpendicular, along Y)
-        v2, e2 = cls._box_wireframe(bw, bl, bh, t)
-        # Offset branch to center
+        v1, e1, f1 = cls._box_wireframe(w, h, l, t)
+        v2, e2, f2 = cls._box_wireframe(bw, bl, bh, t)
         offset_y = -bl/2
         offset_z = l/2 - bh/2
         v2 = [(x, y + offset_y, z + offset_z) for x, y, z in v2]
         e2 = [(i + len(v1), j + len(v1)) for i, j in e2]
-
-        return MeshData(vertices=v1+v2, edges=e1+e2, faces=[],
+        f2 = [tuple(i + len(v1) for i in face) for face in f2]
+        return MeshData(vertices=v1+v2, edges=e1+e2, faces=f1+f2,
                          bounds=cls.get_bounds(data))
 
     @classmethod
@@ -370,14 +339,12 @@ class VentGeometry:
         bd = float(data.get("branch_diameter", 200))
         bl = float(data.get("branch_length", 400))
         t = float(data.get("thickness", 0.7))
-
-        v1, e1 = cls._cylinder_wireframe(d, l, t=t)
-        v2, e2 = cls._cylinder_wireframe(bd, bl, t=t)
-        # Rotate branch 90° around X, move to center
+        v1, e1, f1 = cls._cylinder_wireframe(d, l, t=t)
+        v2, e2, f2 = cls._cylinder_wireframe(bd, bl, t=t)
         v2 = [(x, z - bl/2, y + l/2) for x, y, z in v2]
         e2 = [(i + len(v1), j + len(v1)) for i, j in e2]
-
-        return MeshData(vertices=v1+v2, edges=e1+e2, faces=[],
+        f2 = [tuple(i + len(v1) for i in face) for face in f2]
+        return MeshData(vertices=v1+v2, edges=e1+e2, faces=f1+f2,
                          bounds=cls.get_bounds(data))
 
     @classmethod
@@ -389,9 +356,9 @@ class VentGeometry:
         l = float(data.get("length", 1000))
         t = float(data.get("thickness", 0.7))
         segments = 8
-
         vertices = []
         edges = []
+        faces = []
         for i in range(segments + 1):
             z = l * i / segments
             frac = i / segments
@@ -405,8 +372,8 @@ class VentGeometry:
                 for j in range(4):
                     edges.append((prev + j, base + j))
                     edges.append((base + j, base + (j+1)%4))
-
-        return MeshData(vertices=vertices, edges=edges, faces=[],
+                    faces.append((prev + j, prev + (j+1)%4, base + (j+1)%4, base + j))
+        return MeshData(vertices=vertices, edges=edges, faces=faces,
                          bounds=cls.get_bounds(data))
 
     @classmethod
@@ -417,9 +384,9 @@ class VentGeometry:
         t = float(data.get("thickness", 0.7))
         segments = 8
         ring_segments = 16
-
         vertices = []
         edges = []
+        faces = []
         for i in range(segments + 1):
             z = l * i / segments
             frac = i / segments
@@ -433,8 +400,9 @@ class VentGeometry:
                 for j in range(ring_segments):
                     edges.append((prev + j, base + j))
                     edges.append((base + j, base + (j+1) % ring_segments))
-
-        return MeshData(vertices=vertices, edges=edges, faces=[],
+                    jj = (j + 1) % ring_segments
+                    faces.append((prev + j, prev + jj, base + jj, base + j))
+        return MeshData(vertices=vertices, edges=edges, faces=faces,
                          bounds=cls.get_bounds(data))
 
     @classmethod
@@ -446,10 +414,7 @@ class VentGeometry:
         ow, oh = w/2 + profile, h/2 + profile
         iw, ih = w/2, h/2
         depth = profile
-
-        # Outer frame
-        v1, e1 = cls._box_wireframe(2*ow, 2*oh, depth, 0)
-        # Inner cutout (wireframe only)
+        v1, e1, f1 = cls._box_wireframe(2*ow, 2*oh, depth, 0)
         v2 = [
             (-iw, -ih, 0), (iw, -ih, 0), (iw, ih, 0), (-iw, ih, 0),
             (-iw, -ih, depth), (iw, -ih, depth), (iw, ih, depth), (-iw, ih, depth),
@@ -460,8 +425,6 @@ class VentGeometry:
             (8,12),(9,13),(10,14),(11,15),
         ]
         e2 = [(i + len(v1), j + len(v1)) for i, j in e2]
-
-        # Bolt holes (small circles at corners)
         bolt_r = 5
         bolt_segments = 8
         bolt_positions = [
@@ -477,8 +440,7 @@ class VentGeometry:
                 v3.append((bx + bolt_r * math.cos(theta), by + bolt_r * math.sin(theta), depth/2))
             for j in range(bolt_segments):
                 e3.append((base + j, base + (j+1) % bolt_segments))
-
-        return MeshData(vertices=v1+v2+v3, edges=e1+e2+e3, faces=[],
+        return MeshData(vertices=v1+v2+v3, edges=e1+e2+e3, faces=f1,
                          bounds=(w + 2*profile, h + 2*profile, profile))
 
     @classmethod
@@ -490,9 +452,9 @@ class VentGeometry:
         outer_r = r + profile
         depth = profile
         segments = 32
-
         vertices = []
         edges = []
+        faces = []
         for z in [0, depth]:
             base = len(vertices)
             for i in range(segments):
@@ -500,11 +462,10 @@ class VentGeometry:
                 vertices.append((outer_r * math.cos(theta), outer_r * math.sin(theta), z))
             for i in range(segments):
                 edges.append((base + i, base + (i+1) % segments))
-
         for i in range(segments):
             edges.append((i, i + segments))
-
-        # Inner circle
+            jj = (i + 1) % segments
+            faces.append((i, jj, jj + segments, i + segments))
         for z in [0, depth]:
             base = len(vertices)
             for i in range(segments):
@@ -512,11 +473,8 @@ class VentGeometry:
                 vertices.append((r * math.cos(theta), r * math.sin(theta), z))
             for i in range(segments):
                 edges.append((base + i, base + (i+1) % segments))
-
         for i in range(segments):
             edges.append((2*segments + i, 2*segments + i + segments))
-
-        # Bolt holes
         bolt_r = 5
         bolt_segments = 8
         bolt_circle_r = (r + outer_r) / 2
@@ -532,8 +490,7 @@ class VentGeometry:
                 v3.append((bx + bolt_r * math.cos(theta), by + bolt_r * math.sin(theta), depth/2))
             for j in range(bolt_segments):
                 e3.append((base + j, base + (j+1) % bolt_segments))
-
-        return MeshData(vertices=vertices+v3, edges=edges+e3, faces=[],
+        return MeshData(vertices=vertices+v3, edges=edges+e3, faces=faces,
                          bounds=(d + 2*profile, d + 2*profile, profile))
 
     @classmethod
@@ -544,9 +501,8 @@ class VentGeometry:
         depth = float(data.get("depth", 30))
         t = float(data.get("thickness", 0.7))
         ow, oh = w/2 + profile, h/2 + profile
-        # Cap body
-        v1, e1 = cls._box_wireframe(2*ow, 2*oh, depth, t)
-        return MeshData(vertices=v1, edges=e1, faces=[],
+        v1, e1, f1 = cls._box_wireframe(2*ow, 2*oh, depth, t)
+        return MeshData(vertices=v1, edges=e1, faces=f1,
                          bounds=(w + 2*profile, h + 2*profile, depth))
 
     @classmethod
@@ -554,9 +510,8 @@ class VentGeometry:
         d = float(data.get("width", data.get("diameter", 100)))
         depth = float(data.get("depth", 30))
         t = float(data.get("thickness", 0.7))
-        # Approximate as short cylinder
-        vertices, edges = cls._cylinder_wireframe(d, depth, t=t)
-        return MeshData(vertices=vertices, edges=edges, faces=[],
+        vertices, edges, faces = cls._cylinder_wireframe(d, depth, t=t)
+        return MeshData(vertices=vertices, edges=edges, faces=faces,
                          bounds=(d, d, depth))
 
     @classmethod
@@ -564,13 +519,12 @@ class VentGeometry:
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
         l = float(data.get("length", 1000))
-        # Flexible connector as corrugated - approximate with multiple rings
         vertices = []
         edges = []
+        faces = []
         rings = max(4, int(l / 50))
         segments = 16
-        amplitude = 3  # corrugation amplitude
-
+        amplitude = 3
         for i in range(rings + 1):
             z = l * i / rings
             r = w/2 + amplitude * math.sin(2 * math.pi * i / rings * 3)
@@ -583,8 +537,9 @@ class VentGeometry:
                 for j in range(segments):
                     edges.append((prev + j, base + j))
                     edges.append((base + j, base + (j+1) % segments))
-
-        return MeshData(vertices=vertices, edges=edges, faces=[],
+                    jj = (j + 1) % segments
+                    faces.append((prev + j, prev + jj, base + jj, base + j))
+        return MeshData(vertices=vertices, edges=edges, faces=faces,
                          bounds=(w + 2*amplitude, h + 2*amplitude, l))
 
     @classmethod
@@ -592,25 +547,21 @@ class VentGeometry:
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
         l = float(data.get("length", 100))
-        vertices, edges = cls._box_wireframe(w, h, l)
-        return MeshData(vertices=vertices, edges=edges, faces=[],
+        vertices, edges, faces = cls._box_wireframe(w, h, l)
+        return MeshData(vertices=vertices, edges=edges, faces=faces,
                          bounds=(w, h, l))
 
 
 class ProductLayout:
-    """Arranges products along an axis with configurable spacing."""
-
     def __init__(self, spacing: float = 50.0, axis: str = "z"):
         self.spacing = spacing
         self.axis = axis.lower()
         self.positions: List[Tuple[float, float, float]] = []
 
     def layout(self, products: List[Dict[str, Any]]) -> List[Tuple[float, float, float]]:
-        """Calculate positions for a list of products."""
         self.positions = []
         offset = 0.0
         axis_idx = {"x": 0, "y": 1, "z": 2}[self.axis]
-
         for data in products:
             bounds = VentGeometry.get_bounds(data)
             depth = bounds[2] if axis_idx == 2 else bounds[axis_idx]
@@ -618,10 +569,8 @@ class ProductLayout:
             pos[axis_idx] = offset
             self.positions.append(tuple(pos))
             offset += depth + self.spacing
-
         return self.positions
 
     def build_all(self, products: List[Dict[str, Any]]) -> List[MeshData]:
-        """Build meshes for all products with layout."""
         positions = self.layout(products)
         return [VentGeometry.build(p, pos) for p, pos in zip(products, positions)]

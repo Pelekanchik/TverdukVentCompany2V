@@ -15,10 +15,6 @@ except ImportError:
         "Виконайте: pip install fpdf2"
     )
 
-# ═══════════════════════════════════════════════════════════
-# ПОШУК СИСТЕМНИХ ШРИФТІВ З ПІДТРИМКОЮ КИРИЛИЦІ
-# ═══════════════════════════════════════════════════════════
-
 _FONT_CANDIDATES = [
     ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
     ("C:/Windows/Fonts/tahoma.ttf", "C:/Windows/Fonts/tahomabd.ttf"),
@@ -36,7 +32,6 @@ _FONT_CANDIDATES_LINUX = [
 
 
 def _find_fonts() -> tuple[str, str]:
-    """Знайти системні TTF-шрифти з підтримкою кирилиці."""
     for regular, bold in _FONT_CANDIDATES + _FONT_CANDIDATES_LINUX:
         if os.path.exists(regular) and os.path.exists(bold):
             return regular, bold
@@ -46,26 +41,15 @@ def _find_fonts() -> tuple[str, str]:
     )
 
 
-# ═══════════════════════════════════════════════════════════
-# КЛАС PDF-ЗВІТУ
-# ═══════════════════════════════════════════════════════════
-
 class ProjectPDFReport(FPDF):
-    """PDF-звіт по вентиляційному проєкту."""
-
     def __init__(self):
         super().__init__(orientation="P", unit="mm", format="A4")
         self.regular_font, self.bold_font = _find_fonts()
         self.set_auto_page_break(auto=True, margin=20)
-
-        # --- Реєструємо шрифти ОДИН раз ---
         self.add_font("Main", "", self.regular_font, uni=True)
         self.add_font("Main", "B", self.bold_font, uni=True)
-
         self.add_page()
         self._set_font_regular(10)
-
-    # ── Helpers ─────────────────────────────────────────────
 
     def _set_font_regular(self, size: int = 10):
         self.set_font("Main", "", size)
@@ -80,7 +64,6 @@ class ProjectPDFReport(FPDF):
         self.cell(w, h, text, border=border, align="C")
 
     def _draw_header(self, title: str):
-        """Шапка кожної сторінки."""
         self._set_font_bold(18)
         self.set_text_color(21, 101, 192)
         self.cell(0, 10, title, ln=True, align="C")
@@ -93,27 +76,14 @@ class ProjectPDFReport(FPDF):
         self.ln(5)
 
     def _draw_footer(self):
-        """Нижній колонтитул."""
         self.set_y(-15)
         self._set_font_regular(8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f"Сторінка {self.page_no()}", align="C")
 
-    # ── Public API ──────────────────────────────────────────
-
-    def build_report(
-        self,
-        project: dict,
-        products: List[dict],
-        output_path: str,
-    ) -> str:
-        """
-        Згенерувати повний PDF-звіт і зберегти за вказаним шляхом.
-        Повертає шлях до збереженого файлу.
-        """
+    def build_report(self, project: dict, products: List[dict], output_path: str) -> str:
         self._draw_header("ЗВІТ ПО ПРОЄКТУ")
 
-        # ── 1. ІНФОРМАЦІЯ ПРО ПРОЄКТ ──────────────────────────
         self._section_title("Інформація про проєкт")
         info_rows = [
             ("Назва проєкту:", project.get("name", "—")),
@@ -126,9 +96,7 @@ class ProjectPDFReport(FPDF):
             self._info_row(label, value)
         self.ln(3)
 
-        # ── 2. ФІНАНСОВИЙ ЗВІТ ───────────────────────────────
         self._section_title("Фінансовий звіт")
-
         cost_price = float(project.get("cost_price", 0) or 0)
         salary_total = float(project.get("salary_total", 0) or 0)
         customer_price = float(project.get("customer_price", 0) or 0)
@@ -148,13 +116,12 @@ class ProjectPDFReport(FPDF):
             else:
                 self._info_row(label, value)
 
-        # Прибуток — виділено кольором
         self.ln(2)
         if profit >= 0:
-            self.set_text_color(46, 125, 50)   # зелений
+            self.set_text_color(46, 125, 50)
             profit_label = "Прибуток фірми:"
         else:
-            self.set_text_color(198, 40, 40)   # червоний
+            self.set_text_color(198, 40, 40)
             profit_label = "Збиток фірми:"
 
         self._set_font_bold(12)
@@ -168,18 +135,15 @@ class ProjectPDFReport(FPDF):
         self.set_text_color(0, 0, 0)
         self.ln(5)
 
-        # ── 3. ТАБЛИЦЯ ВИРОБІВ ───────────────────────────────
         self._section_title("Вироби проєкту")
-
         if not products:
             self._set_font_regular(10)
             self.cell(0, 10, "Вироби відсутні", ln=True, align="C")
         else:
             self._draw_products_table(products)
 
-        # ── 4. ПІДСУМКИ (знизу) ──────────────────────────────
         self.add_page()
-        self._draw_header("ЗВІТ ПО ПРОЄКТУ")
+        self._draw_header("ЗВЕДЕНІ ПІДСУМКИ")
         self._section_title("Зведені підсумки")
 
         total_qty = sum(p.get("quantity", 1) for p in products)
@@ -195,7 +159,6 @@ class ProjectPDFReport(FPDF):
             ("Зарплата робітників:", f"{salary_total:,.2f} грн"),
             ("Ціна для замовника:", f"{customer_price:,.2f} грн"),
         ]
-
         for label, value in summary_data:
             if label:
                 self._summary_row(label, value)
@@ -207,7 +170,6 @@ class ProjectPDFReport(FPDF):
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # Фінальний прибуток великим шрифтом
         if profit >= 0:
             self.set_text_color(46, 125, 50)
             final_text = f"ЧИСТИЙ ПРИБУТОК:  {profit:,.2f} грн"
@@ -219,17 +181,13 @@ class ProjectPDFReport(FPDF):
         self.cell(0, 12, final_text, ln=True, align="C")
         self.set_text_color(0, 0, 0)
 
-        # Підпис
         self.ln(10)
         self._set_font_regular(9)
         self.set_text_color(128, 128, 128)
         self.cell(0, 5, "Сформовано системою VentCompany", ln=True, align="C")
 
-        # Збереження
         self.output(output_path)
         return output_path
-
-    # ── Internal drawing helpers ────────────────────────────
 
     def _section_title(self, title: str):
         self._set_font_bold(12)
@@ -261,32 +219,25 @@ class ProjectPDFReport(FPDF):
         self.ln()
 
     def _draw_products_table(self, products: List[dict]):
-        """Таблиця виробів з переносом на нову сторінку при необхідності."""
-        col_widths = [8, 40, 26, 26, 12, 10, 20, 20, 24, 24]
-        headers = ["№", "Найменування", "Тип", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Ціна за шт", "Повна ціна"]
-        aligns = ["C", "L", "L", "L", "C", "C", "R", "R", "R", "R"]
-
+        col_widths = [8, 50, 28, 12, 10, 22, 22, 26, 26]
+        headers = ["№", "Найменування", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Ціна за шт", "Ціна за позицію"]
+        aligns = ["C", "L", "L", "C", "C", "R", "R", "R", "R"]
         row_h = 6
 
-        # Фон заголовка
         self.set_fill_color(227, 242, 253)
         self.set_draw_color(180, 180, 180)
         self._set_font_bold(8)
-
         for w, h, a in zip(col_widths, headers, aligns):
             self.cell(w, row_h, h, border=1, align=a, fill=True)
         self.ln()
 
-        # Рядки
         self._set_font_regular(8)
         self.set_fill_color(255, 255, 255)
 
         for i, p in enumerate(products, 1):
-            # Перевірка чи поміститься на сторінці
             if self.get_y() + row_h * 2 > 270:
                 self.add_page()
-                self._draw_header("ЗВІТ ПО ПРОЄКТУ")
-                # Повторити заголовок таблиці
+                self._draw_header("ВИРОБИ ПРОЄКТУ (продовження)")
                 self.set_fill_color(227, 242, 253)
                 self._set_font_bold(8)
                 for w, h, a in zip(col_widths, headers, aligns):
@@ -313,9 +264,8 @@ class ProjectPDFReport(FPDF):
 
             values = [
                 str(i),
-                p.get("name", "")[:22],
-                p.get("product_type", "")[:14],
-                p.get("material", "")[:14],
+                f"{p.get('name', '')[:18]}\n({dims})",
+                p.get("material", "")[:16],
                 f"{p.get('thickness', 0):.1f}",
                 str(qty),
                 f"{weight * qty:.2f}",
@@ -323,27 +273,16 @@ class ProjectPDFReport(FPDF):
                 f"{unit_price:,.2f}",
                 f"{total_price:,.2f}",
             ]
-
             for w, v, a in zip(col_widths, values, aligns):
                 self.cell(w, row_h, v, border=1, align=a)
             self.ln()
-
         self.ln(3)
 
 
-def generate_project_pdf(
-    project: dict,
-    products: List[dict],
-    output_path: Optional[str] = None,
-) -> str:
-    """
-    Зручна функція для генерації PDF-звіту.
-    Якщо output_path не вказано — створює тимчасовий файл.
-    """
+def generate_project_pdf(project: dict, products: List[dict], output_path: Optional[str] = None) -> str:
     if output_path is None:
         import tempfile
         fd, output_path = tempfile.mkstemp(suffix=".pdf", prefix="project_report_")
         os.close(fd)
-
     report = ProjectPDFReport()
     return report.build_report(project, products, output_path)
