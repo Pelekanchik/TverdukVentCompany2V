@@ -250,9 +250,11 @@ class RoundTransition(StandardProduct):
 
 @dataclass
 class RectElbow(StandardProduct):
-    """Прямокутне коліно."""
+    """Прямокутне коліно з подовженнями."""
     angle: float = 90
     radius: float = 150
+    top_extension: float = 100
+    bottom_extension: float = 100
 
     def calculate_metal_area(self) -> float:
         w = self.width / 1000
@@ -260,21 +262,29 @@ class RectElbow(StandardProduct):
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         arc_length = r * angle_rad
-        return 2 * (w + h) * arc_length
+        top_ext = self.top_extension / 1000
+        bottom_ext = self.bottom_extension / 1000
+        total_length = top_ext + arc_length + bottom_ext
+        return 2 * (w + h) * total_length
 
 
 @dataclass
 class RoundElbow(StandardProduct):
-    """Кругле коліно."""
+    """Кругле коліно з подовженнями."""
     angle: float = 90
     radius: float = 150
+    top_extension: float = 100
+    bottom_extension: float = 100
 
     def calculate_metal_area(self) -> float:
         d = self.width / 1000
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         arc_length = r * angle_rad
-        return math.pi * d * arc_length
+        top_ext = self.top_extension / 1000
+        bottom_ext = self.bottom_extension / 1000
+        total_length = top_ext + arc_length + bottom_ext
+        return math.pi * d * total_length
 
 
 @dataclass
