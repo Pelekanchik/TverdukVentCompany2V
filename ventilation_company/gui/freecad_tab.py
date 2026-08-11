@@ -162,16 +162,43 @@ class FreeCADTab:
         products = self._get_products()
         for i, p in enumerate(products):
             name = getattr(p, "name", p.get("name", "—"))
-            ptype = getattr(p, "product_type", p.get("type", "—"))
-            w = getattr(p, "width", p.get("width", 0))
-            h = getattr(p, "height", p.get("height", 0))
-            length = getattr(p, "length", p.get("length", 0))
-            dims = f"{w}×{h}×{length}"
+            
+            # FIX: правильно отримуємо тип для об'єкта і dict
+            if isinstance(p, dict):
+                ptype = p.get("product_type", p.get("type", "—"))
+                w = p.get("width", 0)
+                h = p.get("height", 0)
+                length = p.get("length", 0)
+                angle = p.get("angle", 0)
+                radius = p.get("radius", 0)
+                bw = p.get("branch_width", p.get("branch_diameter", 0))
+                bl = p.get("branch_length", 0)
+                ew = p.get("end_width", p.get("end_diameter", 0))
+                eh = p.get("end_height", 0)
+            else:
+                ptype = getattr(p, "product_type", getattr(p, "type", "—"))
+                w = getattr(p, "width", 0)
+                h = getattr(p, "height", 0)
+                length = getattr(p, "length", 0)
+                angle = getattr(p, "angle", 0)
+                radius = getattr(p, "radius", 0)
+                bw = getattr(p, "branch_width", getattr(p, "branch_diameter", 0))
+                bl = getattr(p, "branch_length", 0)
+                ew = getattr(p, "end_width", getattr(p, "end_diameter", 0))
+                eh = getattr(p, "end_height", 0)
+            
+            # FIX: адаптивні розміри залежно від типу виробу
+            ptype_lower = str(ptype).lower()
+            if "elbow" in ptype_lower:
+                dims = f"{w:.0f}×{h:.0f} ∠{angle:.0f}° R{radius:.0f}"
+            elif "tee" in ptype_lower:
+                dims = f"{w:.0f}×{h:.0f}→{bw:.0f}×{bl:.0f}"
+            elif "transition" in ptype_lower:
+                dims = f"{w:.0f}×{h:.0f}→{ew:.0f}×{eh:.0f}"
+            else:
+                dims = f"{w:.0f}×{h:.0f}×{length:.0f}"
+            
             self.tree.insert("", tk.END, iid=str(i), values=("☐", name, ptype, dims, "▶ Експорт"))
-
-        # Update preview
-        if self.preview:
-            self.preview.set_products(products)
 
     def _on_tree_click(self, event):
         """Handle checkbox click."""
