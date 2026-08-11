@@ -73,16 +73,15 @@ class PlacedDetail:
 
 @dataclass
 class Sheet:
-    """Лист металу для розкрою."""
+    """Лист металу для розкрою (покращений)."""
 
-    width: float  # мм
-    height: float  # мм
-    thickness: float  # мм
+    width: float
+    height: float
+    thickness: float
     material: str = "оцинкована сталь"
 
     placed_details: list[PlacedDetail] = field(default_factory=list)
     free_rectangles: list[tuple[float, float, float, float]] = field(default_factory=list)
-    # (x, y, width, height) — вільні прямокутники
 
     def __post_init__(self):
         if not self.free_rectangles:
@@ -102,117 +101,124 @@ class Sheet:
 
     @property
     def utilization(self) -> float:
-        """Коефіцієнт використання листа (0-1)."""
         if self.total_area == 0:
             return 0
         return self.used_area / self.total_area
 
     def place_detail(self, detail: Detail, x: float, y: float, rotated: bool = False) -> bool:
-        """Розмістити деталь на листі."""
         w = detail.total_height if rotated else detail.total_width
         h = detail.total_width if rotated else detail.total_height
 
-        # Перевірка меж
-        if x + w > self.width or y + h > self.height:
+        if x + w > self.width + 0.01 or y + h > self.height + 0.01:
             return False
 
-        # Перевірка перетину з іншими деталями
         for p in self.placed_details:
-            if not (x + w <= p.x or p.x + p.width <= x or y + h <= p.y or p.y + p.height <= y):
+            if not (x + w <= p.x + 0.01 or p.x + p.width <= x + 0.01 or
+                    y + h <= p.y + 0.01 or p.y + p.height <= y + 0.01):
                 return False
 
         self.placed_details.append(PlacedDetail(detail, x, y, rotated))
-        self._update_free_rectangles(x, y, w, h)
+        self._guillotine_split(x, y, w, h)
+        self._merge_rectangles()
         return True
 
-    def _update_free_rectangles(self, x: float, y: float, w: float, h: float):
-        """Оновити список вільних прямокутників після розміщення деталі."""
+    def _guillotine_split(self, x: float, y: float, w: float, h: float):
+        """Guillotine split: розбиваємо тільки на 2 прямокутники."""
         new_free = []
         for rx, ry, rw, rh in self.free_rectangles:
-            # Перевіряємо перетин
             if x + w <= rx or rx + rw <= x or y + h <= ry or ry + rh <= y:
                 new_free.append((rx, ry, rw, rh))
                 continue
 
-            # Розбиваємо вільний прямокутник
-            # Зверху
-            if y > ry:
-                new_free.append((rx, ry, rw, y - ry))
-            # Знизу
-            if y + h < ry + rh:
-                new_free.append((rx, y + h, rw, ry + rh - y - h))
-            # Зліва
-            if x > rx:
-                new_free.append((rx, ry, x - rx, rh))
-            # Справа
+            # Справа від деталі
             if x + w < rx + rw:
                 new_free.append((x + w, ry, rx + rw - x - w, rh))
+            # Зверху над деталлю
+            if y + h < ry + rh:
+                new_free.append((rx, y + h, rw, ry + rh - y - h))
 
-        # Видаляємо вкладені та занадто маленькі прямокутники
         self.free_rectangles = self._clean_rectangles(new_free)
 
-    def _clean_rectangles(
-        self, rectangles: list[tuple[float, float, float, float]]
-    ) -> list[tuple[float, float, float, float]]:
-        """Очистити список прямокутників від вкладених та занадто малих."""
-        # Фільтр за мінімальним розміром (10 мм)
-        min_size = 10
+    def _clean_rectangles(self, rectangles):
+        min_size = 5
         filtered = [(x, y, w, h) for x, y, w, h in rectangles if w >= min_size and h >= min_size]
-
-        # Видалення вкладених
         result = []
         for i, (x1, y1, w1, h1) in enumerate(filtered):
             is_nested = False
             for j, (x2, y2, w2, h2) in enumerate(filtered):
-                if i != j and x1 >= x2 and y1 >= y2 and x1 + w1 <= x2 + w2 and y1 + h1 <= y2 + h2:
+                if i != j and x1 >= x2 - 0.1 and y1 >= y2 - 0.1 and \
+                   x1 + w1 <= x2 + w2 + 0.1 and y1 + h1 <= y2 + h2 + 0.1:
                     is_nested = True
                     break
             if not is_nested:
-                result.append((x1, y1, w1, h1))
-
+                result.append((round(x1, 2), round(y1, 2), round(w1, 2), round(h1, 2)))
         return result
 
-    def find_best_position(self, detail: Detail) -> tuple[float, float, bool] | None:
-        """Знайти найкращу позицію для деталі (Bottom-Left heuristic)."""
-        best = None
-        best_score = float("inf")
+    def _merge_rectangles(self):
+        """Об'єднує суміжні вільні прямокутники по горизонталі/вертикалі."""
+        changed = True
+        rects = list(self.free_rectangles)
+        while changed:
+            changed = False
+            merged = []
+            used = set()
+            for i, (x1, y1, w1, h1) in enumerate(rects):
+                if i in used:
+                    continue
+                for j, (x2, y2, w2, h2) in enumerate(rects):
+                    if i >= j or j in used:
+                        continue
+                    # Об'єднання по вертикалі (однакова ширина, суміжні по Y)
+                    if abs(x1 - x2) < 1 and abs(w1 - w2) < 1:
+                        if abs(y1 + h1 - y2) < 1:
+                            rects[i] = (x1, y1, w1, h1 + h2)
+                            used.add(j)
+                            changed = True
+                            break
+                        elif abs(y2 + h2 - y1) < 1:
+                            rects[i] = (x1, y2, w1, h1 + h2)
+                            used.add(j)
+                            changed = True
+                            break
+                    # Об'єднання по горизонталі (однакова висота, суміжні по X)
+                    if abs(y1 - y2) < 1 and abs(h1 - h2) < 1:
+                        if abs(x1 + w1 - x2) < 1:
+                            rects[i] = (x1, y1, w1 + w2, h1)
+                            used.add(j)
+                            changed = True
+                            break
+                        elif abs(x2 + w2 - x1) < 1:
+                            rects[i] = (x2, y1, w1 + w2, h1)
+                            used.add(j)
+                            changed = True
+                            break
+                if changed:
+                    break
+            if changed:
+                rects = [r for k, r in enumerate(rects) if k not in used]
+        self.free_rectangles = self._clean_rectangles(rects)
 
+    def find_best_position(self, detail: Detail) -> tuple[float, float, bool] | None:
+        """Best-Fit: найменший вільний прямокутник, в який вміщається деталь."""
+        best = None
+        best_waste = float("inf")
+
+        candidates = []
         for rx, ry, rw, rh in self.free_rectangles:
             for rotated in [False, True]:
                 w = detail.total_height if rotated else detail.total_width
                 h = detail.total_width if rotated else detail.total_height
+                if w <= rw + 0.01 and h <= rh + 0.01:
+                    waste = rw * rh - w * h
+                    candidates.append((waste, rx, ry, rotated, rx, ry, rw, rh))
 
-                if w <= rw and h <= rh:
-                    # Score: лівіше і нижче = краще
-                    score = rx + ry * 2  # пріоритет нижнього розміщення
-                    if score < best_score:
-                        best_score = score
-                        best = (rx, ry, rotated)
+        if not candidates:
+            return None
 
-        return best
-
-    def to_dict(self) -> dict:
-        return {
-            "sheet_size": f"{self.width}×{self.height} мм",
-            "thickness": self.thickness,
-            "material": self.material,
-            "total_area_m2": round(self.total_area, 4),
-            "used_area_m2": round(self.used_area, 4),
-            "waste_area_m2": round(self.waste_area, 4),
-            "utilization_percent": round(self.utilization * 100, 2),
-            "details_count": len(self.placed_details),
-            "details": [
-                {
-                    "name": p.detail.name,
-                    "x": p.x,
-                    "y": p.y,
-                    "width": p.width,
-                    "height": p.height,
-                    "rotated": p.rotated,
-                }
-                for p in self.placed_details
-            ],
-        }
+        # Сортуємо: спочатку найменший waste, потім нижче-лівіше
+        candidates.sort(key=lambda c: (c[0], c[2], c[1]))
+        _, rx, ry, rotated, _, _, _, _ = candidates[0]
+        return (rx, ry, rotated)
 
 
 @dataclass
@@ -578,14 +584,13 @@ class MetalCutter:
     def calculate_cutting(
         self, details: list[Detail], allow_rotation: bool = True, sort_by_area: bool = True
     ) -> CuttingPlan:
-        """Розрахувати оптимальний розкрій."""
+        """Розрахувати оптимальний розкрій (покращений)."""
         plan = CuttingPlan()
 
-        # Сортуємо деталі за площею (спочатку найбільші)
         if sort_by_area:
-            details = sorted(details, key=lambda d: d.total_area, reverse=True)
+            # Сортуємо: спочатку за шириною (для стабільності), потім за площею
+            details = sorted(details, key=lambda d: (-max(d.total_width, d.total_height), -d.total_area))
 
-        # Розгортаємо кількість у окремі деталі
         flat_details = []
         for d in details:
             for _ in range(d.quantity):
@@ -596,6 +601,8 @@ class MetalCutter:
                         height=d.height,
                         quantity=1,
                         product_type=d.product_type,
+                        material=d.material,
+                        thickness=d.thickness,
                         bend_allowance=d.bend_allowance,
                         cut_allowance=d.cut_allowance,
                     )
@@ -605,8 +612,7 @@ class MetalCutter:
 
         for detail in flat_details:
             placed = False
-
-            # Спробуємо розмістити на існуючих листах
+            # Спробуємо на існуючих листах
             for sheet in plan.sheets:
                 pos = sheet.find_best_position(detail)
                 if pos:
@@ -616,7 +622,6 @@ class MetalCutter:
                         break
 
             if not placed:
-                # Створюємо новий лист
                 new_sheet = Sheet(
                     width=self.sheet_width,
                     height=self.sheet_height,
