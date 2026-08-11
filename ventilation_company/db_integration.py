@@ -82,6 +82,8 @@ class ProjectDatabase:
                     quantity INTEGER DEFAULT 1,
                     metal_area_m2 REAL,
                     weight_kg REAL,
+                    unit_price REAL DEFAULT 0,
+                    total_price REAL DEFAULT 0,
                     notes TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -388,8 +390,9 @@ class ProjectDatabase:
             cursor = conn.execute(
                 """INSERT INTO project_products
                    (project_id, name, product_type, width, height, length,
-                    thickness, material, quantity, metal_area_m2, weight_kg, notes)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    thickness, material, quantity, metal_area_m2, weight_kg,
+                    unit_price, total_price, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     project_id,
                     product.get("name", ""),
@@ -402,6 +405,8 @@ class ProjectDatabase:
                     product.get("quantity", 1),
                     product.get("metal_area_m2", 0),
                     product.get("weight_kg", 0),
+                    product.get("unit_price", 0),
+                    product.get("total_price", 0),
                     product.get("notes", ""),
                 ),
             )

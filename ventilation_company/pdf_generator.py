@@ -262,9 +262,9 @@ class ProjectPDFReport(FPDF):
 
     def _draw_products_table(self, products: List[dict]):
         """Таблиця виробів з переносом на нову сторінку при необхідності."""
-        col_widths = [8, 38, 28, 22, 25, 12, 10, 18, 18, 18]
-        headers = ["№", "Найменування", "Тип", "Розміри", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Примітки"]
-        aligns = ["C", "L", "L", "C", "L", "C", "C", "R", "R", "L"]
+        col_widths = [8, 40, 26, 26, 12, 10, 20, 20, 24, 24]
+        headers = ["№", "Найменування", "Тип", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Ціна за шт", "Повна ціна"]
+        aligns = ["C", "L", "L", "L", "C", "C", "R", "R", "R", "R"]
 
         row_h = 6
 
@@ -302,19 +302,26 @@ class ProjectPDFReport(FPDF):
             qty = p.get("quantity", 1)
             weight = p.get("weight_kg", 0)
             area = p.get("metal_area_m2", 0)
-            notes = p.get("notes", "")[:15]
+            unit_price = float(p.get("unit_price", 0) or 0)
+            if unit_price == 0 and p.get("metal_area_m2"):
+                material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                area_val = float(p.get("metal_area_m2", 0))
+                mat = p.get("material", "оцинкована сталь")
+                price_per_m2 = material_prices.get(mat, 120.0)
+                unit_price = area_val * (price_per_m2 + 50)
+            total_price = unit_price * int(qty)
 
             values = [
                 str(i),
-                p.get("name", "")[:20],
+                p.get("name", "")[:22],
                 p.get("product_type", "")[:14],
-                dims,
-                p.get("material", "")[:12],
+                p.get("material", "")[:14],
                 f"{p.get('thickness', 0):.1f}",
                 str(qty),
                 f"{weight * qty:.2f}",
                 f"{area * qty:.3f}",
-                notes,
+                f"{unit_price:,.2f}",
+                f"{total_price:,.2f}",
             ]
 
             for w, v, a in zip(col_widths, values, aligns):

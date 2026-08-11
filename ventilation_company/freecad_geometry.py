@@ -221,32 +221,57 @@ class VentGeometry:
         h = float(data.get("height", 100))
         angle = float(data.get("angle", 90))
         radius = float(data.get("radius", 150))
+        top_ext = float(data.get("top_extension", 100))
+        bottom_ext = float(data.get("bottom_extension", 100))
         t = float(data.get("thickness", 0.7))
         segments = max(3, int(angle / 15))
 
         vertices = []
         edges = []
         rad = math.radians(angle)
+        ow, oh = w/2, h/2
 
-        # Approximate elbow as series of small boxes rotated
-        for i in range(segments + 1):
-            a = rad * i / segments
-            # Center of arc at (radius, 0, 0) in XY, then rotated
-            # Actually for ventilation, elbow is in XZ plane typically
-            # Position along arc
-            cx = radius * math.sin(a)
-            cz = radius * (1 - math.cos(a))
-            # Box at this position
-            ow, oh = w/2, h/2
+        def add_cs(cx, cy, cz, nx, ny, nz, bx, by, bz):
             base = len(vertices)
-            # 4 corners of the cross-section
-            for dx, dy in [(-ow, -oh), (ow, -oh), (ow, oh), (-ow, oh)]:
-                vertices.append((cx + dx, dy, cz))
-            if i > 0:
+            vertices.append((cx + nx*ow + bx*(-oh), cy + ny*ow + by*(-oh), cz + nz*ow + bz*(-oh)))
+            vertices.append((cx + nx*(-ow) + bx*(-oh), cy + ny*(-ow) + by*(-oh), cz + nz*(-ow) + bz*(-oh)))
+            vertices.append((cx + nx*(-ow) + bx*oh, cy + ny*(-ow) + by*oh, cz + nz*(-ow) + bz*oh))
+            vertices.append((cx + nx*ow + bx*oh, cy + ny*ow + by*oh, cz + nz*ow + bz*oh))
+            return base
+
+        def connect(base):
+            if base >= 4:
                 prev = base - 4
                 for j in range(4):
                     edges.append((prev + j, base + j))
+                for j in range(4):
                     edges.append((base + j, base + (j+1)%4))
+
+        # Bottom extension: along -Z
+        if bottom_ext > 0:
+            bs = max(2, int(bottom_ext / 50))
+            for i in range(bs + 1):
+                z = -bottom_ext + bottom_ext * i / bs
+                connect(add_cs(0, 0, z, 1, 0, 0, 0, 1, 0))
+
+        # Elbow arc: center (0,0,0), arc in XZ plane from +Z toward +X
+        arc_start = 1 if bottom_ext > 0 else 0
+        for i in range(arc_start, segments + 1):
+            a = rad * i / segments
+            cx = radius * math.sin(a)
+            cz = radius * (1 - math.cos(a))
+            nx, nz = -math.sin(a), math.cos(a)
+            connect(add_cs(cx, 0, cz, nx, 0, nz, 0, 1, 0))
+
+        # Top extension: along tangent at end
+        if top_ext > 0:
+            ts = max(2, int(top_ext / 50))
+            sx = radius * math.sin(rad)
+            sz = radius * (1 - math.cos(rad))
+            tx, tz = math.cos(rad), math.sin(rad)
+            for i in range(1, ts + 1):
+                d = top_ext * i / ts
+                connect(add_cs(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
 
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))
@@ -256,6 +281,8 @@ class VentGeometry:
         d = float(data.get("width", data.get("diameter", 100)))
         angle = float(data.get("angle", 90))
         radius = float(data.get("radius", 150))
+        top_ext = float(data.get("top_extension", 100))
+        bottom_ext = float(data.get("bottom_extension", 100))
         t = float(data.get("thickness", 0.7))
         segments = max(8, int(angle / 5))
         ring_segments = 16
@@ -265,23 +292,50 @@ class VentGeometry:
         r = d / 2
         rad = math.radians(angle)
 
-        for i in range(segments + 1):
-            a = rad * i / segments
-            cx = radius * math.sin(a)
-            cz = radius * (1 - math.cos(a))
+        def add_ring(cx, cy, cz, nx, ny, nz, bx, by, bz):
             base = len(vertices)
             for j in range(ring_segments):
                 theta = 2 * math.pi * j / ring_segments
                 vertices.append((
-                    cx + r * math.cos(theta) * math.cos(a),
-                    r * math.sin(theta),
-                    cz + r * math.cos(theta) * math.sin(a)
+                    cx + nx * r * math.cos(theta) + bx * r * math.sin(theta),
+                    cy + ny * r * math.cos(theta) + by * r * math.sin(theta),
+                    cz + nz * r * math.cos(theta) + bz * r * math.sin(theta)
                 ))
-            if i > 0:
+            return base
+
+        def connect_ring(base):
+            if base >= ring_segments:
                 prev = base - ring_segments
                 for j in range(ring_segments):
                     edges.append((prev + j, base + j))
+                for j in range(ring_segments):
                     edges.append((base + j, base + (j+1) % ring_segments))
+
+        # Bottom extension
+        if bottom_ext > 0:
+            bs = max(2, int(bottom_ext / 50))
+            for i in range(bs + 1):
+                z = -bottom_ext + bottom_ext * i / bs
+                connect_ring(add_ring(0, 0, z, 1, 0, 0, 0, 1, 0))
+
+        # Elbow arc
+        arc_start = 1 if bottom_ext > 0 else 0
+        for i in range(arc_start, segments + 1):
+            a = rad * i / segments
+            cx = radius * math.sin(a)
+            cz = radius * (1 - math.cos(a))
+            nx, nz = -math.sin(a), math.cos(a)
+            connect_ring(add_ring(cx, 0, cz, nx, 0, nz, 0, 1, 0))
+
+        # Top extension
+        if top_ext > 0:
+            ts = max(2, int(top_ext / 50))
+            sx = radius * math.sin(rad)
+            sz = radius * (1 - math.cos(rad))
+            tx, tz = math.cos(rad), math.sin(rad)
+            for i in range(1, ts + 1):
+                d = top_ext * i / ts
+                connect_ring(add_ring(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
 
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))

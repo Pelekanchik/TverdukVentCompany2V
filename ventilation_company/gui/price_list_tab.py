@@ -220,8 +220,95 @@ class PriceListManager:
             self.save()
         return imported
 
-    def import_from_archive(self, archive_dir: str = ARCHIVE_DIR):
-        """Імпортувати вироби з архіву проєктів (data/archive/*.zip)."""
+    def import_from_archive(self, db_path: str = "data/company.db") -> int:
+        """Імпортувати вироби з архіву проєктів (SQLite БД)."""
+        imported = 0
+        
+        # Спробуємо спочатку з SQLite (нові проєкти)
+        if os.path.exists(db_path):
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                # Отримуємо всі проєкти
+                cursor.execute("SELECT id, name FROM projects")
+                projects = cursor.fetchall()
+                
+                for project in projects:
+                    project_id = project["id"]
+                    project_name = project["name"]
+                    
+                    cursor.execute(
+                        "SELECT * FROM project_products WHERE project_id = ?",
+                        (project_id,)
+                    )
+                    products = cursor.fetchall()
+                    
+                    for p in products:
+                        item_name = p["name"]
+                        if not item_name:
+                            continue
+                        
+                        # Перевіряємо, чи вже є
+                        exists = any(
+                            i.name == item_name and i.project_id == str(project_id) and i.source == "archive"
+                            for i in self.items
+                        )
+                        if exists:
+                            continue
+                        
+                        # Формуємо розміри
+                        w = p["width"] or 0
+                        h = p["height"] or 0
+                        l = p["length"] or 0
+                        dims = f"{w}×{h}×{l}" if l else f"{w}×{h}"
+                        
+                        # Розраховуємо ціну
+                        unit_price = p["unit_price"] or 0
+                        qty = p["quantity"] or 1
+                        if unit_price == 0 and p["metal_area_m2"]:
+                            material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                            area = p["metal_area_m2"] or 0
+                            mat = p["material"] or "оцинкована сталь"
+                            price_per_m2 = material_prices.get(mat, 120.0)
+                            unit_price = area * (price_per_m2 + 50)
+                        
+                        total_price = unit_price * qty
+                        cost = unit_price / 1.3 if unit_price > 0 else 0
+                        
+                        item = PriceItem(
+                            name=item_name,
+                            category="власне виробництво",
+                            product_type=p["product_type"] or "",
+                            dimensions=dims,
+                            material=p["material"] or "",
+                            thickness=p["thickness"] or 0,
+                            unit="шт",
+                            quantity=qty,
+                            cost_price=cost,
+                            unit_price=unit_price,
+                            total_price=total_price,
+                            source="archive",
+                            project_id=str(project_id),
+                            notes_internal=f"З проєкту: {project_name}",
+                        )
+                        self.items.append(item)
+                        imported += 1
+                
+                conn.close()
+                if imported > 0:
+                    self.save()
+                return imported
+            except Exception as e:
+                print(f"[PriceList] Помилка читання з БД: {e}")
+        
+        # Fallback: старі ZIP-архіви
+        return self._import_from_zip_archives()
+
+    def _import_from_zip_archives(self, archive_dir: str = ARCHIVE_DIR) -> int:
+        """Імпортувати вироби з ZIP-архівів (старий формат)."""
         imported = 0
         if not os.path.exists(archive_dir):
             return 0
@@ -229,60 +316,45 @@ class PriceListManager:
         for filename in os.listdir(archive_dir):
             if not filename.endswith(".zip"):
                 continue
-
             zip_path = os.path.join(archive_dir, filename)
             try:
                 with zipfile.ZipFile(zip_path, "r") as zf:
-                    # Шукаємо specification.json у архіві
                     for name in zf.namelist():
-                        if name.endswith("specification.json"):
-                            try:
-                                data = json.loads(zf.read(name).decode("utf-8"))
-                                project_name = data.get("project_name", "Невідомий проєкт")
-                                project_id = data.get("project_id", "")
-
-                                for spec_item in data.get("items", []):
-                                    item_name = spec_item.get("name", "")
-                                    if not item_name:
-                                        continue
-
-                                    # Перевіряємо, чи вже є
-                                    exists = any(
-                                        i.name == item_name and i.project_id == project_id and i.source == "archive"
-                                        for i in self.items
-                                    )
-                                    if exists:
-                                        continue
-
-                                    item = PriceItem(
-                                        name=item_name,
-                                        category="власне виробництво",
-                                        product_type=spec_item.get("product_type", ""),
-                                        dimensions=spec_item.get("dimensions", ""),
-                                        material=spec_item.get("material", ""),
-                                        thickness=spec_item.get("thickness", 0),
-                                        unit=spec_item.get("unit", "шт"),
-                                        quantity=spec_item.get("quantity", 1),
-                                        cost_price=spec_item.get("price_per_unit", 0),
-                                        unit_price=spec_item.get("price_per_unit", 0),
-                                        total_price=spec_item.get("price_total", 0),
-                                        source="archive",
-                                        project_id=project_id,
-                                        notes_internal=f"З проєкту: {project_name}",
-                                    )
-                                    self.items.append(item)
-                                    imported += 1
-                            except Exception as e:
-                                print(f"[PriceList] Помилка читання {name} з {filename}: {e}")
+                        if not name.endswith(".json"):
+                            continue
+                        data = json.loads(zf.read(name).decode("utf-8"))
+                        for p in data.get("products", []):
+                            item_name = p.get("name", "")
+                            if not item_name:
                                 continue
+                            exists = any(
+                                i.name == item_name and i.source == "archive"
+                                for i in self.items
+                            )
+                            if exists:
+                                continue
+                            item = PriceItem(
+                                name=item_name,
+                                category="власне виробництво",
+                                product_type=p.get("product_type", ""),
+                                dimensions=p.get("dimensions", ""),
+                                material=p.get("material", ""),
+                                thickness=p.get("thickness", 0),
+                                unit="шт",
+                                quantity=p.get("quantity", 1),
+                                cost_price=p.get("cost_price", 0),
+                                unit_price=p.get("unit_price", 0),
+                                total_price=p.get("total_price", 0),
+                                source="archive",
+                                notes_internal=f"З архіву: {filename}",
+                            )
+                            self.items.append(item)
+                            imported += 1
             except Exception as e:
-                print(f"[PriceList] Помилка відкриття {filename}: {e}")
-                continue
-
+                print(f"[PriceList] Помилка читання {filename}: {e}")
         if imported > 0:
             self.save()
         return imported
-
 
 class PriceListExporter:
     """Експорт прайс-листа у різні формати."""
@@ -958,13 +1030,13 @@ class PriceListTab:
             messagebox.showwarning("Увага", "Функція синхронізації з виробами недоступна")
 
     def _sync_from_archive(self):
-        """Синхронізувати з архіву проєктів (data/archive/*.zip)."""
+        """Синхронізувати з архіву проєктів (SQLite БД)."""
         count = self.manager.import_from_archive()
         self._refresh_tree()
         if count > 0:
             messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з архіву проєктів")
         else:
-            messagebox.showinfo("Синхронізація", "Немає нових позицій в архіві або архів порожній")
+            messagebox.showinfo("Синхронізація", "Усі позиції вже синхронізовані або архів порожній")
 
     def _export(self, fmt: str):
         items = self._get_filtered_items()
