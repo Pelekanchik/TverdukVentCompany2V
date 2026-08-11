@@ -244,16 +244,20 @@ class VentGeometry:
             a = rad * i / segments
             cx = radius * math.sin(a)
             cz = radius * (1 - math.cos(a))
-            nx, nz = -math.sin(a), math.cos(a)
+            # radial direction in XZ plane (perpendicular to tangent)
+            nx, nz = math.cos(a), math.sin(a)
             connect(add_cs(cx, 0, cz, nx, 0, nz, 0, 1, 0))
         if top_ext > 0:
             ts = max(2, int(top_ext / 50))
             sx = radius * math.sin(rad)
             sz = radius * (1 - math.cos(rad))
+            # tangent after bend: (cos(rad), 0, sin(rad))
+            # radial direction perpendicular to tangent in XZ plane:
             tx, tz = math.cos(rad), math.sin(rad)
+            nx, nz = -math.sin(rad), math.cos(rad)
             for i in range(1, ts + 1):
                 d = top_ext * i / ts
-                connect(add_cs(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
+                connect(add_cs(sx + tx*d, 0, sz + tz*d, nx, 0, nz, 0, 1, 0))
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))
 
@@ -295,21 +299,25 @@ class VentGeometry:
             for i in range(bs + 1):
                 z = -bottom_ext + bottom_ext * i / bs
                 connect_ring(add_ring(0, 0, z, 1, 0, 0, 0, 1, 0))
-        arc_start = 1 if bottom_ext > 0 else 0
+                arc_start = 1 if bottom_ext > 0 else 0
         for i in range(arc_start, segments + 1):
             a = rad * i / segments
             cx = radius * math.sin(a)
             cz = radius * (1 - math.cos(a))
-            nx, nz = -math.sin(a), math.cos(a)
+            # radial direction in XZ plane (perpendicular to tangent)
+            nx, nz = math.cos(a), math.sin(a)
             connect_ring(add_ring(cx, 0, cz, nx, 0, nz, 0, 1, 0))
         if top_ext > 0:
             ts = max(2, int(top_ext / 50))
             sx = radius * math.sin(rad)
             sz = radius * (1 - math.cos(rad))
+            # tangent after bend: (cos(rad), 0, sin(rad))
+            # radial direction perpendicular to tangent in XZ plane:
             tx, tz = math.cos(rad), math.sin(rad)
+            nx, nz = -math.sin(rad), math.cos(rad)
             for i in range(1, ts + 1):
                 d = top_ext * i / ts
-                connect_ring(add_ring(sx + tx*d, 0, sz + tz*d, -math.sin(rad), 0, math.cos(rad), 0, 1, 0))
+                connect_ring(add_ring(sx + tx*d, 0, sz + tz*d, nx, 0, nz, 0, 1, 0))
         return MeshData(vertices=vertices, edges=edges, faces=[],
                          bounds=cls.get_bounds(data))
 
