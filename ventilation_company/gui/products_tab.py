@@ -200,6 +200,16 @@ class ProductsTab:
                   and name not in PYTHON_KEYWORDS]
         return params
 
+    def get_products_data(self) -> list[dict]:
+        """Повернути список виробів у форматі dict для синхронізації з прайс-листом."""
+        result = []
+        for p in self.products:
+            if hasattr(p, "to_dict"):
+                result.append(p.to_dict())
+            elif isinstance(p, dict):
+                result.append(p)
+        return result
+
     def _build_ui(self):
         left_frame = ttk.LabelFrame(self.frame, text="Додати виріб", padding=10)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
