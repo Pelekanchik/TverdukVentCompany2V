@@ -196,15 +196,65 @@ class PriceListManager:
         """Імпортувати вироби з вкладки 'Вироби' для конкретного проєкту."""
         imported = 0
         updated = 0
+        
+        try:
+            from ventilation_company.gui.settings_tab import PricingSettings
+            pricing = PricingSettings()
+        except Exception:
+            pricing = None
+        
         for p in products:
             name = p.get("name", "Виріб")
-
-            # Розрахунок ціни, якщо не задано
+            
+            # Розрахунок складових ціни через PricingSettings
             unit_price = p.get("unit_price", 0)
-            total_price = p.get("total_price", 0)
-            metal_area = p.get("metal_area_m2", 0)
-
-            if unit_price == 0 and metal_area > 0:
+            labor = 0
+            overhead_total = 0
+            cost_price = 0
+            
+            if pricing and p.get("metal_area_m2", 0) > 0:
+                try:
+                    data = {
+                        "type": p.get("product_type", p.get("type", "")),
+                        "material": p.get("material", "оцинкована сталь"),
+                        "thickness": p.get("thickness", 0.5),
+                        "metal_area_m2": p.get("metal_area_m2", 0),
+                        "weight_kg": p.get("weight_kg", 0),
+                        "quantity": p.get("quantity", 1),
+                        "width": p.get("width", 0),
+                        "height": p.get("height", 0),
+                        "length": p.get("length", 0),
+                        "profile": p.get("profile", 30.0),
+                        "angle": p.get("angle", 90),
+                        "radius": p.get("radius", 50),
+                        "top_extension": p.get("top_extension", 100),
+                        "bottom_extension": p.get("bottom_extension", 100),
+                    }
+                    result = pricing.calculate_product_price_detailed(data)
+                    steps = result["steps"]
+                    
+                    if len(steps) >= 7:
+                        after_waste = steps[1][1]
+                        after_labor = steps[3][1]
+                        after_depr = steps[4][1]
+                        after_elec = steps[5][1]
+                        after_overhead = steps[6][1]
+                        final_price = steps[7][1] if len(steps) > 7 else after_overhead
+                        
+                        labor = after_labor - after_waste          # чиста робота
+                        depreciation = after_depr - after_labor    # амортизація
+                        electricity = after_elec - after_depr      # електроенергія
+                        overhead = after_overhead - after_elec     # накладні
+                        
+                        unit_price = final_price
+                        cost_price = after_overhead
+                        overhead_total = depreciation + electricity + overhead
+                except Exception:
+                    pass  # використаємо fallback
+            
+            # Fallback, якщо PricingSettings не спрацював
+            if unit_price == 0 and p.get("metal_area_m2", 0) > 0:
+                metal_area = p.get("metal_area_m2", 0)
                 material = p.get("material", "оцинкована сталь")
                 thickness = p.get("thickness", 0.5)
                 material_prices = {
@@ -224,22 +274,23 @@ class PriceListManager:
                 }
                 coef = type_coef.get(p.get("product_type", ""), 1.3)
                 unit_price = metal_area * price_per_m2 * coef
-                total_price = unit_price * p.get("quantity", 1)
-
-            cost = unit_price / 1.3 if unit_price > 0 else 0
-
-            # Шукаємо існуючий виріб і оновлюємо ціну
+                cost_price = unit_price / 1.3
+            
+            total_price = unit_price * p.get("quantity", 1)
+            
+            # Шукаємо існуючий виріб
             existing = None
             for i in self.items:
                 if i.name == name and i.source == "products" and i.project_id == str(project_id):
                     existing = i
                     break
-
+            
             if existing:
-                # Оновлюємо ціну існуючого виробу
                 existing.unit_price = unit_price
                 existing.total_price = total_price
-                existing.cost_price = cost
+                existing.cost_price = cost_price
+                existing.labor_cost = labor
+                existing.overhead_cost = overhead_total
                 existing.quantity = p.get("quantity", 1)
                 existing.dimensions = p.get("dimensions", "")
                 existing.material = p.get("material", "")
@@ -255,9 +306,9 @@ class PriceListManager:
                     thickness=p.get("thickness", 0),
                     unit="шт",
                     quantity=p.get("quantity", 1),
-                    cost_price=cost,
-                    labor_cost=0,
-                    overhead_cost=0,
+                    cost_price=cost_price,
+                    labor_cost=labor,
+                    overhead_cost=overhead_total,
                     unit_price=unit_price,
                     total_price=total_price,
                     source="products",
@@ -265,7 +316,7 @@ class PriceListManager:
                 )
                 self.items.append(item)
                 imported += 1
-
+        
         if imported > 0 or updated > 0:
             self.save()
         return imported
