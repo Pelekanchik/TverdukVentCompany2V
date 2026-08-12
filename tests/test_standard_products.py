@@ -178,24 +178,80 @@ class TestRoundTransition:
 
 
 class TestRectElbow:
-    """Тести прямокутного коліна."""
+    """Тести прямокутного коліна (відповідно до CAMduct)."""
 
-    def test_metal_area_90(self):
-        e = RectElbow(name="Коліно", width=400, height=200, angle=90, radius=150)
-        w, h, r = 0.4, 0.2, 0.15
-        arc = r * math.radians(90)
-        expected = 2 * (w + h) * arc
+    def test_metal_area_90_no_extensions(self):
+        """Коліно 90° без подовжень — тільки зігнута частина."""
+        e = RectElbow(name="Коліно", width=400, height=200, angle=90, radius=50,
+                      top_extension=0, bottom_extension=0)
+        w, h, r = 0.4, 0.2, 0.05
+        angle_rad = math.radians(90)
+        mean_r = r + h / 2          # середній радіус = r + H/2
+        arc = mean_r * angle_rad
+        perimeter = 2 * (w + h)
+        expected = perimeter * arc  # тільки зігнута частина
+        assert abs(e.metal_area - expected) < 0.001
+
+    def test_metal_area_90_with_extensions(self):
+        """Коліно 90° з подовженнями 100мм — як у CAMduct (A=400,B=200,F=50,D=100,E=100)."""
+        e = RectElbow(name="Коліно", width=400, height=200, angle=90, radius=50,
+                      top_extension=100, bottom_extension=100)
+        w, h, r = 0.4, 0.2, 0.05
+        angle_rad = math.radians(90)
+        mean_r = r + h / 2
+        arc = mean_r * angle_rad
+        perimeter = 2 * (w + h)
+        # зігнута частина + прямі подовження
+        expected = perimeter * arc + perimeter * 0.2
+        assert abs(e.metal_area - expected) < 0.001
+
+    def test_metal_area_45_degrees(self):
+        """Коліно 45° з подовженнями."""
+        e = RectElbow(name="Коліно", width=400, height=200, angle=45, radius=50,
+                      top_extension=100, bottom_extension=100)
+        w, h, r = 0.4, 0.2, 0.05
+        angle_rad = math.radians(45)
+        mean_r = r + h / 2
+        arc = mean_r * angle_rad
+        perimeter = 2 * (w + h)
+        expected = perimeter * arc + perimeter * 0.2
         assert abs(e.metal_area - expected) < 0.001
 
 
 class TestRoundElbow:
-    """Тести круглого коліна."""
+    """Тести круглого коліна (відповідно до CAMduct)."""
 
-    def test_metal_area_90(self):
-        e = RoundElbow(name="Коліно", width=250, angle=90, radius=150)
-        d, r = 0.25, 0.15
-        arc = r * math.radians(90)
+    def test_metal_area_90_no_extensions(self):
+        """Коліно 90° без подовжень — тільки зігнута частина."""
+        e = RoundElbow(name="Коліно", width=250, angle=90, radius=50,
+                       top_extension=0, bottom_extension=0)
+        d, r = 0.25, 0.05
+        angle_rad = math.radians(90)
+        mean_r = r + d / 2          # середній радіус = r + D/2
+        arc = mean_r * angle_rad
         expected = math.pi * d * arc
+        assert abs(e.metal_area - expected) < 0.001
+
+    def test_metal_area_90_with_extensions(self):
+        """Коліно 90° з подовженнями 100мм."""
+        e = RoundElbow(name="Коліно", width=250, angle=90, radius=50,
+                       top_extension=100, bottom_extension=100)
+        d, r = 0.25, 0.05
+        angle_rad = math.radians(90)
+        mean_r = r + d / 2
+        arc = mean_r * angle_rad
+        expected = math.pi * d * arc + math.pi * d * 0.2
+        assert abs(e.metal_area - expected) < 0.001
+
+    def test_metal_area_45_degrees(self):
+        """Коліно 45° з подовженнями."""
+        e = RoundElbow(name="Коліно", width=250, angle=45, radius=50,
+                       top_extension=100, bottom_extension=100)
+        d, r = 0.25, 0.05
+        angle_rad = math.radians(45)
+        mean_r = r + d / 2
+        arc = mean_r * angle_rad
+        expected = math.pi * d * arc + math.pi * d * 0.2
         assert abs(e.metal_area - expected) < 0.001
 
 

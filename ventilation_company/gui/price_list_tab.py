@@ -195,34 +195,78 @@ class PriceListManager:
     def import_from_products(self, products: list[dict], project_id: str = ""):
         """Імпортувати вироби з вкладки 'Вироби' для конкретного проєкту."""
         imported = 0
+        updated = 0
         for p in products:
             name = p.get("name", "Виріб")
-            exists = any(
-                i.name == name and i.source == "products" and i.project_id == str(project_id)
-                for i in self.items
-            )
-            if exists:
-                continue
-            item = PriceItem(
-                name=name,
-                category="власне виробництво",
-                product_type=p.get("product_type", p.get("type", "")),
-                dimensions=p.get("dimensions", ""),
-                material=p.get("material", ""),
-                thickness=p.get("thickness", 0),
-                unit="шт",
-                quantity=p.get("quantity", 1),
-                cost_price=p.get("cost_price", 0),
-                labor_cost=p.get("labor_cost", 0),
-                overhead_cost=p.get("overhead_cost", 0),
-                unit_price=p.get("unit_price", 0),
-                total_price=p.get("total_price", 0),
-                source="products",
-                project_id=str(project_id),
-            )
-            self.items.append(item)
-            imported += 1
-        if imported > 0:
+
+            # Розрахунок ціни, якщо не задано
+            unit_price = p.get("unit_price", 0)
+            total_price = p.get("total_price", 0)
+            metal_area = p.get("metal_area_m2", 0)
+
+            if unit_price == 0 and metal_area > 0:
+                material = p.get("material", "оцинкована сталь")
+                thickness = p.get("thickness", 0.5)
+                material_prices = {
+                    "оцинкована сталь": {0.5: 260, 0.7: 380, 0.9: 520, 1.0: 750, 1.2: 900},
+                    "нержавіюча сталь": {0.5: 350, 0.7: 500, 0.9: 700, 1.0: 1000, 1.2: 1200},
+                    "алюміній": {0.5: 200, 0.7: 300, 0.9: 400, 1.0: 550, 1.2: 700},
+                }
+                price_per_m2 = material_prices.get(material, {}).get(thickness, 260)
+                type_coef = {
+                    "rect_duct": 1.15, "round_duct": 1.20,
+                    "rect_flange": 1.30, "round_flange": 1.30,
+                    "rect_tee": 1.50, "round_tee": 1.55,
+                    "rect_transition": 1.40, "round_transition": 1.45,
+                    "rect_elbow": 1.60, "round_elbow": 1.65,
+                    "rect_cap": 1.25, "round_cap": 1.25,
+                    "flexible": 1.0,
+                }
+                coef = type_coef.get(p.get("product_type", ""), 1.3)
+                unit_price = metal_area * price_per_m2 * coef
+                total_price = unit_price * p.get("quantity", 1)
+
+            cost = unit_price / 1.3 if unit_price > 0 else 0
+
+            # Шукаємо існуючий виріб і оновлюємо ціну
+            existing = None
+            for i in self.items:
+                if i.name == name and i.source == "products" and i.project_id == str(project_id):
+                    existing = i
+                    break
+
+            if existing:
+                # Оновлюємо ціну існуючого виробу
+                existing.unit_price = unit_price
+                existing.total_price = total_price
+                existing.cost_price = cost
+                existing.quantity = p.get("quantity", 1)
+                existing.dimensions = p.get("dimensions", "")
+                existing.material = p.get("material", "")
+                existing.thickness = p.get("thickness", 0)
+                updated += 1
+            else:
+                item = PriceItem(
+                    name=name,
+                    category="власне виробництво",
+                    product_type=p.get("product_type", p.get("type", "")),
+                    dimensions=p.get("dimensions", ""),
+                    material=p.get("material", ""),
+                    thickness=p.get("thickness", 0),
+                    unit="шт",
+                    quantity=p.get("quantity", 1),
+                    cost_price=cost,
+                    labor_cost=0,
+                    overhead_cost=0,
+                    unit_price=unit_price,
+                    total_price=total_price,
+                    source="products",
+                    project_id=str(project_id),
+                )
+                self.items.append(item)
+                imported += 1
+
+        if imported > 0 or updated > 0:
             self.save()
         return imported
 

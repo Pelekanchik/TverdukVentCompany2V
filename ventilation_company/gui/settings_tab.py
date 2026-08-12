@@ -146,13 +146,13 @@ DEFAULT_PRODUCTS = [
     },
     {
         "name": "Відвід прямокутний",
-        "formula": "metal_area * material_price * 1.60",
+        "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*pi/180/1000) * material_price * 1.60",
         "labor_hours": 1.00,
         "description": "Сегментне коліно",
     },
     {
         "name": "Відвід круглий",
-        "formula": "metal_area * material_price * 1.65",
+        "formula": "(pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*pi/180/1000) * material_price * 1.65",
         "labor_hours": 1.10,
         "description": "Гнуте коліно",
     },
@@ -426,6 +426,14 @@ class PricingSettings:
                 "quantity": quantity, "bolt_count": bolt_count,
                 "length": product_data.get("length", 0),
                 "profile": product_data.get("profile", 30.0),
+                # Параметри CAMduct для колін
+                "A": product_data.get("width", 0),
+                "B": product_data.get("height", 0),
+                "C": product_data.get("angle", 90),
+                "D": product_data.get("top_extension", 100),
+                "E": product_data.get("bottom_extension", 100),
+                "F": product_data.get("radius", 50),
+                "pi": 3.141592653589793,
             }
             namespace.update(self.custom_params)
             for key, value in product_data.items():

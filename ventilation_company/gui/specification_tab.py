@@ -483,12 +483,12 @@ class SpecificationTab:
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
             pricing = PricingSettings()
-            markup = pricing.markup_percent / 100.0
 
             total_material = 0.0
             total_labor = 0.0
             total_depreciation = 0.0
             total_electricity = 0.0
+            total_customer_price = 0.0
 
             for p in products:
                 qty = p.get("quantity", 1)
@@ -503,27 +503,33 @@ class SpecificationTab:
                     "height": p.get("height", 0),
                     "length": p.get("length", 0),
                     "profile": p.get("profile", 30.0),
+                    "angle": p.get("angle", 90),
+                    "radius": p.get("radius", 50),
+                    "top_extension": p.get("top_extension", 100),
+                    "bottom_extension": p.get("bottom_extension", 100),
                 }
 
                 result = pricing.calculate_product_price_detailed(data)
                 steps = result["steps"]
 
-                if len(steps) >= 6:
+                if len(steps) >= 7:
                     after_waste = steps[1]["value"]
                     labor = steps[2]["value"]
                     after_labor = steps[3]["value"]
                     after_depr = steps[4]["value"]
                     elec = steps[5]["value"]
+                    final_price = steps[6]["value"]
 
                     total_material += after_waste * qty
                     total_labor += labor * qty
                     total_depreciation += (after_depr - after_labor) * qty
                     total_electricity += elec * qty
+                    total_customer_price += final_price * qty
 
             cost_price = (
                 total_material + total_labor + total_depreciation + total_electricity
             )
-            customer_price = cost_price * (1 + markup)
+            customer_price = total_customer_price
             profit = customer_price - cost_price
 
             return {

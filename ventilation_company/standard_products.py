@@ -100,6 +100,7 @@ class StandardProduct:
         for field_name in ["branch_width", "branch_height", "branch_length",
                            "branch_diameter", "branch_offset", "end_width",
                            "end_height", "end_diameter", "angle", "radius",
+                           "top_extension", "bottom_extension",
                            "segments", "depth", "border", "bolt_count",
                            "bolt_diameter", "bolt_spacing", "fabric_type"]:
             if hasattr(self, field_name):
@@ -250,35 +251,85 @@ class RoundTransition(StandardProduct):
 
 @dataclass
 class RectElbow(StandardProduct):
-    """Прямокутне коліно з подовженнями."""
+    """Прямокутне коліно з подовженнями.
+
+    Параметри (як у CAMduct):
+      • width  (A) — ширина перерізу, мм
+      • height (B) — глибина (висота) перерізу, мм
+      • angle  (C) — кут згину, °
+      • radius (F) — внутрішній радіус горловини, мм
+      • top_extension    (D) — верхнє подовження, мм
+      • bottom_extension (E) — нижнє подовження, мм
+
+    Формула площі металу:
+      S = 2·(W+H)·[(top+bottom) + (r + H/2)·α]
+      де W,H,r,top,bottom — в метрах, α — в радіанах.
+    """
     angle: float = 90
-    radius: float = 150
-    top_extension: float = 100
-    bottom_extension: float = 100
+    radius: float = 50          # внутрішній радіус горловини (F), мм
+    top_extension: float = 100    # верхнє подовження (D), мм
+    bottom_extension: float = 100 # нижнє подовження (E), мм
 
     def calculate_metal_area(self) -> float:
-        w = self.width / 1000
-        h = self.height / 1000
-        r = self.radius / 1000
+        w = self.width / 1000            # ширина, м
+        h = self.height / 1000           # висота, м
+        r = self.radius / 1000           # внутрішній радіус, м
         angle_rad = math.radians(self.angle)
-        arc_length = r * angle_rad
-        return 2 * (w + h) * arc_length
+        top_ext = self.top_extension / 1000
+        bottom_ext = self.bottom_extension / 1000
+
+        # Периметр перерізу
+        perimeter = 2 * (w + h)
+
+        # Площа прямих подовжень (бічна поверхня прямокутної труби)
+        straight_area = perimeter * (top_ext + bottom_ext)
+
+        # Площа зігнутої частини
+        # Середній радіус = r + h/2  (ось згину проходить посередині перерізу)
+        mean_radius = r + h / 2
+        arc_length = mean_radius * angle_rad
+        bend_area = perimeter * arc_length
+
+        return straight_area + bend_area
 
 
 @dataclass
 class RoundElbow(StandardProduct):
-    """Кругле коліно з подовженнями."""
+    """Кругле коліно з подовженнями.
+
+    Параметри (як у CAMduct):
+      • width  — діаметр труби, мм
+      • angle  — кут згину, °
+      • radius — внутрішній радіус горловини, мм
+      • top_extension    — верхнє подовження, мм
+      • bottom_extension — нижнє подовження, мм
+
+    Формула площі металу:
+      S = π·D·[(top+bottom) + (r + D/2)·α]
+      де D,r,top,bottom — в метрах, α — в радіанах.
+    """
     angle: float = 90
-    radius: float = 150
-    top_extension: float = 100
-    bottom_extension: float = 100
+    radius: float = 50          # внутрішній радіус горловини, мм
+    top_extension: float = 100    # верхнє подовження, мм
+    bottom_extension: float = 100 # нижнє подовження, мм
 
     def calculate_metal_area(self) -> float:
-        d = self.width / 1000
-        r = self.radius / 1000
+        d = self.width / 1000            # діаметр, м
+        r = self.radius / 1000           # внутрішній радіус, м
         angle_rad = math.radians(self.angle)
-        arc_length = r * angle_rad
-        return math.pi * d * arc_length
+        top_ext = self.top_extension / 1000
+        bottom_ext = self.bottom_extension / 1000
+
+        # Площа прямих подовжень (бічна поверхня циліндра)
+        straight_area = math.pi * d * (top_ext + bottom_ext)
+
+        # Площа зігнутої частини
+        # Середній радіус = r + d/2  (ось згину посередині труби)
+        mean_radius = r + d / 2
+        arc_length = mean_radius * angle_rad
+        bend_area = math.pi * d * arc_length
+
+        return straight_area + bend_area
 
 
 @dataclass
