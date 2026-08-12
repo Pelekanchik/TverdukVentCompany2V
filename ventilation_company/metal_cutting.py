@@ -521,16 +521,19 @@ class MetalCutter:
 
         # ── КОЛІНО ПРЯМОКУТНЕ ──
         elif product_type == "rect_elbow":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            angle = float(product.get("angle", 90))
-            radius = float(product.get("radius", 150))
-            arc = radius * math.radians(angle)
+            width = float(product.get("width", 0))           # A
+            height = float(product.get("height", 0))         # B
+            angle = float(product.get("angle", 90))           # C
+            radius = float(product.get("radius", 150))        # F
+            top_ext = float(product.get("top_extension", 100))      # D
+            bottom_ext = float(product.get("bottom_extension", 100))  # E
             p = 2 * (width + height)
+            arc = (radius + height / 2) * math.radians(angle)
+            total_length = top_ext + bottom_ext + arc
             return Detail(
                 name=name,
                 width=p,
-                height=arc,
+                height=total_length,
                 product_type="коліно прямокутне",
                 quantity=quantity,
                 notes=notes,
@@ -538,15 +541,18 @@ class MetalCutter:
 
         # ── КОЛІНО КРУГЛЕ ──
         elif product_type == "round_elbow":
-            d = float(product.get("width", product.get("height", 0)))
-            angle = float(product.get("angle", 90))
-            radius = float(product.get("radius", 150))
-            arc = radius * math.radians(angle)
+            d = float(product.get("width", product.get("height", 0)))  # A
+            angle = float(product.get("angle", 90))                     # C
+            radius = float(product.get("radius", 150))                  # F
+            top_ext = float(product.get("top_extension", 100))             # D
+            bottom_ext = float(product.get("bottom_extension", 100))    # E
             p = 3.141592653589793 * d
+            arc = (radius + d / 2) * math.radians(angle)
+            total_length = top_ext + bottom_ext + arc
             return Detail(
                 name=name,
                 width=p,
-                height=arc,
+                height=total_length,
                 product_type="коліно кругле",
                 quantity=quantity,
                 notes=notes,

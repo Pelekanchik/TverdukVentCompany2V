@@ -487,7 +487,10 @@ class ProductsTab:
         is_duct = "duct" in ptype or "повітропровід" in selected_name.lower()
         is_elbow = "elbow" in ptype or "відвід" in selected_name.lower() or "коліно" in selected_name.lower()
 
-        if is_round:
+        if is_elbow:
+            self.width_label.config(text="A — Ширина (мм):")
+            self.height_label.config(text="B — Глибина (мм):")
+        elif is_round:
             self.width_label.config(text="Діаметр (мм):")
             self._show_height_field(False)
             self.height_var.set(self.width_var.get())
@@ -577,17 +580,37 @@ class ProductsTab:
 
     def _build_elbow_fields(self):
         self._extra_vars["angle"] = tk.StringVar(value="90")
-        self._extra_vars["radius"] = tk.StringVar(value="150")
+        self._extra_vars["radius"] = tk.StringVar(value="50")
         self._extra_vars["top_extension"] = tk.StringVar(value="100")
         self._extra_vars["bottom_extension"] = tk.StringVar(value="100")
-        ttk.Label(self.extra_frame, text="Кут згину (°):").pack(anchor=tk.W)
-        ttk.Entry(self.extra_frame, textvariable=self._extra_vars["angle"], width=12).pack(anchor=tk.W)
-        ttk.Label(self.extra_frame, text="Радіус дуги (мм):").pack(anchor=tk.W)
-        ttk.Entry(self.extra_frame, textvariable=self._extra_vars["radius"], width=12).pack(anchor=tk.W)
-        ttk.Label(self.extra_frame, text="Верхнє подовження (мм):").pack(anchor=tk.W)
-        ttk.Entry(self.extra_frame, textvariable=self._extra_vars["top_extension"], width=12).pack(anchor=tk.W)
-        ttk.Label(self.extra_frame, text="Нижнє подовження (мм):").pack(anchor=tk.W)
-        ttk.Entry(self.extra_frame, textvariable=self._extra_vars["bottom_extension"], width=12).pack(anchor=tk.W)
+
+        # C — Кут згину
+        f = ttk.Frame(self.extra_frame)
+        f.pack(fill=tk.X, pady=1)
+        ttk.Label(f, text="C — Кут згину (°):").pack(side=tk.LEFT)
+        ttk.Entry(f, textvariable=self._extra_vars["angle"], width=12).pack(side=tk.LEFT, padx=5)
+        self.extra_widgets.append(f)
+
+        # F — Внутрішній радіус
+        f = ttk.Frame(self.extra_frame)
+        f.pack(fill=tk.X, pady=1)
+        ttk.Label(f, text="F — Внутрішній радіус (мм):").pack(side=tk.LEFT)
+        ttk.Entry(f, textvariable=self._extra_vars["radius"], width=12).pack(side=tk.LEFT, padx=5)
+        self.extra_widgets.append(f)
+
+        # D — Верхнє подовження
+        f = ttk.Frame(self.extra_frame)
+        f.pack(fill=tk.X, pady=1)
+        ttk.Label(f, text="D — Верхнє подовження (мм):").pack(side=tk.LEFT)
+        ttk.Entry(f, textvariable=self._extra_vars["top_extension"], width=12).pack(side=tk.LEFT, padx=5)
+        self.extra_widgets.append(f)
+
+        # E — Нижнє подовження
+        f = ttk.Frame(self.extra_frame)
+        f.pack(fill=tk.X, pady=1)
+        ttk.Label(f, text="E — Нижнє подовження (мм):").pack(side=tk.LEFT)
+        ttk.Entry(f, textvariable=self._extra_vars["bottom_extension"], width=12).pack(side=tk.LEFT, padx=5)
+        self.extra_widgets.append(f)
 
     def _build_cap_fields(self, ptype):
         if "rect" in ptype:
@@ -808,15 +831,21 @@ class ProductsTab:
             elif ptype == "rect_elbow":
                 angle = self._get_extra("angle", 90)
                 radius = self._get_extra("radius", 150)
-                return RectElbow(name="", width=w, height=h, length=length, thickness=Thickness.T0_7,
+                top_ext = self._get_extra("top_extension", 100)
+                bottom_ext = self._get_extra("bottom_extension", 100)
+                return RectElbow(name="", width=w, height=h, length=0, thickness=Thickness.T0_7,
                                  material=MaterialType.GALVANIZED, quantity=1,
-                                 angle=angle, radius=radius).metal_area
+                                 angle=angle, radius=radius,
+                                 top_extension=top_ext, bottom_extension=bottom_ext).metal_area
             elif ptype == "round_elbow":
                 angle = self._get_extra("angle", 90)
                 radius = self._get_extra("radius", 150)
-                return RoundElbow(name="", width=w, height=w, length=length, thickness=Thickness.T0_7,
+                top_ext = self._get_extra("top_extension", 100)
+                bottom_ext = self._get_extra("bottom_extension", 100)
+                return RoundElbow(name="", width=w, height=w, length=0, thickness=Thickness.T0_7,
                                   material=MaterialType.GALVANIZED, quantity=1,
-                                  angle=angle, radius=radius).metal_area
+                                  angle=angle, radius=radius,
+                                  top_extension=top_ext, bottom_extension=bottom_ext).metal_area
             elif ptype == "rect_cap":
                 border = self._get_extra("border", 25)
                 return RectCap(name="", width=w, height=h, length=0, thickness=Thickness.T0_7,

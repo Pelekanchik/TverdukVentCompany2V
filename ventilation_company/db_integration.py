@@ -303,6 +303,10 @@ class ProjectDatabase:
                 ).fetchall()
             return [dict(r) for r in rows]
 
+    def list_projects(self, status: str | None = None) -> list[dict]:
+        """Alias для get_all_projects (для сумісності з price_list_tab)."""
+        return self.get_all_projects(status)
+
     def update_project(self, project_id: int, **kwargs) -> bool:
         """Оновити проєкт."""
         with self._get_connection() as conn:

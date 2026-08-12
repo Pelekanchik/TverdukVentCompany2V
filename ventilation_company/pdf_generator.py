@@ -41,6 +41,13 @@ def _find_fonts() -> tuple[str, str]:
     )
 
 
+def _clean_text(text) -> str:
+    """Прибирає символи нового рядка — fpdf2 не може їх відобразити."""
+    if text is None:
+        return ""
+    return str(text).replace("\n", " ").replace("\r", " ").replace("\t", " ")
+
+
 class ProjectPDFReport(FPDF):
     def __init__(self):
         super().__init__(orientation="P", unit="mm", format="A4")
@@ -66,7 +73,7 @@ class ProjectPDFReport(FPDF):
     def _draw_header(self, title: str):
         self._set_font_bold(18)
         self.set_text_color(21, 101, 192)
-        self.cell(0, 10, title, ln=True, align="C")
+        self.cell(0, 10, _clean_text(title), ln=True, align="C")
         self._set_font_regular(9)
         self.set_text_color(100, 100, 100)
         self.cell(0, 5, f"Сформовано: {datetime.now().strftime('%d.%m.%Y %H:%M')}", ln=True, align="C")
@@ -79,7 +86,7 @@ class ProjectPDFReport(FPDF):
         self.set_y(-15)
         self._set_font_regular(8)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f"Сторінка {self.page_no()}", align="C")
+        self.cell(0, 10, _clean_text(f"Сторінка {self.page_no()}"), align="C")
 
     def build_report(self, project: dict, products: List[dict], output_path: str) -> str:
         self._draw_header("ЗВІТ ПО ПРОЄКТУ")
@@ -138,7 +145,7 @@ class ProjectPDFReport(FPDF):
         self._section_title("Вироби проєкту")
         if not products:
             self._set_font_regular(10)
-            self.cell(0, 10, "Вироби відсутні", ln=True, align="C")
+            self.cell(0, 10, _clean_text("Вироби відсутні"), ln=True, align="C")
         else:
             self._draw_products_table(products)
 
@@ -178,13 +185,13 @@ class ProjectPDFReport(FPDF):
             final_text = f"ЗБИТОК:  {profit:,.2f} грн"
 
         self._set_font_bold(16)
-        self.cell(0, 12, final_text, ln=True, align="C")
+        self.cell(0, 12, _clean_text(final_text), ln=True, align="C")
         self.set_text_color(0, 0, 0)
 
         self.ln(10)
         self._set_font_regular(9)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 5, "Сформовано системою VentCompany", ln=True, align="C")
+        self.cell(0, 5, _clean_text("Сформовано системою VentCompany"), ln=True, align="C")
 
         self.output(output_path)
         return output_path
@@ -192,7 +199,7 @@ class ProjectPDFReport(FPDF):
     def _section_title(self, title: str):
         self._set_font_bold(12)
         self.set_text_color(33, 33, 33)
-        self.cell(0, 8, title, ln=True)
+        self.cell(0, 8, _clean_text(title), ln=True)
         self.set_draw_color(21, 101, 192)
         self.line(10, self.get_y(), 60, self.get_y())
         self.ln(4)
@@ -200,22 +207,22 @@ class ProjectPDFReport(FPDF):
 
     def _info_row(self, label: str, value: str):
         self._set_font_bold(9)
-        self.cell(60, 6, label, align="L")
+        self.cell(60, 6, _clean_text(label), align="L")
         self._set_font_regular(9)
-        self.cell(0, 6, str(value), ln=True, align="L")
+        self.cell(0, 6, _clean_text(value), ln=True, align="L")
 
     def _money_row(self, label: str, amount: float):
         self._set_font_bold(9)
-        self.cell(110, 6, label, align="L")
+        self.cell(110, 6, _clean_text(label), align="L")
         self._set_font_regular(9)
         self._cell_right(70, 6, f"{amount:,.2f} грн")
         self.ln()
 
     def _summary_row(self, label: str, value: str):
         self._set_font_bold(10)
-        self.cell(90, 7, label, align="L")
+        self.cell(90, 7, _clean_text(label), align="L")
         self._set_font_regular(10)
-        self._cell_right(90, 7, value)
+        self._cell_right(90, 7, _clean_text(value))
         self.ln()
 
     def _draw_products_table(self, products: List[dict]):
@@ -264,7 +271,7 @@ class ProjectPDFReport(FPDF):
 
             values = [
                 str(i),
-                f"{p.get('name', '')[:18]}\n({dims})",
+                f"{p.get('name', '')[:18]} ({dims})",
                 p.get("material", "")[:16],
                 f"{p.get('thickness', 0):.1f}",
                 str(qty),
@@ -274,7 +281,7 @@ class ProjectPDFReport(FPDF):
                 f"{total_price:,.2f}",
             ]
             for w, v, a in zip(col_widths, values, aligns):
-                self.cell(w, row_h, v, border=1, align=a)
+                self.cell(w, row_h, _clean_text(v), border=1, align=a)
             self.ln()
         self.ln(3)
 
