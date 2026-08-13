@@ -1,12 +1,13 @@
 """Вкладка "Проєкти 3D / Креслення" — заміна старої вкладки FreeCAD.
 
 Функціонал:
-  • Імпорт: IFC (Revit), DXF/DWG (AutoCAD), STEP (Solidworks), FCStd (FreeCAD), .ventproj
-  • Експорт: IFC, DXF, STEP, FCStd, .ventproj
-  • 2D-перегляд планів поверхів з накладанням вентиляції
-  • 3D-перегляд системи вентиляції в архітектурному контексті
-  • Редагування: зміна розмірів, переміщення, видалення
-  • Дерево проєкту: Система → Траса → Сегмент/Виріб
+ • Імпорт: IFC (Revit), DXF/DWG (AutoCAD), STEP (Solidworks), FCStd (FreeCAD), .ventproj
+ • Експорт: IFC, DXF, STEP, FCStd, .ventproj
+ • 2D-перегляд планів поверхів з накладанням вентиляції (тільки перегляд)
+ • 3D-перегляд системи вентиляції в архітектурному контексті
+ • Редагування: зміна розмірів, переміщення, видалення через дерево
+ • Окремий редактор креслень для інтерактивного креслення мишею
+ • Дерево проєкту: Система → Траса → Сегмент/Виріб
 """
 
 import os
@@ -28,6 +29,8 @@ from ventilation_company.project3d.dialogs import (
     EditTrunkDialog, AddTrunkDialog,
 )
 
+from ventilation_company.project3d.drawing_editor import DrawingEditorWindow
+
 
 class Project3DTab:
     """Головна вкладка для роботи з 3D-проєктами та кресленнями."""
@@ -42,10 +45,6 @@ class Project3DTab:
 
         self._build_ui()
         self._load_demo_if_empty()
-
-    # ═══════════════════════════════════════════════════════════════
-    # BUILD UI
-    # ═══════════════════════════════════════════════════════════════
 
     def _build_ui(self):
         # ── Top toolbar ──
@@ -107,10 +106,8 @@ class Project3DTab:
 
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
 
-        # Креслення
-        ttk.Button(toolbar, text="✏️ Креслити сегмент", command=self._start_draw_segment).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="✏️ Креслити стіну", command=self._start_draw_wall).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="⛔ Скасувати креслення", command=self._cancel_draw).pack(side=tk.LEFT, padx=2)
+        # Кнопка відкриття редактора креслень
+        ttk.Button(toolbar, text="✏️ Редагувати креслення", command=self._open_drawing_editor).pack(side=tk.LEFT, padx=2)
 
         ttk.Button(toolbar, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
@@ -170,12 +167,22 @@ class Project3DTab:
         self.status = ttk.Label(self.frame, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
 
-    # ═══════════════════════════════════════════════════════════════
-    # TREE & PROJECT MANAGEMENT
-    # ═══════════════════════════════════════════════════════════════
+    def _open_drawing_editor(self):
+        """Відкрити окреме вікно редактора креслень на весь екран."""
+        def on_editor_close(was_modified):
+            if was_modified:
+                self._modified = True
+                self._refresh_tree()
+                self._refresh_previews()
+                self.status.config(text="✅ Креслення оновлено")
+
+        DrawingEditorWindow(
+            parent=self.frame.winfo_toplevel(),
+            project=self.project,
+            on_close_callback=on_editor_close,
+        )
 
     def _refresh_tree(self):
-        """Оновити дерево проєкту."""
         for item in self.tree.get_children():
             self.tree.delete(item)
 
@@ -184,7 +191,6 @@ class Project3DTab:
 
         root = self.tree.insert("", tk.END, text=f"📁 {self.project.name}", values=("project",), open=True)
 
-        # Архітектура
         arch_node = self.tree.insert(root, tk.END, text="🏛️ Архітектура", values=("arch",), open=True)
         for floor in self.project.arch_context.floors:
             floor_node = self.tree.insert(arch_node, tk.END,
@@ -199,7 +205,6 @@ class Project3DTab:
                                  text=f"🕳️ {opening.name} ({opening.width:.0f}×{opening.height:.0f})",
                                  values=("opening", opening.id))
 
-        # Вентиляція
         vent_node = self.tree.insert(root, tk.END, text="💨 Вентиляція", values=("vent",), open=True)
         for system in self.project.ventilation_systems:
             sys_node = self.tree.insert(vent_node, tk.END,
@@ -211,7 +216,7 @@ class Project3DTab:
                                               values=("trunk", trunk.id), open=True)
                 for seg in trunk.segments:
                     self.tree.insert(trunk_node, tk.END,
-                                     text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f}  L={seg.length:.0f} мм",
+                                     text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f} мм",
                                      values=("segment", seg.id))
                 for fitting in trunk.fittings:
                     self.tree.insert(trunk_node, tk.END,
@@ -222,7 +227,6 @@ class Project3DTab:
                                      text=f"⚙️ {eq.name}",
                                      values=("equipment", eq.id))
 
-        # Креслення
         if self.project.drawing_files:
             draw_node = self.tree.insert(root, tk.END, text="📋 Креслення", values=("drawings",), open=True)
             for d in self.project.drawing_files:
@@ -392,10 +396,6 @@ class Project3DTab:
 
             menu.post(event.x_root, event.y_root)
 
-    # ═══════════════════════════════════════════════════════════════
-    # FILE OPERATIONS
-    # ═══════════════════════════════════════════════════════════════
-
     def _new_project(self):
         if self._modified:
             if messagebox.askyesno("Зберегти?", "Проєкт змінено. Зберегти перед створенням нового?"):
@@ -411,7 +411,7 @@ class Project3DTab:
         if not self._current_file:
             filepath = filedialog.asksaveasfilename(
                 defaultextension=".ventproj",
-                filetypes=[("VentProject", "*.ventproj"), ("Всі файли", "*.*")],
+                filetypes=(("VentProject", "*.ventproj"), ("Всі файли", "*.*")),
                 title="Зберегти проєкт",
             )
             if not filepath:
@@ -423,7 +423,7 @@ class Project3DTab:
 
     def _load_project(self):
         filepath = filedialog.askopenfilename(
-            filetypes=[("VentProject", "*.ventproj"), ("Всі файли", "*.*")],
+            filetypes=(("VentProject", "*.ventproj"), ("Всі файли", "*.*")),
             title="Відкрити проєкт",
         )
         if not filepath:
@@ -445,7 +445,7 @@ class Project3DTab:
             filetypes.append((name, pattern))
         filetypes.append(("Всі файли", "*.*"))
 
-        filepath = filedialog.askopenfilename(filetypes=filetypes, title=f"Імпорт")
+        filepath = filedialog.askopenfilename(filetypes=filetypes, title="Імпорт")
         if not filepath:
             return
         try:
@@ -473,7 +473,7 @@ class Project3DTab:
         ext_map = {"ifc": ".ifc", "dxf": ".dxf", "step": ".step", "fcstd": ".fcstd", "ventproj": ".ventproj"}
         default_ext = ext_map.get(format_hint, ".ventproj")
         filepath = filedialog.asksaveasfilename(
-            defaultextension=default_ext, filetypes=filetypes, title=f"Експорт"
+            defaultextension=default_ext, filetypes=filetypes, title="Експорт"
         )
         if not filepath:
             return
@@ -486,21 +486,17 @@ class Project3DTab:
 
     def _export_image_2d(self):
         filepath = filedialog.asksaveasfilename(
-            defaultextension=".png", filetypes=[("PNG", "*.png")], title="Зберегти план 2D")
+            defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти план 2D")
         if filepath:
             self.preview_2d.export_image(filepath)
             self.status.config(text=f"Зображення 2D: {filepath}")
 
     def _export_image_3d(self):
         filepath = filedialog.asksaveasfilename(
-            defaultextension=".png", filetypes=[("PNG", "*.png")], title="Зберегти 3D-вигляд")
+            defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти 3D-вигляд")
         if filepath:
             self.preview_3d.export_image(filepath)
             self.status.config(text=f"Зображення 3D: {filepath}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # EDITING
-    # ═══════════════════════════════════════════════════════════════
 
     def _edit_selected(self):
         sel = self.tree.selection()
@@ -533,7 +529,7 @@ class Project3DTab:
                                 self._modified = True
                                 self._refresh_tree()
                                 self._refresh_previews()
-                            return
+                                return
 
         elif obj_type == "equipment":
             for s in self.project.ventilation_systems:
@@ -554,7 +550,7 @@ class Project3DTab:
                                 self._modified = True
                                 self._refresh_tree()
                                 self._refresh_previews()
-                            return
+                                return
 
         elif obj_type == "wall":
             for fl in self.project.arch_context.floors:
@@ -573,7 +569,7 @@ class Project3DTab:
                             self._modified = True
                             self._refresh_tree()
                             self._refresh_previews()
-                        return
+                            return
 
         elif obj_type == "fitting":
             for s in self.project.ventilation_systems:
@@ -596,7 +592,7 @@ class Project3DTab:
                                 self._modified = True
                                 self._refresh_tree()
                                 self._refresh_previews()
-                            return
+                                return
 
         elif obj_type == "system":
             for s in self.project.ventilation_systems:
@@ -611,7 +607,7 @@ class Project3DTab:
                         self._modified = True
                         self._refresh_tree()
                         self._refresh_previews()
-                    return
+                        return
 
         elif obj_type == "trunk":
             for s in self.project.ventilation_systems:
@@ -626,7 +622,7 @@ class Project3DTab:
                             t.notes = data["notes"]
                             self._modified = True
                             self._refresh_tree()
-                            self._refresh_previews()
+                        self._refresh_previews()
                         return
 
         else:
@@ -743,12 +739,7 @@ class Project3DTab:
         else:
             messagebox.showwarning("Увага", f"Не вдалося знайти {obj_type} з ID {obj_id}")
 
-    # ═══════════════════════════════════════════════════════════════
-    # ADDING NEW ELEMENTS
-    # ═══════════════════════════════════════════════════════════════
-
     def _get_selected_parent_id(self, parent_types: tuple) -> tuple:
-        """Отримати ID вибраного батьківського елемента."""
         sel = self.tree.selection()
         if not sel:
             return None, None
@@ -767,7 +758,6 @@ class Project3DTab:
         return None, None
 
     def _select_parent_dialog(self, title: str, items: list, display_key: str = "name", id_key: str = "id") -> str:
-        """Діалог вибору елемента зі списку. Повертає ID або None."""
         if not items:
             messagebox.showinfo("Інформація", "Немає доступних елементів.")
             return None
@@ -780,7 +770,6 @@ class Project3DTab:
         ttk.Label(dialog, text=title + ":").pack(pady=5)
         var = tk.StringVar()
         combo = ttk.Combobox(dialog, textvariable=var, state="readonly", width=40)
-        # Формуємо відображення
         display_list = []
         id_map = {}
         for item in items:
@@ -798,10 +787,11 @@ class Project3DTab:
         combo.pack(padx=10, pady=5)
 
         result = [None]
+
         def on_ok():
-            sel = combo.get()
-            result[0] = id_map.get(sel)
+            result[0] = id_map.get(combo.get())
             dialog.destroy()
+
         def on_cancel():
             dialog.destroy()
 
@@ -812,7 +802,6 @@ class Project3DTab:
         return result[0]
 
     def _get_all_trunks(self):
-        """Отримати всі трасси з усіх систем."""
         trunks = []
         for s in self.project.ventilation_systems:
             for t in s.trunks:
@@ -841,8 +830,8 @@ class Project3DTab:
         ptype, pid = self._get_selected_parent_id(("floor",))
         if not pid:
             pid = self._select_parent_dialog("Виберіть поверх", self._get_all_floors(), "name", "id")
-            if not pid:
-                return
+        if not pid:
+            return
         for fl in self.project.arch_context.floors:
             if fl.id == pid:
                 data = AddWallDialog(self.frame).show()
@@ -859,7 +848,7 @@ class Project3DTab:
                     self._refresh_tree()
                     self._refresh_previews()
                     self.status.config(text=f"Додано стіну: {wall.name}")
-                return
+                    return
 
     def _add_system(self):
         data = AddSystemDialog(self.frame).show()
@@ -881,8 +870,8 @@ class Project3DTab:
         ptype, pid = self._get_selected_parent_id(("system",))
         if not pid:
             pid = self._select_parent_dialog("Виберіть систему", self._get_all_systems(), "name", "id")
-            if not pid:
-                return
+        if not pid:
+            return
         for s in self.project.ventilation_systems:
             if s.id == pid:
                 data = AddTrunkDialog(self.frame).show()
@@ -897,14 +886,14 @@ class Project3DTab:
                     self._refresh_tree()
                     self._refresh_previews()
                     self.status.config(text=f"Додано трасу: {trunk.name}")
-                return
+                    return
 
     def _add_segment(self):
         ptype, pid = self._get_selected_parent_id(("trunk",))
         if not pid:
             pid = self._select_parent_dialog("Виберіть трасу", self._get_all_trunks(), "name", "id")
-            if not pid:
-                return
+        if not pid:
+            return
         default_start = Point3D(0, 0, 2500)
         for s in self.project.ventilation_systems:
             for t in s.trunks:
@@ -933,8 +922,8 @@ class Project3DTab:
         ptype, pid = self._get_selected_parent_id(("trunk",))
         if not pid:
             pid = self._select_parent_dialog("Виберіть трасу", self._get_all_trunks(), "name", "id")
-            if not pid:
-                return
+        if not pid:
+            return
         default_pos = Point3D(0, 0, 2500)
         for s in self.project.ventilation_systems:
             for t in s.trunks:
@@ -964,8 +953,8 @@ class Project3DTab:
         ptype, pid = self._get_selected_parent_id(("trunk",))
         if not pid:
             pid = self._select_parent_dialog("Виберіть трасу", self._get_all_trunks(), "name", "id")
-            if not pid:
-                return
+        if not pid:
+            return
         default_pos = Point3D(0, 0, 2500)
         for s in self.project.ventilation_systems:
             for t in s.trunks:
@@ -990,89 +979,9 @@ class Project3DTab:
                         self.status.config(text=f"Додано обладнання: {eq.name}")
                         return
 
-    # ═══════════════════════════════════════════════════════════════
-    # PREVIEW
-    # ═══════════════════════════════════════════════════════════════
-
     def _refresh_previews(self):
         self.preview_2d.set_project(self.project)
         self.preview_3d.set_project(self.project)
-
-    # ═══════════════════════════════════════════════════════════════
-    # ІНТЕРАКТИВНЕ КРЕСЛЕННЯ НА 2D-ПЛАНІ
-    # ═══════════════════════════════════════════════════════════════
-
-    def _start_draw_segment(self):
-        """Активувати режим креслення сегмента на 2D-плані."""
-        ptype, pid = self._get_selected_parent_id(("trunk",))
-        if not pid:
-            pid = self._select_parent_dialog("Виберіть трасу", self._get_all_trunks(), "name", "id")
-            if not pid:
-                return
-        self._pending_trunk_id = pid
-        self.preview_2d.set_draw_mode("segment", self._on_draw_segment_done)
-        self.status.config(text="Креслення: ЛКМ на плані → точка початку, тягніть, відпустіть")
-
-    def _start_draw_wall(self):
-        """Активувати режим креслення стіни на 2D-плані."""
-        self.preview_2d.set_draw_mode("wall", self._on_draw_wall_done)
-        self.status.config(text="Креслення: ЛКМ на плані → точка початку, тягніть, відпустіть")
-
-    def _cancel_draw(self):
-        """Скасувати активне креслення."""
-        self.preview_2d.cancel_draw_mode()
-        self.status.config(text="Креслення скасовано")
-
-    def _on_draw_segment_done(self, start: Point3D, end: Point3D):
-        """Callback після креслення сегмента мишею."""
-        pid = getattr(self, '_pending_trunk_id', None)
-        if not pid:
-            return
-        data = AddSegmentDialog(self.frame, default_start=start, default_end=end).show()
-        if data:
-            seg = DuctSegment(
-                id=data["id"], start=data["start"], end=data["end"],
-                width=data["width"], height=data["height"], length=data["length"],
-                shape=data["shape"], duct_type=data["duct_type"],
-                material=data["material"], thickness=data["thickness"],
-                insulation=data["insulation"], notes=data["notes"],
-            )
-            for s in self.project.ventilation_systems:
-                for t in s.trunks:
-                    if t.id == pid:
-                        t.segments.append(seg)
-                        self._modified = True
-                        self._refresh_tree()
-                        self._refresh_previews()
-                        self.status.config(text=f"Додано сегмент: {seg.id}  L={seg.length:.0f} мм")
-                        return
-
-    def _on_draw_wall_done(self, start: Point3D, end: Point3D):
-        """Callback після креслення стіни мишею."""
-        floor = None
-        for fl in self.project.arch_context.floors:
-            if fl.floor_z <= start.z <= fl.level:
-                floor = fl
-                break
-        if not floor and self.project.arch_context.floors:
-            floor = self.project.arch_context.floors[0]
-        if not floor:
-            messagebox.showwarning("Увага", "Не знайдено поверх для стіни. Спочатку додайте поверх.")
-            return
-        data = AddWallDialog(self.frame, default_start=start, default_end=end).show()
-        if data:
-            wall = Wall(
-                id=data["id"], name=data["name"],
-                start=data["start"], end=data["end"],
-                height=data["height"], thickness=data["thickness"],
-                material=data["material"], is_load_bearing=data["is_load_bearing"],
-                notes=data["notes"],
-            )
-            floor.walls.append(wall)
-            self._modified = True
-            self._refresh_tree()
-            self._refresh_previews()
-            self.status.config(text=f"Додано стіну: {wall.name}  L={wall.length:.0f} мм")
 
     def _load_demo_if_empty(self):
         if not self.project.ventilation_systems and not self.project.arch_context.floors:
