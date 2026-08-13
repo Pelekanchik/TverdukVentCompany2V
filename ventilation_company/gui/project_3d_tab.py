@@ -17,6 +17,7 @@ from ventilation_company.project3d import (
     VentProject, ProjectConverter,
     Project3DPreview, Project2DPreview,
     VentilationSystem, VentilationTrunk, DuctSegment, Fitting, Equipment, Point3D,
+    Wall,
 )
 from ventilation_company.project3d.dialogs import (
     EditSegmentDialog, AddSegmentDialog,
@@ -103,6 +104,13 @@ class Project3DTab:
         add_menu.add_command(label="🔀 Фасонний виріб", command=self._add_fitting)
         add_menu.add_command(label="⚙️ Обладнання", command=self._add_equipment)
         self.add_btn["menu"] = add_menu
+
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        # Креслення
+        ttk.Button(toolbar, text="✏️ Креслити сегмент", command=self._start_draw_segment).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="✏️ Креслити стіну", command=self._start_draw_wall).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="⛔ Скасувати креслення", command=self._cancel_draw).pack(side=tk.LEFT, padx=2)
 
         ttk.Button(toolbar, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
@@ -989,6 +997,82 @@ class Project3DTab:
     def _refresh_previews(self):
         self.preview_2d.set_project(self.project)
         self.preview_3d.set_project(self.project)
+
+    # ═══════════════════════════════════════════════════════════════
+    # ІНТЕРАКТИВНЕ КРЕСЛЕННЯ НА 2D-ПЛАНІ
+    # ═══════════════════════════════════════════════════════════════
+
+    def _start_draw_segment(self):
+        """Активувати режим креслення сегмента на 2D-плані."""
+        ptype, pid = self._get_selected_parent_id(("trunk",))
+        if not pid:
+            pid = self._select_parent_dialog("Виберіть трасу", self._get_all_trunks(), "name", "id")
+            if not pid:
+                return
+        self._pending_trunk_id = pid
+        self.preview_2d.set_draw_mode("segment", self._on_draw_segment_done)
+        self.status.config(text="Креслення: ЛКМ на плані → точка початку, тягніть, відпустіть")
+
+    def _start_draw_wall(self):
+        """Активувати режим креслення стіни на 2D-плані."""
+        self.preview_2d.set_draw_mode("wall", self._on_draw_wall_done)
+        self.status.config(text="Креслення: ЛКМ на плані → точка початку, тягніть, відпустіть")
+
+    def _cancel_draw(self):
+        """Скасувати активне креслення."""
+        self.preview_2d.cancel_draw_mode()
+        self.status.config(text="Креслення скасовано")
+
+    def _on_draw_segment_done(self, start: Point3D, end: Point3D):
+        """Callback після креслення сегмента мишею."""
+        pid = getattr(self, '_pending_trunk_id', None)
+        if not pid:
+            return
+        data = AddSegmentDialog(self.frame, default_start=start, default_end=end).show()
+        if data:
+            seg = DuctSegment(
+                id=data["id"], start=data["start"], end=data["end"],
+                width=data["width"], height=data["height"], length=data["length"],
+                shape=data["shape"], duct_type=data["duct_type"],
+                material=data["material"], thickness=data["thickness"],
+                insulation=data["insulation"], notes=data["notes"],
+            )
+            for s in self.project.ventilation_systems:
+                for t in s.trunks:
+                    if t.id == pid:
+                        t.segments.append(seg)
+                        self._modified = True
+                        self._refresh_tree()
+                        self._refresh_previews()
+                        self.status.config(text=f"Додано сегмент: {seg.id}  L={seg.length:.0f} мм")
+                        return
+
+    def _on_draw_wall_done(self, start: Point3D, end: Point3D):
+        """Callback після креслення стіни мишею."""
+        floor = None
+        for fl in self.project.arch_context.floors:
+            if fl.floor_z <= start.z <= fl.level:
+                floor = fl
+                break
+        if not floor and self.project.arch_context.floors:
+            floor = self.project.arch_context.floors[0]
+        if not floor:
+            messagebox.showwarning("Увага", "Не знайдено поверх для стіни. Спочатку додайте поверх.")
+            return
+        data = AddWallDialog(self.frame, default_start=start, default_end=end).show()
+        if data:
+            wall = Wall(
+                id=data["id"], name=data["name"],
+                start=data["start"], end=data["end"],
+                height=data["height"], thickness=data["thickness"],
+                material=data["material"], is_load_bearing=data["is_load_bearing"],
+                notes=data["notes"],
+            )
+            floor.walls.append(wall)
+            self._modified = True
+            self._refresh_tree()
+            self._refresh_previews()
+            self.status.config(text=f"Додано стіну: {wall.name}  L={wall.length:.0f} мм")
 
     def _load_demo_if_empty(self):
         if not self.project.ventilation_systems and not self.project.arch_context.floors:
