@@ -15,6 +15,7 @@ from ventilation_company.gui.metal_prices_tab import MetalPricesTab
 from ventilation_company.gui.specification_tab import SpecificationTab
 from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
+from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
 
 
 class MainWindow:
@@ -90,12 +91,14 @@ class MainWindow:
             get_project_info_callback=self._get_project_info,
         )
         self.notebook.add(self.products_tab.frame, text="📦 Вироби")
+        self.aerodynamics_tab = AerodynamicsTab(self.notebook)
         self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
         self.notebook.add(self.cutting_tab.frame, text="✂️ Розкрій")
         self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")  # НОВЕ
         self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
         self.notebook.add(self.production_tab.frame, text="🏭 Виробництво")
         self.notebook.add(self.material_order_tab.frame, text="📦 Матеріали")
+        self.notebook.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
 
         # Прайс-лист
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
