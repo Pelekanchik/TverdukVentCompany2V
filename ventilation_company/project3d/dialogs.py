@@ -86,7 +86,13 @@ class BaseDialog(tk.Toplevel):
         val = self._fields.get(label)
         if isinstance(val, tk.Text):
             return val.get("1.0", tk.END).strip()
-        return val.get() if val else ""
+        if val is None:
+            return ""
+        try:
+            return val.get()
+        except tk.TclError:
+            # Порожнє значення у числовому полі (spin)
+            return ""
 
     def _on_ok(self):
         self.result = self._collect_data()
@@ -132,13 +138,13 @@ class EditSegmentDialog(BaseDialog):
         self._add_field("Висота", 10, self.segment.height, "spin")
         self._add_field("Довжина", 11, self.segment.length, "spin")
         self._add_field("Форма", 12, self.segment.shape.value, "combo",
-                        ["прямокутний", "круглий"])
+                        options=["прямокутний", "круглий"])
         self._add_field("Тип повітря", 13, self.segment.duct_type.value, "combo",
-                        ["приплив", "витяжка", "рециркуляція", "димовидалення"])
+                        options=["приплив", "витяжка", "рециркуляція", "димовидалення"])
         self._add_field("Матеріал", 14, self.segment.material)
         self._add_field("Товщина", 15, self.segment.thickness, "spin")
         self._add_field("Ізоляція", 16, "Так" if self.segment.insulation else "Ні", "combo",
-                        ["Так", "Ні"])
+                        options=["Так", "Ні"])
         self._add_field("Примітки", 17, self.segment.notes, "text")
 
     def _collect_data(self):
@@ -173,10 +179,10 @@ class EditSegmentDialog(BaseDialog):
 class AddSegmentDialog(EditSegmentDialog):
     """Діалог додавання нового сегмента."""
 
-    def __init__(self, parent, default_start: Point3D = None):
+    def __init__(self, parent, default_start: Point3D = None, default_end: Point3D = None):
         seg = DuctSegment(
             start=default_start or Point3D(0, 0, 2500),
-            end=Point3D(1000, 0, 2500),
+            end=default_end or Point3D(1000, 0, 2500),
         )
         super().__init__(parent, seg)
         self.title("Додавання сегмента повітропроводу")
@@ -268,9 +274,9 @@ class EditWallDialog(BaseDialog):
         self._add_field("Висота", 9, self.wall.height, "spin")
         self._add_field("Товщина", 10, self.wall.thickness, "spin")
         self._add_field("Матеріал", 11, self.wall.material.value, "combo",
-                        ["цегла", "бетон", "гіпсокартон", "метал", "невідомо"])
+                        options=["цегла", "бетон", "гіпсокартон", "метал", "невідомо"])
         self._add_field("Несуча", 12, "Так" if self.wall.is_load_bearing else "Ні", "combo",
-                        ["Так", "Ні"])
+                        options=["Так", "Ні"])
         self._add_field("Примітки", 13, self.wall.notes, "text")
 
     def _collect_data(self):
@@ -303,8 +309,12 @@ class EditWallDialog(BaseDialog):
 class AddWallDialog(EditWallDialog):
     """Діалог додавання нової стіни."""
 
-    def __init__(self, parent):
-        wall = Wall(name="Нова стіна")
+    def __init__(self, parent, default_start: Point3D = None, default_end: Point3D = None):
+        wall = Wall(
+            name="Нова стіна",
+            start=default_start or Point3D(0, 0, 0),
+            end=default_end or Point3D(1000, 0, 0),
+        )
         super().__init__(parent, wall)
         self.title("Додавання стіни")
 
@@ -326,7 +336,7 @@ class EditFittingDialog(BaseDialog):
 
         self._add_field("ID", 1, self.fitting.id)
         self._add_field("Тип", 2, self.fitting.fitting_type, "combo",
-                        ["відвід", "трійник", "перехід", "фланець", "заглушка", "гнучка вставка"])
+                        options=["відвід", "трійник", "перехід", "фланець", "заглушка", "гнучка вставка"])
         self._add_field("Позиція X", 3, self.fitting.position.x, "spin")
         self._add_field("Позиція Y", 4, self.fitting.position.y, "spin")
         self._add_field("Позиція Z", 5, self.fitting.position.z, "spin")
@@ -392,7 +402,7 @@ class EditSystemDialog(BaseDialog):
         self._add_field("ID", 1, self.system.id)
         self._add_field("Назва", 2, self.system.name)
         self._add_field("Тип системи", 3, self.system.system_type, "combo",
-                        ["припливна", "витяжна", "припливно-витяжна", "димовидалення", "кондиціонування"])
+                        options=["припливна", "витяжна", "припливно-витяжна", "димовидалення", "кондиціонування"])
         self._add_field("Витрата повітря", 4, self.system.total_air_flow, "spin")
         self._add_field("Тиск", 5, self.system.total_pressure, "spin")
         self._add_field("Примітки", 6, self.system.notes, "text")
@@ -440,7 +450,7 @@ class EditTrunkDialog(BaseDialog):
         self._add_field("Назва", 2, self.trunk.name)
         self._add_field("Поверх", 3, str(self.trunk.floor))
         self._add_field("Тип повітря", 4, self.trunk.duct_type.value, "combo",
-                        ["приплив", "витяжка", "рециркуляція", "димовидалення"])
+                        options=["приплив", "витяжка", "рециркуляція", "димовидалення"])
         self._add_field("Витрата", 5, self.trunk.air_flow, "spin")
         self._add_field("Примітки", 6, self.trunk.notes, "text")
 

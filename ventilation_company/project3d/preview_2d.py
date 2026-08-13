@@ -5,7 +5,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -21,7 +21,7 @@ from ventilation_company.project3d.vent_system import Point3D, DuctShape
 
 
 class Project2DPreview:
-    """2D-перегляд плану поверху з вентиляцією."""
+    """2D-перегляд плану поверху з вентиляцією + інтерактивне креслення."""
 
     COLORS = {
         "wall": "#555555",
@@ -35,6 +35,8 @@ class Project2DPreview:
         "grid": "#dddddd",
         "text": "#333333",
         "bg": "#fafafa",
+        "draw_preview": "#ff6600",
+        "draw_snap": "#00aa00",
     }
 
     def __init__(self, parent: tk.Widget):
@@ -50,7 +52,16 @@ class Project2DPreview:
         self._show_grid = True
         self._zoom_level = 1.0
 
+        # ── Режим креслення ──
+        self._draw_mode: Optional[str] = None   # "segment" | "wall" | None
+        self._draw_start: Optional[Point3D] = None
+        self._draw_temp_line: Optional[Line2D] = None
+        self._draw_callback: Optional[Callable] = None
+        self._draw_status_label: Optional[ttk.Label] = None
+        self._tk_canvas: Optional[tk.Widget] = None  # tk.Canvas widget
+
         self._build_ui()
+        self._connect_mouse_events()
 
     def _build_ui(self):
         # Controls
@@ -94,15 +105,189 @@ class Project2DPreview:
         self.ax.set_facecolor(self.COLORS["bg"])
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.parent)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._tk_canvas = self.canvas.get_tk_widget()
+        self._tk_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         toolbar = NavigationToolbar2Tk(self.canvas, self.parent)
         toolbar.update()
+
+        # Статус креслення
+        self._draw_status_label = ttk.Label(self.parent, text="",
+                                             foreground="#0066cc", font=("Arial", 9, "bold"))
+        self._draw_status_label.pack(anchor=tk.W, padx=5)
 
         # Підказка
         hint = ttk.Label(self.parent, text="💡 ЛКМ — вибір | ПКМ — контекстне меню | Колесо — масштаб",
                          foreground="#666", font=("Arial", 8))
         hint.pack(anchor=tk.W, padx=5)
+
+    # ═══════════════════════════════════════════════════════════════
+    # ІНТЕРАКТИВНЕ КРЕСЛЕННЯ МИШЕЮ (tkinter events)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _connect_mouse_events(self):
+        """Підключити обробники подій миші tkinter (надійніше ніж mpl_connect)."""
+        if self._tk_canvas is None:
+            return
+        self._tk_canvas.bind("<ButtonPress-1>", self._on_tk_mouse_press)
+        self._tk_canvas.bind("<B1-Motion>", self._on_tk_mouse_move)
+        self._tk_canvas.bind("<ButtonRelease-1>", self._on_tk_mouse_release)
+
+    def _tk_to_data_coords(self, x: int, y: int) -> Optional[tuple]:
+        """Конвертувати tkinter пікселі (x,y) в координати даних matplotlib."""
+        try:
+            inv = self.ax.transData.inverted()
+            data_x, data_y = inv.transform((x, y))
+            return (data_x, data_y)
+        except Exception:
+            return None
+
+    def set_draw_mode(self, mode: str, callback: Callable):
+        """Активувати режим креслення."""
+        self._draw_mode = mode
+        self._draw_callback = callback
+        self._draw_start = None
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+            self._draw_temp_line = None
+
+        # Скинути toolbar matplotlib (вийти з pan/zoom)
+        try:
+            self.canvas.toolbar.pan()
+            self.canvas.toolbar.zoom()
+        except Exception:
+            pass
+
+        if self._tk_canvas:
+            self._tk_canvas.focus_set()
+            self._tk_canvas.config(cursor="crosshair")
+
+        if mode == "segment":
+            self._draw_status_label.config(
+                text="✏️ РЕЖИМ: Креслення сегмента → ЛКМ на плані, тягніть, відпустіть"
+            )
+        elif mode == "wall":
+            self._draw_status_label.config(
+                text="✏️ РЕЖИМ: Креслення стіни → ЛКМ на плані, тягніть, відпустіть"
+            )
+        else:
+            self._draw_status_label.config(text="")
+            if self._tk_canvas:
+                self._tk_canvas.config(cursor="")
+
+    def cancel_draw_mode(self):
+        """Скасувати режим креслення."""
+        self._draw_mode = None
+        self._draw_callback = None
+        self._draw_start = None
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+            self._draw_temp_line = None
+        self._draw_status_label.config(text="")
+        if self._tk_canvas:
+            self._tk_canvas.config(cursor="")
+        self.canvas.draw_idle()
+
+    def _get_floor_z(self) -> float:
+        """Повернути Z-координату (висоту) поточного поверху."""
+        floor_name = self.floor_var.get()
+        if self.project and self.project.arch_context:
+            for f in self.project.arch_context.floors:
+                if f.name == floor_name:
+                    return f.level
+        return 2500.0
+
+    def _on_tk_mouse_press(self, event):
+        """Натискання ЛКМ — фіксація точки початку."""
+        if not self._draw_mode:
+            return
+        coords = self._tk_to_data_coords(event.x, event.y)
+        if coords is None:
+            return
+        data_x, data_y = coords
+        z = self._get_floor_z()
+        self._draw_start = Point3D(data_x, data_y, z)
+
+        # Створити тимчасову лінію
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+        self._draw_temp_line, = self.ax.plot(
+            [data_x, data_x],
+            [data_y, data_y],
+            color=self.COLORS["draw_preview"],
+            linewidth=2.5,
+            linestyle="--",
+            marker="o",
+            markersize=6,
+            markerfacecolor=self.COLORS["draw_snap"],
+        )
+        self.canvas.draw_idle()
+
+    def _on_tk_mouse_move(self, event):
+        """Рух миші з натиснутою ЛКМ — оновлення тимчасової лінії."""
+        if not self._draw_mode or self._draw_start is None:
+            return
+        coords = self._tk_to_data_coords(event.x, event.y)
+        if coords is None:
+            return
+        data_x, data_y = coords
+
+        if self._draw_temp_line:
+            self._draw_temp_line.set_data(
+                [self._draw_start.x, data_x],
+                [self._draw_start.y, data_y],
+            )
+            dx = data_x - self._draw_start.x
+            dy = data_y - self._draw_start.y
+            length = (dx**2 + dy**2) ** 0.5
+            self._draw_status_label.config(
+                text=f"✏️ {self._draw_mode.upper()}: L={length:.0f} мм | "
+                     f"ΔX={dx:.0f}  ΔY={dy:.0f}  |  Відпустіть ЛКМ для фіксації"
+            )
+            self.canvas.draw_idle()
+
+    def _on_tk_mouse_release(self, event):
+        """Відпускання ЛКМ — фіксація кінцевої точки."""
+        if not self._draw_mode or self._draw_start is None:
+            return
+        coords = self._tk_to_data_coords(event.x, event.y)
+        if coords is None:
+            self.cancel_draw_mode()
+            return
+        data_x, data_y = coords
+        z = self._get_floor_z()
+        end = Point3D(data_x, data_y, z)
+        start = self._draw_start
+
+        # Прибрати тимчасову лінію
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+            self._draw_temp_line = None
+
+        # Викликати callback
+        callback = self._draw_callback
+        self.cancel_draw_mode()
+
+        if callback:
+            try:
+                callback(start, end)
+            except Exception as e:
+                import tkinter.messagebox as mb
+                mb.showerror("Помилка креслення", str(e))
+
+    # ═══════════════════════════════════════════════════════════════
 
     def _zoom_in(self):
         self._zoom_level *= 1.2
@@ -359,7 +544,7 @@ class Project2DPreview:
         cx, cy = eq.position.x, eq.position.y
         w, h = eq.width, eq.height
         rect = FancyBboxPatch((cx - w/2, cy - h/2), w, h,
-                              boxstyle="round,pad=50",  # заокруглені кути
+                              boxstyle="round,pad=50",
                               facecolor=self.COLORS["equipment"],
                               edgecolor="#996600", linewidth=2, alpha=0.8)
         self.ax.add_patch(rect)
