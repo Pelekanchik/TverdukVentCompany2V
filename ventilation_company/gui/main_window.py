@@ -13,6 +13,8 @@ from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.price_list_tab import PriceListTab
 from ventilation_company.gui.metal_prices_tab import MetalPricesTab
 from ventilation_company.gui.specification_tab import SpecificationTab
+from ventilation_company.gui.production_tab import ProductionTab
+from ventilation_company.gui.material_order_tab import MaterialOrderTab
 
 
 class MainWindow:
@@ -76,12 +78,24 @@ class MainWindow:
         self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products)
         self.project_3d_tab = Project3DTab(self.notebook, get_products_callback=self._get_products)  # НОВЕ
         self.settings_tab = SettingsTab(self.notebook)
+        self.production_tab = ProductionTab(
+            self.notebook,
+            get_products_callback=self._get_products,
+            get_project_info_callback=self._get_project_info,
+        )
 
+        self.material_order_tab = MaterialOrderTab(
+            self.notebook,
+            get_products_callback=self._get_products,
+            get_project_info_callback=self._get_project_info,
+        )
         self.notebook.add(self.products_tab.frame, text="📦 Вироби")
         self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
         self.notebook.add(self.cutting_tab.frame, text="✂️ Розкрій")
         self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")  # НОВЕ
         self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
+        self.notebook.add(self.production_tab.frame, text="🏭 Виробництво")
+        self.notebook.add(self.material_order_tab.frame, text="📦 Матеріали")
 
         # Прайс-лист
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
@@ -99,6 +113,14 @@ class MainWindow:
 
     def _get_products(self):
         return self.products_tab.get_products_dict()
+
+    def _get_project_info(self):
+        """Повернути інформацію про поточний проєкт."""
+        name = self.spec_tab.project_name_var.get() if hasattr(self, "spec_tab") else "Проєкт"
+        return {
+            "name": name,
+            "id": self.current_project_id,
+        }
 
     def _on_products_changed(self):
         self.status_bar.config(text=f"Виробів: {len(self.products_tab.get_library())}")

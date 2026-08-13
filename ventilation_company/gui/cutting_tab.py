@@ -7,96 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from ventilation_company.metal_cutting import MetalCutter
-from ventilation_company.cnc_export import (CNCSettings, export_to_dxf, export_to_gcode, export_summary_text)
 
-class CNCSettingsDialog(tk.Toplevel):
-    """Діалог налаштувань ЧПУ верстата перед експортом."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("⚙️ Налаштування ЧПУ верстата")
-        self.geometry("420x520")
-        self.resizable(False, False)
-        self.transient(parent)
-        self.grab_set()
-
-        self.result = None
-
-        row = 0
-        ttk.Label(self, text="Тип верстата:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.machine_var = tk.StringVar(value="plasma")
-        ttk.Combobox(self, textvariable=self.machine_var,
-                     values=["plasma", "laser", "gas"], state="readonly", width=18
-                     ).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Швидкість різу (мм/хв):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.feed_var = tk.DoubleVar(value=1500)
-        ttk.Spinbox(self, from_=100, to=20000, textvariable=self.feed_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Висота підпалу (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.pierce_h_var = tk.DoubleVar(value=3.0)
-        ttk.Spinbox(self, from_=0.5, to=50, increment=0.5, textvariable=self.pierce_h_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Висота різу (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.cut_h_var = tk.DoubleVar(value=1.5)
-        ttk.Spinbox(self, from_=0.1, to=20, increment=0.1, textvariable=self.cut_h_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Висота підйому (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.retract_h_var = tk.DoubleVar(value=5.0)
-        ttk.Spinbox(self, from_=1, to=100, increment=1, textvariable=self.retract_h_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Затримка підпалу (с):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.pierce_d_var = tk.DoubleVar(value=0.5)
-        ttk.Spinbox(self, from_=0, to=5, increment=0.1, textvariable=self.pierce_d_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Lead-in (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.lead_in_var = tk.DoubleVar(value=3.0)
-        ttk.Spinbox(self, from_=0, to=50, increment=0.5, textvariable=self.lead_in_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Lead-out (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.lead_out_var = tk.DoubleVar(value=3.0)
-        ttk.Spinbox(self, from_=0, to=50, increment=0.5, textvariable=self.lead_out_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        ttk.Label(self, text="Ширина пропилу (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=4)
-        self.kerf_var = tk.DoubleVar(value=1.5)
-        ttk.Spinbox(self, from_=0.1, to=10, increment=0.1, textvariable=self.kerf_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=5, pady=4)
-
-        row += 1
-        self.kerf_comp_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="Компенсація пропилу", variable=self.kerf_comp_var
-                        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=4)
-
-        row += 1
-        ttk.Separator(self, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky=tk.EW, padx=10, pady=10)
-
-        row += 1
-        btn_frame = ttk.Frame(self)
-        btn_frame.grid(row=row, column=0, columnspan=2, pady=10)
-        ttk.Button(btn_frame, text="✅ OK", command=self._on_ok).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="⛔ Скасувати", command=self.destroy).pack(side=tk.LEFT, padx=5)
-
-    def _on_ok(self):
-        self.result = CNCSettings(
-            machine_type=self.machine_var.get(),
-            feed_rate=self.feed_var.get(),
-            pierce_height=self.pierce_h_var.get(),
-            cut_height=self.cut_h_var.get(),
-            retract_height=self.retract_h_var.get(),
-            pierce_delay=self.pierce_d_var.get(),
-            lead_in_length=self.lead_in_var.get(),
-            lead_out_length=self.lead_out_var.get(),
-            kerf_width=self.kerf_var.get(),
-            use_kerf_compensation=self.kerf_comp_var.get(),
-        )
-        self.destroy()
 
 class CuttingTab:
     """Вкладка розкрою металу."""
@@ -157,17 +68,6 @@ class CuttingTab:
         ttk.Button(left, text="Розрахувати розкрій", command=self._calculate).grid(
             row=3, column=0, columnspan=2, pady=15, sticky=tk.EW
         )
-
-                # ── Експорт ЧПУ ──
-        export_frame = ttk.LabelFrame(left, text="Експорт для ЧПУ", padding=5)
-        export_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=10)
-
-        ttk.Button(export_frame, text="📐 DXF (AutoCAD)", command=self._export_dxf
-                   ).grid(row=0, column=0, padx=2, pady=2, sticky=tk.EW)
-        ttk.Button(export_frame, text="⚙️ G-code", command=self._export_gcode
-                   ).grid(row=0, column=1, padx=2, pady=2, sticky=tk.EW)
-        ttk.Button(export_frame, text="📝 Зведення TXT", command=self._export_summary
-                   ).grid(row=1, column=0, columnspan=2, padx=2, pady=2, sticky=tk.EW)
 
         self.results_frame = ttk.LabelFrame(left, text="Результати", padding=10)
         self.results_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, pady=5)
@@ -390,67 +290,6 @@ class CuttingTab:
         if self._tooltip_win:
             self._tooltip_win.destroy()
             self._tooltip_win = None
-
-        # ── ЧПУ ЕКСПОРТ ──
-
-    def _get_cnc_settings(self) -> CNCSettings:
-        """Показати діалог і повернути налаштування ЧПУ."""
-        dialog = CNCSettingsDialog(self.frame)
-        self.frame.wait_window(dialog)
-        return dialog.result or CNCSettings()
-
-    def _export_dxf(self):
-        if not self.current_plan:
-            messagebox.showwarning("Увага", "Спочатку розрахуйте розкрій.")
-            return
-        from tkinter import filedialog
-        fpath = filedialog.asksaveasfilename(
-            defaultextension=".dxf",
-            filetypes=[("DXF файли", "*.dxf"), ("Всі файли", "*.*")],
-            title="Зберегти DXF",
-        )
-        if not fpath:
-            return
-        try:
-            settings = self._get_cnc_settings()
-            export_to_dxf(self.current_plan, fpath, settings)
-            messagebox.showinfo("Готово", f"DXF збережено:\n{fpath}")
-        except Exception as e:
-            messagebox.showerror("Помилка", str(e))
-
-    def _export_gcode(self):
-        if not self.current_plan:
-            messagebox.showwarning("Увага", "Спочатку розрахуйте розкрій.")
-            return
-        from tkinter import filedialog
-        directory = filedialog.askdirectory(title="Виберіть папку для G-code")
-        if not directory:
-            return
-        try:
-            settings = self._get_cnc_settings()
-            paths = export_to_gcode(self.current_plan, directory, settings)
-            msg = "\\n".join(os.path.basename(p) for p in paths)
-            messagebox.showinfo("Готово", f"G-code збережено ({len(paths)} файлів):\\n{msg}")
-        except Exception as e:
-            messagebox.showerror("Помилка", str(e))
-
-    def _export_summary(self):
-        if not self.current_plan:
-            messagebox.showwarning("Увага", "Спочатку розрахуйте розкрій.")
-            return
-        from tkinter import filedialog
-        fpath = filedialog.asksaveasfilename(
-            defaultextension=".txt",
-            filetypes=[("Текстові файли", "*.txt"), ("Всі файли", "*.*")],
-            title="Зберегти зведення",
-        )
-        if not fpath:
-            return
-        try:
-            export_summary_text(self.current_plan, fpath)
-            messagebox.showinfo("Готово", f"Зведення збережено:\\n{fpath}")
-        except Exception as e:
-            messagebox.showerror("Помилка", str(e))
 
     def get_plan(self):
         return self.current_plan

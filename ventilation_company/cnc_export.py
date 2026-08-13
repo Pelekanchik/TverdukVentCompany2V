@@ -197,7 +197,7 @@ class GCodeExporter:
             "G21          ; Метрична система",
             "G90          ; Абсолютні координати",
             "G17          ; Площина XY",
-            f"G0 Z{self._fmt(s.retract_height)}    ; Підняти головку",
+            f"G0 Z{s._fmt(s.retract_height)}    ; Підняти головку",
             "",
         ]
         return lines
@@ -207,7 +207,7 @@ class GCodeExporter:
         return [
             "",
             "; === КІНЕЦЬ ПРОГРАМИ ===",
-            f"G0 Z{self._fmt(s.retract_height)}    ; Підняти головку",
+            f"G0 Z{s._fmt(s.retract_height)}    ; Підняти головку",
             "M5           ; Вимкнути плазму/лазер",
             "M30          ; Кінець програми",
             "",
@@ -237,34 +237,35 @@ class GCodeExporter:
         lines.append(f"; Розмір: {w:.1f} x {h:.1f} мм | Повернуто: {placed.rotated}")
 
         # Швидке переміщення до точки підпалу
-        lines.append(f"G0 X{self._fmt(start_x)} Y{self._fmt(start_y)}")
-        lines.append(f"G0 Z{self._fmt(s.pierce_height)}    ; Опустити до висоти підпалу")
+        lines.append(f"G0 X{s._fmt(start_x)} Y{s._fmt(start_y)}")
+        lines.append(f"G0 Z{s._fmt(s.pierce_height)}    ; Опустити до висоти підпалу")
         lines.append("M3           ; Увімкнути плазму/лазер")
         if s.pierce_delay > 0:
-            lines.append(f"G4 P{self._fmt(s.pierce_delay)}   ; Затримка підпалу")
-        lines.append(f"G1 Z{self._fmt(s.cut_height)} F{self._fmt(s.feed_rate)}   ; Опустити до різу")
+            lines.append(f"G4 P{s._fmt(s.pierce_delay)}   ; Затримка підпалу")
+        lines.append(f"G1 Z{s._fmt(s.cut_height)} F{s._fmt(s.feed_rate)}   ; Опустити до різу")
 
         # Різ по периметру (проти годинникової стрілки)
-        lines.append(f"G1 X{self._fmt(x1)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-in завершення")
-        lines.append(f"G1 X{self._fmt(x1)} Y{self._fmt(y2)} F{self._fmt(s.feed_rate)}   ; Ліва сторона")
-        lines.append(f"G1 X{self._fmt(x2)} Y{self._fmt(y2)} F{self._fmt(s.feed_rate)}   ; Верх")
-        lines.append(f"G1 X{self._fmt(x2)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Права сторона")
-        lines.append(f"G1 X{self._fmt(x1 + lo)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-out")
+        lines.append(f"G1 X{s._fmt(x1)} Y{s._fmt(y1)} F{s._fmt(s.feed_rate)}   ; Lead-in завершення")
+        lines.append(f"G1 X{s._fmt(x1)} Y{s._fmt(y2)} F{s._fmt(s.feed_rate)}   ; Ліва сторона")
+        lines.append(f"G1 X{s._fmt(x2)} Y{s._fmt(y2)} F{s._fmt(s.feed_rate)}   ; Верх")
+        lines.append(f"G1 X{s._fmt(x2)} Y{s._fmt(y1)} F{s._fmt(s.feed_rate)}   ; Права сторона")
+        lines.append(f"G1 X{s._fmt(x1 + lo)} Y{s._fmt(y1)} F{s._fmt(s.feed_rate)}   ; Lead-out")
 
         lines.append("M5           ; Вимкнути плазму/лазер")
-        lines.append(f"G0 Z{self._fmt(s.retract_height)}    ; Підняти головку")
+        lines.append(f"G0 Z{s._fmt(s.retract_height)}    ; Підняти головку")
         lines.append("")
         return lines
 
     def _cut_sheet_outline(self, sheet: Sheet) -> list[str]:
         """Контур листа (для перевірки/візуалізації, без різу)."""
+        s = self.settings
         return [
             "",
             "; --- Контур листа (для довідки, НЕ різати) ---",
             f"; G0 X0 Y0",
-            f"; G1 X{self._fmt(sheet.width)} Y0",
-            f"; G1 X{self._fmt(sheet.width)} Y{self._fmt(sheet.height)}",
-            f"; G1 X0 Y{self._fmt(sheet.height)}",
+            f"; G1 X{s._fmt(sheet.width)} Y0",
+            f"; G1 X{s._fmt(sheet.width)} Y{s._fmt(sheet.height)}",
+            f"; G1 X0 Y{s._fmt(sheet.height)}",
             f"; G1 X0 Y0",
             "",
         ]
