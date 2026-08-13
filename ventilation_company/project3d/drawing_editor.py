@@ -414,4 +414,968 @@ class DrawingEditorWindow(tk.Toplevel):
         if self._draw_mode:
             self._update_snap_visual(x, y)
 
-        if self._draw_mode in ("segmen
+        if self._draw_mode in ("segment", "wall") and self._draw_start is not None:
+            point = self._get_cursor_point(event)
+            if point and self._draw_temp_line:
+                self._draw_temp_line.set_data(
+                    [self._draw_start.x, point.x], [self._draw_start.y, point.y],
+                )
+                dx = point.x - self._draw_start.x
+                dy = point.y - self._draw_start.y
+                length = (dx ** 2 + dy ** 2) ** 0.5
+                snap_text = " [SNAP]" if self._snap_active else ""
+                self.status_label.config(
+                    text=f"✏️ {self._draw_mode.upper()}: L={length:.0f} мм{snap_text} | Відпустіть ЛКМ",
+                    foreground="#0066cc",
+                )
+                self.canvas.draw_idle()
+        elif self._draw_mode == "polyline" and self._polyline_points:
+            point = self._get_cursor_point(event)
+            if point and self._draw_temp_line:
+                last = self._polyline_points[-1]
+                self._draw_temp_line.set_data(
+                    [last.x, point.x], [last.y, point.y],
+                )
+                dx = point.x - last.x
+                dy = point.y - last.y
+                length = (dx ** 2 + dy ** 2) ** 0.5
+                snap_text = " [SNAP]" if self._snap_active else ""
+                self.status_label.config(
+                    text=f"📐 ПОЛІЛІНІЯ: точок={len(self._polyline_points)} | L={length:.0f} мм{snap_text} | ЛКМ — додати, Enter — завершити",
+                    foreground="#0066cc",
+                )
+                self.canvas.draw_idle()
+        elif self._draw_mode == "opening":
+            wall = self._find_nearest_wall(x, y)
+            if wall:
+                self.status_label.config(
+                    text=f"🚪 ОТВІР: найближча стіна — {wall.name} | ЛКМ — розмістити",
+                    foreground="#0066cc",
+                )
+            else:
+                self.status_label.config(
+                    text="🚪 ОТВІР: клікніть ближче до стіни",
+                    foreground="#cc6600",
+                )
+
+    def _on_mpl_release(self, event):
+        if not self._draw_mode:
+            return
+        if event.inaxes != self.ax:
+            self._cancel_draw()
+            return
+        if event.button != 1:
+            return
+        if self._draw_mode in ("erase", "opening", "equipment"):
+            return  # Оброблено в press
+
+        point = self._get_cursor_point(event)
+        if point is None:
+            self._cancel_draw()
+            return
+        end = point
+        start = self._draw_start
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+            self._draw_temp_line = None
+        mode = self._draw_mode
+        if mode == "segment":
+            self._draw_start = None
+            self._on_draw_segment_done(start, end)
+        elif mode == "wall":
+            self._draw_start = None
+            self._on_draw_wall_done(start, end)
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ERASE
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _start_erase(self):
+        self._cancel_draw()
+        self._draw_mode = "erase"
+        self.status_label.config(
+            text="🗑️ РЕЖИМ: Стирати → наведіть на елемент і клікніть ЛКМ",
+            foreground="#cc0000",
+        )
+        self.canvas.get_tk_widget().config(cursor="X_cursor")
+        self.canvas.get_tk_widget().focus_set()
+
+    def _update_erase_highlight(self, x, y):
+        """Підсвітити елемент, який буде видалено."""
+        if self._erase_highlight:
+            try:
+                self._erase_highlight.remove()
+            except Exception:
+                pass
+            self._erase_highlight = None
+
+        elem = self._find_nearest_element(x, y)
+        if elem:
+            ex, ey, er = elem["x"], elem["y"], 200
+            self._erase_highlight = Circle(
+                (ex, ey), er,
+                facecolor="none", edgecolor=self.COLORS["erase_highlight"],
+                linewidth=3, linestyle="--", zorder=1001,
+            )
+            self.ax.add_patch(self._erase_highlight)
+            self.canvas.draw_idle()
+
+    def _find_nearest_element(self, x, y):
+        """Знайти найближчий елемент для стирання."""
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        best = None
+        best_dist = float("inf")
+
+        # Сегменти
+        for system in self.project.ventilation_systems:
+            for trunk in system.trunks:
+                for seg in trunk.segments:
+                    cx = (seg.start.x + seg.end.x) / 2
+                    cy = (seg.start.y + seg.end.y) / 2
+                    dist = ((cx - x) ** 2 + (cy - y) ** 2) ** 0.5
+                    if dist < best_dist and dist < self.ERASE_RADIUS_MM:
+                        best_dist = dist
+                        best = {"type": "segment", "id": seg.id, "x": cx, "y": cy, "parent": trunk}
+
+        # Стіни
+        if floor:
+            for wall in floor.walls:
+                cx = (wall.start.x + wall.end.x) / 2
+                cy = (wall.start.y + wall.end.y) / 2
+                dist = ((cx - x) ** 2 + (cy - y) ** 2) ** 0.5
+                if dist < best_dist and dist < self.ERASE_RADIUS_MM:
+                    best_dist = dist
+                    best = {"type": "wall", "id": wall.id, "x": cx, "y": cy, "parent": floor}
+
+            # Отвори
+            for op in floor.openings:
+                dist = ((op.position.x - x) ** 2 + (op.position.y - y) ** 2) ** 0.5
+                if dist < best_dist and dist < self.ERASE_RADIUS_MM:
+                    best_dist = dist
+                    best = {"type": "opening", "id": op.id, "x": op.position.x, "y": op.position.y, "parent": floor}
+
+        # Обладнання
+        for system in self.project.ventilation_systems:
+            for trunk in system.trunks:
+                for eq in trunk.equipment:
+                    dist = ((eq.position.x - x) ** 2 + (eq.position.y - y) ** 2) ** 0.5
+                    if dist < best_dist and dist < self.ERASE_RADIUS_MM:
+                        best_dist = dist
+                        best = {"type": "equipment", "id": eq.id, "x": eq.position.x, "y": eq.position.y, "parent": trunk}
+
+                # Фітінги
+                for fit in trunk.fittings:
+                    dist = ((fit.position.x - x) ** 2 + (fit.position.y - y) ** 2) ** 0.5
+                    if dist < best_dist and dist < self.ERASE_RADIUS_MM:
+                        best_dist = dist
+                        best = {"type": "fitting", "id": fit.id, "x": fit.position.x, "y": fit.position.y, "parent": trunk}
+
+        return best
+
+    def _do_erase(self, x, y):
+        elem = self._find_nearest_element(x, y)
+        if not elem:
+            self.status_label.config(text="🗑️ Немає елемента поблизу для видалення", foreground="#cc0000")
+            return
+
+        etype = elem["type"]
+        eid = elem["id"]
+
+        if etype == "segment":
+            for s in self.project.ventilation_systems:
+                for t in s.trunks:
+                    for i, seg in enumerate(t.segments):
+                        if seg.id == eid:
+                            t.segments.pop(i)
+                            break
+        elif etype == "wall":
+            for fl in self.project.arch_context.floors:
+                for i, w in enumerate(fl.walls):
+                    if w.id == eid:
+                        fl.walls.pop(i)
+                        break
+        elif etype == "opening":
+            for fl in self.project.arch_context.floors:
+                for i, o in enumerate(fl.openings):
+                    if o.id == eid:
+                        fl.openings.pop(i)
+                        break
+        elif etype == "equipment":
+            for s in self.project.ventilation_systems:
+                for t in s.trunks:
+                    for i, eq in enumerate(t.equipment):
+                        if eq.id == eid:
+                            t.equipment.pop(i)
+                            break
+        elif etype == "fitting":
+            for s in self.project.ventilation_systems:
+                for t in s.trunks:
+                    for i, fit in enumerate(t.fittings):
+                        if fit.id == eid:
+                            t.fittings.pop(i)
+                            break
+
+        self._modified = True
+        self.status_label.config(text=f"🗑️ Видалено: {etype} {eid}", foreground="#cc0000")
+        self.refresh()
+
+    # ═══════════════════════════════════════════════════════════════════
+    # POLYLINE
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _handle_polyline_click(self, point):
+        if not self._polyline_points:
+            self._polyline_points.append(point)
+            self.status_label.config(
+                text="📐 ПОЛІЛІНІЯ: перша точка. ЛКМ — наступна, Enter — завершити",
+                foreground="#0066cc",
+            )
+            if self._draw_temp_line:
+                try:
+                    self._draw_temp_line.remove()
+                except Exception:
+                    pass
+            self._draw_temp_line, = self.ax.plot(
+                [point.x, point.x], [point.y, point.y],
+                color=self._draw_color, linewidth=2.5, linestyle="--",
+                marker="o", markersize=6, markerfacecolor=self.COLORS["draw_snap"], zorder=999,
+            )
+            self.canvas.draw_idle()
+        else:
+            last = self._polyline_points[-1]
+            line, = self.ax.plot(
+                [last.x, point.x], [last.y, point.y],
+                color=self._draw_color, linewidth=2.5, solid_capstyle="round", zorder=998,
+            )
+            self._polyline_lines.append(line)
+            self._polyline_points.append(point)
+            self.status_label.config(
+                text=f"📐 ПОЛІЛІНІЯ: точок={len(self._polyline_points)} | ЛКМ — додати, Enter — завершити",
+                foreground="#0066cc",
+            )
+            self.canvas.draw_idle()
+
+    def _finish_polyline(self):
+        if self._draw_mode != "polyline" or len(self._polyline_points) < 2:
+            if self._draw_mode == "polyline" and len(self._polyline_points) < 2:
+                messagebox.showinfo("Полілінія", "Потрібно мінімум 2 точки.")
+                self._cancel_draw()
+            return
+        pid = getattr(self, "_pending_trunk_id", None)
+        if not pid:
+            self._cancel_draw()
+            return
+        p1 = self._polyline_points[0]
+        p2 = self._polyline_points[1]
+        data = AddSegmentDialog(self, default_start=p1, default_end=p2).show()
+        if data:
+            for i in range(len(self._polyline_points) - 1):
+                start = self._polyline_points[i]
+                end = self._polyline_points[i + 1]
+                length = ((end.x - start.x) ** 2 + (end.y - start.y) ** 2) ** 0.5
+                seg = DuctSegment(
+                    id=f"{data['id']}_seg{i+1}" if i > 0 else data["id"],
+                    start=start, end=end,
+                    width=data["width"], height=data["height"], length=length,
+                    shape=data["shape"], duct_type=data["duct_type"],
+                    material=data["material"], thickness=data["thickness"],
+                    insulation=data["insulation"],
+                    notes=f"{data.get('notes', '')} (полілінія)" if data.get("notes") else "Полілінія",
+                )
+                for s in self.project.ventilation_systems:
+                    for t in s.trunks:
+                        if t.id == pid:
+                            t.segments.append(seg)
+                            break
+            self._modified = True
+            self.status_label.config(
+                text=f"✅ Полілінія: {len(self._polyline_points)} точок, {len(self._polyline_points)-1} сегментів",
+                foreground="green",
+            )
+        self._cancel_draw()
+        self.refresh()
+
+    # ═══════════════════════════════════════════════════════════════════
+    # DRAW MODE STARTERS
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _start_draw_segment(self):
+        self._start_draw_mode("segment", "Сегмент")
+
+    def _start_draw_polyline(self):
+        self._start_draw_mode("polyline", "Полілінія")
+
+    def _start_draw_mode(self, mode, label):
+        trunks = []
+        for s in self.project.ventilation_systems:
+            for t in s.trunks:
+                trunks.append((t, s))
+        if not trunks:
+            messagebox.showwarning("Увага", "Спочатку додайте трасу.")
+            return
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Виберіть трасу для {label}")
+        dialog.geometry("400x180")
+        dialog.transient(self)
+        dialog.grab_set()
+        ttk.Label(dialog, text="Трасса:").pack(pady=5)
+        var = tk.StringVar()
+        combo = ttk.Combobox(dialog, textvariable=var, state="readonly", width=45)
+        display_list = []
+        id_map = {}
+        color_map = {}
+        for t, system in trunks:
+            d = f"{t.name} [{t.id}] — {system.name}"
+            display_list.append(d)
+            id_map[d] = t.id
+            sys_type = system.system_type.lower()
+            if "витяж" in sys_type or "exhaust" in sys_type:
+                color_map[d] = self.COLORS["duct_exhaust"]
+            elif "дим" in sys_type or "smoke" in sys_type:
+                color_map[d] = self.COLORS["duct_smoke"]
+            else:
+                color_map[d] = self.COLORS["duct_supply"]
+        combo["values"] = display_list
+        if display_list:
+            combo.set(display_list[0])
+        combo.pack(padx=10, pady=5)
+        result = [None]
+        def on_ok():
+            result[0] = id_map.get(combo.get())
+            self._draw_color = color_map.get(combo.get(), self.COLORS["draw_preview"])
+            dialog.destroy()
+        def on_cancel():
+            dialog.destroy()
+        ttk.Button(dialog, text="OK", command=on_ok).pack(pady=5)
+        ttk.Button(dialog, text="Скасувати", command=on_cancel).pack()
+        self.wait_window(dialog)
+        if result[0]:
+            self._pending_trunk_id = result[0]
+            self._draw_mode = mode
+            self._draw_start = None
+            self._polyline_points = []
+            self._polyline_lines = []
+            hint = "перша точка" if mode == "polyline" else "тягніть, відпустіть"
+            self.status_label.config(
+                text=f"✏️ РЕЖИМ: {label} → ЛКМ ({hint})",
+                foreground="#0066cc",
+            )
+            self.canvas.get_tk_widget().config(cursor="crosshair")
+            self.canvas.get_tk_widget().focus_set()
+
+    def _start_draw_wall(self):
+        self._draw_mode = "wall"
+        self._draw_start = None
+        self._draw_color = self.COLORS["wall"]
+        self._polyline_points = []
+        self._polyline_lines = []
+        self.status_label.config(
+            text="✏️ РЕЖИМ: Креслення стіни → ЛКМ, тягніть, відпустіть",
+            foreground="#0066cc",
+        )
+        self.canvas.get_tk_widget().config(cursor="crosshair")
+        self.canvas.get_tk_widget().focus_set()
+
+    # ═══════════════════════════════════════════════════════════════════
+    # EQUIPMENT DRAWING
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _start_draw_equipment(self):
+        """Вибрати тип обладнання і перейти в режим розміщення."""
+        dialog = tk.Toplevel(self)
+        dialog.title("Виберіть тип обладнання")
+        dialog.geometry("350x250")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text="Тип обладнання:").pack(pady=5)
+        var = tk.StringVar()
+        combo = ttk.Combobox(dialog, textvariable=var, state="readonly", width=30)
+        combo["values"] = list(self.EQUIPMENT_TYPES.keys())
+        combo.set("Вентилятор")
+        combo.pack(padx=10, pady=5)
+
+        ttk.Label(dialog, text="Трасса (система):").pack(pady=5)
+        trunk_var = tk.StringVar()
+        trunk_combo = ttk.Combobox(dialog, textvariable=trunk_var, state="readonly", width=30)
+        trunks = []
+        trunk_map = {}
+        for s in self.project.ventilation_systems:
+            for t in s.trunks:
+                d = f"{t.name} [{t.id}]"
+                trunks.append(d)
+                trunk_map[d] = t.id
+        trunk_combo["values"] = trunks
+        if trunks:
+            trunk_combo.set(trunks[0])
+        trunk_combo.pack(padx=10, pady=5)
+
+        result = [None, None]
+        def on_ok():
+            result[0] = combo.get()
+            result[1] = trunk_map.get(trunk_combo.get())
+            dialog.destroy()
+        def on_cancel():
+            dialog.destroy()
+        ttk.Button(dialog, text="OK", command=on_ok).pack(pady=5)
+        ttk.Button(dialog, text="Скасувати", command=on_cancel).pack()
+
+        self.wait_window(dialog)
+        if result[0] and result[1]:
+            self._pending_equipment_type = result[0]
+            self._pending_trunk_id = result[1]
+            self._draw_mode = "equipment"
+            self.status_label.config(
+                text=f"⚙️ РЕЖИМ: Розміщення {result[0]} → ЛКМ на плані",
+                foreground="#0066cc",
+            )
+            self.canvas.get_tk_widget().config(cursor="crosshair")
+            self.canvas.get_tk_widget().focus_set()
+
+    def _do_equipment_click(self, point: Point3D):
+        eq_type = getattr(self, "_pending_equipment_type", "Вентилятор")
+        pid = getattr(self, "_pending_trunk_id", None)
+        if not pid:
+            return
+        info = self.EQUIPMENT_TYPES.get(eq_type, self.EQUIPMENT_TYPES["Вентилятор"])
+        eq = Equipment(
+            id=f"EQ_{eq_type[:3].upper()}_{os.urandom(2).hex()}",
+            name=eq_type,
+            position=point,
+            width=info["w"],
+            height=info["h"],
+            length=info["l"],
+            air_flow=1000,
+            pressure=100,
+            power=0.5,
+            notes=eq_type,
+        )
+        for s in self.project.ventilation_systems:
+            for t in s.trunks:
+                if t.id == pid:
+                    t.equipment.append(eq)
+                    self._modified = True
+                    self.refresh()
+                    self.status_label.config(
+                        text=f"✅ Додано обладнання: {eq.name} на ({point.x:.0f}, {point.y:.0f})",
+                        foreground="green",
+                    )
+                    return
+
+    # ═══════════════════════════════════════════════════════════════════
+    # OPENING (DOORS / WINDOWS)
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _start_draw_opening(self):
+        self._cancel_draw()
+        self._draw_mode = "opening"
+        self.status_label.config(
+            text="🚪 РЕЖИМ: Отвір → клікніть на стіну",
+            foreground="#0066cc",
+        )
+        self.canvas.get_tk_widget().config(cursor="crosshair")
+        self.canvas.get_tk_widget().focus_set()
+
+    def _find_nearest_wall(self, x, y):
+        """Знайти найближчу стіну до точки (x, y)."""
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor:
+            return None
+        best = None
+        best_dist = float("inf")
+        for wall in floor.walls:
+            # Відстань від точки до відрізка стіни
+            dist = self._point_to_segment_distance(x, y, wall.start.x, wall.start.y, wall.end.x, wall.end.y)
+            if dist < best_dist and dist < 600:  # 600 мм допуск
+                best_dist = dist
+                best = wall
+        return best
+
+    def _point_to_segment_distance(self, px, py, x1, y1, x2, y2):
+        """Відстань від точки до відрізка."""
+        dx = x2 - x1
+        dy = y2 - y1
+        if dx == 0 and dy == 0:
+            return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+        proj_x = x1 + t * dx
+        proj_y = y1 + t * dy
+        return ((px - proj_x) ** 2 + (py - proj_y) ** 2) ** 0.5
+
+    def _do_opening_click(self, x, y):
+        wall = self._find_nearest_wall(x, y)
+        if not wall:
+            messagebox.showwarning("Увага", "Клікніть ближче до стіни.")
+            return
+
+        # Розрахувати позицію на стіні (проекція точки на стіну)
+        dx = wall.end.x - wall.start.x
+        dy = wall.end.y - wall.start.y
+        length = (dx ** 2 + dy ** 2) ** 0.5
+        if length == 0:
+            return
+        t = max(0, min(1, ((x - wall.start.x) * dx + (y - wall.start.y) * dy) / (length ** 2)))
+        proj_x = wall.start.x + t * dx
+        proj_y = wall.start.y + t * dy
+        offset = t * length
+
+        # Діалог параметрів
+        dialog = tk.Toplevel(self)
+        dialog.title("Параметри отвору")
+        dialog.geometry("350x320")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text=f"Стіна: {wall.name}").pack(pady=2)
+        ttk.Label(dialog, text=f"Відступ від початку: {offset:.0f} мм").pack(pady=2)
+
+        ttk.Label(dialog, text="Тип:").pack(pady=2)
+        type_var = tk.StringVar(value="Отвір загальний")
+        ttk.Combobox(dialog, textvariable=type_var, values=self.OPENING_TYPES, state="readonly", width=25).pack()
+
+        ttk.Label(dialog, text="Ширина (мм):").pack(pady=2)
+        w_var = tk.DoubleVar(value=800)
+        ttk.Spinbox(dialog, from_=100, to=5000, textvariable=w_var, width=15).pack()
+
+        ttk.Label(dialog, text="Висота (мм):").pack(pady=2)
+        h_var = tk.DoubleVar(value=2000)
+        ttk.Spinbox(dialog, from_=100, to=5000, textvariable=h_var, width=15).pack()
+
+        ttk.Label(dialog, text="Відступ від початку стіни (мм):").pack(pady=2)
+        off_var = tk.DoubleVar(value=offset)
+        ttk.Spinbox(dialog, from_=0, to=length, textvariable=off_var, width=15).pack()
+
+        result = [None]
+        def on_ok():
+            result[0] = {
+                "type": type_var.get(),
+                "width": w_var.get(),
+                "height": h_var.get(),
+                "offset": off_var.get(),
+            }
+            dialog.destroy()
+        def on_cancel():
+            dialog.destroy()
+        ttk.Button(dialog, text="OK", command=on_ok).pack(pady=5)
+        ttk.Button(dialog, text="Скасувати", command=on_cancel).pack()
+
+        self.wait_window(dialog)
+        if result[0]:
+            data = result[0]
+            t = max(0, min(1, data["offset"] / length))
+            pos_x = wall.start.x + t * dx
+            pos_y = wall.start.y + t * dy
+            pos_z = wall.start.z + data["height"] / 2
+
+            opening = Opening(
+                id=f"OP_{os.urandom(2).hex()}",
+                name=data["type"],
+                wall_id=wall.id,
+                position=Point3D(pos_x, pos_y, pos_z),
+                width=data["width"],
+                height=data["height"],
+                shape="прямокутний",
+                notes=f"{data['type']}, відступ {data['offset']:.0f} мм",
+            )
+            for fl in self.project.arch_context.floors:
+                if fl.name == self.floor_var.get():
+                    fl.openings.append(opening)
+                    wall.has_opening = True
+                    self._modified = True
+                    self.refresh()
+                    self.status_label.config(
+                        text=f"✅ Додано {data['type']}: {data['width']:.0f}×{data['height']:.0f} мм",
+                        foreground="green",
+                    )
+                    break
+        self._cancel_draw()
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ADD FLOOR
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _add_floor_dialog(self):
+        dialog = tk.Toplevel(self)
+        dialog.title("Додати поверх")
+        dialog.geometry("300x200")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text="Назва:").pack(pady=2)
+        name_var = tk.StringVar(value=f"Поверх {len(self.project.arch_context.floors) + 1}")
+        ttk.Entry(dialog, textvariable=name_var, width=25).pack()
+
+        ttk.Label(dialog, text="Рівень (мм):").pack(pady=2)
+        level = 0
+        if self.project.arch_context.floors:
+            level = max(f.level for f in self.project.arch_context.floors) + 3000
+        level_var = tk.DoubleVar(value=level)
+        ttk.Spinbox(dialog, from_=0, to=99999, textvariable=level_var, width=15).pack()
+
+        ttk.Label(dialog, text="Висота (мм):").pack(pady=2)
+        height_var = tk.DoubleVar(value=3000)
+        ttk.Spinbox(dialog, from_=1000, to=10000, textvariable=height_var, width=15).pack()
+
+        result = [None]
+        def on_ok():
+            result[0] = {
+                "name": name_var.get(),
+                "level": level_var.get(),
+                "height": height_var.get(),
+            }
+            dialog.destroy()
+        def on_cancel():
+            dialog.destroy()
+        ttk.Button(dialog, text="OK", command=on_ok).pack(pady=5)
+        ttk.Button(dialog, text="Скасувати", command=on_cancel).pack()
+
+        self.wait_window(dialog)
+        if result[0]:
+            data = result[0]
+            floor = Floor(name=data["name"], level=data["level"], height=data["height"])
+            self.project.arch_context.floors.append(floor)
+            self._modified = True
+            self._set_floor_options()
+            self.status_label.config(
+                text=f"✅ Додано поверх: {floor.name}",
+                foreground="green",
+            )
+
+    # ═══════════════════════════════════════════════════════════════════
+    # DONE CALLBACKS (segment, wall)
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _on_draw_segment_done(self, start, end):
+        pid = getattr(self, "_pending_trunk_id", None)
+        if not pid:
+            return
+        data = AddSegmentDialog(self, default_start=start, default_end=end).show()
+        if data:
+            seg = DuctSegment(
+                id=data["id"], start=data["start"], end=data["end"],
+                width=data["width"], height=data["height"], length=data["length"],
+                shape=data["shape"], duct_type=data["duct_type"],
+                material=data["material"], thickness=data["thickness"],
+                insulation=data["insulation"], notes=data["notes"],
+            )
+            for s in self.project.ventilation_systems:
+                for t in s.trunks:
+                    if t.id == pid:
+                        t.segments.append(seg)
+                        self._modified = True
+                        self.refresh()
+                        self.status_label.config(
+                            text=f"✅ Додано сегмент: {seg.id} L={seg.length:.0f} мм",
+                            foreground="green",
+                        )
+                        return
+
+    def _on_draw_wall_done(self, start, end):
+        floor = None
+        floor_name = self.floor_var.get()
+        for fl in self.project.arch_context.floors:
+            if fl.name == floor_name:
+                floor = fl
+                break
+        if not floor and self.project.arch_context.floors:
+            floor = self.project.arch_context.floors[0]
+        if not floor:
+            messagebox.showwarning("Увага", "Не знайдено поверх для стіни.")
+            return
+        data = AddWallDialog(self, default_start=start, default_end=end).show()
+        if data:
+            wall = Wall(
+                id=data["id"], name=data["name"],
+                start=data["start"], end=data["end"],
+                height=data["height"], thickness=data["thickness"],
+                material=data["material"], is_load_bearing=data["is_load_bearing"],
+                notes=data["notes"],
+            )
+            floor.walls.append(wall)
+            self._modified = True
+            self.refresh()
+            self.status_label.config(
+                text=f"✅ Додано стіну: {wall.name} L={wall.length:.0f} мм",
+                foreground="green",
+            )
+
+    def _get_floor_z(self):
+        floor_name = self.floor_var.get()
+        if self.project and self.project.arch_context:
+            for f in self.project.arch_context.floors:
+                if f.name == floor_name:
+                    return f.level
+        return 2500.0
+
+    def _cancel_draw(self):
+        self._draw_mode = None
+        self._draw_start = None
+        self._pending_trunk_id = None
+        self._draw_color = self.COLORS["draw_preview"]
+        if self._draw_temp_line:
+            try:
+                self._draw_temp_line.remove()
+            except Exception:
+                pass
+            self._draw_temp_line = None
+        for line in self._polyline_lines:
+            try:
+                line.remove()
+            except Exception:
+                pass
+        self._polyline_lines = []
+        self._polyline_points = []
+        if self._snap_marker:
+            try:
+                self._snap_marker.remove()
+            except Exception:
+                pass
+            self._snap_marker = None
+        if self._erase_highlight:
+            try:
+                self._erase_highlight.remove()
+            except Exception:
+                pass
+            self._erase_highlight = None
+        self._snap_point = None
+        self._snap_active = False
+        self.status_label.config(text="Готово", foreground="#0066cc")
+        self.canvas.get_tk_widget().config(cursor="")
+        self.canvas.draw_idle()
+
+    def _zoom_in(self):
+        self._zoom_level *= 1.2
+        self.refresh()
+
+    def _zoom_out(self):
+        self._zoom_level /= 1.2
+        self.refresh()
+
+    def _center_view(self):
+        self._zoom_level = 1.0
+        self.refresh()
+
+    def _print(self):
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp_path = tmp.name
+            self.figure.savefig(tmp_path, dpi=300, bbox_inches="tight", facecolor=self.figure.get_facecolor())
+            if os.name == "nt":
+                os.startfile(tmp_path)
+            else:
+                import subprocess
+                subprocess.Popen(["xdg-open", tmp_path])
+            messagebox.showinfo("Друк", "PDF підготовлено.\nФайл відкрито у переглядачі. Натисніть Ctrl+P для друку.")
+        except Exception as e:
+            messagebox.showerror("Помилка друку", str(e))
+
+    def refresh(self):
+        self.ax.clear()
+        self.ax.set_facecolor(self.COLORS["bg"])
+        if not self.project:
+            self.ax.text(0.5, 0.5, "Немає проєкту", transform=self.ax.transAxes, fontsize=14, ha="center", color="#999")
+            self.ax.set_xlim(0, 1)
+            self.ax.set_ylim(0, 1)
+            self.ax.set_aspect("equal")
+            self.canvas.draw()
+            return
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor:
+            self.ax.text(0.5, 0.5, f"Поверх '{floor_name}' не знайдено", transform=self.ax.transAxes, fontsize=14, ha="center", color="#999")
+            self.ax.set_xlim(0, 1)
+            self.ax.set_ylim(0, 1)
+            self.canvas.draw()
+            return
+
+        all_x, all_y = [], []
+
+        # Сітка (малюємо першою, щоб була на фоні)
+        self._draw_grid()
+        self.ax.grid(True, color=self.COLORS["grid"], linestyle="-", linewidth=0.5, alpha=0.5)
+        self.ax.set_axisbelow(True)
+
+        if self.wall_var.get():
+            for wall in floor.walls:
+                self._draw_wall_2d(wall)
+                all_x.extend([wall.start.x, wall.end.x])
+                all_y.extend([wall.start.y, wall.end.y])
+
+        if self.duct_var.get():
+            for system in self.project.ventilation_systems:
+                sys_type = system.system_type.lower()
+                if "витяж" in sys_type or "exhaust" in sys_type:
+                    color = self.COLORS["duct_exhaust"]
+                elif "дим" in sys_type or "smoke" in sys_type:
+                    color = self.COLORS["duct_smoke"]
+                else:
+                    color = self.COLORS["duct_supply"]
+                for trunk in system.trunks:
+                    trunk_floor = str(trunk.floor) if hasattr(trunk, "floor") else ""
+                    if trunk_floor not in floor_name and trunk.name != floor_name:
+                        z_min = min(s.start.z for s in trunk.segments) if trunk.segments else 0
+                        z_max = max(s.end.z for s in trunk.segments) if trunk.segments else 0
+                        floor_z = floor.floor_z
+                        level = floor.level
+                        if not (floor_z <= z_min <= level or floor_z <= z_max <= level):
+                            continue
+                    for seg in trunk.segments:
+                        self._draw_duct_segment_2d(seg, color, self.dim_var.get())
+                        all_x.extend([seg.start.x, seg.end.x])
+                        all_y.extend([seg.start.y, seg.end.y])
+                    for fitting in trunk.fittings:
+                        self._draw_fitting_2d(fitting)
+                        all_x.append(fitting.position.x)
+                        all_y.append(fitting.position.y)
+
+        if self.eq_var.get():
+            for system in self.project.ventilation_systems:
+                for trunk in system.trunks:
+                    for eq in trunk.equipment:
+                        self._draw_equipment_2d(eq)
+                        all_x.extend([eq.position.x - eq.width/2, eq.position.x + eq.width/2])
+                        all_y.extend([eq.position.y - eq.height/2, eq.position.y + eq.height/2])
+
+        # Отвори
+        if floor:
+            for op in floor.openings:
+                self._draw_opening_2d(op)
+                all_x.extend([op.position.x - op.width/2, op.position.x + op.width/2])
+                all_y.extend([op.position.y - op.height/2, op.position.y + op.height/2])
+
+        if all_x and all_y:
+            margin = max(max(all_x) - min(all_x), max(all_y) - min(all_y)) * 0.1 + 500
+            margin = margin / self._zoom_level
+            xlim = (min(all_x) - margin, max(all_x) + margin)
+            ylim = (min(all_y) - margin, max(all_y) + margin)
+        else:
+            xlim, ylim = (-5000, 15000), (-5000, 15000)
+        self.ax.set_xlim(xlim)
+        self.ax.set_ylim(ylim)
+        self.ax.set_aspect("equal")
+        self.ax.set_xlabel("X, мм")
+        self.ax.set_ylabel("Y, мм")
+        self.ax.set_title(f"{self.project.name} — План: {floor_name}", fontsize=12)
+
+        legend_elements = [
+            Line2D([0], [0], color=self.COLORS["wall"], lw=4, label="Стіна"),
+            Line2D([0], [0], color=self.COLORS["duct_supply"], lw=3, label="Приплив"),
+            Line2D([0], [0], color=self.COLORS["duct_exhaust"], lw=3, label="Витяжка"),
+            Line2D([0], [0], marker="s", color="w", markerfacecolor=self.COLORS["equipment"], markersize=10, label="Обладнання"),
+            Line2D([0], [0], marker="s", color="w", markerfacecolor=self.COLORS["opening"], markersize=8, label="Отвір"),
+        ]
+        self.ax.legend(handles=legend_elements, loc="upper right", fontsize=8, framealpha=0.9)
+
+        # Відновити snap marker
+        if self._snap_active and self._snap_point:
+            self._snap_marker = Circle(
+                (self._snap_point.x, self._snap_point.y), 120,
+                facecolor=self.COLORS["snap_marker"], edgecolor="white", linewidth=2, alpha=0.6, zorder=1000,
+            )
+            self.ax.add_patch(self._snap_marker)
+
+        self.canvas.draw()
+
+    def _draw_wall_2d(self, wall):
+        dx = wall.end.x - wall.start.x
+        dy = wall.end.y - wall.start.y
+        length = math.sqrt(dx**2 + dy**2)
+        if length == 0:
+            return
+        nx, ny = dx / length, dy / length
+        perp_x, perp_y = -ny, nx
+        hw = wall.thickness / 2
+        x1 = wall.start.x + perp_x * hw
+        y1 = wall.start.y + perp_y * hw
+        x2 = wall.start.x - perp_x * hw
+        y2 = wall.start.y - perp_y * hw
+        x3 = wall.end.x - perp_x * hw
+        y3 = wall.end.y - perp_y * hw
+        x4 = wall.end.x + perp_x * hw
+        y4 = wall.end.y + perp_y * hw
+        color = self.COLORS["wall"] if wall.is_load_bearing else self.COLORS["wall_partition"]
+        polygon = Polygon([(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
+                          closed=True, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.9)
+        self.ax.add_patch(polygon)
+
+    def _draw_duct_segment_2d(self, seg, color, show_dims):
+        x1, y1 = seg.start.x, seg.start.y
+        x2, y2 = seg.end.x, seg.end.y
+        self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=3, solid_capstyle="round")
+        if seg.shape == DuctShape.RECT:
+            w, h = seg.width, seg.height
+            self._draw_rect_profile(x1, y1, w, h, color)
+            self._draw_rect_profile(x2, y2, w, h, color)
+        else:
+            d = seg.width
+            self._draw_circle_profile(x1, y1, d, color)
+            self._draw_circle_profile(x2, y2, d, color)
+        if show_dims and seg.length > 1000:
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+            offset = max(seg.width, seg.height) / 2 + 150
+            perp_angle = np.radians(angle + 90)
+            ox = offset * np.cos(perp_angle)
+            oy = offset * np.sin(perp_angle)
+            label = f"{seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f}"
+            self.ax.annotate(label, xy=(cx, cy), xytext=(cx + ox, cy + oy), fontsize=7, color=color, fontweight="bold",
+                             ha="center", va="center", bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"),
+                             arrowprops=dict(arrowstyle="->", color=color, lw=0.8))
+
+    def _draw_rect_profile(self, x, y, w, h, color):
+        rect = Rectangle((x - w/2, y - h/2), w, h, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.4)
+        self.ax.add_patch(rect)
+
+    def _draw_circle_profile(self, x, y, d, color):
+        circle = Circle((x, y), d/2, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.4)
+        self.ax.add_patch(circle)
+
+    def _draw_fitting_2d(self, fitting):
+        cx, cy = fitting.position.x, fitting.position.y
+        size = max(fitting.width_in, fitting.height_in, 100) / 2
+        diamond = Polygon([(cx, cy + size), (cx + size, cy), (cx, cy - size), (cx - size, cy)],
+                          closed=True, facecolor=self.COLORS["fitting"], edgecolor="#660066", linewidth=1.5, alpha=0.7)
+        self.ax.add_patch(diamond)
+        self.ax.text(cx, cy, fitting.fitting_type[:3], fontsize=6, color="white", ha="center", va="center", fontweight="bold")
+
+    def _draw_equipment_2d(self, eq):
+        cx, cy = eq.position.x, eq.position.y
+        w, h = eq.width, eq.height
+        rect = FancyBboxPatch((cx - w/2, cy - h/2), w, h, boxstyle="round,pad=50",
+                              facecolor=self.COLORS["equipment"], edgecolor="#996600", linewidth=2, alpha=0.8)
+        self.ax.add_patch(rect)
+        self.ax.text(cx, cy, eq.name, fontsize=7, color="white", ha="center", va="center", fontweight="bold",
+                     path_effects=[pe.withStroke(linewidth=2, foreground="black")])
+
+    def _draw_opening_2d(self, op):
+        cx, cy = op.position.x, op.position.y
+        w, h = op.width, op.height
+        rect = Rectangle((cx - w/2, cy - h/2), w, h,
+                         facecolor="none", edgecolor=self.COLORS["opening"],
+                         linewidth=2, linestyle="--", alpha=0.9)
+        self.ax.add_patch(rect)
+        self.ax.text(cx, cy, op.name, fontsize=6, color=self.COLORS["opening"],
+                     ha="center", va="center", fontweight="bold",
+                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7, edgecolor="none"))
+
+    def _on_close(self):
+        if self.on_close_callback:
+            self.on_close_callback(self._modified)
+        self.destroy()
