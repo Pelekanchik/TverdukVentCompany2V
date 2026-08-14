@@ -168,24 +168,6 @@ class ProjectDatabase:
             """
             )
 
-            # Клієнти
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS clients (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    contact_person TEXT,
-                    phone TEXT,
-                    email TEXT,
-                    address TEXT,
-                    notes TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            )
-
-            conn.commit()
-
     # =========================================================
     # ПРОЄКТИ
     # =========================================================

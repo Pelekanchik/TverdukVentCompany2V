@@ -255,7 +255,7 @@ class TestProjectDatabase:
         db = ProjectDatabase(temp_db_path)
         client_id = db.add_client(
             name="ТОВ 'ВентПром'",
-            contact_person="Іванов І.І.",
+            contact="Іванов І.І.",
             phone="+380501234567",
             email="info@ventprom.ua",
             address="м. Київ",
