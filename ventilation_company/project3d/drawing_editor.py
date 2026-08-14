@@ -1412,7 +1412,9 @@ class DrawingEditorWindow(tk.Toplevel):
     # ═══════════════════════════════════════════════════════════════════
 
     def _load_background_dxf(self):
-        """Завантажити DXF файл як підкладку для поточного поверху."""
+        """Завантажити DXF/DWG файл як підкладку для поточного поверху.
+        DWG автоматично конвертується у DXF через AutoCAD (pyautocad) або ODA File Converter.
+        """
         try:
             import ezdxf
         except ImportError:
@@ -1420,11 +1422,25 @@ class DrawingEditorWindow(tk.Toplevel):
             return
 
         filepath = filedialog.askopenfilename(
-            filetypes=[("DXF файли", "*.dxf"), ("Всі файли", "*.*")],
-            title="Виберіть DXF підкладку",
+            filetypes=[
+                ("DXF/DWG файли", "*.dxf;*.dwg"),
+                ("DXF файли", "*.dxf"),
+                ("DWG файли", "*.dwg"),
+                ("Всі файли", "*.*"),
+            ],
+            title="Виберіть підкладку (DXF або DWG)",
         )
         if not filepath:
             return
+
+        ext = os.path.splitext(filepath)[1].lower()
+
+        # Автоматична конвертація DWG → DXF
+        if ext == ".dwg":
+            converted = self._convert_dwg_to_dxf(filepath)
+            if not converted:
+                return
+            filepath = converted
 
         floor_name = self.floor_var.get()
         floor = None
@@ -1519,6 +1535,102 @@ class DrawingEditorWindow(tk.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Помилка завантаження DXF", str(e))
+
+    def _convert_dwg_to_dxf(self, dwg_path: str) -> Optional[str]:
+        """Конвертувати DWG у тимчасовий DXF.
+        Спробує: 1) pyautocad (AutoCAD), 2) ODA File Converter, 3) Teigha File Converter.
+        """
+        import tempfile
+        import subprocess
+
+        tmp_dir = tempfile.gettempdir()
+        base_name = os.path.splitext(os.path.basename(dwg_path))[0]
+        dxf_path = os.path.join(tmp_dir, f"{base_name}_converted.dxf")
+
+        # ── Метод 1: pyautocad (AutoCAD через COM) ──
+        try:
+            from pyautocad import Autocad, APoint
+            acad = Autocad(create_if_not_exists=False)
+            doc = acad.Application.Documents.Open(dwg_path)
+            doc.SaveAs(dxf_path, FileFormat=acad.ActiveDocument.GetVariable("ACADVER"))
+            doc.Close(SaveChanges=False)
+            if os.path.exists(dxf_path):
+                self.status_label.config(text=f"✅ DWG→DXF через AutoCAD: {os.path.basename(dxf_path)}", foreground="green")
+                return dxf_path
+        except Exception as e:
+            pass  # AutoCAD не доступний
+
+        # ── Метод 2: ODA File Converter ──
+        oda_paths = [
+            r"C:\Program Files\ODA\ODAFileConverter\ODAFileConverter.exe",
+            r"C:\Program Files (x86)\ODA\ODAFileConverter\ODAFileConverter.exe",
+            r"C:\ODA\ODAFileConverter\ODAFileConverter.exe",
+            os.path.expanduser("~/ODAFileConverter/ODAFileConverter.exe"),
+        ]
+        for oda_exe in oda_paths:
+            if os.path.exists(oda_exe):
+                try:
+                    input_dir = os.path.dirname(dwg_path)
+                    output_dir = tmp_dir
+                    cmd = [
+                        oda_exe,
+                        input_dir,
+                        output_dir,
+                        "ACAD2018",
+                        "DXF",
+                        "0",
+                        "1",
+                    ]
+                    subprocess.run(cmd, check=True, timeout=60, capture_output=True)
+                    # ODA створює файл з тією ж назвою, але .dxf
+                    converted = os.path.join(output_dir, f"{base_name}.dxf")
+                    if os.path.exists(converted):
+                        os.rename(converted, dxf_path)
+                        self.status_label.config(text=f"✅ DWG→DXF через ODA: {os.path.basename(dxf_path)}", foreground="green")
+                        return dxf_path
+                except Exception:
+                    pass
+
+        # ── Метод 3: Teigha File Converter ──
+        teigha_paths = [
+            r"C:\Program Files\Open Design Alliance\Teigha File Converter\TeighaFileConverter.exe",
+            r"C:\Program Files (x86)\Open Design Alliance\Teigha File Converter\TeighaFileConverter.exe",
+        ]
+        for teigha_exe in teigha_paths:
+            if os.path.exists(teigha_exe):
+                try:
+                    input_dir = os.path.dirname(dwg_path)
+                    output_dir = tmp_dir
+                    cmd = [
+                        teigha_exe,
+                        input_dir,
+                        output_dir,
+                        "ACAD2018",
+                        "DXF",
+                        "0",
+                        "1",
+                    ]
+                    subprocess.run(cmd, check=True, timeout=60, capture_output=True)
+                    converted = os.path.join(output_dir, f"{base_name}.dxf")
+                    if os.path.exists(converted):
+                        os.rename(converted, dxf_path)
+                        self.status_label.config(text=f"✅ DWG→DXF через Teigha: {os.path.basename(dxf_path)}", foreground="green")
+                        return dxf_path
+                except Exception:
+                    pass
+
+        # Нічого не спрацювало
+        messagebox.showerror(
+            "Помилка конвертації DWG→DXF",
+            "Не вдалося конвертувати DWG у DXF.\n\n"
+            "Варіанти вирішення:\n"
+            "1. Встановіть AutoCAD (pyautocad використає його автоматично)\n"
+            "2. Встановіть ODA File Converter (безкоштовний):\n"
+            "   https://www.opendesign.com/guestfiles/oda_file_converter\n"
+            "3. Конвертуйте DWG→DXF вручну через AutoCAD/BricsCAD\n"
+            "4. Завантажте готовий DXF замість DWG",
+        )
+        return None
 
     def _draw_background(self):
         """Намалювати підкладку на плані."""
