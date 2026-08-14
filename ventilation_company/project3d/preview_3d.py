@@ -35,6 +35,7 @@ class Project3DPreview:
         "equipment": "#ffcc44",
         "floor": "#eeeeee",
         "grid": "#cccccc",
+        "collision": "#ff0000",
     }
 
     def __init__(self, parent: tk.Widget):
@@ -47,6 +48,8 @@ class Project3DPreview:
         self._show_equipment = True
         self._wireframe = False
         self._view_angle = (25, -60)
+        self._show_collisions = True
+        self._collision_ids = set()
         self._build_ui()
         self._connect_events()
 
@@ -68,6 +71,8 @@ class Project3DPreview:
         ttk.Checkbutton(ctrl, text="Обладнання", variable=self.eq_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         self.lbl_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(ctrl, text="Підписи", variable=self.lbl_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        self.coll_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(ctrl, text="⚠️ Зіткнення", variable=self.coll_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         ttk.Separator(ctrl, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
         ttk.Button(ctrl, text="⬆️ Зверху", command=lambda: self._set_view(90, -90)).pack(side=tk.LEFT, padx=2)
         ttk.Button(ctrl, text="➡️ Збоку", command=lambda: self._set_view(0, -90)).pack(side=tk.LEFT, padx=2)
@@ -135,10 +140,17 @@ class Project3DPreview:
             self.ax.set_zlim(-100, 100)
             self.canvas.draw()
             return
+        # ── Перевірка зіткнень ──
+        from ventilation_company.project3d.collision_detection import CollisionDetector
+        detector = CollisionDetector(self.project)
+        detector.check_all()
+        self._collision_ids = detector.get_colliding_ids()
+
         show_arch = self.arch_var.get()
         show_vent = self.vent_var.get()
         show_eq = self.eq_var.get()
         show_labels = self.lbl_var.get()
+        show_collisions = self.coll_var.get()
         floor_filter = self.floor_var.get()
         all_floors = floor_filter == "Всі поверхи"
         all_x, all_y, all_z = [], [], []
@@ -165,12 +177,14 @@ class Project3DPreview:
                         if trunk_floor not in floor_filter and trunk.name != floor_filter:
                             continue
                     for seg in trunk.segments:
-                        self._draw_duct_segment(seg, system.system_type, show_labels)
+                        is_collision = show_collisions and seg.id in self._collision_ids
+                        self._draw_duct_segment(seg, system.system_type, show_labels, is_collision)
                         all_x.extend([seg.start.x, seg.end.x])
                         all_y.extend([seg.start.y, seg.end.y])
                         all_z.extend([seg.start.z, seg.end.z])
                     for fitting in trunk.fittings:
-                        self._draw_fitting(fitting, show_labels)
+                        is_collision = show_collisions and fitting.id in self._collision_ids
+                        self._draw_fitting(fitting, show_labels, is_collision)
                         all_x.append(fitting.position.x)
                         all_y.append(fitting.position.y)
                         all_z.append(fitting.position.z)
@@ -178,7 +192,8 @@ class Project3DPreview:
             for system in self.project.ventilation_systems:
                 for trunk in system.trunks:
                     for eq in trunk.equipment:
-                        self._draw_equipment(eq, show_labels)
+                        is_collision = show_collisions and eq.id in self._collision_ids
+                        self._draw_equipment(eq, show_labels, is_collision)
                         all_x.extend([eq.position.x - eq.width/2, eq.position.x + eq.width/2])
                         all_y.extend([eq.position.y - eq.height/2, eq.position.y + eq.height/2])
                         all_z.extend([eq.position.z, eq.position.z + eq.length])
@@ -197,6 +212,8 @@ class Project3DPreview:
         title = f"{self.project.name} — 3D"
         if not all_floors:
             title += f" ({floor_filter})"
+        if self._collision_ids and show_collisions:
+            title += f"  |  ⚠️ {len(self._collision_ids)} об'єктів у зіткненні"
         self.ax.set_title(title, fontsize=11, pad=10)
         elev, azim = self._view_angle
         self.ax.view_init(elev=elev, azim=azim)
@@ -239,24 +256,35 @@ class Project3DPreview:
         poly3d = Poly3DCollection(verts, alpha=0.6, facecolor=self.COLORS["opening"], edgecolor="#cc0000", linewidth=1)
         self.ax.add_collection3d(poly3d)
 
-    def _draw_duct_segment(self, seg, system_type: str, show_labels: bool):
+    def _draw_duct_segment(self, seg, system_type: str, show_labels: bool, is_collision: bool = False):
         color_key = "duct_supply"
         if "витяж" in system_type.lower() or "exhaust" in system_type.lower():
             color_key = "duct_exhaust"
         elif "дим" in system_type.lower() or "smoke" in system_type.lower():
             color_key = "duct_smoke"
-        color = self.COLORS[color_key]
+        color = self.COLORS["collision"] if is_collision else self.COLORS[color_key]
+        linewidth = 5 if is_collision else 3
+        alpha = 1.0 if is_collision else 0.9
         self.ax.plot3D(
             [seg.start.x, seg.end.x], [seg.start.y, seg.end.y], [seg.start.z, seg.end.z],
-            color=color, linewidth=3, alpha=0.9,
+            color=color, linewidth=linewidth, alpha=alpha,
         )
+        end_color = self.COLORS["collision"] if is_collision else color
+        end_alpha = 0.6 if is_collision else 0.3
         if seg.shape.value == "прямокутний":
-            self._draw_duct_box(seg.start, seg.width, seg.height, color, alpha=0.3)
-            self._draw_duct_box(seg.end, seg.width, seg.height, color, alpha=0.3)
+            self._draw_duct_box(seg.start, seg.width, seg.height, end_color, alpha=end_alpha)
+            self._draw_duct_box(seg.end, seg.width, seg.height, end_color, alpha=end_alpha)
         else:
-            self._draw_duct_circle(seg.start, seg.width, color, alpha=0.3)
-            self._draw_duct_circle(seg.end, seg.width, color, alpha=0.3)
-        if show_labels and seg.length > 1500:
+            self._draw_duct_circle(seg.start, seg.width, end_color, alpha=end_alpha)
+            self._draw_duct_circle(seg.end, seg.width, end_color, alpha=end_alpha)
+        if is_collision and show_labels:
+            cx = (seg.start.x + seg.end.x) / 2
+            cy = (seg.start.y + seg.end.y) / 2
+            cz = max(seg.start.z, seg.end.z) + seg.height / 2 + 100
+            self.ax.text(cx, cy, cz, "⚠️ ЗІТКНЕННЯ", fontsize=8, color="#ff0000",
+                         ha="center", va="bottom", fontweight="bold",
+                         bbox=dict(boxstyle="round,pad=0.3", facecolor="#ffcccc", alpha=0.9, edgecolor="#ff0000"))
+        elif show_labels and seg.length > 1500:
             cx = (seg.start.x + seg.end.x) / 2
             cy = (seg.start.y + seg.end.y) / 2
             cz = max(seg.start.z, seg.end.z) + seg.height / 2 + 50
@@ -281,22 +309,31 @@ class Project3DPreview:
         zs = np.full_like(xs, pos.z)
         self.ax.plot3D(xs, ys, zs, color=color, linewidth=1, alpha=alpha + 0.3)
 
-    def _draw_fitting(self, fitting, show_labels: bool):
+    def _draw_fitting(self, fitting, show_labels: bool, is_collision: bool = False):
         cx, cy, cz = fitting.position.x, fitting.position.y, fitting.position.z
         size = max(fitting.width_in, fitting.height_in, 100) / 2
+        color = self.COLORS["collision"] if is_collision else self.COLORS["fitting"]
+        edge = "#ff0000" if is_collision else "#990099"
+        alpha = 0.8 if is_collision else 0.5
         verts = [
             [(cx - size, cy, cz), (cx, cy - size, cz), (cx + size, cy, cz), (cx, cy + size, cz)],
             [(cx - size, cy, cz + size/2), (cx, cy - size, cz + size/2),
              (cx + size, cy, cz + size/2), (cx, cy + size, cz + size/2)],
         ]
-        poly3d = Poly3DCollection(verts, alpha=0.5, facecolor=self.COLORS["fitting"], edgecolor="#990099", linewidth=1)
+        poly3d = Poly3DCollection(verts, alpha=alpha, facecolor=color, edgecolor=edge, linewidth=2 if is_collision else 1)
         self.ax.add_collection3d(poly3d)
-        if show_labels:
+        if is_collision and show_labels:
+            self.ax.text(cx, cy, cz + size + 80, "⚠️ Зіткнення!", fontsize=7, color="#ff0000",
+                         ha="center", va="bottom", fontweight="bold")
+        elif show_labels:
             self.ax.text(cx, cy, cz + size + 50, fitting.fitting_type, fontsize=6, color="#990099", ha="center", va="bottom")
 
-    def _draw_equipment(self, eq, show_labels: bool):
+    def _draw_equipment(self, eq, show_labels: bool, is_collision: bool = False):
         cx, cy, cz = eq.position.x, eq.position.y, eq.position.z
         w, h, l = eq.width / 2, eq.height / 2, eq.length
+        color = self.COLORS["collision"] if is_collision else self.COLORS["equipment"]
+        edge = "#ff0000" if is_collision else "#cc8800"
+        alpha = 0.8 if is_collision else 0.5
         verts = [
             [(cx - w, cy - h, cz), (cx + w, cy - h, cz), (cx + w, cy + h, cz), (cx - w, cy + h, cz)],
             [(cx - w, cy - h, cz + l), (cx + w, cy - h, cz + l), (cx + w, cy + h, cz + l), (cx - w, cy + h, cz + l)],
@@ -305,9 +342,12 @@ class Project3DPreview:
             [(cx - w, cy - h, cz), (cx - w, cy - h, cz + l), (cx - w, cy + h, cz + l), (cx - w, cy + h, cz)],
             [(cx + w, cy - h, cz), (cx + w, cy - h, cz + l), (cx + w, cy + h, cz + l), (cx + w, cy + h, cz)],
         ]
-        poly3d = Poly3DCollection(verts, alpha=0.5, facecolor=self.COLORS["equipment"], edgecolor="#cc8800", linewidth=1)
+        poly3d = Poly3DCollection(verts, alpha=alpha, facecolor=color, edgecolor=edge, linewidth=2 if is_collision else 1)
         self.ax.add_collection3d(poly3d)
-        if show_labels:
+        if is_collision and show_labels:
+            self.ax.text(cx, cy, cz + l + 120, "⚠️ Зіткнення!", fontsize=7, color="#ff0000",
+                         ha="center", va="bottom", fontweight="bold")
+        elif show_labels:
             self.ax.text(cx, cy, cz + l + 100, eq.name, fontsize=7, color="#cc8800", ha="center", va="bottom", fontweight="bold")
 
     def export_image(self, filepath: str):

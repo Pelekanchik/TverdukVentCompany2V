@@ -17,6 +17,7 @@ from ventilation_company.project3d.arch_context import (
 )
 from ventilation_company.project3d.project_model import VentProject
 from ventilation_company.project3d.converters import ProjectConverter
+from ventilation_company.project3d.collision_detection import CollisionDetector, Collision
 from ventilation_company.project3d.preview_3d import Project3DPreview
 from ventilation_company.project3d.preview_2d import Project2DPreview
 from ventilation_company.project3d.dialogs import (
