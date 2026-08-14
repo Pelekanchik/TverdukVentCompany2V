@@ -657,7 +657,8 @@ class SettingsTab:
     def _param_dialog(self, idx):
         dialog = tk.Toplevel(self.frame)
         dialog.title("Параметр" if idx is None else "Редагувати параметр")
-        dialog.geometry("450x280")
+        dialog.geometry("480x380")
+        dialog.minsize(450, 350)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -753,7 +754,8 @@ class SettingsTab:
     def _product_dialog(self, idx):
         dialog = tk.Toplevel(self.frame)
         dialog.title("Продукція" if idx is None else "Редагувати продукцію")
-        dialog.geometry("500x400")
+        dialog.geometry("540x480")
+        dialog.minsize(500, 420)
         dialog.transient(self.frame)
         dialog.grab_set()
 
