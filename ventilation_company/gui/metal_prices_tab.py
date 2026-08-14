@@ -256,7 +256,8 @@ class MetalPricesTab:
     def _open_dialog(self, material: str = "", thickness: float = 0.0, price_kg: float = 0.0):
         dialog = tk.Toplevel(self.frame)
         dialog.title("Редагувати ціну" if material else "Додати ціну на метал")
-        dialog.geometry("400x220")
+        dialog.geometry("420x300")
+        dialog.minsize(400, 260)
         dialog.transient(self.frame)
         dialog.grab_set()
 
