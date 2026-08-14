@@ -264,6 +264,23 @@ class ProjectDatabase:
                 )
             """
             )
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'monter',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    last_login TEXT
+                )
+            """
+            )
+
+            # Колонки для призначення проєктів
+            self._add_column_if_not_exists(conn, "projects", "assigned_to", "INTEGER")
+            self._add_column_if_not_exists(conn, "projects", "created_by", "INTEGER")
 
             # ═══ CRM: Нагадування про гарантію ═══
             conn.execute(
