@@ -7,3 +7,4 @@ pywebview>=4.4
 sqlalchemy>=2.0
 alembic>=1.13
 fpdf2>=2.7.0
+pyautocad>=0.3.0

@@ -11,6 +11,7 @@
 """
 
 import os
+from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -117,6 +118,8 @@ class Project3DTab:
         ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
         ttk.Button(tbar2, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
         ttk.Button(tbar2, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+        ttk.Button(tbar2, text="📄 КП (PDF)", command=self._generate_proposal).pack(side=tk.LEFT, padx=2)
 
         # ── Main area: left (tree + props) | right (preview) ──
         paned = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
@@ -453,6 +456,68 @@ class Project3DTab:
         self._refresh_tree()
         self._refresh_previews()
         self.status.config(text=f"⚠️ Виявлено {len(collisions)} зіткнень")
+
+    def _generate_proposal(self):
+        """Згенерувати Комерційну Пропозицію (КП) у PDF."""
+        from ventilation_company.proposal_generator import generate_proposal
+        from tkinter import filedialog
+
+        # Збираємо дані проєкту
+        project_data = {
+            "name": self.project.name,
+            "project_number": getattr(self.project, "project_number", ""),
+            "client": self.project.client,
+            "address": getattr(self.project, "address", ""),
+            "proposal_number": f"KP-{datetime.now().strftime("%Y%m%d")}-001",
+            "delivery_days": 14,
+            "installation_days": 7,
+            "warranty_months": 24,
+            "payment_terms": "50% аванс, 50% після монтажу",
+            "notes": self.project.notes,
+        }
+
+        # Збираємо позиції з усіх систем
+        items = []
+        for system in self.project.ventilation_systems:
+            for trunk in system.trunks:
+                for seg in trunk.segments:
+                    items.append({
+                        "name": f"Повітропровід {seg.width:.0f}×{seg.height:.0f} мм ({seg.duct_type.value})",
+                        "quantity": seg.length / 1000,  # у метрах
+                        "unit": "м.п.",
+                        "price": 0,  # ціна буде з прайсу
+                    })
+                for eq in trunk.equipment:
+                    items.append({
+                        "name": eq.name or "Обладнання",
+                        "quantity": 1,
+                        "unit": "шт",
+                        "price": 0,
+                    })
+                for fit in trunk.fittings:
+                    items.append({
+                        "name": f"{fit.fitting_type} {fit.width_in:.0f}×{fit.height_in:.0f} мм",
+                        "quantity": 1,
+                        "unit": "шт",
+                        "price": 0,
+                    })
+
+        # Діалог збереження
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF документ", "*.pdf"), ("Всі файли", "*.*")],
+            title="Зберегти Комерційну Пропозицію",
+            initialfile=f"KP_{self.project.name.replace(' ', '_')}.pdf",
+        )
+        if not filepath:
+            return
+
+        try:
+            generate_proposal(project_data, items, filepath)
+            self.status.config(text=f"📄 КП збережено: {filepath}")
+            messagebox.showinfo("Успіх", f"Комерційну Пропозицію збережено:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося згенерувати КП:\n{e}")
 
     def _new_project(self):
         if self._modified:
