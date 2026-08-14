@@ -18,6 +18,7 @@ from ventilation_company.gui.material_order_tab import MaterialOrderTab
 from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
 from ventilation_company.gui.crm_tab import CRMTab
 from ventilation_company.gui.dashboard_tab import DashboardTab
+from ventilation_company.gui.theme_manager import get_theme_manager
 
 
 class MainWindow:
@@ -32,8 +33,150 @@ class MainWindow:
         self.db = ProjectDatabase("data/company.db")
         self.current_project_id = None
 
+        self.theme_mgr = get_theme_manager()
+        self.theme_mgr.on_change(self._on_theme_change)
+
+        # Тема має бути застосована ДО створення віджетів
+        self.theme_mgr.apply(self.root)
+
         self._build_menu()
         self._build_ui()
+        self._update_theme_button()
+
+        # Автозбереження кожні 5 хвилин
+        self._auto_save_id = None
+        self._schedule_auto_save()
+
+    def _schedule_auto_save(self):
+        """Запланувати наступне автозбереження."""
+        if self._auto_save_id:
+            self.root.after_cancel(self._auto_save_id)
+        self._auto_save_id = self.root.after(300000, self._auto_save)
+
+    def _auto_save(self):
+        """Автоматично зберегти поточний проєкт як версію."""
+        try:
+            products = self._get_products()
+            if not products or not self.current_project_id:
+                self._schedule_auto_save()
+                return
+
+            project_name = self.spec_tab.project_name_var.get() or "auto_save"
+            versions_dir = os.path.join("data", "versions", str(self.current_project_id))
+            os.makedirs(versions_dir, exist_ok=True)
+
+            # Збираємо дані проєкту
+            self.spec_tab._generate()
+            spec = self.spec_tab.get_specification()
+            self.cutting_tab._calculate()
+            plan = self.cutting_tab.get_plan()
+
+            version_data = {
+                "project_id": self.current_project_id,
+                "project_name": project_name,
+                "saved_at": datetime.now().isoformat(),
+                "products": [p.to_dict() if hasattr(p, "to_dict") else p for p in products],
+                "specification": spec.to_dict() if spec else None,
+                "cutting_plan": plan.to_dict() if plan else None,
+            }
+
+            filename = f"{project_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = os.path.join(versions_dir, filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(version_data, f, ensure_ascii=False, indent=2)
+
+            # Обмежити кількість версій (залишити останні 50)
+            versions = sorted(os.listdir(versions_dir))
+            if len(versions) > 50:
+                for old_file in versions[:-50]:
+                    os.remove(os.path.join(versions_dir, old_file))
+
+            self.status_bar.config(text=f"💾 Автозбережено: {filename}")
+        except Exception as e:
+            self.status_bar.config(text=f"⚠️ Помилка автозбереження: {e}")
+        finally:
+            self._schedule_auto_save()
+
+    def _show_version_history(self):
+        """Показати історію версій та дозволити відкат."""
+        if not self.current_project_id:
+            messagebox.showinfo("Інформація", "Спочатку збережіть проєкт.")
+            return
+
+        versions_dir = os.path.join("data", "versions", str(self.current_project_id))
+        if not os.path.exists(versions_dir):
+            messagebox.showinfo("Історія версій", "Немає збережених версій.")
+            return
+
+        versions = sorted(os.listdir(versions_dir), reverse=True)
+        if not versions:
+            messagebox.showinfo("Історія версій", "Немає збережених версій.")
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("📜 Історія версій")
+        dialog.geometry("600x450")
+        dialog.transient(self.root)
+
+        ttk.Label(dialog, text=f"Проєкт: {self.spec_tab.project_name_var.get()}",
+                  font=("Arial", 11, "bold")).pack(pady=5)
+
+        cols = ("date", "filename")
+        tree = ttk.Treeview(dialog, columns=cols, show="headings", height=12)
+        tree.heading("date", text="Дата та час")
+        tree.heading("filename", text="Файл")
+        tree.column("date", width=180)
+        tree.column("filename", width=350)
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        for v in versions:
+            try:
+                dt = datetime.strptime(v.split("_")[-1].replace(".json", ""), "%Y%m%d_%H%M%S")
+                tree.insert("", tk.END, values=(dt.strftime("%d.%m.%Y %H:%M:%S"), v))
+            except Exception:
+                tree.insert("", tk.END, values=("—", v))
+
+        def on_restore():
+            sel = tree.selection()
+            if not sel:
+                messagebox.showinfo("Інформація", "Виберіть версію для відновлення.")
+                return
+            filename = tree.item(sel[0])["values"][1]
+            filepath = os.path.join(versions_dir, filename)
+
+            if not messagebox.askyesno("Підтвердження",
+                f"Відновити версію \"{filename}\"?\n\nПоточні незбережені зміни будуть втрачені!"):
+                return
+
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # Відновлюємо вироби
+                from ventilation_company.models.product import Product
+                products = [Product.from_dict(p) for p in data.get("products", [])]
+                self._set_products(products)
+
+                self.status_bar.config(text=f"✅ Відновлено версію: {filename}")
+                messagebox.showinfo("Успіх", f"Версію \"{filename}\" відновлено!")
+                dialog.destroy()
+            except Exception as e:
+                messagebox.showerror("Помилка", f"Не вдалося відновити:\n{e}")
+
+        def on_delete():
+            sel = tree.selection()
+            if not sel:
+                return
+            filename = tree.item(sel[0])["values"][1]
+            if messagebox.askyesno("Підтвердження", f"Видалити версію \"{filename}\"?"):
+                os.remove(os.path.join(versions_dir, filename))
+                tree.delete(sel[0])
+
+        btn_frm = ttk.Frame(dialog)
+        btn_frm.pack(pady=10)
+        ttk.Button(btn_frm, text="🔄 Відновити", command=on_restore).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frm, text="🗑️ Видалити", command=on_delete).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frm, text="❌ Закрити", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
     def _build_menu(self):
         menubar = tk.Menu(self.root)
@@ -67,6 +210,11 @@ class MainWindow:
         ttk.Button(top_frame, text="💾 Зберегти проєкт", command=self._save_project).pack(
             side=tk.RIGHT, padx=5
         )
+        ttk.Button(top_frame, text="📜 Версії", command=self._show_version_history).pack(
+            side=tk.RIGHT, padx=5
+        )
+        self.theme_btn = ttk.Button(top_frame, text="🌙 Темна", command=self._toggle_theme)
+        self.theme_btn.pack(side=tk.RIGHT, padx=5)
         ttk.Button(top_frame, text="🏗️ 3D Проєкт", command=self._export_3d_project).pack(
             side=tk.RIGHT, padx=5
         )
@@ -122,6 +270,30 @@ class MainWindow:
 
         # Відкрити дашборд одразу при старті
         self.notebook.select(self.dashboard_tab.frame)
+
+    def _toggle_theme(self):
+        self.theme_mgr.toggle()
+
+    def _on_theme_change(self, theme):
+        self.theme_mgr.apply(self.root)
+        self._update_theme_button()
+        # Оновити дашборд
+        if hasattr(self, "dashboard_tab"):
+            self.dashboard_tab._refresh_all()
+        # Оновити всі вкладки — перефарбувати віджети
+        for tab_name in ["products_tab", "pricing_tab", "project_3d_tab", "cutting_tab",
+                         "reports_tab", "metal_cutting_tab", "acoustics_tab",
+                         "aerodynamics_tab", "price_list_tab", "crm_tab"]:
+            if hasattr(self, tab_name):
+                tab = getattr(self, tab_name)
+                if hasattr(tab, "frame"):
+                    self.theme_mgr._update_all_widgets(tab.frame, theme)
+
+    def _update_theme_button(self):
+        if self.theme_mgr.is_dark():
+            self.theme_btn.config(text="☀️ Світла")
+        else:
+            self.theme_btn.config(text="🌙 Темна")
 
     def _get_products(self):
         return self.products_tab.get_products_dict()
