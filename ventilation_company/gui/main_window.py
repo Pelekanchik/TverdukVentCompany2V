@@ -2,12 +2,16 @@
 Об'єднує: Вироби, Специфікацію, Розкрій, Проєкти (БД), Проєкти 3D/Креслення, Ціноутворення.
 """
 
+import os
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from ventilation_company.auth.service import auth
+from ventilation_company.auth.permissions import TAB_PERMISSIONS, get_role_label
+from ventilation_company.gui.login_window import show_login
 from ventilation_company.db_integration import ProjectDatabase, save_project_full
 from ventilation_company.gui.cutting_tab import CuttingTab
-from ventilation_company.gui.project_3d_tab import Project3DTab  # НОВЕ
+from ventilation_company.gui.project_3d_tab import Project3DTab
 from ventilation_company.gui.products_tab import ProductsTab
 from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.price_list_tab import PriceListTab
@@ -25,26 +29,33 @@ class MainWindow:
     """Головне вікно програми."""
 
     def __init__(self):
+        # === ЛОГІН ===
+        if not show_login():
+            return
+
+        self.current_user = auth.current_user
+
         self.root = tk.Tk()
-        self.root.title("🏭 VentCompany — Вентиляційні системи")
+        self.root.title(
+            f"🏭 VentCompany — {self.current_user.full_name} "
+            f"({get_role_label(self.current_user.role)})"
+        )
         self.root.geometry("1400x900")
         self.root.minsize(1200, 700)
 
         self.db = ProjectDatabase("data/company.db")
         self.current_project_id = None
+        self._auto_save_id = None  # ← ІНІЦІАЛІЗУЄМО ДО ВИКЛИКУ!
 
         self.theme_mgr = get_theme_manager()
         self.theme_mgr.on_change(self._on_theme_change)
-
-        # Тема має бути застосована ДО створення віджетів
         self.theme_mgr.apply(self.root)
 
+        self._build_user_bar()
         self._build_menu()
         self._build_ui()
         self._update_theme_button()
-
-        # Автозбереження кожні 5 хвилин
-        self._auto_save_id = None
+        self._apply_permissions()
         self._schedule_auto_save()
 
     def _schedule_auto_save(self):
@@ -65,7 +76,6 @@ class MainWindow:
             versions_dir = os.path.join("data", "versions", str(self.current_project_id))
             os.makedirs(versions_dir, exist_ok=True)
 
-            # Збираємо дані проєкту
             self.spec_tab._generate()
             spec = self.spec_tab.get_specification()
             self.cutting_tab._calculate()
@@ -85,7 +95,6 @@ class MainWindow:
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(version_data, f, ensure_ascii=False, indent=2)
 
-            # Обмежити кількість версій (залишити останні 50)
             versions = sorted(os.listdir(versions_dir))
             if len(versions) > 50:
                 for old_file in versions[:-50]:
@@ -145,14 +154,13 @@ class MainWindow:
             filepath = os.path.join(versions_dir, filename)
 
             if not messagebox.askyesno("Підтвердження",
-                f"Відновити версію \"{filename}\"?\n\nПоточні незбережені зміни будуть втрачені!"):
+                                       f"Відновити версію \"{filename}\"?\n\nПоточні незбережені зміни будуть втрачені!"):
                 return
 
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                # Відновлюємо вироби
                 from ventilation_company.models.product import Product
                 products = [Product.from_dict(p) for p in data.get("products", [])]
                 self._set_products(products)
@@ -177,6 +185,29 @@ class MainWindow:
         ttk.Button(btn_frm, text="🔄 Відновити", command=on_restore).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frm, text="🗑️ Видалити", command=on_delete).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frm, text="❌ Закрити", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+    def _build_user_bar(self):
+        """Верхня панель з інформацією про користувача."""
+        user_frame = ttk.Frame(self.root, padding=5)
+        user_frame.pack(fill=tk.X)
+
+        role_label = get_role_label(self.current_user.role)
+        lbl = ttk.Label(
+            user_frame,
+            text=f"👤 {self.current_user.full_name}  •  🛡️ {role_label}",
+            font=("Arial", 9, "bold"),
+            foreground="#0ea5e9",
+        )
+        lbl.pack(side=tk.LEFT)
+
+        ttk.Button(user_frame, text="🚪 Вийти", command=self._logout).pack(side=tk.RIGHT)
+
+    def _logout(self):
+        if messagebox.askyesno("Вихід", "Вийти з системи?"):
+            auth.logout()
+            self.root.destroy()
+            import sys
+            os.execl(sys.executable, sys.executable, *sys.argv)
 
     def _build_menu(self):
         menubar = tk.Menu(self.root)
@@ -225,51 +256,60 @@ class MainWindow:
         self.products_tab = ProductsTab(
             self.notebook, on_products_changed=self._on_products_changed
         )
-        self.spec_tab = SpecificationTab(self.notebook,get_products_callback=self._get_products,on_cutting_request=self._open_cutting_for_project,)
+        self.spec_tab = SpecificationTab(
+            self.notebook,
+            get_products_callback=self._get_products,
+            on_cutting_request=self._open_cutting_for_project,
+        )
         self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products)
-        self.project_3d_tab = Project3DTab(self.notebook, get_products_callback=self._get_products)  # НОВЕ
+        self.project_3d_tab = Project3DTab(self.notebook, get_products_callback=self._get_products)
         self.settings_tab = SettingsTab(self.notebook)
         self.production_tab = ProductionTab(
             self.notebook,
             get_products_callback=self._get_products,
             get_project_info_callback=self._get_project_info,
         )
-
         self.material_order_tab = MaterialOrderTab(
             self.notebook,
             get_products_callback=self._get_products,
             get_project_info_callback=self._get_project_info,
         )
-        self.notebook.add(self.products_tab.frame, text="📦 Вироби")
         self.aerodynamics_tab = AerodynamicsTab(self.notebook)
+        self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
+        self.crm_tab = CRMTab(self.notebook)
+        self.dashboard_tab = DashboardTab(self.notebook)
+        self.metal_prices_tab = MetalPricesTab(self.notebook)
+
+        # Додаємо вкладки
+        self.notebook.add(self.products_tab.frame, text="📦 Вироби")
         self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
         self.notebook.add(self.cutting_tab.frame, text="✂️ Розкрій")
-        self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")  # НОВЕ
+        self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")
         self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
         self.notebook.add(self.production_tab.frame, text="🏭 Виробництво")
         self.notebook.add(self.material_order_tab.frame, text="📦 Матеріали")
         self.notebook.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
-
-        # Прайс-лист
-        self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
-        self.crm_tab = CRMTab(self.notebook)
-        self.dashboard_tab = DashboardTab(self.notebook)
         self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
         self.notebook.add(self.crm_tab.frame, text="👥 CRM")
-
-        # ═══ ВИПРАВЛЕННЯ: прив'язка project_id до прайс-листа ═══
-        self.price_list_tab._current_project_id = self.current_project_id
-
-        # Ціни на метал
-        self.metal_prices_tab = MetalPricesTab(self.notebook)
         self.notebook.add(self.metal_prices_tab.frame, text="🔧 Ціни на метал")
+
+        self.price_list_tab._current_project_id = self.current_project_id
 
         self.status_bar = ttk.Label(self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
-        # Відкрити дашборд одразу при старті
         self.notebook.select(self.dashboard_tab.frame)
+
+    def _apply_permissions(self):
+        """Приховати вкладки заборонені роллю."""
+        for tab_text, required_perms in TAB_PERMISSIONS.items():
+            has_access = any(auth.can(p) for p in required_perms)
+            if not has_access:
+                for idx in range(self.notebook.index("end")):
+                    if self.notebook.tab(idx, "text") == tab_text:
+                        self.notebook.hide(idx)
+                        break
 
     def _toggle_theme(self):
         self.theme_mgr.toggle()
@@ -277,13 +317,10 @@ class MainWindow:
     def _on_theme_change(self, theme):
         self.theme_mgr.apply(self.root)
         self._update_theme_button()
-        # Оновити дашборд
         if hasattr(self, "dashboard_tab"):
             self.dashboard_tab._refresh_all()
-        # Оновити всі вкладки — перефарбувати віджети
-        for tab_name in ["products_tab", "pricing_tab", "project_3d_tab", "cutting_tab",
-                         "reports_tab", "metal_cutting_tab", "acoustics_tab",
-                         "aerodynamics_tab", "price_list_tab", "crm_tab"]:
+        for tab_name in ["products_tab", "project_3d_tab", "cutting_tab",
+                         "price_list_tab", "crm_tab"]:
             if hasattr(self, tab_name):
                 tab = getattr(self, tab_name)
                 if hasattr(tab, "frame"):
@@ -298,20 +335,17 @@ class MainWindow:
     def _get_products(self):
         return self.products_tab.get_products_dict()
 
+    def _set_products(self, products):
+        self.products_tab.load_products_from_dict(products)
+
     def _get_project_info(self):
-        """Повернути інформацію про поточний проєкт."""
         name = self.spec_tab.project_name_var.get() if hasattr(self, "spec_tab") else "Проєкт"
-        return {
-            "name": name,
-            "id": self.current_project_id,
-        }
+        return {"name": name, "id": self.current_project_id}
 
     def _on_products_changed(self):
         self.status_bar.config(text=f"Виробів: {len(self.products_tab.get_library())}")
-        # self.project_3d_tab._refresh_list()  # TODO: оновити 3D-перегляд при зміні виробів
 
     def _get_products_for_price(self):
-        """Повернути список виробів для синхронізації з прайсом."""
         try:
             return self.products_tab.library.to_dict()
         except Exception:
@@ -350,7 +384,6 @@ class MainWindow:
             self.status_bar.config(text=f"✅ Проєкт збережено. ID: {self.current_project_id}")
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
 
-            # ═══ ВИПРАВЛЕННЯ: оновлюємо project_id у прайс-листі ═══
             self.price_list_tab._current_project_id = self.current_project_id
 
         except Exception as e:
@@ -383,7 +416,7 @@ class MainWindow:
         ttk.Button(dialog, text="Відкрити", command=on_select).pack(pady=5)
 
     def _load_project_data(self, project_id: int):
-        """Завантажити дані проєкту з БД — ВИПРАВЛЕНО: тепер підтягуються вироби."""
+        """Завантажити дані проєкту з БД."""
         project = self.db.get_project(project_id)
         if not project:
             messagebox.showerror("Помилка", "Проєкт не знайдено.")
@@ -392,23 +425,17 @@ class MainWindow:
         self.spec_tab.project_name_var.set(project["name"])
         self.project_label.config(text=f"{project['name']} (ID: {project_id})")
 
-        # === ВИПРАВЛЕННЯ: завантажуємо вироби з БД ===
         products = self.db.get_project_products(project_id)
         self.products_tab.load_products_from_dict(products)
-        # =============================================
-
-        # self.project_3d_tab._refresh_list()  # TODO: оновити 3D-перегляд при зміні виробів
 
         self.current_project_id = project_id
-
-        # ═══ ВИПРАВЛЕННЯ: оновлюємо project_id у прайс-листі ═══
         self.price_list_tab._current_project_id = self.current_project_id
 
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
 
     def _open_cutting_for_project(self, project_id: int):
-        """Відкрити розкрій для проєкту з архіву (контекстне меню)."""
+        """Відкрити розкрій для проєкту з архіву."""
         products = self.db.get_project_products(project_id)
         self.notebook.select(self.cutting_tab.frame)
         self.cutting_tab.run_cutting_for_products(products)
@@ -426,7 +453,7 @@ class MainWindow:
             "• Автоматичний розкрій металу\n"
             "• Специфікація з експортом\n"
             "• Інтеграція з базою даних\n"
-            "• 3D/2D проєкти з імпортом/експортом (Revit, AutoCAD, Solidworks, FreeCAD)\n"
+            "• 3D/2D проєкти\n"
             "• Ціноутворення з формулами",
         )
 
