@@ -7,7 +7,7 @@
 import json
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ProjectDatabase:
@@ -1108,6 +1108,129 @@ class ProjectDatabase:
             )
             conn.commit()
             return True
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ДАШБОРД — СТАТИСТИКА
+    # ═══════════════════════════════════════════════════════════════════
+
+    def get_dashboard_stats(self) -> dict:
+        """KPI для дашборду."""
+        with self._get_connection() as conn:
+            # Загальна виручка
+            row = conn.execute(
+                "SELECT SUM(total_amount) as total FROM client_projects WHERE status IN ('завершено', 'гарантія', 'закрито')"
+            ).fetchone()
+            total_revenue = float(row["total"] or 0)
+
+            # Середній чек
+            row = conn.execute(
+                "SELECT AVG(total_amount) as avg FROM client_projects WHERE total_amount > 0"
+            ).fetchone()
+            avg_check = float(row["avg"] or 0)
+
+            # Активні проєкти
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM client_projects WHERE status = 'в роботі'"
+            ).fetchone()
+            active_projects = int(row["cnt"] or 0)
+
+            # Прострочені
+            now = datetime.now().isoformat()
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM client_projects WHERE end_date < ? AND status != 'закрито'",
+                (now,)
+            ).fetchone()
+            overdue_projects = int(row["cnt"] or 0)
+
+            # Всього клієнтів
+            row = conn.execute("SELECT COUNT(*) as cnt FROM clients").fetchone()
+            total_clients = int(row["cnt"] or 0)
+
+            return {
+                "total_revenue": total_revenue,
+                "avg_check": avg_check,
+                "active_projects": active_projects,
+                "overdue_projects": overdue_projects,
+                "total_clients": total_clients,
+            }
+
+    def get_monthly_revenue(self, months: int = 12) -> list[dict]:
+        """Виручка по місяцях."""
+        with self._get_connection() as conn:
+            since = (datetime.now() - timedelta(days=months*31)).strftime("%Y-%m")
+            rows = conn.execute(
+                """SELECT strftime('%Y-%m', end_date) as month, SUM(total_amount) as amount
+                FROM client_projects
+                WHERE end_date IS NOT NULL AND end_date >= ?
+                GROUP BY month
+                ORDER BY month""",
+                (since + "-01",)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_project_status_counts(self) -> dict:
+        """Кількість проєктів за статусами."""
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM client_projects GROUP BY status"
+            ).fetchall()
+            return {r["status"]: r["cnt"] for r in rows}
+
+    def get_top_clients(self, limit: int = 5) -> list[dict]:
+        """ТОП клієнтів за сумою замовлень."""
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                """SELECT c.name, SUM(cp.total_amount) as total
+                FROM clients c
+                JOIN client_projects cp ON c.id = cp.client_id
+                GROUP BY c.id
+                ORDER BY total DESC
+                LIMIT ?""",
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_monthly_project_status(self, months: int = 6) -> list[dict]:
+        """Кількість проєктів по місяцях за статусами."""
+        with self._get_connection() as conn:
+            since = (datetime.now() - timedelta(days=months*31)).strftime("%Y-%m")
+            rows = conn.execute(
+                """SELECT strftime('%Y-%m', start_date) as month,
+                    SUM(CASE WHEN status = 'в роботі' THEN 1 ELSE 0 END) as active,
+                    SUM(CASE WHEN status IN ('завершено', 'гарантія', 'закрито') THEN 1 ELSE 0 END) as completed
+                FROM client_projects
+                WHERE start_date IS NOT NULL AND start_date >= ?
+                GROUP BY month
+                ORDER BY month""",
+                (since + "-01",)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_monthly_avg_check(self, months: int = 12) -> list[dict]:
+        """Середній чек по місяцях."""
+        with self._get_connection() as conn:
+            since = (datetime.now() - timedelta(days=months*31)).strftime("%Y-%m")
+            rows = conn.execute(
+                """SELECT strftime('%Y-%m', end_date) as month, AVG(total_amount) as avg
+                FROM client_projects
+                WHERE end_date IS NOT NULL AND end_date >= ? AND total_amount > 0
+                GROUP BY month
+                ORDER BY month""",
+                (since + "-01",)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_overdue_projects(self) -> list[dict]:
+        """Прострочені проєкти."""
+        with self._get_connection() as conn:
+            now = datetime.now().isoformat()
+            rows = conn.execute(
+                """SELECT * FROM client_projects
+                WHERE end_date < ? AND status != 'закрито'
+                ORDER BY end_date ASC""",
+                (now,)
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_material_usage_report(self) -> list[dict]:
         """Звіт по використанню матеріалів."""
