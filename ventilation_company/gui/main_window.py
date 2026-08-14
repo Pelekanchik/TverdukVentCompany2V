@@ -17,6 +17,7 @@ from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
 from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
 from ventilation_company.gui.crm_tab import CRMTab
+from ventilation_company.gui.dashboard_tab import DashboardTab
 
 
 class MainWindow:
@@ -104,6 +105,8 @@ class MainWindow:
         # Прайс-лист
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
         self.crm_tab = CRMTab(self.notebook)
+        self.dashboard_tab = DashboardTab(self.notebook)
+        self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
         self.notebook.add(self.crm_tab.frame, text="👥 CRM")
 
@@ -116,6 +119,9 @@ class MainWindow:
 
         self.status_bar = ttk.Label(self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
+
+        # Відкрити дашборд одразу при старті
+        self.notebook.select(self.dashboard_tab.frame)
 
     def _get_products(self):
         return self.products_tab.get_products_dict()
