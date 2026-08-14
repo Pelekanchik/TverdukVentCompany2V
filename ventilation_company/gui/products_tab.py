@@ -328,27 +328,36 @@ class ProductsTab:
         toolbar = ttk.Frame(right_frame)
         toolbar.pack(fill=tk.X, pady=(0, 5))
 
-        # ── ІКОНКИ З ПІДКАЗКАМИ ──────────────────────────────
+        # ── КНОПКИ ТУЛБАРУ (іконка + текст) ───────────────────
         btn_cfg = [
-            ("🗑️", "Видалити обраний виріб", self._remove_selected),
-            ("📋", "Дублювати обраний виріб", self._duplicate_selected),
-            ("🧹", "Очистити всі вироби", self._clear_all),
-            ("🔄", "Перерахувати ціни всіх виробів", self._recalculate_all_prices),
+            ("🗑️", "Видалити", "Видалити обраний виріб з таблиці", self._remove_selected, "#FFCDD2", "#EF9A9A"),
+            ("📋", "Дублювати", "Дублювати обраний виріб", self._duplicate_selected, "#BBDEFB", "#90CAF9"),
+            ("🧹", "Очистити", "Очистити всі вироби з таблиці", self._clear_all, "#FFE0B2", "#FFCC80"),
+            ("🔄", "Перерахувати", "Перерахувати ціни всіх виробів", self._recalculate_all_prices, "#C8E6C9", "#A5D6A7"),
         ]
         if FREECAD_AVAILABLE:
-            btn_cfg.append(("🏗️", "Експорт у FreeCAD", self._export_selected_freecad))
+            btn_cfg.append(("🏗️", "FreeCAD", "Експорт обраного виробу у FreeCAD", self._export_selected_freecad, "#E1BEE7", "#CE93D8"))
 
-        for icon, tooltip, cmd in btn_cfg:
+        for icon, label, tooltip, cmd, bg_color, hover_color in btn_cfg:
             btn = tk.Button(
-                toolbar, text=icon, font=("Segoe UI Emoji", 14),
-                width=3, height=1, relief=tk.FLAT, bg="#f0f0f0",
-                cursor="hand2", command=cmd
+                toolbar,
+                text=f"{icon}\n{label}",
+                font=("Segoe UI", 10, "bold"),
+                width=10, height=2,
+                relief=tk.RAISED,
+                bg=bg_color,
+                fg="#333333",
+                activebackground=hover_color,
+                activeforeground="#000000",
+                cursor="hand2",
+                command=cmd,
+                justify=tk.CENTER
             )
-            btn.pack(side=tk.LEFT, padx=2)
+            btn.pack(side=tk.LEFT, padx=4, pady=3)
             Tooltip(btn, tooltip)
             # Ефект при наведенні
-            btn.bind("<Enter>", lambda e, b=btn: b.config(bg="#e0e0e0"))
-            btn.bind("<Leave>", lambda e, b=btn: b.config(bg="#f0f0f0"))
+            btn.bind("<Enter>", lambda e, b=btn, hc=hover_color: b.config(bg=hc))
+            btn.bind("<Leave>", lambda e, b=btn, bc=bg_color: b.config(bg=bc))
 
         # --- Інфо про категорію націнки (поруч з іконками) ---
         info_frame = ttk.LabelFrame(right_frame, text="Категорія націнки", padding=5)
