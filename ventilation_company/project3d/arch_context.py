@@ -164,6 +164,8 @@ class Floor:
     walls: List[Wall] = field(default_factory=list)
     openings: List[Opening] = field(default_factory=list)
     notes: str = ""
+    # Підкладка (DXF/DWG)
+    background: Optional[Dict[str, Any]] = None  # {"path": str, "scale": float, "offset_x": float, "offset_y": float, "rotation": float, "lines": List}
 
     @property
     def floor_z(self) -> float:
@@ -194,6 +196,7 @@ class Floor:
             "walls": [w.to_dict() for w in self.walls],
             "openings": [o.to_dict() for o in self.openings],
             "notes": self.notes,
+            "background": self.background,
         }
 
     @classmethod
@@ -206,6 +209,7 @@ class Floor:
             walls=[Wall.from_dict(w) for w in d.get("walls", [])],
             openings=[Opening.from_dict(o) for o in d.get("openings", [])],
             notes=d.get("notes", ""),
+            background=d.get("background"),
         )
 
 
