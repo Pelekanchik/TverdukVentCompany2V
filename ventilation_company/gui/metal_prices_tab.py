@@ -1,9 +1,6 @@
 """🔧 Вкладка "Ціни на метал" — управління цінами на листовий метал.
 
-Працює з тим самим файлом data/pricing_settings.json, що й PricingSettings
-(вкладка "Ціноутворення"), тому немає дублювання даних.
-
-Ціна за м² обчислюється автоматично: ціна_за_кг × (товщина/1000) × щільність
+Працює з тим самим файлом data/pricing_settings.json, що й PricingSettings.
 """
 
 from __future__ import annotations
@@ -14,9 +11,10 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from datetime import datetime
 
+from ventilation_company.gui.theme_manager import get_theme_manager
+
 PRICING_SETTINGS_FILE = "data/pricing_settings.json"
 
-# Щільність матеріалів (кг/м³)
 DENSITIES = {
     "оцинкована сталь": 7850,
     "нержавіюча сталь": 7900,
@@ -35,15 +33,12 @@ DEFAULT_PRICES = {
 
 
 class MetalPricesManager:
-    """Менеджер цін на метал — працює з data/pricing_settings.json"""
-
     def __init__(self, filepath: str = PRICING_SETTINGS_FILE):
         self.filepath = filepath
-        self.prices: dict[str, dict[float, float]] = {}  # material -> {thickness: price_per_kg}
+        self.prices: dict[str, dict[float, float]] = {}
         self.load()
 
     def load(self):
-        """Завантажити ціни з data/pricing_settings.json (формат PricingSettings)."""
         if os.path.exists(self.filepath):
             try:
                 with open(self.filepath, encoding="utf-8") as f:
@@ -62,10 +57,7 @@ class MetalPricesManager:
             self.save()
 
     def save(self):
-        """Зберегти ціни у data/pricing_settings.json (сумісно з PricingSettings)."""
         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-
-        # Зчитуємо існуючі дані, щоб не затерти markup/vat/work_hours
         data = {}
         if os.path.exists(self.filepath):
             try:
@@ -73,17 +65,13 @@ class MetalPricesManager:
                     data = json.load(f)
             except:
                 pass
-
-        # Оновлюємо тільки material_prices
         material_prices = {}
         for material, thicknesses in self.prices.items():
             material_prices[material] = {}
             for t, price in thicknesses.items():
                 material_prices[material][str(t)] = price
-
         data["material_prices"] = material_prices
         data["_metal_prices_updated"] = datetime.now().isoformat()
-
         with open(self.filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -91,12 +79,10 @@ class MetalPricesManager:
         return self.prices.get(material, {}).get(thickness)
 
     def get_price_per_m2(self, material: str, thickness: float) -> float | None:
-        """Обчислити ціну за м² на основі ціни за кг."""
         price_kg = self.get_price_per_kg(material, thickness)
         if price_kg is None:
             return None
         density = DENSITIES.get(material, 7850)
-        # Вага 1 м² = товщина(м) × щільність = (thickness/1000) × density
         weight_per_m2 = (thickness / 1000) * density
         return price_kg * weight_per_m2
 
@@ -122,7 +108,6 @@ class MetalPricesManager:
         return sorted(self.prices.get(material, {}).keys())
 
     def get_all_entries(self) -> list[dict]:
-        """Повернути всі записи як список словників."""
         entries = []
         for material, thicknesses in self.prices.items():
             for thickness, price_kg in thicknesses.items():
@@ -137,22 +122,30 @@ class MetalPricesManager:
                 })
         return sorted(entries, key=lambda x: (x["material"], x["thickness"]))
 
+    def get_manager(self) -> MetalPricesManager:
+        return self
+
 
 class MetalPricesTab:
-    """Вкладка цін на метал — єдине джерело правди для всієї програми."""
+    """Вкладка цін на метал."""
 
     def __init__(self, parent: ttk.Notebook):
         self.frame = ttk.Frame(parent)
         self.manager = MetalPricesManager()
+        self.theme = get_theme_manager()
         self._build_ui()
         self._refresh_tree()
+
+    def _fg(self, key="fg"):
+        return self.theme.color(key)
 
     def _build_ui(self):
         top = ttk.Frame(self.frame, padding=5)
         top.pack(fill=tk.X)
 
         ttk.Label(top, text="🔧 Ціни на метал", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
-        ttk.Label(top, text="(єдине джерело для всієї програми)", font=("Arial", 9), foreground="gray").pack(side=tk.LEFT, padx=10)
+        ttk.Label(top, text="(єдине джерело для всієї програми)", font=("Arial", 9),
+                  foreground=self._fg("fg_muted")).pack(side=tk.LEFT, padx=10)
 
         btn_frame = ttk.Frame(top)
         btn_frame.pack(side=tk.LEFT, padx=(20, 0))
@@ -160,7 +153,6 @@ class MetalPricesTab:
         ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
 
-        # Фільтр
         filter_frame = ttk.Frame(self.frame, padding=5)
         filter_frame.pack(fill=tk.X, padx=5)
 
@@ -173,7 +165,6 @@ class MetalPricesTab:
         self.material_combo.pack(side=tk.LEFT, padx=5)
         self.filter_material_var.trace_add("write", lambda *args: self._refresh_tree())
 
-        # Таблиця
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -202,29 +193,26 @@ class MetalPricesTab:
 
         self.tree.bind("<Double-1>", lambda e: self._edit_dialog())
 
-        # Підсумок
         self.summary_label = ttk.Label(
             self.frame, text="", font=("Consolas", 10), padding=5
         )
         self.summary_label.pack(fill=tk.X, padx=5)
 
-        # Примітка
-        note = ttk.Label(self.frame,text="💡 Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. " 
+        note = ttk.Label(
+            self.frame,
+            text="💡 Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. "
                  "Ціна за м² обчислюється автоматично: ціна_за_кг × (товщина/1000) × щільність",
-            font=("Arial", 9), foreground="#1565C0", wraplength=800, justify=tk.LEFT
+            font=("Arial", 9), foreground=self._fg("blue"), wraplength=800, justify=tk.LEFT
         )
         note.pack(fill=tk.X, padx=5, pady=(0, 5))
 
     def _refresh_tree(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
-
         material_filter = self.filter_material_var.get()
         entries = self.manager.get_all_entries()
-
         if material_filter != "всі":
             entries = [e for e in entries if e["material"] == material_filter]
-
         for entry in entries:
             self.tree.insert("", tk.END, values=(
                 entry["material"],
@@ -235,11 +223,9 @@ class MetalPricesTab:
             ), tags=(f"{entry['material']}|{entry['thickness']}",))
 
         self.summary_label.config(
-            text=f"Матеріалів: {len(self.manager.get_materials())}  |  Записів: {len(entries)}  |  "
+            text=f"Матеріалів: {len(self.manager.get_materials())} | Записів: {len(entries)} | "
                  f"Файл: data/pricing_settings.json"
         )
-
-        # Оновити список матеріалів у комбобоксі
         current = list(self.material_combo["values"] or [])
         new_values = ["всі"] + self.manager.get_materials()
         if current != new_values:
@@ -275,7 +261,6 @@ class MetalPricesTab:
         dialog.grab_set()
 
         is_edit = bool(material)
-
         mat_var = tk.StringVar(value=material)
         thick_var = tk.StringVar(value=str(thickness) if thickness else "")
         kg_var = tk.StringVar(value=str(price_kg) if price_kg else "")
@@ -303,9 +288,8 @@ class MetalPricesTab:
         ttk.Entry(dialog, textvariable=kg_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
         row += 1
 
-        # Автопідказка
         if not is_edit:
-            ttk.Label(dialog, text="Ціна за м² буде обчислена автоматично", foreground="gray").grid(row=row, column=0, columnspan=2, padx=10, pady=2)
+            ttk.Label(dialog, text="Ціна за м² буде обчислена автоматично", foreground=self._fg("fg_muted")).grid(row=row, column=0, columnspan=2, padx=10, pady=2)
             row += 1
 
         btn_frame = ttk.Frame(dialog)
@@ -316,11 +300,9 @@ class MetalPricesTab:
                 mat = mat_var.get().strip()
                 thick = float(thick_var.get())
                 kg = float(kg_var.get())
-
                 if not mat or thick <= 0 or kg < 0:
                     messagebox.showwarning("Увага", "Перевірте введені дані")
                     return
-
                 self.manager.set_price(mat, thick, kg)
                 self._refresh_tree()
                 dialog.destroy()

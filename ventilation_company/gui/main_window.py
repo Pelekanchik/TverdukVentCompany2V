@@ -1,6 +1,4 @@
-"""Головне вікно додатку VentCompany з усіма вкладками.
-Об'єднує: Вироби, Специфікацію, Розкрій, Проєкти (БД), Проєкти 3D/Креслення, Ціноутворення.
-"""
+"""Головне вікно додатку VentCompany — Industrial Orange Edition."""
 
 import os
 import tkinter as tk
@@ -45,7 +43,7 @@ class MainWindow:
 
         self.db = ProjectDatabase("data/company.db")
         self.current_project_id = None
-        self._auto_save_id = None  # ← ІНІЦІАЛІЗУЄМО ДО ВИКЛИКУ!
+        self._auto_save_id = None
 
         self.theme_mgr = get_theme_manager()
         self.theme_mgr.on_change(self._on_theme_change)
@@ -128,7 +126,7 @@ class MainWindow:
         dialog.transient(self.root)
 
         ttk.Label(dialog, text=f"Проєкт: {self.spec_tab.project_name_var.get()}",
-                  font=("Arial", 11, "bold")).pack(pady=5)
+                  font=("Segoe UI", 11, "bold")).pack(pady=5)
 
         cols = ("date", "filename")
         tree = ttk.Treeview(dialog, columns=cols, show="headings", height=12)
@@ -186,21 +184,47 @@ class MainWindow:
         ttk.Button(btn_frm, text="🗑️ Видалити", command=on_delete).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frm, text="❌ Закрити", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
+    # ═══════════════════════════════════════════════════════════
+    # ПАНЕЛЬ КОРИСТУВАЧА (покращена)
+    # ═══════════════════════════════════════════════════════════
     def _build_user_bar(self):
         """Верхня панель з інформацією про користувача."""
-        user_frame = ttk.Frame(self.root, padding=5)
+        theme = self.theme_mgr.get()
+        user_frame = tk.Frame(self.root, bg=theme["bg"], padx=10, pady=6)
         user_frame.pack(fill=tk.X)
 
-        role_label = get_role_label(self.current_user.role)
-        lbl = ttk.Label(
-            user_frame,
-            text=f"👤 {self.current_user.full_name}  •  🛡️ {role_label}",
-            font=("Arial", 9, "bold"),
-            foreground="#0ea5e9",
-        )
-        lbl.pack(side=tk.LEFT)
+        # Ліва частина — інфо про користувача
+        left = tk.Frame(user_frame, bg=theme["bg"])
+        left.pack(side=tk.LEFT)
 
-        ttk.Button(user_frame, text="🚪 Вийти", command=self._logout).pack(side=tk.RIGHT)
+        role_label = get_role_label(self.current_user.role)
+        role_color = theme["accent"] if self.current_user.role == "director" else                      theme["accent2"] if self.current_user.role == "engineer" else                      theme["accent3"] if self.current_user.role == "accountant" else                      theme["warning"]
+
+        tk.Label(left, text="🏭", font=("Segoe UI", 16), bg=theme["bg"], fg=theme["accent"]).pack(side=tk.LEFT)
+
+        info = tk.Frame(left, bg=theme["bg"])
+        info.pack(side=tk.LEFT, padx=(8, 0))
+        tk.Label(info, text=self.current_user.full_name,
+                 font=("Segoe UI", 11, "bold"), bg=theme["bg"], fg=theme["fg"]).pack(anchor="w")
+        tk.Label(info, text=f"🛡️ {role_label}",
+                 font=("Segoe UI", 9), bg=theme["bg"], fg=role_color).pack(anchor="w")
+
+        # Права частина — кнопки
+        right = tk.Frame(user_frame, bg=theme["bg"])
+        right.pack(side=tk.RIGHT)
+
+        tk.Button(right, text="🌙 Темна", command=self._toggle_theme,
+                  bg=theme["button_bg"], fg=theme["button_fg"],
+                  activebackground=theme["button_active"],
+                  activeforeground=theme["button_active_fg"],
+                  relief="flat", cursor="hand2",
+                  font=("Segoe UI", 9), padx=12, pady=4).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(right, text="🚪 Вийти", command=self._logout,
+                  bg=theme["danger"], fg="#ffffff",
+                  activebackground="#b91c1c", activeforeground="#ffffff",
+                  relief="flat", cursor="hand2",
+                  font=("Segoe UI", 9, "bold"), padx=12, pady=4).pack(side=tk.LEFT, padx=2)
 
     def _logout(self):
         if messagebox.askyesno("Вихід", "Вийти з системи?"):
@@ -229,29 +253,48 @@ class MainWindow:
         help_menu.add_command(label="Про програму", command=self._show_about)
 
     def _build_ui(self):
-        top_frame = ttk.Frame(self.root, padding=5)
+        theme = self.theme_mgr.get()
+
+        # ── Верхня панель проєкту ──
+        top_frame = tk.Frame(self.root, bg=theme["bg"], padx=10, pady=8)
         top_frame.pack(fill=tk.X)
 
-        ttk.Label(top_frame, text="📁 Проєкт:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
-        self.project_label = ttk.Label(
-            top_frame, text="Новий проєкт (не збережено)", foreground="#666"
+        tk.Label(top_frame, text="📁 Проєкт:", font=("Segoe UI", 10, "bold"),
+                 bg=theme["bg"], fg=theme["fg_secondary"]).pack(side=tk.LEFT)
+        self.project_label = tk.Label(
+            top_frame, text="Новий проєкт (не збережено)",
+            bg=theme["bg"], fg=theme["fg_muted"], font=("Segoe UI", 10),
         )
         self.project_label.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(top_frame, text="💾 Зберегти проєкт", command=self._save_project).pack(
-            side=tk.RIGHT, padx=5
-        )
-        ttk.Button(top_frame, text="📜 Версії", command=self._show_version_history).pack(
-            side=tk.RIGHT, padx=5
-        )
-        self.theme_btn = ttk.Button(top_frame, text="🌙 Темна", command=self._toggle_theme)
-        self.theme_btn.pack(side=tk.RIGHT, padx=5)
-        ttk.Button(top_frame, text="🏗️ 3D Проєкт", command=self._export_3d_project).pack(
-            side=tk.RIGHT, padx=5
-        )
+        # Кнопки дій — з новими стилями
+        btn_frame = tk.Frame(top_frame, bg=theme["bg"])
+        btn_frame.pack(side=tk.RIGHT)
 
+        tk.Button(btn_frame, text="💾 Зберегти проєкт", command=self._save_project,
+                  bg=theme["accent"], fg=theme["button_active_fg"],
+                  activebackground=theme["accent_soft"],
+                  activeforeground=theme["button_active_fg"],
+                  relief="flat", cursor="hand2",
+                  font=("Segoe UI", 9, "bold"), padx=14, pady=5).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(btn_frame, text="📜 Версії", command=self._show_version_history,
+                  bg=theme["button_bg"], fg=theme["button_fg"],
+                  activebackground=theme["button_hover"],
+                  activeforeground=theme["button_fg"],
+                  relief="flat", cursor="hand2",
+                  font=("Segoe UI", 9), padx=12, pady=5).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(btn_frame, text="🏗️ 3D Проєкт", command=self._export_3d_project,
+                  bg=theme["button_bg"], fg=theme["button_fg"],
+                  activebackground=theme["button_hover"],
+                  activeforeground=theme["button_fg"],
+                  relief="flat", cursor="hand2",
+                  font=("Segoe UI", 9), padx=12, pady=5).pack(side=tk.LEFT, padx=3)
+
+        # ── Вкладки ──
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
         self.products_tab = ProductsTab(
             self.notebook, on_products_changed=self._on_products_changed
@@ -296,7 +339,12 @@ class MainWindow:
 
         self.price_list_tab._current_project_id = self.current_project_id
 
-        self.status_bar = ttk.Label(self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
+        # ── Статус-бар ──
+        self.status_bar = tk.Label(
+            self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W,
+            bg=theme["status_bg"], fg=theme["status_fg"],
+            font=("Segoe UI", 9), padx=10, pady=4,
+        )
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
         self.notebook.select(self.dashboard_tab.frame)
@@ -324,13 +372,11 @@ class MainWindow:
             if hasattr(self, tab_name):
                 tab = getattr(self, tab_name)
                 if hasattr(tab, "frame"):
-                    self.theme_mgr._update_all_widgets(tab.frame, theme)
+                    self.theme_mgr._update_widget(tab.frame, theme)
 
     def _update_theme_button(self):
-        if self.theme_mgr.is_dark():
-            self.theme_btn.config(text="☀️ Світла")
-        else:
-            self.theme_btn.config(text="🌙 Темна")
+        # Оновлюється через apply()
+        pass
 
     def _get_products(self):
         return self.products_tab.get_products_dict()
@@ -379,9 +425,13 @@ class MainWindow:
 
             self.current_project_id = result["project_id"]
             self.project_label.config(
-                text=f"{project_name} (ID: {self.current_project_id})", foreground="green"
+                text=f"{project_name} (ID: {self.current_project_id})",
+                fg=self.theme_mgr.get()["accent2"],
             )
-            self.status_bar.config(text=f"✅ Проєкт збережено. ID: {self.current_project_id}")
+            self.status_bar.config(
+                text=f"✅ Проєкт збережено. ID: {self.current_project_id}",
+                fg=self.theme_mgr.get()["status_ok"],
+            )
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
 
             self.price_list_tab._current_project_id = self.current_project_id
