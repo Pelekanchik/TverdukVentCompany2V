@@ -331,3 +331,25 @@ class Project2DPreview:
     def export_image(self, filepath: str):
         if self.figure:
             self.figure.savefig(filepath, dpi=200, bbox_inches="tight", facecolor=self.figure.get_facecolor())
+
+    def _draw_background(self, floor):
+        """Намалювати підкладку DXF на плані 2D."""
+        if not floor or not floor.background:
+            return
+        bg = floor.background
+        scale = bg.get("scale", 1.0)
+        off_x = bg.get("offset_x", 0.0)
+        off_y = bg.get("offset_y", 0.0)
+        rotation = np.radians(bg.get("rotation", 0.0))
+        lines = bg.get("lines", [])
+        cos_r, sin_r = np.cos(rotation), np.sin(rotation)
+        for x1, y1, x2, y2 in lines:
+            x1s, y1s = x1 * scale, y1 * scale
+            x2s, y2s = x2 * scale, y2 * scale
+            x1r = x1s * cos_r - y1s * sin_r
+            y1r = x1s * sin_r + y1s * cos_r
+            x2r = x2s * cos_r - y2s * sin_r
+            y2r = x2s * sin_r + y2s * cos_r
+            x1f, y1f = x1r + off_x, y1r + off_y
+            x2f, y2f = x2r + off_x, y2r + off_y
+            self.ax.plot([x1f, x2f], [y1f, y2f], color="#aaaaaa", linewidth=0.6, alpha=0.5, zorder=0)

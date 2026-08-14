@@ -47,22 +47,25 @@ class Project3DTab:
         self._load_demo_if_empty()
 
     def _build_ui(self):
-        # ── Top toolbar ──
-        toolbar = ttk.Frame(self.frame, padding=5)
-        toolbar.pack(fill=tk.X)
+        # ── Top toolbar — 2 рядки для адаптації під маленькі екрани ──
+        toolbar_wrap = ttk.Frame(self.frame, padding=5)
+        toolbar_wrap.pack(fill=tk.X)
 
-        ttk.Label(toolbar, text="🏗️ Проєкти 3D / Креслення", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
+        # Рядок 1: назва, файл, імпорт/експорт, додати
+        tbar1 = ttk.Frame(toolbar_wrap)
+        tbar1.pack(fill=tk.X)
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Label(tbar1, text="🏗️ Проєкти 3D / Креслення", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-        ttk.Button(toolbar, text="📂 Новий", command=self._new_project).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="💾 Зберегти", command=self._save_project).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="📁 Відкрити", command=self._load_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar1, text="📂 Новий", command=self._new_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar1, text="💾 Зберегти", command=self._save_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar1, text="📁 Відкрити", command=self._load_project).pack(side=tk.LEFT, padx=2)
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
         # Імпорт
-        self.import_btn = ttk.Menubutton(toolbar, text="📥 Імпорт", direction="below")
+        self.import_btn = ttk.Menubutton(tbar1, text="📥 Імпорт", direction="below")
         self.import_btn.pack(side=tk.LEFT, padx=2)
         import_menu = tk.Menu(self.import_btn, tearoff=0)
         import_menu.add_command(label="🏗️ З Revit (IFC)", command=lambda: self._import_file("ifc"))
@@ -74,7 +77,7 @@ class Project3DTab:
         self.import_btn["menu"] = import_menu
 
         # Експорт
-        self.export_btn = ttk.Menubutton(toolbar, text="📤 Експорт", direction="below")
+        self.export_btn = ttk.Menubutton(tbar1, text="📤 Експорт", direction="below")
         self.export_btn.pack(side=tk.LEFT, padx=2)
         export_menu = tk.Menu(self.export_btn, tearoff=0)
         export_menu.add_command(label="🏗️ У Revit (IFC)", command=lambda: self._export_file("ifc"))
@@ -88,10 +91,10 @@ class Project3DTab:
         export_menu.add_command(label="🖼️ Зберегти 3D", command=self._export_image_3d)
         self.export_btn["menu"] = export_menu
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
         # Додавання
-        self.add_btn = ttk.Menubutton(toolbar, text="➕ Додати", direction="below")
+        self.add_btn = ttk.Menubutton(tbar1, text="➕ Додати", direction="below")
         self.add_btn.pack(side=tk.LEFT, padx=2)
         add_menu = tk.Menu(self.add_btn, tearoff=0)
         add_menu.add_command(label="🏛️ Поверх", command=self._add_floor)
@@ -104,17 +107,16 @@ class Project3DTab:
         add_menu.add_command(label="⚙️ Обладнання", command=self._add_equipment)
         self.add_btn["menu"] = add_menu
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        # Рядок 2: креслення, зіткнення, редагування, видалення
+        tbar2 = ttk.Frame(toolbar_wrap)
+        tbar2.pack(fill=tk.X, pady=(3, 0))
 
-        # Кнопка відкриття редактора креслень
-        ttk.Button(toolbar, text="✏️ Редагувати креслення", command=self._open_drawing_editor).pack(side=tk.LEFT, padx=2)
-
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        ttk.Button(toolbar, text="⚠️ Перевірити зіткнення", command=self._check_collisions).pack(side=tk.LEFT, padx=2)
-
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        ttk.Button(toolbar, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="✏️ Редагувати креслення", command=self._open_drawing_editor).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+        ttk.Button(tbar2, text="⚠️ Перевірити зіткнення", command=self._check_collisions).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+        ttk.Button(tbar2, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
 
         # ── Main area: left (tree + props) | right (preview) ──
         paned = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)

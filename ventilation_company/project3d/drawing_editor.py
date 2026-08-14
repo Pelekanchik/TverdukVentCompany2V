@@ -13,7 +13,7 @@ import os
 import tempfile
 import math
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 from typing import Optional, Callable
 
 import matplotlib
@@ -109,6 +109,10 @@ class DrawingEditorWindow(tk.Toplevel):
         # Erase highlight
         self._erase_highlight = None
 
+        # Підкладка (DXF/DWG background)
+        self._bg_lines_cache: List[tuple] = []  # (x1, y1, x2, y2, color, linewidth)
+        self._bg_has_dxf = False
+
         self._build_ui()
         self._connect_mouse_events()
         self._connect_scroll_event()
@@ -125,67 +129,92 @@ class DrawingEditorWindow(tk.Toplevel):
         main = ttk.Frame(self)
         main.pack(fill=tk.BOTH, expand=True)
 
-        # Toolbar
-        toolbar = ttk.Frame(main, padding=5)
-        toolbar.pack(fill=tk.X)
+        # Toolbar — 2 рядки для адаптації під маленькі екрани
+        toolbar_wrap = ttk.Frame(main, padding=5)
+        toolbar_wrap.pack(fill=tk.X)
 
-        ttk.Label(toolbar, text="✏️ Редактор креслень", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        # ── Рядок 1: назва, поверх, видимість, закрити ──
+        tbar1 = ttk.Frame(toolbar_wrap)
+        tbar1.pack(fill=tk.X)
 
-        ttk.Label(toolbar, text="Поверх:").pack(side=tk.LEFT)
+        ttk.Label(tbar1, text="✏️ Редактор креслень", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+
+        ttk.Label(tbar1, text="Поверх:").pack(side=tk.LEFT)
         self.floor_var = tk.StringVar()
-        self.floor_combo = ttk.Combobox(toolbar, textvariable=self.floor_var, state="readonly", width=16)
+        self.floor_combo = ttk.Combobox(tbar1, textvariable=self.floor_var, state="readonly", width=14)
         self.floor_combo.pack(side=tk.LEFT, padx=2)
         self.floor_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
         # Видимість
         self.wall_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="Стіни", variable=self.wall_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Checkbutton(tbar1, text="Стіни", variable=self.wall_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         self.duct_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="Повітропроводи", variable=self.duct_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Checkbutton(tbar1, text="Повітропроводи", variable=self.duct_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         self.eq_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="Обладнання", variable=self.eq_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Checkbutton(tbar1, text="Обладнання", variable=self.eq_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         self.dim_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="Розміри", variable=self.dim_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Checkbutton(tbar1, text="Розміри", variable=self.dim_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Button(tbar1, text="💾 Закрити редактор", command=self._on_close).pack(side=tk.RIGHT, padx=5)
 
-        # Креслення
-        ttk.Button(toolbar, text="➡️ Сегмент", command=self._start_draw_segment).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="📐 Полілінія", command=self._start_draw_polyline).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🧱 Стіна", command=self._start_draw_wall).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="⚙️ Обладнання", command=self._start_draw_equipment).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🚪 Отвір", command=self._start_draw_opening).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🗑️ Стирати", command=self._start_erase).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="✅ Завершити", command=self._finish_polyline).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="⛔ Скасувати", command=self._cancel_draw).pack(side=tk.LEFT, padx=2)
+        # ── Рядок 2: креслення, grid, навігація, підкладка, друк ──
+        tbar2 = ttk.Frame(toolbar_wrap)
+        tbar2.pack(fill=tk.X, pady=(3, 0))
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        # Меню "Креслення" — економить місце
+        draw_menu_btn = ttk.Menubutton(tbar2, text="✏️ Креслення", direction="below")
+        draw_menu_btn.pack(side=tk.LEFT, padx=2)
+        draw_menu = tk.Menu(draw_menu_btn, tearoff=0)
+        draw_menu.add_command(label="➡️ Сегмент", command=self._start_draw_segment)
+        draw_menu.add_command(label="📐 Полілінія", command=self._start_draw_polyline)
+        draw_menu.add_command(label="🧱 Стіна", command=self._start_draw_wall)
+        draw_menu.add_command(label="⚙️ Обладнання", command=self._start_draw_equipment)
+        draw_menu.add_command(label="🚪 Отвір", command=self._start_draw_opening)
+        draw_menu.add_separator()
+        draw_menu.add_command(label="🗑️ Стирати", command=self._start_erase)
+        draw_menu.add_separator()
+        draw_menu.add_command(label="✅ Завершити полілінію", command=self._finish_polyline)
+        draw_menu.add_command(label="⛔ Скасувати", command=self._cancel_draw)
+        draw_menu_btn["menu"] = draw_menu
+
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
         # Grid
         self.grid_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="⊞ Сітка", variable=self.grid_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Checkbutton(tbar2, text="⊞ Сітка", variable=self.grid_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
         self.grid_snap_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar, text="⊞ Прив'язка", variable=self.grid_snap_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
-        ttk.Label(toolbar, text="Крок:").pack(side=tk.LEFT)
+        ttk.Checkbutton(tbar2, text="⊞ Прив'язка", variable=self.grid_snap_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
+        ttk.Label(tbar2, text="Крок:").pack(side=tk.LEFT)
         self.grid_step_var = tk.IntVar(value=500)
-        step_combo = ttk.Combobox(toolbar, textvariable=self.grid_step_var, values=[100, 500, 1000, 2000], width=6, state="readonly")
+        step_combo = ttk.Combobox(tbar2, textvariable=self.grid_step_var, values=[100, 500, 1000, 2000], width=5, state="readonly")
         step_combo.pack(side=tk.LEFT, padx=2)
         step_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-        # Навігація + друк
-        ttk.Button(toolbar, text="🔍 +", command=self._zoom_in).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔍 -", command=self._zoom_out).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔄 Центрувати", command=self._center_view).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🏛️ +Поверх", command=self._add_floor_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=2)
+        # Навігація
+        ttk.Button(tbar2, text="🔍 +", command=self._zoom_in).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="🔍 -", command=self._zoom_out).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="🔄 Центр", command=self._center_view).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="🏛️ +Поверх", command=self._add_floor_dialog).pack(side=tk.LEFT, padx=2)
 
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        ttk.Button(toolbar, text="💾 Закрити редактор", command=self._on_close).pack(side=tk.RIGHT, padx=5)
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+
+        # Підкладка
+        bg_menu_btn = ttk.Menubutton(tbar2, text="📥 Підкладка", direction="below")
+        bg_menu_btn.pack(side=tk.LEFT, padx=2)
+        bg_menu = tk.Menu(bg_menu_btn, tearoff=0)
+        bg_menu.add_command(label="📥 Завантажити DXF", command=self._load_background_dxf)
+        bg_menu.add_command(label="⚙️ Налаштувати", command=self._adjust_background_dialog)
+        bg_menu.add_command(label="🗑️ Видалити", command=self._remove_background)
+        bg_menu_btn["menu"] = bg_menu
+
+        ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+
+        ttk.Button(tbar2, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=2)
 
         # Status
         self.status_label = ttk.Label(main, text="Готово", foreground="#0066cc", font=("Arial", 10, "bold"))
@@ -1207,6 +1236,9 @@ class DrawingEditorWindow(tk.Toplevel):
 
         all_x, all_y = [], []
 
+        # Підкладка DXF/DWG (малюємо першою, під сіткою)
+        self._draw_background()
+
         # Сітка (малюємо першою, щоб була на фоні)
         self._draw_grid()
         self.ax.grid(True, color=self.COLORS["grid"], linestyle="-", linewidth=0.5, alpha=0.5)
@@ -1374,6 +1406,251 @@ class DrawingEditorWindow(tk.Toplevel):
         self.ax.text(cx, cy, op.name, fontsize=6, color=self.COLORS["opening"],
                      ha="center", va="center", fontweight="bold",
                      bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7, edgecolor="none"))
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ПІДКЛАДКА DXF/DWG
+    # ═══════════════════════════════════════════════════════════════════
+
+    def _load_background_dxf(self):
+        """Завантажити DXF файл як підкладку для поточного поверху."""
+        try:
+            import ezdxf
+        except ImportError:
+            messagebox.showerror("Помилка", "Бібліотека ezdxf не встановлена.\nВиконайте: pip install ezdxf")
+            return
+
+        filepath = filedialog.askopenfilename(
+            filetypes=[("DXF файли", "*.dxf"), ("Всі файли", "*.*")],
+            title="Виберіть DXF підкладку",
+        )
+        if not filepath:
+            return
+
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor:
+            messagebox.showerror("Помилка", "Спочатку створіть поверх.")
+            return
+
+        try:
+            doc = ezdxf.readfile(filepath)
+            msp = doc.modelspace()
+
+            lines = []
+            for entity in msp:
+                if entity.dxftype() == "LINE":
+                    s = entity.dxf.start
+                    e = entity.dxf.end
+                    lines.append((s[0], s[1], e[0], e[1]))
+                elif entity.dxftype() == "LWPOLYLINE":
+                    pts = list(entity.vertices_in_wcs())
+                    for i in range(len(pts) - 1):
+                        lines.append((pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1]))
+                elif entity.dxftype() == "POLYLINE":
+                    pts = [(v.dxf.location[0], v.dxf.location[1]) for v in entity.vertices]
+                    for i in range(len(pts) - 1):
+                        lines.append((pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1]))
+                elif entity.dxftype() == "ARC":
+                    # Спрощено: додаємо кілька точок дуги
+                    center = entity.dxf.center
+                    radius = entity.dxf.radius
+                    start_angle = np.radians(entity.dxf.start_angle)
+                    end_angle = np.radians(entity.dxf.end_angle)
+                    if end_angle < start_angle:
+                        end_angle += 2 * np.pi
+                    n = max(3, int((end_angle - start_angle) / 0.1))
+                    for i in range(n):
+                        a1 = start_angle + i * (end_angle - start_angle) / n
+                        a2 = start_angle + (i + 1) * (end_angle - start_angle) / n
+                        lines.append((
+                            center[0] + radius * np.cos(a1),
+                            center[1] + radius * np.sin(a1),
+                            center[0] + radius * np.cos(a2),
+                            center[1] + radius * np.sin(a2),
+                        ))
+                elif entity.dxftype() == "CIRCLE":
+                    center = entity.dxf.center
+                    radius = entity.dxf.radius
+                    n = 32
+                    for i in range(n):
+                        a1 = 2 * np.pi * i / n
+                        a2 = 2 * np.pi * (i + 1) / n
+                        lines.append((
+                            center[0] + radius * np.cos(a1),
+                            center[1] + radius * np.sin(a1),
+                            center[0] + radius * np.cos(a2),
+                            center[1] + radius * np.sin(a2),
+                        ))
+
+            if not lines:
+                messagebox.showwarning("Увага", "У DXF не знайдено ліній для відображення.")
+                return
+
+            # Обчислюємо bounding box для авто-масштабування
+            all_x = [c for line in lines for c in [line[0], line[2]]]
+            all_y = [c for line in lines for c in [line[1], line[3]]]
+            bb_min_x, bb_max_x = min(all_x), max(all_x)
+            bb_min_y, bb_max_y = min(all_y), max(all_y)
+
+            # Авто-масштаб: підігнати під ~10000 мм
+            target_size = 10000.0
+            current_size = max(bb_max_x - bb_min_x, bb_max_y - bb_min_y)
+            auto_scale = target_size / current_size if current_size > 0 else 1.0
+
+            floor.background = {
+                "path": filepath,
+                "scale": auto_scale,
+                "offset_x": 0.0,
+                "offset_y": 0.0,
+                "rotation": 0.0,
+                "lines": lines,
+            }
+            self._modified = True
+            self._bg_has_dxf = True
+            self.status_label.config(
+                text=f"📥 Підкладка: {len(lines)} ліній з {os.path.basename(filepath)} | Масштаб: {auto_scale:.3f}",
+                foreground="#0066cc",
+            )
+            self.refresh()
+
+        except Exception as e:
+            messagebox.showerror("Помилка завантаження DXF", str(e))
+
+    def _draw_background(self):
+        """Намалювати підкладку на плані."""
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor or not floor.background:
+            return
+
+        bg = floor.background
+        scale = bg.get("scale", 1.0)
+        off_x = bg.get("offset_x", 0.0)
+        off_y = bg.get("offset_y", 0.0)
+        rotation = np.radians(bg.get("rotation", 0.0))
+        lines = bg.get("lines", [])
+        cos_r, sin_r = np.cos(rotation), np.sin(rotation)
+
+        for x1, y1, x2, y2 in lines:
+            # Масштабування
+            x1s, y1s = x1 * scale, y1 * scale
+            x2s, y2s = x2 * scale, y2 * scale
+            # Обертання
+            x1r = x1s * cos_r - y1s * sin_r
+            y1r = x1s * sin_r + y1s * cos_r
+            x2r = x2s * cos_r - y2s * sin_r
+            y2r = x2s * sin_r + y2s * cos_r
+            # Зсув
+            x1f, y1f = x1r + off_x, y1r + off_y
+            x2f, y2f = x2r + off_x, y2r + off_y
+            self.ax.plot([x1f, x2f], [y1f, y2f], color="#aaaaaa", linewidth=0.6, alpha=0.5, zorder=0)
+
+    def _adjust_background_dialog(self):
+        """Діалог налаштування масштабу, зсуву та обертання підкладки."""
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor or not floor.background:
+            messagebox.showinfo("Інформація", "Спочатку завантажте підкладку (DXF).")
+            return
+
+        bg = floor.background
+        dialog = tk.Toplevel(self)
+        dialog.title("⚙️ Налаштування підкладки")
+        dialog.geometry("400x350")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text=f"Файл: {os.path.basename(bg.get('path', ''))}", font=("Arial", 9, "bold")).pack(pady=5)
+
+        # Поля
+        fields = {}
+        params = [
+            ("Масштаб", "scale", bg.get("scale", 1.0), 0.001, 100.0, 0.001),
+            ("Зсув X (мм)", "offset_x", bg.get("offset_x", 0.0), -50000.0, 50000.0, 10.0),
+            ("Зсув Y (мм)", "offset_y", bg.get("offset_y", 0.0), -50000.0, 50000.0, 10.0),
+            ("Обертання (°)", "rotation", bg.get("rotation", 0.0), -360.0, 360.0, 1.0),
+        ]
+
+        for label, key, default, from_, to_, inc in params:
+            frm = ttk.Frame(dialog)
+            frm.pack(fill=tk.X, padx=10, pady=3)
+            ttk.Label(frm, text=label + ":", width=16).pack(side=tk.LEFT)
+            var = tk.DoubleVar(value=default)
+            spin = ttk.Spinbox(frm, from_=from_, to=to_, increment=inc, textvariable=var, width=15)
+            spin.pack(side=tk.LEFT, padx=5)
+            fields[key] = var
+
+        # Кнопки швидкого масштабування
+        quick_frm = ttk.Frame(dialog)
+        quick_frm.pack(pady=5)
+        ttk.Label(quick_frm, text="Швидко:").pack(side=tk.LEFT)
+        for s in [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]:
+            ttk.Button(quick_frm, text=str(s), width=5,
+                       command=lambda v=s, f=fields: f["scale"].set(v)).pack(side=tk.LEFT, padx=1)
+
+        # Кнопки швидкого обертання
+        rot_frm = ttk.Frame(dialog)
+        rot_frm.pack(pady=5)
+        ttk.Label(rot_frm, text="Повернути:").pack(side=tk.LEFT)
+        for a in [0, 90, 180, 270]:
+            ttk.Button(rot_frm, text=f"{a}°", width=5,
+                       command=lambda v=a, f=fields: f["rotation"].set(v)).pack(side=tk.LEFT, padx=1)
+
+        def on_ok():
+            floor.background["scale"] = fields["scale"].get()
+            floor.background["offset_x"] = fields["offset_x"].get()
+            floor.background["offset_y"] = fields["offset_y"].get()
+            floor.background["rotation"] = fields["rotation"].get()
+            self._modified = True
+            self.status_label.config(
+                text=f"⚙️ Підкладка: масштаб={fields['scale'].get():.3f}, зсув=({fields['offset_x'].get():.0f}, {fields['offset_y'].get():.0f}), оберт={fields['rotation'].get():.0f}°",
+                foreground="#0066cc",
+            )
+            dialog.destroy()
+            self.refresh()
+
+        def on_preview():
+            floor.background["scale"] = fields["scale"].get()
+            floor.background["offset_x"] = fields["offset_x"].get()
+            floor.background["offset_y"] = fields["offset_y"].get()
+            floor.background["rotation"] = fields["rotation"].get()
+            self.refresh()
+
+        btn_frm = ttk.Frame(dialog)
+        btn_frm.pack(pady=15)
+        ttk.Button(btn_frm, text="👁️ Попередній перегляд", command=on_preview).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frm, text="✅ Застосувати", command=on_ok).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frm, text="❌ Скасувати", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+    def _remove_background(self):
+        """Видалити підкладку з поточного поверху."""
+        floor_name = self.floor_var.get()
+        floor = None
+        for f in self.project.arch_context.floors:
+            if f.name == floor_name:
+                floor = f
+                break
+        if not floor or not floor.background:
+            messagebox.showinfo("Інформація", "На цьому поверсі немає підкладки.")
+            return
+        if messagebox.askyesno("Підтвердження", f"Видалити підкладку з поверху '{floor_name}'?"):
+            floor.background = None
+            self._modified = True
+            self._bg_has_dxf = False
+            self.status_label.config(text="🗑️ Підкладку видалено", foreground="#cc0000")
+            self.refresh()
 
     def _on_close(self):
         if self.on_close_callback:
