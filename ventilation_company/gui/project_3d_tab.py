@@ -109,6 +109,10 @@ class Project3DTab:
         # Кнопка відкриття редактора креслень
         ttk.Button(toolbar, text="✏️ Редагувати креслення", command=self._open_drawing_editor).pack(side=tk.LEFT, padx=2)
 
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Button(toolbar, text="⚠️ Перевірити зіткнення", command=self._check_collisions).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
         ttk.Button(toolbar, text="📝 Редагувати", command=self._edit_selected).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="❌ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
 
@@ -183,6 +187,16 @@ class Project3DTab:
         )
 
     def _refresh_tree(self):
+        # Отримуємо ID об'єктів у зіткненні
+        collision_ids = set()
+        try:
+            from ventilation_company.project3d.collision_detection import CollisionDetector
+            detector = CollisionDetector(self.project)
+            detector.check_all()
+            collision_ids = detector.get_colliding_ids()
+        except Exception:
+            pass
+
         for item in self.tree.get_children():
             self.tree.delete(item)
 
@@ -215,16 +229,19 @@ class Project3DTab:
                                               text=f"📏 {trunk.name} (L={trunk.total_length:.0f} мм)",
                                               values=("trunk", trunk.id), open=True)
                 for seg in trunk.segments:
+                    coll_mark = " ⚠️" if seg.id in collision_ids else ""
                     self.tree.insert(trunk_node, tk.END,
-                                     text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f} мм",
+                                     text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f} мм{coll_mark}",
                                      values=("segment", seg.id))
                 for fitting in trunk.fittings:
+                    coll_mark = " ⚠️" if fitting.id in collision_ids else ""
                     self.tree.insert(trunk_node, tk.END,
-                                     text=f"🔀 {fitting.fitting_type}",
+                                     text=f"🔀 {fitting.fitting_type}{coll_mark}",
                                      values=("fitting", fitting.id))
                 for eq in trunk.equipment:
+                    coll_mark = " ⚠️" if eq.id in collision_ids else ""
                     self.tree.insert(trunk_node, tk.END,
-                                     text=f"⚙️ {eq.name}",
+                                     text=f"⚙️ {eq.name}{coll_mark}",
                                      values=("equipment", eq.id))
 
         if self.project.drawing_files:
@@ -395,6 +412,45 @@ class Project3DTab:
                 menu.add_command(label="📏 Додати трасу", command=self._add_trunk)
 
             menu.post(event.x_root, event.y_root)
+
+    def _check_collisions(self):
+        """Перевірити зіткнення та показати звіт."""
+        from ventilation_company.project3d.collision_detection import CollisionDetector
+
+        detector = CollisionDetector(self.project)
+        collisions = detector.check_all()
+
+        if not collisions:
+            messagebox.showinfo("Перевірка зіткнень", "✅ Зіткнень не виявлено!")
+            self.status.config(text="Зіткнень не виявлено")
+            self._refresh_tree()
+            self._refresh_previews()
+            return
+
+        report = [f"⚠️ Виявлено {len(collisions)} зіткнень:\n"]
+        for i, col in enumerate(collisions[:20], 1):
+            report.append(f"{i}. {col.message}")
+            if col.position:
+                report.append(f"   📍 ({col.position.x:.0f}, {col.position.y:.0f}, {col.position.z:.0f}) мм")
+
+        if len(collisions) > 20:
+            report.append(f"\n... та ще {len(collisions) - 20} зіткнень")
+
+        dialog = tk.Toplevel(self.frame)
+        dialog.title("⚠️ Зіткнення")
+        dialog.geometry("550x400")
+        dialog.transient(self.frame)
+
+        text = tk.Text(dialog, wrap=tk.WORD, font=("Consolas", 10))
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        text.insert("1.0", "\n".join(report))
+        text.config(state=tk.DISABLED)
+
+        ttk.Button(dialog, text="OK", command=dialog.destroy).pack(pady=5)
+
+        self._refresh_tree()
+        self._refresh_previews()
+        self.status.config(text=f"⚠️ Виявлено {len(collisions)} зіткнень")
 
     def _new_project(self):
         if self._modified:
