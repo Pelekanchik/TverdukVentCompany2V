@@ -190,6 +190,99 @@ class ProjectDatabase:
     # ПРОЄКТИ
     # =========================================================
 
+            # ═══ CRM: Клієнти ═══
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS clients (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    contact_person TEXT,
+                    phone TEXT,
+                    email TEXT,
+                    address TEXT,
+                    company_type TEXT,
+                    edrpou TEXT,
+                    notes TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+
+            # ═══ CRM: Взаємодії (дзвінки, зустрічі, листи) ═══
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS interactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    date TEXT DEFAULT CURRENT_TIMESTAMP,
+                    interaction_type TEXT DEFAULT 'дзвінок',
+                    subject TEXT,
+                    description TEXT,
+                    result TEXT,
+                    next_action TEXT,
+                    next_action_date TEXT,
+                    created_by TEXT,
+                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+                )
+            """
+            )
+
+            # ═══ CRM: Платежі ═══
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS payments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    date TEXT DEFAULT CURRENT_TIMESTAMP,
+                    amount REAL DEFAULT 0,
+                    currency TEXT DEFAULT 'UAH',
+                    payment_type TEXT DEFAULT 'вхідний',
+                    purpose TEXT,
+                    project_name TEXT,
+                    notes TEXT,
+                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+                )
+            """
+            )
+
+            # ═══ CRM: Проєкти клієнта (історія замовлень) ═══
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS client_projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    project_name TEXT NOT NULL,
+                    project_number TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    status TEXT DEFAULT 'в роботі',
+                    total_amount REAL DEFAULT 0,
+                    warranty_months INTEGER DEFAULT 24,
+                    description TEXT,
+                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+                )
+            """
+            )
+
+            # ═══ CRM: Нагадування про гарантію ═══
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS warranty_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    client_project_id INTEGER,
+                    project_name TEXT NOT NULL,
+                    reminder_date TEXT NOT NULL,
+                    description TEXT,
+                    is_completed INTEGER DEFAULT 0,
+                    completed_at TEXT,
+                    notes TEXT,
+                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+                )
+            """
+            )
+
     def _get_table_columns(self, conn, table: str) -> list[str]:
         """Отримати список колонок таблиці."""
         cursor = conn.execute(f"PRAGMA table_info({table})")
@@ -806,6 +899,215 @@ class ProjectDatabase:
         with self._get_connection() as conn:
             row = conn.execute(query, params).fetchone()
             return dict(row) if row else {}
+
+    # ═══════════════════════════════════════════════════════════════════
+    # CRM МЕТОДИ
+    # ═══════════════════════════════════════════════════════════════════
+
+    def add_client(self, name: str, contact: str = "", phone: str = "",
+                   email: str = "", address: str = "", company_type: str = "",
+                   edrpou: str = "", notes: str = "") -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                """INSERT INTO clients (name, contact_person, phone, email, address,
+                    company_type, edrpou, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (name, contact, phone, email, address, company_type, edrpou, notes,
+                 datetime.now().isoformat(), datetime.now().isoformat()),
+            )
+            conn.commit()
+            return cur.lastrowid
+
+    def update_client(self, client_id: int, **kwargs) -> bool:
+        allowed = {"name", "contact_person", "phone", "email", "address",
+                   "company_type", "edrpou", "notes"}
+        fields = {k: v for k, v in kwargs.items() if k in allowed}
+        if not fields:
+            return False
+        fields["updated_at"] = datetime.now().isoformat()
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        with self._get_connection() as conn:
+            conn.execute(f"UPDATE clients SET {sets} WHERE id = ?", (*fields.values(), client_id))
+            conn.commit()
+            return True
+
+    def get_client(self, client_id: int) -> dict | None:
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+            return dict(row) if row else None
+
+    def get_all_clients(self, search: str = "") -> list[dict]:
+        with self._get_connection() as conn:
+            if search:
+                like = f"%{search}%"
+                rows = conn.execute(
+                    """SELECT * FROM clients WHERE name LIKE ? OR phone LIKE ? OR email LIKE ?
+                    ORDER BY name""", (like, like, like)
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM clients ORDER BY name").fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_client(self, client_id: int) -> bool:
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM clients WHERE id = ?", (client_id,))
+            conn.commit()
+            return True
+
+    def add_interaction(self, client_id: int, interaction_type: str = "дзвінок",
+                        subject: str = "", description: str = "", result: str = "",
+                        next_action: str = "", next_action_date: str = "",
+                        created_by: str = "") -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                """INSERT INTO interactions (client_id, date, interaction_type, subject,
+                    description, result, next_action, next_action_date, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (client_id, datetime.now().isoformat(), interaction_type, subject,
+                 description, result, next_action, next_action_date, created_by),
+            )
+            conn.commit()
+            return cur.lastrowid
+
+    def get_client_interactions(self, client_id: int) -> list[dict]:
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM interactions WHERE client_id = ? ORDER BY date DESC",
+                (client_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_interaction(self, interaction_id: int) -> bool:
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM interactions WHERE id = ?", (interaction_id,))
+            conn.commit()
+            return True
+
+    def add_payment(self, client_id: int, amount: float, currency: str = "UAH",
+                    payment_type: str = "вхідний", purpose: str = "",
+                    project_name: str = "", notes: str = "") -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                """INSERT INTO payments (client_id, date, amount, currency, payment_type,
+                    purpose, project_name, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (client_id, datetime.now().isoformat(), amount, currency, payment_type,
+                 purpose, project_name, notes),
+            )
+            conn.commit()
+            return cur.lastrowid
+
+    def get_client_payments(self, client_id: int) -> list[dict]:
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM payments WHERE client_id = ? ORDER BY date DESC",
+                (client_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_client_balance(self, client_id: int) -> float:
+        with self._get_connection() as conn:
+            row = conn.execute(
+                """SELECT SUM(CASE WHEN payment_type = 'вхідний' THEN amount ELSE -amount END) as balance
+                FROM payments WHERE client_id = ?""", (client_id,)
+            ).fetchone()
+            return float(row["balance"] or 0.0)
+
+    def add_client_project(self, client_id: int, project_name: str,
+                           project_number: str = "", start_date: str = "",
+                           end_date: str = "", status: str = "в роботі",
+                           total_amount: float = 0, warranty_months: int = 24,
+                           description: str = "") -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                """INSERT INTO client_projects (client_id, project_name, project_number,
+                    start_date, end_date, status, total_amount, warranty_months, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (client_id, project_name, project_number, start_date, end_date,
+                 status, total_amount, warranty_months, description),
+            )
+            conn.commit()
+            # Автоматично створюємо нагадування про гарантію
+            if end_date and warranty_months > 0:
+                try:
+                    from datetime import timedelta
+                    end_dt = datetime.fromisoformat(end_date)
+                    reminder_dt = end_dt + timedelta(days=warranty_months * 30)
+                    self.add_warranty_reminder(
+                        client_id=client_id,
+                        client_project_id=cur.lastrowid,
+                        project_name=project_name,
+                        reminder_date=reminder_dt.isoformat(),
+                        description=f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_date})",
+                    )
+                except Exception:
+                    pass
+            return cur.lastrowid
+
+    def get_client_projects(self, client_id: int) -> list[dict]:
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM client_projects WHERE client_id = ? ORDER BY start_date DESC",
+                (client_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def update_client_project_status(self, project_id: int, status: str) -> bool:
+        with self._get_connection() as conn:
+            conn.execute(
+                "UPDATE client_projects SET status = ? WHERE id = ?",
+                (status, project_id)
+            )
+            conn.commit()
+            return True
+
+    def add_warranty_reminder(self, client_id: int, project_name: str,
+                              reminder_date: str, description: str = "",
+                              client_project_id: int = None, notes: str = "") -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                """INSERT INTO warranty_reminders (client_id, client_project_id, project_name,
+                    reminder_date, description, is_completed, notes)
+                VALUES (?, ?, ?, ?, ?, 0, ?)""",
+                (client_id, client_project_id, project_name, reminder_date, description, notes),
+            )
+            conn.commit()
+            return cur.lastrowid
+
+    def get_warranty_reminders(self, client_id: int = None, upcoming_days: int = 30) -> list[dict]:
+        with self._get_connection() as conn:
+            from datetime import timedelta
+            future = (datetime.now() + timedelta(days=upcoming_days)).isoformat()
+            now = datetime.now().isoformat()
+            if client_id:
+                rows = conn.execute(
+                    """SELECT wr.*, c.name as client_name FROM warranty_reminders wr
+                    JOIN clients c ON wr.client_id = c.id
+                    WHERE wr.client_id = ? AND wr.reminder_date <= ? AND wr.reminder_date >= ?
+                    AND wr.is_completed = 0
+                    ORDER BY wr.reminder_date ASC""",
+                    (client_id, future, now)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """SELECT wr.*, c.name as client_name FROM warranty_reminders wr
+                    JOIN clients c ON wr.client_id = c.id
+                    WHERE wr.reminder_date <= ? AND wr.reminder_date >= ?
+                    AND wr.is_completed = 0
+                    ORDER BY wr.reminder_date ASC""",
+                    (future, now)
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def complete_warranty_reminder(self, reminder_id: int, notes: str = "") -> bool:
+        with self._get_connection() as conn:
+            conn.execute(
+                """UPDATE warranty_reminders SET is_completed = 1, completed_at = ?, notes = ?
+                WHERE id = ?""",
+                (datetime.now().isoformat(), notes, reminder_id)
+            )
+            conn.commit()
+            return True
 
     def get_material_usage_report(self) -> list[dict]:
         """Звіт по використанню матеріалів."""

@@ -16,6 +16,7 @@ from ventilation_company.gui.specification_tab import SpecificationTab
 from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
 from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
+from ventilation_company.gui.crm_tab import CRMTab
 
 
 class MainWindow:
@@ -102,7 +103,9 @@ class MainWindow:
 
         # Прайс-лист
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
+        self.crm_tab = CRMTab(self.notebook)
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
+        self.notebook.add(self.crm_tab.frame, text="👥 CRM")
 
         # ═══ ВИПРАВЛЕННЯ: прив'язка project_id до прайс-листа ═══
         self.price_list_tab._current_project_id = self.current_project_id
