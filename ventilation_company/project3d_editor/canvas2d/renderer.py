@@ -36,10 +36,10 @@ class Canvas2DRenderer:
         "duct_smoke": "#cc6600",
         "fitting": "#990099",
         "equipment": "#cc8800",
-        "wall_load": "#555555",
-        "wall_partition": "#888888",
         "opening": "#ff4444",
         "text": "#333333",
+        "flange": "#aaaaaa",
+        "insulation": "#ffeebb",
     }
 
     def __init__(self, parent: tk.Widget, scene: SceneGraph,
@@ -169,20 +169,23 @@ class Canvas2DRenderer:
         pts = []
         for e in self.scene.get_visible_entities():
             pts.extend(e.get_points())
+            if isinstance(e, DuctSegmentEntity):
+                for pt, _ in e.get_endpoints():
+                    pts.append(pt)
+            elif isinstance(e, DuctFittingEntity):
+                for pt, _ in e.get_connection_points():
+                    pts.append(pt)
         return pts
 
-    def render(self) -> None:
-        self.canvas.delete("all")
-        self._entity_item_map.clear()
-        self._item_entity_map.clear()
-        self._draw_grid()
-        for entity in self.scene.get_visible_entities():
-            item_id = self._draw_entity(entity)
-            if item_id:
-                self._entity_item_map[entity.id] = item_id
-                self._item_entity_map[item_id] = entity.id
-        self._draw_hover()
-        self._draw_selection_box()
+    def get_endpoint_snaps(self):
+        snaps = []
+        for e in self.scene.get_visible_entities():
+            if isinstance(e, DuctSegmentEntity):
+                snaps.extend(e.get_endpoints())
+            elif isinstance(e, DuctFittingEntity):
+                for pt, out_dir in e.get_connection_points():
+                    snaps.append((pt, Point2D(-out_dir.x, -out_dir.y)))
+        return snaps
 
     def _draw_grid(self) -> None:
         view_bounds = self.viewport.get_visible_world_bounds()
@@ -207,6 +210,19 @@ class Canvas2DRenderer:
                 self.canvas.create_line(0, sy, self.viewport.width, sy,
                                         fill=self.grid.settings.axis_color, width=2, tags=("grid", "axis"))
 
+    def render(self) -> None:
+        self.canvas.delete("all")
+        self._entity_item_map.clear()
+        self._item_entity_map.clear()
+        self._draw_grid()
+        for entity in self.scene.get_visible_entities():
+            item_id = self._draw_entity(entity)
+            if item_id:
+                self._entity_item_map[entity.id] = item_id
+                self._item_entity_map[item_id] = entity.id
+        self._draw_hover()
+        self._draw_selection_box()
+
     def _draw_entity(self, entity: Entity) -> Optional[int]:
         if not entity.visible:
             return None
@@ -217,20 +233,23 @@ class Canvas2DRenderer:
             color = self.COLORS["hover"]
         lw = max(1, entity.line_width * self.viewport.transform.scale)
         lw = min(lw, 5)
-        if isinstance(entity, LineEntity):
-            return self._draw_line(entity, color, lw)
-        elif isinstance(entity, WallEntity):
-            return self._draw_wall(entity, color, lw)
-        elif isinstance(entity, RectEntity):
-            return self._draw_rect(entity, color, lw)
-        elif isinstance(entity, CircleEntity):
-            return self._draw_circle(entity, color, lw)
-        elif isinstance(entity, DuctSegmentEntity):
-            return self._draw_duct(entity, color, lw)
-        elif isinstance(entity, DuctFittingEntity):
-            return self._draw_fitting(entity, color, lw)
-        elif isinstance(entity, EquipmentEntity):
-            return self._draw_equipment(entity, color, lw)
+        try:
+            if isinstance(entity, LineEntity):
+                return self._draw_line(entity, color, lw)
+            elif isinstance(entity, WallEntity):
+                return self._draw_wall(entity, color, lw)
+            elif isinstance(entity, RectEntity):
+                return self._draw_rect(entity, color, lw)
+            elif isinstance(entity, CircleEntity):
+                return self._draw_circle(entity, color, lw)
+            elif isinstance(entity, DuctSegmentEntity):
+                return self._draw_duct(entity, color, lw)
+            elif isinstance(entity, DuctFittingEntity):
+                return self._draw_fitting(entity, color, lw)
+            elif isinstance(entity, EquipmentEntity):
+                return self._draw_equipment(entity, color, lw)
+        except Exception:
+            pass
         return None
 
     def _to_screen(self, p: Point2D) -> tuple:
@@ -277,29 +296,20 @@ class Canvas2DRenderer:
         return item
 
     def _draw_duct(self, e: DuctSegmentEntity, color: str, lw: float) -> int:
-        import math
         col = e.get_system_color() if not e.selected else color
-
-        # Товщина труби в світі (половина профілю)
         half_profile = max(e.width, e.height) / 2
-
-        # Вектор сегмента
         dx = e.end.x - e.start.x
         dy = e.end.y - e.start.y
         seg_len = math.hypot(dx, dy)
 
         if seg_len == 0:
-            # Точка — малюємо коло
             cx, cy = self._to_screen(e.start)
             r = half_profile * self.viewport.transform.scale
             item = self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
                                            fill=col, outline="black", width=1, tags=("entity", e.id))
         else:
-            # Перпендикулярний вектор (нормалізований)
             nx, ny = dx / seg_len, dy / seg_len
             px, py = -ny * half_profile, nx * half_profile
-
-            # 4 точки прямокутника труби
             poly_pts = [
                 e.start + Point2D(px, py),
                 e.start - Point2D(px, py),
@@ -309,43 +319,221 @@ class Canvas2DRenderer:
             screen_pts = [coord for p in poly_pts for coord in self._to_screen(p)]
             item = self.canvas.create_polygon(screen_pts, fill=col, outline="black",
                                               width=1, tags=("entity", e.id))
-
-        # Підпис розмірів — перпендикулярно до лінії, зміщений вбік
-        if e.length() > 300:
-            mid = (e.start + e.end) / 2
-            mx, my = self._to_screen(mid)
-            label = f"{e.width:.0f}×{e.height:.0f}"
-
-            # Зміщення перпендикулярно до лінії (в екранних координатах)
-            if seg_len > 0:
-                # Екранний перпендикуляр (Y інвертований)
+            # Центральна лінія
+            x1, y1 = self._to_screen(e.start)
+            x2, y2 = self._to_screen(e.end)
+            self.canvas.create_line(x1, y1, x2, y2, fill="#ffffff", width=1,
+                                    dash=(4, 4), tags=("entity", e.id, "centerline"))
+            # Підпис
+            if e.length() > 300:
+                mid = (e.start + e.end) / 2
+                mx, my = self._to_screen(mid)
+                label = f"{e.width:.0f}x{e.height:.0f}"
                 screen_dx = (e.end.x - e.start.x) * self.viewport.transform.scale
-                screen_dy = -(e.end.y - e.start.y) * self.viewport.transform.scale  # інверсія Y
+                screen_dy = -(e.end.y - e.start.y) * self.viewport.transform.scale
                 screen_len = math.hypot(screen_dx, screen_dy)
                 if screen_len > 0:
-                    perp_x = -screen_dy / screen_len * 15  # зміщення 15px вбік
+                    perp_x = -screen_dy / screen_len * 15
                     perp_y = screen_dx / screen_len * 15
                     mx += int(perp_x)
                     my += int(perp_y)
-
-            self.canvas.create_text(mx, my, text=label, fill="white" if not e.selected else "#ffffff",
-                                    font=("Arial", 8, "bold"), tags=("entity", e.id, "label"))
-
+                self.canvas.create_text(mx, my, text=label, fill="white",
+                                        font=("Arial", 8, "bold"), tags=("entity", e.id, "label"))
         if e.selected:
             self._draw_grips([e.start, e.end])
         return item
 
     def _draw_fitting(self, e: DuctFittingEntity, color: str, lw: float) -> int:
-        cx, cy = self._to_screen(e.position)
-        size = e.get_display_size() * self.viewport.transform.scale
+        """Малюємо фітинги як у CAMduct."""
         col = e.get_system_color() if not e.selected else color
-        pts = [cx, cy - size, cx + size, cy, cx, cy + size, cx - size, cy]
-        item = self.canvas.create_polygon(pts, fill=col, outline="black", width=lw, tags=("entity", e.id))
+        cx, cy = self._to_screen(e.position)
+        sc = self.viewport.transform.scale
+        ft = e.fitting_type.lower()
+        rot = math.radians(e.rotation)
+        cos_r, sin_r = math.cos(rot), math.sin(rot)
+
+        def w2s_local(px: float, py: float) -> tuple:
+            wx = e.position.x + px * cos_r - py * sin_r
+            wy = e.position.y + px * sin_r + py * cos_r
+            return self._to_screen(Point2D(wx, wy))
+
+        def poly_from_local(pts_local, **kwargs):
+            flat = []
+            for lx, ly in pts_local:
+                sx, sy = w2s_local(lx, ly)
+                flat.extend([sx, sy])
+            return self.canvas.create_polygon(flat, **kwargs)
+
+        main_item = None
+
+        try:
+            if ft == "відвід":
+                w = e.width_in
+                h = e.height_in
+                r = e.radius if e.radius > 0 else 200
+                hw = w / 2
+                angle = math.radians(e.angle) if e.angle > 0 else math.pi / 2
+
+                # Вхідний прямокутник (знизу, по осі Y)
+                p_in = [(-hw, 0), (hw, 0), (hw, h), (-hw, h)]
+                main_item = poly_from_local(p_in, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                # Вихідний прямокутник (під кутом)
+                out_len = h
+                out_x = r * math.sin(angle)
+                out_y = r * (1 - math.cos(angle))
+                # Напрямок виходу
+                ox = math.sin(angle)
+                oy = math.cos(angle)
+                perp_x = -oy
+                perp_y = ox
+                p_out = [
+                    (out_x + perp_x * hw, out_y + perp_y * hw),
+                    (out_x + perp_x * hw + ox * out_len, out_y + perp_y * hw + oy * out_len),
+                    (out_x - perp_x * hw + ox * out_len, out_y - perp_y * hw + oy * out_len),
+                    (out_x - perp_x * hw, out_y - perp_y * hw),
+                ]
+                poly_from_local(p_out, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                # Дуга з'єднання (зовнішня і внутрішня)
+                steps = 16
+                for offset in [hw, -hw]:
+                    arc_pts = []
+                    for i in range(steps + 1):
+                        a = math.pi / 2 - angle * i / steps
+                        ax = (r + offset) * math.cos(a)
+                        ay = (r + offset) * math.sin(a)
+                        arc_pts.append((ax, ay))
+                    for i in range(len(arc_pts) - 1):
+                        p1 = w2s_local(arc_pts[i][0], arc_pts[i][1])
+                        p2 = w2s_local(arc_pts[i + 1][0], arc_pts[i + 1][1])
+                        self.canvas.create_line(p1[0], p1[1], p2[0], p2[1],
+                                                fill="black", width=1, tags=("entity", e.id))
+
+                # Заповнення між дугами
+                fill_pts = []
+                for i in range(steps + 1):
+                    a = math.pi / 2 - angle * i / steps
+                    fill_pts.append(((r + hw) * math.cos(a), (r + hw) * math.sin(a)))
+                for i in range(steps, -1, -1):
+                    a = math.pi / 2 - angle * i / steps
+                    fill_pts.append(((r - hw) * math.cos(a), (r - hw) * math.sin(a)))
+                poly_from_local(fill_pts, fill=col, outline="", width=0, tags=("entity", e.id))
+
+                # Фланці
+                flange_in = [(-hw - 10, -10), (hw + 10, -10), (hw + 10, h + 10), (-hw - 10, h + 10)]
+                poly_from_local(flange_in, fill="", outline="#ccaa00", width=2, tags=("entity", e.id, "flange"))
+
+            elif ft == "перехід":
+                w1 = e.width_in
+                w2 = e.width_out if e.width_out > 0 else w1
+                h_len = max(e.height_in, e.height_out, 200)
+                hw1 = w1 / 2
+                hw2 = w2 / 2
+
+                pts = [(-hw1, -h_len / 2), (hw1, -h_len / 2), (hw2, h_len / 2), (-hw2, h_len / 2)]
+                main_item = poly_from_local(pts, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                self._draw_dim_local(e, [(-hw1, -h_len / 2 - 30), (hw1, -h_len / 2 - 30)], f"{w1:.0f}")
+                self._draw_dim_local(e, [(-hw2, h_len / 2 + 30), (hw2, h_len / 2 + 30)], f"{w2:.0f}")
+
+            elif ft == "трійник":
+                w = e.width_in
+                h = e.height_in
+                wb = e.width_out if e.width_out > 0 else w * 0.5
+                hb = e.height_out if e.height_out > 0 else h * 0.5
+                hw = w / 2
+                hw_b = wb / 2
+                main_len = h
+                branch_len = max(wb, 200)
+
+                main_pts = [(-hw, -main_len / 2), (hw, -main_len / 2), (hw, main_len / 2), (-hw, main_len / 2)]
+                main_item = poly_from_local(main_pts, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                branch_pts = [(hw, -hw_b), (hw + branch_len, -hw_b), (hw + branch_len, hw_b), (hw, hw_b)]
+                poly_from_local(branch_pts, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                p1 = w2s_local(hw, -hw_b)
+                p2 = w2s_local(hw, hw_b)
+                self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill="black", width=1, tags=("entity", e.id))
+
+            elif ft == "фланець":
+                w = max(e.width_in, e.width_out)
+                h = max(e.height_in, e.height_out)
+                flange_w = w + 40
+                flange_h = h + 40
+                hw = w / 2
+                hh = h / 2
+                hfw = flange_w / 2
+                hfh = flange_h / 2
+
+                fpts = [(-hfw, -hfh), (hfw, -hfh), (hfw, hfh), (-hfw, hfh)]
+                main_item = poly_from_local(fpts, fill=self.COLORS["flange"], outline="black", width=1, tags=("entity", e.id))
+
+                ipts = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+                poly_from_local(ipts, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                hole_r = max(4 * sc, 3)
+                for hx, hy in [(-hfw + 15, -hfh + 15), (hfw - 15, -hfh + 15),
+                               (hfw - 15, hfh - 15), (-hfw + 15, hfh - 15)]:
+                    hcx, hcy = w2s_local(hx, hy)
+                    self.canvas.create_oval(hcx - hole_r, hcy - hole_r, hcx + hole_r, hcy + hole_r,
+                                            fill="white", outline="black", width=1, tags=("entity", e.id))
+
+            elif ft == "заглушка":
+                w = e.width_in
+                h = e.height_in
+                hw = w / 2
+                hh = h / 2
+
+                pts = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+                main_item = poly_from_local(pts, fill=col, outline="black", width=1, tags=("entity", e.id))
+
+                p1 = w2s_local(-hw, -hh)
+                p2 = w2s_local(hw, hh)
+                p3 = w2s_local(hw, -hh)
+                p4 = w2s_local(-hw, hh)
+                self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill="black", width=2, tags=("entity", e.id))
+                self.canvas.create_line(p3[0], p3[1], p4[0], p4[1], fill="black", width=2, tags=("entity", e.id))
+
+            else:
+                size = max(e.get_display_size() * sc, 20)
+                pts = [cx, cy - size, cx + size, cy, cx, cy + size, cx - size, cy]
+                main_item = self.canvas.create_polygon(pts, fill=col, outline="black", width=lw, tags=("entity", e.id))
+
+        except Exception:
+            size = max(e.get_display_size() * sc, 20)
+            pts = [cx, cy - size, cx + size, cy, cx, cy + size, cx - size, cy]
+            main_item = self.canvas.create_polygon(pts, fill=col, outline="black", width=lw, tags=("entity", e.id))
+
         self.canvas.create_text(cx, cy, text=e.fitting_type[:3], fill="white",
                                 font=("Arial", 7, "bold"), tags=("entity", e.id, "label"))
+
         if e.selected:
             self._draw_grips([e.position])
-        return item
+            for pt, _ in e.get_connection_points():
+                self._draw_connection_grip(pt)
+
+        return main_item if main_item is not None else 0
+
+    def _draw_dim_local(self, e: DuctFittingEntity, local_pts: List[tuple], text: str):
+        """Розмірна лінія з локальних координат фітинга."""
+        rot = math.radians(e.rotation)
+        cos_r, sin_r = math.cos(rot), math.sin(rot)
+        screen_pts = []
+        for lx, ly in local_pts:
+            wx = e.position.x + lx * cos_r - ly * sin_r
+            wy = e.position.y + lx * sin_r + ly * cos_r
+            screen_pts.append(self._to_screen(Point2D(wx, wy)))
+        if len(screen_pts) >= 2:
+            p1, p2 = screen_pts[0], screen_pts[1]
+            self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill="#333", width=1,
+                                    arrow=tk.BOTH, arrowshape=(8, 10, 3),
+                                    tags=("entity", e.id, "dim"))
+            mx = (p1[0] + p2[0]) // 2
+            my = (p1[1] + p2[1]) // 2
+            self.canvas.create_text(mx, my - 10, text=text, fill="#333",
+                                    font=("Arial", 8), tags=("entity", e.id, "dim"))
 
     def _draw_equipment(self, e: EquipmentEntity, color: str, lw: float) -> int:
         corners = e.get_corners()
@@ -369,12 +557,16 @@ class Canvas2DRenderer:
                                          fill=self.COLORS["selection"], outline="white",
                                          width=1, tags=("grip",))
 
+    def _draw_connection_grip(self, point: Point2D) -> None:
+        sx, sy = self._to_screen(point)
+        r = 5
+        self.canvas.create_oval(sx - r, sy - r, sx + r, sy + r,
+                                fill="#00ff00", outline="black", width=1, tags=("grip", "connection"))
 
     def _update_hover(self) -> None:
-        """Оновити hover-підсвічування (перерендер hover-шару)."""
-        # Видаляємо старі hover-елементи
         self.canvas.delete("hover")
         self._draw_hover()
+
     def _draw_hover(self) -> None:
         if not self._hovered_entity_id:
             return
