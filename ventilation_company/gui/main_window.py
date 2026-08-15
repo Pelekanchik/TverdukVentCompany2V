@@ -9,7 +9,7 @@ from ventilation_company.auth.permissions import TAB_PERMISSIONS, get_role_label
 from ventilation_company.gui.login_window import show_login
 from ventilation_company.db_integration import ProjectDatabase, save_project_full
 from ventilation_company.gui.cutting_tab import CuttingTab
-from ventilation_company.gui.project_3d_tab import Project3DTab
+from ventilation_company.gui.project3d_tab_new import Project3DTabNew
 from ventilation_company.gui.products_tab import ProductsTab
 from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.price_list_tab import PriceListTab
@@ -273,7 +273,7 @@ class MainWindow:
             on_cutting_request=self._open_cutting_for_project,
         )
         self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products)
-        self.project_3d_tab = Project3DTab(self.notebook, get_products_callback=self._get_products)
+        self.project_3d_tab = Project3DTabNew(self.notebook, self)
         self.settings_tab = SettingsTab(self.notebook)
         self.production_tab = ProductionTab(
             self.notebook,
@@ -294,7 +294,7 @@ class MainWindow:
         self.notebook.add(self.products_tab.frame, text="📦 Вироби")
         self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
         self.notebook.add(self.cutting_tab.frame, text="✂️ Розкрій")
-        self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")
+        self.notebook.add(self.project_3d_tab, text="🏗️ Проєкти 3D")
         self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
         self.notebook.add(self.production_tab.frame, text="🏭 Виробництво")
         self.notebook.add(self.material_order_tab.frame, text="📦 Матеріали")

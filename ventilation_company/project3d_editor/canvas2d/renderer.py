@@ -277,22 +277,60 @@ class Canvas2DRenderer:
         return item
 
     def _draw_duct(self, e: DuctSegmentEntity, color: str, lw: float) -> int:
-        x1, y1 = self._to_screen(e.start)
-        x2, y2 = self._to_screen(e.end)
+        import math
         col = e.get_system_color() if not e.selected else color
-        item = self.canvas.create_line(x1, y1, x2, y2, fill=col, width=max(2, lw + 1),
-                                       capstyle=tk.ROUND, tags=("entity", e.id))
-        half = max(e.width, e.height) / 2 * self.viewport.transform.scale
-        if half > 3:
-            self.canvas.create_oval(x1 - half, y1 - half, x1 + half, y1 + half,
-                                    outline=col, width=1, tags=("entity", e.id))
-            self.canvas.create_oval(x2 - half, y2 - half, x2 + half, y2 + half,
-                                    outline=col, width=1, tags=("entity", e.id))
-        if e.length() > 500:
-            mx, my = (x1 + x2) // 2, (y1 + y2) // 2
-            label = f"{e.width:.0f}x{e.height:.0f}"
-            self.canvas.create_text(mx, my - 10, text=label, fill=col,
-                                    font=("Arial", 8), tags=("entity", e.id, "label"))
+
+        # Товщина труби в світі (половина профілю)
+        half_profile = max(e.width, e.height) / 2
+
+        # Вектор сегмента
+        dx = e.end.x - e.start.x
+        dy = e.end.y - e.start.y
+        seg_len = math.hypot(dx, dy)
+
+        if seg_len == 0:
+            # Точка — малюємо коло
+            cx, cy = self._to_screen(e.start)
+            r = half_profile * self.viewport.transform.scale
+            item = self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                           fill=col, outline="black", width=1, tags=("entity", e.id))
+        else:
+            # Перпендикулярний вектор (нормалізований)
+            nx, ny = dx / seg_len, dy / seg_len
+            px, py = -ny * half_profile, nx * half_profile
+
+            # 4 точки прямокутника труби
+            poly_pts = [
+                e.start + Point2D(px, py),
+                e.start - Point2D(px, py),
+                e.end - Point2D(px, py),
+                e.end + Point2D(px, py),
+            ]
+            screen_pts = [coord for p in poly_pts for coord in self._to_screen(p)]
+            item = self.canvas.create_polygon(screen_pts, fill=col, outline="black",
+                                              width=1, tags=("entity", e.id))
+
+        # Підпис розмірів — перпендикулярно до лінії, зміщений вбік
+        if e.length() > 300:
+            mid = (e.start + e.end) / 2
+            mx, my = self._to_screen(mid)
+            label = f"{e.width:.0f}×{e.height:.0f}"
+
+            # Зміщення перпендикулярно до лінії (в екранних координатах)
+            if seg_len > 0:
+                # Екранний перпендикуляр (Y інвертований)
+                screen_dx = (e.end.x - e.start.x) * self.viewport.transform.scale
+                screen_dy = -(e.end.y - e.start.y) * self.viewport.transform.scale  # інверсія Y
+                screen_len = math.hypot(screen_dx, screen_dy)
+                if screen_len > 0:
+                    perp_x = -screen_dy / screen_len * 15  # зміщення 15px вбік
+                    perp_y = screen_dx / screen_len * 15
+                    mx += int(perp_x)
+                    my += int(perp_y)
+
+            self.canvas.create_text(mx, my, text=label, fill="white" if not e.selected else "#ffffff",
+                                    font=("Arial", 8, "bold"), tags=("entity", e.id, "label"))
+
         if e.selected:
             self._draw_grips([e.start, e.end])
         return item
@@ -390,7 +428,7 @@ class Canvas2DRenderer:
     def preview_polygon(self, points: List[Point2D], color: str = "#ff6600", fill: str = "") -> None:
         pts = [coord for p in points for coord in self._to_screen(p)]
         item = self.canvas.create_polygon(pts, outline=color, fill=fill,
-                                          width=1, dash=(6, 4), tags=("preview",))
+                                          width=1, tags=("preview",))
         self._preview_items.append(item)
 
     def preview_text(self, pos: Point2D, text: str, color: str = "#ff6600") -> None:
