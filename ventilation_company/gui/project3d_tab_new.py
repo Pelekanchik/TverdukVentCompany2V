@@ -1,9 +1,14 @@
-"""Нова вкладка 'Проекти 3D' — професійний CAD-редактор."""
+"""Нова вкладка 'Проекти 3D' — професійний CAD-редактор.
+
+ЕТАП 7  — Інтеграція з VentProject (імпорт виробів)
+ЕТАП 8  — 3D-вигляд (рендерер 3D сцени)
+ЕТАП 8a — Панель "Деталі з проєкту" для розміщення на кресленні
+"""
 
 from __future__ import annotations
 import tkinter as tk
-from tkinter import ttk
-from typing import Optional
+from tkinter import ttk, messagebox
+from typing import Optional, List, Dict, Any
 
 from ventilation_company.project3d_editor.scene.scene_graph import SceneGraph
 from ventilation_company.project3d_editor.canvas2d.renderer import Canvas2DRenderer
@@ -12,6 +17,13 @@ from ventilation_company.project3d_editor.ui.toolbar import Toolbar
 from ventilation_company.project3d_editor.ui.property_panel import PropertyPanel
 from ventilation_company.project3d_editor.ui.layer_panel import LayerPanel
 from ventilation_company.project3d_editor.ui.tool_settings_panel import ToolSettingsPanel
+
+# === ЕТАП 7 & 8: Імпорти для інтеграції та 3D ===
+try:
+    from ventilation_company.project3d_editor.renderer3d.scene_renderer_3d import Scene3DRenderer
+    RENDERER3D_AVAILABLE = True
+except ImportError:
+    RENDERER3D_AVAILABLE = False
 
 
 class Project3DTabNew(ttk.Frame):
@@ -23,6 +35,9 @@ class Project3DTabNew(ttk.Frame):
 
         # Сцена
         self.scene = SceneGraph()
+
+        # Кеш деталей поточного проєкту
+        self._project_details: List[Dict[str, Any]] = []
 
         # Головний layout
         self._build_ui()
@@ -48,44 +63,606 @@ class Project3DTabNew(ttk.Frame):
         # Підігнати під об'єкти
         self.after(200, self.renderer.zoom_extents)
 
+    # ═══════════════════════════════════════════════════════════
+    # UI
+    # ═══════════════════════════════════════════════════════════
     def _build_ui(self) -> None:
         """Побудувати інтерфейс з resizable панелями."""
-        # Верхня панель (тулбар)
+        # Верхня панель (тулбар + перемикач 2D/3D + імпорт)
         self.top_frame = ttk.Frame(self)
         self.top_frame.pack(side=tk.TOP, fill=tk.X)
 
+        # === ЕТАП 7: Кнопка імпорту виробів ===
+        if self.controller is not None:
+            import_btn = tk.Button(
+                self.top_frame, text="📥 Завантажити вироби",
+                command=self._on_import_products,
+                bg="#4CAF50", fg="white", relief="flat",
+                font=("Segoe UI", 9, "bold"), padx=10, pady=2, cursor="hand2"
+            )
+            import_btn.pack(side=tk.LEFT, padx=5, pady=2)
+
+        # === ЕТАП 8: Перемикач 2D/3D ===
+        self._view_mode = tk.StringVar(value="2d")
+        if RENDERER3D_AVAILABLE:
+            view_frame = ttk.Frame(self.top_frame)
+            view_frame.pack(side=tk.RIGHT, padx=5)
+            ttk.Radiobutton(
+                view_frame, text="2D План", variable=self._view_mode,
+                value="2d", command=self._switch_view
+            ).pack(side=tk.LEFT, padx=2)
+            ttk.Radiobutton(
+                view_frame, text="3D Вигляд", variable=self._view_mode,
+                value="3d", command=self._switch_view
+            ).pack(side=tk.LEFT, padx=2)
+
         # Головний PanedWindow (горизонтальний: ліво | центр)
-        self.main_paned = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=4)
+        self.main_paned = tk.PanedWindow(
+            self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=4
+        )
         self.main_paned.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # ── СПОЧАТКУ Canvas (центр) — створюємо renderer ──
-        self.canvas_frame = ttk.Frame(self.main_paned)
-        self.main_paned.add(self.canvas_frame, minsize=400)
+        # ── ЦЕНТРАЛЬНИЙ КОНТЕЙНЕР (2D/3D всередині нього) ──
+        self.center_frame = ttk.Frame(self.main_paned)
+        self.main_paned.add(self.center_frame, minsize=400)
 
+        # 2D Canvas — всередині center_frame
+        self.canvas_frame = ttk.Frame(self.center_frame)
+        self.canvas_frame.pack(fill=tk.BOTH, expand=True)
         self.renderer = Canvas2DRenderer(self.canvas_frame, self.scene)
 
-        # ── ЛІВА ПАНЕЛЬ: Шари + Властивості (вертикальний PanedWindow) ──
-        self.left_paned = tk.PanedWindow(self.main_paned, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=4)
-        self.main_paned.add(self.left_paned, minsize=200, width=230)
+        # ── ЛІВА ПАНЕЛЬ: Notebook з вкладками ──
+        self.left_paned = tk.PanedWindow(
+            self.main_paned, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=4
+        )
+        self.main_paned.add(self.left_paned, minsize=220, width=250)
 
-        # Панель шарів (зверху)
-        self.layer_panel = LayerPanel(self.left_paned, self.scene,
-                                      on_change=lambda: self.renderer.render())
-        self.left_paned.add(self.layer_panel, minsize=120, height=250)
+        # Створюємо Notebook для лівої панелі
+        self.left_notebook = ttk.Notebook(self.left_paned)
+        self.left_paned.add(self.left_notebook, minsize=150, height=500)
 
-        # Панель властивостей (знизу)
-        self.property_panel = PropertyPanel(self.left_paned, self.scene,
-                                            on_change=lambda: self.renderer.render())
-        self.left_paned.add(self.property_panel, minsize=150, height=350)
+        # --- Вкладка 1: Шари ---
+        self.layer_panel = LayerPanel(
+            self.left_notebook, self.scene,
+            on_change=lambda: self._refresh_current_view()
+        )
+        self.left_notebook.add(self.layer_panel, text="Шари")
+
+        # --- Вкладка 2: Властивості ---
+        self.property_panel = PropertyPanel(
+            self.left_notebook, self.scene,
+            on_change=lambda: self._refresh_current_view()
+        )
+        self.left_notebook.add(self.property_panel, text="Властивості")
+
+        # --- Вкладка 3: Деталі з проєкту ---
+        self.details_panel = self._build_details_panel(self.left_notebook)
+        self.left_notebook.add(self.details_panel, text="Деталі з проєкту")
 
         # ── Статус-бар ──
-        self.status_bar = ttk.Label(self, text="Готовий | ЛКМ — вибір/малювання | СКМ — панорама | Колесо — масштаб | 1-7 — інструменти",
-                                    relief=tk.SUNKEN, anchor=tk.W)
+        self.status_bar = ttk.Label(
+            self,
+            text="Готовий | ЛКМ — вибір/малювання | СКМ — панорама | Колесо — масштаб | 1-7 — інструменти",
+            relief=tk.SUNKEN, anchor=tk.W
+        )
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Прив'язка клавіш
         self.bind_all("<Key>", self._on_global_key)
 
+        # === ЕТАП 8: 3D-рендерер (створюємо, але ховаємо) ===
+        if RENDERER3D_AVAILABLE:
+            self.renderer3d_frame = ttk.Frame(self.center_frame)
+            self.renderer3d = Scene3DRenderer(self.renderer3d_frame, self.scene)
+
+    # ═══════════════════════════════════════════════════════════
+    # Панель "Деталі з проєкту"
+    # ═══════════════════════════════════════════════════════════
+    def _build_details_panel(self, parent: tk.Widget) -> ttk.Frame:
+        """Побудувати панель зі списком деталей проєкту."""
+        frame = ttk.Frame(parent)
+
+        # --- Заголовок + кнопка оновлення ---
+        header = ttk.Frame(frame)
+        header.pack(fill=tk.X, padx=4, pady=(4, 0))
+        ttk.Label(header, text="📋 Деталі", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
+        ttk.Button(header, text="🔄", width=3, command=self._refresh_details_list).pack(side=tk.RIGHT)
+
+        # --- Підказка ---
+        ttk.Label(frame, text="Оберіть деталь і натисніть ➕",
+                  font=("Segoe UI", 8), foreground="#666").pack(anchor=tk.W, padx=4)
+
+        # --- Treeview з деталями ---
+        cols = ("name", "type", "size", "qty")
+        self.details_tree = ttk.Treeview(
+            frame, columns=cols, show="headings",
+            selectmode="browse", height=12
+        )
+        self.details_tree.heading("name", text="Назва")
+        self.details_tree.heading("type", text="Тип")
+        self.details_tree.heading("size", text="Розміри")
+        self.details_tree.heading("qty", text="К-ть")
+        self.details_tree.column("name", width=90, anchor=tk.W)
+        self.details_tree.column("type", width=70, anchor=tk.W)
+        self.details_tree.column("size", width=80, anchor=tk.CENTER)
+        self.details_tree.column("qty", width=35, anchor=tk.CENTER)
+
+        vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.details_tree.yview)
+        self.details_tree.configure(yscrollcommand=vsb.set)
+
+        self.details_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0), pady=2)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4), pady=2)
+
+        # Подвійний клік — додати на креслення
+        self.details_tree.bind("<Double-1>", self._on_detail_double_click)
+
+        # --- Кнопки дій ---
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X, padx=4, pady=(0, 4))
+
+        tk.Button(
+            btn_frame, text="➕ Додати на креслення",
+            command=self._on_add_detail_click,
+            bg="#2196F3", fg="white", relief="flat",
+            font=("Segoe UI", 9, "bold"), cursor="hand2"
+        ).pack(fill=tk.X, pady=1)
+
+        tk.Button(
+            btn_frame, text="📥 Завантажити з проєкту",
+            command=self._on_import_products,
+            bg="#4CAF50", fg="white", relief="flat",
+            font=("Segoe UI", 9), cursor="hand2"
+        ).pack(fill=tk.X, pady=1)
+
+        return frame
+
+    def _refresh_details_list(self):
+        """Оновити список деталей з поточного проєкту."""
+        # Очищаємо
+        for item in self.details_tree.get_children():
+            self.details_tree.delete(item)
+
+        if not self.controller:
+            return
+
+        try:
+            products = self.controller._get_products()
+            self._project_details = products or []
+        except Exception:
+            self._project_details = []
+            return
+
+        for p in self._project_details:
+            name = p.get("name", "—")
+            ptype = p.get("product_type", "—")
+            width = float(p.get("width", 0))
+            height = float(p.get("height", 0))
+            length = float(p.get("length", 0))
+            qty = int(p.get("quantity", 1))
+
+            if width > 0 and height > 0:
+                size = f"{width:.0f}×{height:.0f}×{length:.0f}"
+            elif width > 0:
+                size = f"Ø{width:.0f}×{length:.0f}"
+            else:
+                size = f"L={length:.0f}"
+
+            self.details_tree.insert("", tk.END, values=(name, ptype, size, qty))
+
+        self.status_bar.config(text=f"📋 Деталей у списку: {len(self._project_details)}")
+
+    def _on_detail_double_click(self, event):
+        """Подвійний клік — додати деталь на креслення."""
+        self._on_add_detail_click()
+
+    def _on_add_detail_click(self):
+        """Додати вибрану деталь із списку на креслення."""
+        sel = self.details_tree.selection()
+        if not sel:
+            messagebox.showinfo("Інформація", "Оберіть деталь у списку.")
+            return
+
+        idx = self.details_tree.index(sel[0])
+        if idx < 0 or idx >= len(self._project_details):
+            return
+
+        detail = self._project_details[idx]
+        pos = self._get_placement_position()
+        self._add_detail_to_scene(detail, pos)
+
+    def _get_placement_position(self):
+        """Отримати точку для розміщення деталі (центр видимої області + snap)."""
+        from ventilation_company.project3d_editor.core.point import Point2D
+        w = self.renderer.viewport.width
+        h = self.renderer.viewport.height
+        center_screen = Point2D(w / 2, h / 2)
+        world = self.renderer.viewport.screen_to_world(center_screen)
+        # Прив'язка до сітки
+        snapped = self.renderer.grid.snap(world, [])
+        return snapped
+
+    def _add_detail_to_scene(self, detail: Dict[str, Any], pos):
+        """Створити сутність із деталі та додати на сцену."""
+        from ventilation_company.project3d_editor.core.point import Point2D
+        from ventilation_company.project3d_editor.scene.entities.duct import DuctSegmentEntity
+        from ventilation_company.project3d_editor.scene.entities.fitting import DuctFittingEntity
+        from ventilation_company.project3d_editor.scene.entities.equipment import EquipmentEntity
+
+        ptype = (detail.get("product_type", "") + " " + detail.get("name", "")).lower()
+        width = float(detail.get("width", 100))
+        height = float(detail.get("height", 100))
+        length = float(detail.get("length", 1000))
+        thickness = float(detail.get("thickness", 0.7))
+        material = detail.get("material", "оцинкована сталь")
+        name = detail.get("name", "Деталь")
+
+        # Визначення типу
+        is_rect_duct = "прямокутн" in ptype and "повітропровід" in ptype
+        is_round_duct = "кругл" in ptype and "повітропровід" in ptype
+        is_rect_elbow = ("відвід" in ptype or "коліно" in ptype) and "прямокутн" in ptype
+        is_round_elbow = ("відвід" in ptype or "коліно" in ptype) and "кругл" in ptype
+        is_rect_tee = "трійник" in ptype and "прямокутн" in ptype
+        is_round_tee = "трійник" in ptype and "кругл" in ptype
+        is_rect_transition = "перехід" in ptype and "прямокутн" in ptype
+        is_round_transition = "перехід" in ptype and "кругл" in ptype
+        is_rect_flange = "фланець" in ptype and "прямокутн" in ptype
+        is_round_flange = "фланець" in ptype and "кругл" in ptype
+        is_rect_cap = "заглушка" in ptype and "прямокутн" in ptype
+        is_round_cap = "заглушка" in ptype and "кругл" in ptype
+        is_flexible = "гнучк" in ptype or "вставка" in ptype
+
+        duct_type = "приплив"
+        if "витяж" in ptype:
+            duct_type = "витяжка"
+        elif "дим" in ptype:
+            duct_type = "димовидалення"
+
+        entity = None
+
+        if is_rect_duct or is_round_duct:
+            entity = DuctSegmentEntity(
+                name=name,
+                start=pos,
+                end=Point2D(pos.x + length, pos.y),
+                width=width,
+                height=height if is_rect_duct else width,
+                is_round=is_round_duct,
+                duct_type=duct_type,
+                material=material,
+                thickness=thickness,
+            )
+        elif is_rect_elbow or is_round_elbow:
+            entity = DuctFittingEntity(
+                name=name, position=pos,
+                fitting_type="відвід",
+                width_in=width,
+                height_in=height if is_rect_elbow else width,
+                duct_type=duct_type, material=material, thickness=thickness,
+                angle=float(detail.get("angle", 90)),
+                radius=float(detail.get("radius", 150)),
+            )
+        elif is_rect_tee or is_round_tee:
+            bw = float(detail.get("branch_width", width * 0.5))
+            bh = float(detail.get("branch_height", height * 0.5)) if is_rect_tee else float(detail.get("branch_diameter", width * 0.5))
+            entity = DuctFittingEntity(
+                name=name, position=pos,
+                fitting_type="трійник",
+                width_in=width, height_in=height if is_rect_tee else width,
+                width_out=bw, height_out=bh,
+                duct_type=duct_type, material=material, thickness=thickness,
+            )
+        elif is_rect_transition or is_round_transition:
+            ew = float(detail.get("end_width", 300))
+            eh = float(detail.get("end_height", 150)) if is_rect_transition else float(detail.get("end_diameter", 300))
+            entity = DuctFittingEntity(
+                name=name, position=pos,
+                fitting_type="перехід",
+                width_in=width, height_in=height if is_rect_transition else width,
+                width_out=ew, height_out=eh,
+                duct_type=duct_type, material=material, thickness=thickness,
+            )
+        elif is_rect_flange or is_round_flange:
+            entity = DuctFittingEntity(
+                name=name, position=pos,
+                fitting_type="фланець",
+                width_in=width, height_in=height if is_rect_flange else width,
+                duct_type=duct_type, material=material, thickness=thickness,
+            )
+        elif is_rect_cap or is_round_cap:
+            entity = DuctFittingEntity(
+                name=name, position=pos,
+                fitting_type="заглушка",
+                width_in=width, height_in=height if is_rect_cap else width,
+                duct_type=duct_type, material=material, thickness=thickness,
+            )
+        elif is_flexible:
+            entity = DuctSegmentEntity(
+                name=name,
+                start=pos,
+                end=Point2D(pos.x + length, pos.y),
+                width=width, height=height, is_round=False,
+                duct_type=duct_type, material=material, thickness=thickness,
+            )
+        else:
+            # Обладнання / інше
+            eq_type = "обладнання"
+            if "вентилятор" in ptype:
+                eq_type = "вентилятор"
+            elif "фільтр" in ptype:
+                eq_type = "фільтр"
+            elif "клапан" in ptype:
+                eq_type = "клапан"
+            elif "глушник" in ptype or "шумоглушник" in ptype:
+                eq_type = "глушник"
+            elif "рекуператор" in ptype:
+                eq_type = "рекуператор"
+            elif "калорифер" in ptype:
+                eq_type = "калорифер"
+
+            entity = EquipmentEntity(
+                name=name, position=pos,
+                width=width if width > 0 else 500,
+                height=height if height > 0 else 500,
+                depth=length if length > 0 else 500,
+                equipment_type=eq_type,
+            )
+
+        if entity:
+            self.scene.add_entity(entity)
+            self.status_bar.config(text=f"✅ Додано: {name}")
+            self._refresh_current_view()
+
+    # ═══════════════════════════════════════════════════════════
+    # ЕТАП 8 — 3D-вигляд
+    # ═══════════════════════════════════════════════════════════
+    def _switch_view(self):
+        """Перемикання між 2D і 3D."""
+        mode = self._view_mode.get()
+        if mode == "2d":
+            self.renderer3d_frame.pack_forget()
+            self.canvas_frame.pack(fill=tk.BOTH, expand=True)
+            self.status_bar.config(text="Режим: 2D План")
+            self.renderer.render()
+        else:
+            self.canvas_frame.pack_forget()
+            self.renderer3d_frame.pack(fill=tk.BOTH, expand=True)
+            self.status_bar.config(text="Режим: 3D Вигляд")
+            self.renderer3d.refresh()
+
+    def _refresh_current_view(self):
+        """Оновити поточний вид (2D або 3D)."""
+        if self._view_mode.get() == "3d" and RENDERER3D_AVAILABLE:
+            self.renderer3d.refresh()
+        else:
+            self.renderer.render()
+
+    # ═══════════════════════════════════════════════════════════
+    # ЕТАП 7 — Інтеграція з VentProject
+    # ═══════════════════════════════════════════════════════════
+    def _on_import_products(self):
+        """Імпорт виробів поточного проєкту у сцену та список деталей."""
+        if self.controller is None:
+            messagebox.showwarning("Увага", "Контролер не підключено.")
+            return
+        try:
+            products = self.controller._get_products()
+            if not products:
+                messagebox.showinfo("Інформація", "Немає виробів для імпорту.")
+                return
+            self._project_details = products
+            self._refresh_details_list()
+            self.load_from_products(products)
+            count = len(products)
+            self.status_bar.config(text=f"✅ Імпортовано {count} виробів")
+            messagebox.showinfo("Успіх", f"Імпортовано {count} виробів у 3D-сцену.")
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося імпортувати вироби: {e}")
+
+    def load_from_products(self, products: List[Dict[str, Any]]) -> None:
+        """Конвертувати список виробів (dict) у сутності сцени (розкладка уздовж X)."""
+        from ventilation_company.project3d_editor.scene.entities.duct import DuctSegmentEntity
+        from ventilation_company.project3d_editor.scene.entities.fitting import DuctFittingEntity
+        from ventilation_company.project3d_editor.scene.entities.equipment import EquipmentEntity
+        from ventilation_company.project3d_editor.core.point import Point2D
+
+        self.scene.clear(record_undo=False)
+
+        x_offset = 0.0
+        spacing = 500.0
+
+        for p in products:
+            ptype = (p.get("product_type", "") + " " + p.get("name", "")).lower()
+            width = float(p.get("width", 100))
+            height = float(p.get("height", 100))
+            length = float(p.get("length", 1000))
+            thickness = float(p.get("thickness", 0.7))
+            material = p.get("material", "оцинкована сталь")
+            quantity = int(p.get("quantity", 1))
+            name = p.get("name", "Виріб")
+
+            is_rect_duct = "прямокутн" in ptype and "повітропровід" in ptype
+            is_round_duct = "кругл" in ptype and "повітропровід" in ptype
+            is_rect_elbow = ("відвід" in ptype or "коліно" in ptype) and "прямокутн" in ptype
+            is_round_elbow = ("відвід" in ptype or "коліно" in ptype) and "кругл" in ptype
+            is_rect_tee = "трійник" in ptype and "прямокутн" in ptype
+            is_round_tee = "трійник" in ptype and "кругл" in ptype
+            is_rect_transition = "перехід" in ptype and "прямокутн" in ptype
+            is_round_transition = "перехід" in ptype and "кругл" in ptype
+            is_rect_flange = "фланець" in ptype and "прямокутн" in ptype
+            is_round_flange = "фланець" in ptype and "кругл" in ptype
+            is_rect_cap = "заглушка" in ptype and "прямокутн" in ptype
+            is_round_cap = "заглушка" in ptype and "кругл" in ptype
+            is_flexible = "гнучк" in ptype or "вставка" in ptype
+
+            duct_type = "приплив"
+            if "витяж" in ptype:
+                duct_type = "витяжка"
+            elif "дим" in ptype:
+                duct_type = "димовидалення"
+
+            for _ in range(quantity):
+                if is_rect_duct or is_round_duct:
+                    entity = DuctSegmentEntity(
+                        name=name,
+                        start=Point2D(x_offset, 0),
+                        end=Point2D(x_offset + length, 0),
+                        width=width,
+                        height=height if is_rect_duct else width,
+                        is_round=is_round_duct,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += length + spacing
+
+                elif is_rect_elbow or is_round_elbow:
+                    entity = DuctFittingEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        fitting_type="відвід",
+                        width_in=width,
+                        height_in=height if is_rect_elbow else width,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                        angle=float(p.get("angle", 90)),
+                        radius=float(p.get("radius", 150)),
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 500 + spacing
+
+                elif is_rect_tee or is_round_tee:
+                    bw = float(p.get("branch_width", width * 0.5))
+                    bh = float(p.get("branch_height", height * 0.5)) if is_rect_tee else float(p.get("branch_diameter", width * 0.5))
+                    entity = DuctFittingEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        fitting_type="трійник",
+                        width_in=width,
+                        height_in=height if is_rect_tee else width,
+                        width_out=bw,
+                        height_out=bh,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 500 + spacing
+
+                elif is_rect_transition or is_round_transition:
+                    ew = float(p.get("end_width", 300))
+                    eh = float(p.get("end_height", 150)) if is_rect_transition else float(p.get("end_diameter", 300))
+                    entity = DuctFittingEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        fitting_type="перехід",
+                        width_in=width,
+                        height_in=height if is_rect_transition else width,
+                        width_out=ew,
+                        height_out=eh,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 500 + spacing
+
+                elif is_rect_flange or is_round_flange:
+                    entity = DuctFittingEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        fitting_type="фланець",
+                        width_in=width,
+                        height_in=height if is_rect_flange else width,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 200 + spacing
+
+                elif is_rect_cap or is_round_cap:
+                    entity = DuctFittingEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        fitting_type="заглушка",
+                        width_in=width,
+                        height_in=height if is_rect_cap else width,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 200 + spacing
+
+                elif is_flexible:
+                    entity = DuctSegmentEntity(
+                        name=name,
+                        start=Point2D(x_offset, 0),
+                        end=Point2D(x_offset + length, 0),
+                        width=width,
+                        height=height,
+                        is_round=False,
+                        duct_type=duct_type,
+                        material=material,
+                        thickness=thickness,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += length + spacing
+
+                else:
+                    eq_type = "обладнання"
+                    if "вентилятор" in ptype:
+                        eq_type = "вентилятор"
+                    elif "фільтр" in ptype:
+                        eq_type = "фільтр"
+                    elif "клапан" in ptype:
+                        eq_type = "клапан"
+                    elif "глушник" in ptype or "шумоглушник" in ptype:
+                        eq_type = "глушник"
+                    elif "рекуператор" in ptype:
+                        eq_type = "рекуператор"
+                    elif "калорифер" in ptype:
+                        eq_type = "калорифер"
+
+                    entity = EquipmentEntity(
+                        name=name,
+                        position=Point2D(x_offset, 0),
+                        width=width if width > 0 else 500,
+                        height=height if height > 0 else 500,
+                        depth=length if length > 0 else 500,
+                        equipment_type=eq_type,
+                    )
+                    self.scene.add_entity(entity, record_undo=False)
+                    x_offset += 600 + spacing
+
+        self._refresh_current_view()
+
+    def set_project(self, project) -> None:
+        """Завантажити існуючий VentProject у сцену та список деталей."""
+        if isinstance(project, list):
+            self._project_details = project
+            self._refresh_details_list()
+            self.load_from_products(project)
+        elif isinstance(project, dict):
+            products = project.get("products", [])
+            self._project_details = products
+            self._refresh_details_list()
+            self.load_from_products(products)
+        else:
+            if self.controller is not None:
+                try:
+                    products = self.controller._get_products()
+                    self._project_details = products
+                    self._refresh_details_list()
+                    self.load_from_products(products)
+                except Exception:
+                    pass
+
+    # ═══════════════════════════════════════════════════════════
+    # Існуючі методи (збережено без змін)
+    # ═══════════════════════════════════════════════════════════
     def _on_tool_change(self, key: str) -> None:
         tool = self.tool_manager.get_current_tool()
         if tool:
@@ -112,7 +689,6 @@ class Project3DTabNew(ttk.Frame):
         from ventilation_company.project3d_editor.scene.entities.fitting import DuctFittingEntity
         from ventilation_company.project3d_editor.scene.entities.equipment import EquipmentEntity
 
-        # Стіни приміщення
         self.scene.add_entity(WallEntity(
             name="Стіна Північ", start=Point2D(0, 0), end=Point2D(8000, 0),
             thickness=250, height=3200, is_load_bearing=True, color="#555555"
@@ -129,13 +705,11 @@ class Project3DTabNew(ttk.Frame):
             name="Стіна Захід", start=Point2D(0, 6000), end=Point2D(0, 0),
             thickness=250, height=3200, is_load_bearing=True, color="#555555"
         ))
-        # Перегородка
         self.scene.add_entity(WallEntity(
             name="Перегородка", start=Point2D(4000, 0), end=Point2D(4000, 6000),
             thickness=100, height=3000, color="#aaaaaa"
         ))
 
-        # Повітропровід приплив
         self.scene.add_entity(DuctSegmentEntity(
             name="Приплив головний", start=Point2D(1000, 500), end=Point2D(7000, 500),
             width=250, height=250, duct_type="приплив", color="#0066cc"
@@ -145,29 +719,22 @@ class Project3DTabNew(ttk.Frame):
             width=200, height=200, duct_type="приплив", color="#0066cc"
         ))
 
-        # Витяжка
         self.scene.add_entity(DuctSegmentEntity(
             name="Витяжка головна", start=Point2D(1000, 5500), end=Point2D(7000, 5500),
             width=200, height=200, duct_type="витяжка", color="#009900"
         ))
 
-        # Фітинги
         self.scene.add_entity(DuctFittingEntity(
             name="Трійник", position=Point2D(4000, 500),
             fitting_type="трійник", width_in=250, height_in=250,
             duct_type="приплив", color="#990099"
         ))
 
-        # Обладнання
         self.scene.add_entity(EquipmentEntity(
             name="ПВУ-1", position=Point2D(1000, 3000),
             width=800, height=600, equipment_type="вентилятор",
             air_flow=5000, power=5.5, color="#cc8800"
         ))
-
-    def set_project(self, project) -> None:
-        """Завантажити існуючий VentProject у сцену."""
-        pass
 
     def get_scene(self) -> SceneGraph:
         return self.scene

@@ -393,6 +393,14 @@ class MainWindow:
             )
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
             self.price_list_tab._current_project_id = self.current_project_id
+            
+            # === ЕТАП 7: Оновлюємо 3D-вкладку ===
+            self.project_3d_tab.set_project({
+                "products": products,
+                "project_id": self.current_project_id,
+                "name": project_name,
+            })
+            # =====================================
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося зберегти:\n{str(e)}")
 
@@ -414,6 +422,17 @@ class MainWindow:
                 idx = sel[0]
                 project_id = projects[idx]["id"]
                 self._load_project_data(project_id)
+                
+                # === ЕТАП 7: Оновлюємо 3D-вкладку ===
+                try:
+                    products = self._get_products()
+                    self.project_3d_tab.set_project({
+                        "products": products,
+                        "project_id": project_id,
+                    })
+                except Exception:
+                    pass  # якщо ще немає виробів — ігноруємо
+                # =====================================
                 dialog.destroy()
         ttk.Button(dialog, text="Відкрити", command=on_select).pack(pady=5)
 
