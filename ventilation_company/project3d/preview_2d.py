@@ -1,9 +1,16 @@
 """2D-перегляд креслень проєкту через matplotlib.
 
-Відображає плани поверхів з накладанням вентиляції.
-ТІЛЬКИ ПЕРЕГЛЯД — без режиму креслення.
+ПАТЧ:
+    • Повністю прибрано ромби/кружечки/точки фасонок
+    • Прибрано круги/прямокутники профілів на кінцях сегментів
+    • Додано виноски Δh для сегментів з різницею висот
+    • Виправлено import math
+
+ВСТАНОВЛЕННЯ:
+    Замініть ventilation_company/project3d/preview_2d.py
 """
 
+import math
 import os
 import tempfile
 import tkinter as tk
@@ -33,7 +40,6 @@ class Project2DPreview:
         "duct_supply": "#0066cc",
         "duct_exhaust": "#009900",
         "duct_smoke": "#cc6600",
-        "fitting": "#990099",
         "equipment": "#cc9900",
         "grid": "#dddddd",
         "text": "#333333",
@@ -109,7 +115,6 @@ class Project2DPreview:
         self.canvas.draw_idle()
 
     def _on_press(self, event):
-        """Початок pan (середня кнопка миші або ліва + Ctrl)."""
         if event.inaxes != self.ax:
             return
         if event.button == 2 or (event.button == 1 and event.key == "control"):
@@ -118,13 +123,11 @@ class Project2DPreview:
             self._pan_ylim = self.ax.get_ylim()
 
     def _on_release(self, event):
-        """Кінець pan."""
         self._pan_start = None
         self._pan_xlim = None
         self._pan_ylim = None
 
     def _on_motion(self, event):
-        """Pan — перетягування."""
         if self._pan_start is None or event.inaxes != self.ax:
             return
         if event.xdata is None or event.ydata is None:
@@ -151,13 +154,13 @@ class Project2DPreview:
         try:
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 tmp_path = tmp.name
-            self.figure.savefig(tmp_path, dpi=300, bbox_inches="tight", facecolor=self.figure.get_facecolor())
-            if os.name == "nt":
-                os.startfile(tmp_path)
-            else:
-                import subprocess
-                subprocess.Popen(["xdg-open", tmp_path])
-            messagebox.showinfo("Друк", "PDF підготовлено.\nФайл відкрито у переглядачі. Натисніть Ctrl+P для друку.")
+                self.figure.savefig(tmp_path, dpi=300, bbox_inches="tight", facecolor=self.figure.get_facecolor())
+                if os.name == "nt":
+                    os.startfile(tmp_path)
+                else:
+                    import subprocess
+                    subprocess.Popen(["xdg-open", tmp_path])
+                messagebox.showinfo("Друк", "PDF підготовлено.\nФайл відкрито у переглядачі. Натисніть Ctrl+P для друку.")
         except Exception as e:
             messagebox.showerror("Помилка друку", str(e))
 
@@ -174,13 +177,11 @@ class Project2DPreview:
         self.refresh()
 
     def _get_system_color(self, system_type: str) -> str:
-        """Визначити колір системи за її типом."""
         st = system_type.lower()
         if "витяж" in st or "exhaust" in st:
             return self.COLORS["duct_exhaust"]
         if "дим" in st or "smoke" in st:
             return self.COLORS["duct_smoke"]
-        # За замовчуванням — приплив (синій)
         return self.COLORS["duct_supply"]
 
     def refresh(self):
@@ -213,7 +214,6 @@ class Project2DPreview:
         self.ax.grid(True, color=self.COLORS["grid"], linestyle="-", linewidth=0.5, alpha=0.5)
         self.ax.set_axisbelow(True)
 
-        # Отвори (двері, вікна)
         for op in floor.openings:
             self._draw_opening_2d(op)
             all_x.extend([op.position.x - op.width/2, op.position.x + op.width/2])
@@ -241,10 +241,7 @@ class Project2DPreview:
                         self._draw_duct_segment_2d(seg, color, show_dims)
                         all_x.extend([seg.start.x, seg.end.x])
                         all_y.extend([seg.start.y, seg.end.y])
-                    for fitting in trunk.fittings:
-                        self._draw_fitting_2d(fitting)
-                        all_x.append(fitting.position.x)
-                        all_y.append(fitting.position.y)
+                    # ══ ФАСОНКИ ПОВНІСТЮ ПРИБРАНО ══
 
         if show_eq:
             for system in self.project.ventilation_systems:
@@ -279,7 +276,6 @@ class Project2DPreview:
         self.canvas.draw()
 
     def _draw_wall_2d(self, wall):
-        import math
         dx = wall.end.x - wall.start.x
         dy = wall.end.y - wall.start.y
         length = math.sqrt(dx**2 + dy**2)
@@ -316,14 +312,29 @@ class Project2DPreview:
         x1, y1 = seg.start.x, seg.start.y
         x2, y2 = seg.end.x, seg.end.y
         self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=3, solid_capstyle="round")
-        if seg.shape == DuctShape.RECT:
-            w, h = seg.width, seg.height
-            self._draw_rect_profile(x1, y1, w, h, color)
-            self._draw_rect_profile(x2, y2, w, h, color)
-        else:
-            d = seg.width
-            self._draw_circle_profile(x1, y1, d, color)
-            self._draw_circle_profile(x2, y2, d, color)
+
+        # Виноска Δh для зміни висоти
+        dz = seg.end.z - seg.start.z
+        if abs(dz) > 1.0:
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            seg_len = math.hypot(x2 - x1, y2 - y1)
+            if seg_len > 1:
+                nx = -(y2 - y1) / seg_len
+                ny =  (x2 - x1) / seg_len
+                offset = 60
+                tx = mx + nx * offset
+                ty = my + ny * offset
+                arrow_color = "#2563eb" if dz > 0 else "#dc2626"
+                self.ax.annotate(
+                    f"Δh={abs(dz):.0f}",
+                    xy=(mx, my), xytext=(tx, ty),
+                    fontsize=7, color=arrow_color, fontweight="bold",
+                    arrowprops=dict(arrowstyle="->", color=arrow_color, lw=0.8,
+                                    connectionstyle="arc3,rad=0.15"),
+                    bbox=dict(boxstyle="round,pad=0.25", facecolor="#eff6ff",
+                              edgecolor=arrow_color, alpha=0.85)
+                )
+
         if show_dims and seg.length > 1000:
             cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
             angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
@@ -335,22 +346,6 @@ class Project2DPreview:
             self.ax.annotate(label, xy=(cx, cy), xytext=(cx + ox, cy + oy), fontsize=7, color=color, fontweight="bold",
                              ha="center", va="center", bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"),
                              arrowprops=dict(arrowstyle="->", color=color, lw=0.8))
-
-    def _draw_rect_profile(self, x, y, w, h, color):
-        rect = Rectangle((x - w/2, y - h/2), w, h, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.4)
-        self.ax.add_patch(rect)
-
-    def _draw_circle_profile(self, x, y, d, color):
-        circle = Circle((x, y), d/2, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.4)
-        self.ax.add_patch(circle)
-
-    def _draw_fitting_2d(self, fitting):
-        cx, cy = fitting.position.x, fitting.position.y
-        size = max(fitting.width_in, fitting.height_in, 100) / 2
-        diamond = Polygon([(cx, cy + size), (cx + size, cy), (cx, cy - size), (cx - size, cy)],
-                          closed=True, facecolor=self.COLORS["fitting"], edgecolor="#660066", linewidth=1.5, alpha=0.7)
-        self.ax.add_patch(diamond)
-        self.ax.text(cx, cy, fitting.fitting_type[:3], fontsize=6, color="white", ha="center", va="center", fontweight="bold")
 
     def _draw_equipment_2d(self, eq):
         cx, cy = eq.position.x, eq.position.y
@@ -366,7 +361,6 @@ class Project2DPreview:
             self.figure.savefig(filepath, dpi=200, bbox_inches="tight", facecolor=self.figure.get_facecolor())
 
     def _draw_background(self, floor):
-        """Намалювати підкладку DXF на плані 2D."""
         if not floor or not floor.background:
             return
         bg = floor.background

@@ -4,6 +4,7 @@ import os
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from ventilation_company.gui.cabinet_tab import CabinetTab
 from ventilation_company.auth.service import auth
 from ventilation_company.auth.permissions import TAB_PERMISSIONS, get_role_label
 from ventilation_company.gui.login_window import show_login
@@ -30,6 +31,7 @@ class MainWindow:
             return
 
         self.current_user = auth.current_user
+        self.is_director = (self.current_user.role == "director")
 
         self.root = tk.Tk()
         self.root.title(
@@ -300,6 +302,14 @@ class MainWindow:
         self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
         self.notebook.add(self.crm_tab.frame, text="👥 CRM")
+
+        # === 🏠 Мій кабінет ===
+        self.cabinet_tab = CabinetTab(
+            self.notebook,
+            current_user=self.current_user.username,
+            is_director=self.is_director,
+        )
+        self.notebook.add(self.cabinet_tab, text="🏠 Мій кабінет")
 
         self.price_list_tab._current_project_id = self.current_project_id
 

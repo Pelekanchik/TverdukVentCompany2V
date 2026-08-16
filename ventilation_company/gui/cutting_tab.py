@@ -1,10 +1,16 @@
-"""
-Вкладка "Розкрій металу" для GUI.
+"""Вкладка "Розкрій металу" для GUI.
 Розрахунок оптимального розкрою листів, візуалізація плану.
+
+ПАТЧ:
+    • Додано кнопки експорту G-код (плазма) та DXF (гільйотина)
+    • Додано метод get_plan() для сумісності
+
+ВСТАНОВЛЕННЯ:
+    Замініть ventilation_company/gui/cutting_tab.py
 """
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.metal_cutting import MetalCutter
 
@@ -26,7 +32,7 @@ class CuttingTab:
 
         self.get_products = get_products_callback
         self.current_plan = None
-        self._tooltip_win = None  # Toplevel для tooltip
+        self._tooltip_win = None
         self._tooltip_after = None
 
         self._build_ui()
@@ -69,8 +75,15 @@ class CuttingTab:
             row=3, column=0, columnspan=2, pady=15, sticky=tk.EW
         )
 
+        # === НОВЕ: Кнопки експорту ===
+        export_frame = ttk.LabelFrame(left, text="Експорт для ЧПУ", padding=5)
+        export_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, pady=5)
+        ttk.Button(export_frame, text="🔥 G-код (плазма)", command=self._export_gcode).pack(fill=tk.X, pady=2)
+        ttk.Button(export_frame, text="📐 DXF (гільйотина)", command=self._export_dxf).pack(fill=tk.X, pady=2)
+        # =============================
+
         self.results_frame = ttk.LabelFrame(left, text="Результати", padding=10)
-        self.results_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, pady=5)
+        self.results_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
         self.result_labels = {}
         result_fields = [
@@ -106,7 +119,7 @@ class CuttingTab:
         legend = ttk.Frame(right)
         legend.pack(fill=tk.X, pady=5)
         ttk.Label(
-            legend, text="[кольоровий] деталь  |  [сірий] вільне місце  |  масштаб: 1:4", foreground="#666"
+            legend, text="[кольоровий] деталь | [сірий] вільне місце | масштаб: 1:4", foreground="#666"
         ).pack(side=tk.LEFT)
 
     def _calculate(self):
@@ -136,7 +149,7 @@ class CuttingTab:
         except Exception as e:
             import traceback
             err = traceback.format_exc()
-            print(err)  # виведе в консоль
+            print(err)
             messagebox.showerror("Помилка", "Помилка розрахунку:\n" + str(e) + "\n\nДеталі в консолі.")
 
     def _update_results(self):
@@ -181,7 +194,7 @@ class CuttingTab:
             self.canvas.create_text(
                 x_offset + 5,
                 y_offset - 15,
-                text=f"Лист {sheet_idx + 1}  ({sheet.width:.0f}x{sheet.height:.0f} мм)",
+                text=f"Лист {sheet_idx + 1} ({sheet.width:.0f}x{sheet.height:.0f} мм)",
                 anchor=tk.W,
                 font=("Arial", 9, "bold"),
             )
@@ -198,7 +211,6 @@ class CuttingTab:
                     px, py, px + pw, py + ph, outline="white", width=1, fill=color
                 )
 
-                # Привязка tooltip через Toplevel (безпечно, не зависає)
                 self.canvas.tag_bind(
                     rect_id, "<Enter>",
                     lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s)
@@ -234,14 +246,12 @@ class CuttingTab:
 
         self.canvas.configure(scrollregion=(0, 0, 1500, y_offset + 50))
 
-    # ── Tooltip через Toplevel (виправлення зависання) ──
+    # ── Tooltip ──
     def _schedule_tooltip(self, event, placed, sheet_idx):
-        """Запланувати показ tooltip через 300 мс — уникаємо миготіння."""
         self._cancel_tooltip()
         self._tooltip_after = self.canvas.after(300, lambda: self._show_tooltip(event, placed, sheet_idx))
 
     def _show_tooltip(self, event, placed, sheet_idx):
-        """Показати tooltip у вигляді плаваючого Toplevel вікна."""
         self._cancel_tooltip()
 
         detail = placed.detail
@@ -257,7 +267,6 @@ class CuttingTab:
             f"Лист: {sheet_idx + 1}"
         )
 
-        # Створити Toplevel без рамки
         self._tooltip_win = tk.Toplevel(self.canvas)
         self._tooltip_win.overrideredirect(True)
         self._tooltip_win.attributes("-topmost", True)
@@ -277,19 +286,78 @@ class CuttingTab:
         )
         lbl.pack()
 
-        # Позиція: поруч з курсором, але трохи зміщено
         x = event.x_root + 12
         y = event.y_root + 12
         self._tooltip_win.geometry(f"+{x}+{y}")
 
     def _cancel_tooltip(self):
-        """Сховати tooltip і скасувати відкладений показ."""
         if self._tooltip_after:
             self.canvas.after_cancel(self._tooltip_after)
             self._tooltip_after = None
         if self._tooltip_win:
             self._tooltip_win.destroy()
             self._tooltip_win = None
+
+    # ═════════════════════════════════════════════════════════════════
+    #  НОВІ МЕТОДИ: Експорт G-код та DXF
+    # ═════════════════════════════════════════════════════════════════
+
+    def _export_gcode(self):
+        """Експорт плану розкрою у G-код для плазменного різака."""
+        if not self.current_plan or not self.current_plan.sheets:
+            messagebox.showwarning("Увага", "Спочатку розрахуйте розкрій.")
+            return
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".nc",
+            filetypes=[("G-код (*.nc, *.tap)", "*.nc *.tap"), ("Всі файли", "*.*")],
+            title="Експорт G-коду для плазми",
+            initialfile=f"plasma_{self.material_var.get()}_{self.thick_var.get()}mm.nc",
+        )
+        if not filepath:
+            return
+        try:
+            from ventilation_company.gcode_exporter import GCodeExporter, PlasmaSettings
+            settings = PlasmaSettings(
+                feed_rate=1500,
+                rapid_feed=8000,
+                pierce_delay=0.5,
+                pierce_height=3.0,
+                cut_height=1.5,
+                safe_height=15.0,
+                kerf_width=1.5,
+            )
+            exporter = GCodeExporter(settings)
+            exporter.export_cutting_plan(self.current_plan, filepath)
+            messagebox.showinfo("Успіх", f"G-код збережено:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося експортувати G-код:\n{e}")
+
+    def _export_dxf(self):
+        """Експорт плану розкрою у DXF для гільйотини/лазера."""
+        if not self.current_plan or not self.current_plan.sheets:
+            messagebox.showwarning("Увага", "Спочатку розрахуйте розкрій.")
+            return
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".dxf",
+            filetypes=[("DXF файл", "*.dxf"), ("Всі файли", "*.*")],
+            title="Експорт DXF для гільйотини",
+            initialfile=f"cutting_{self.material_var.get()}_{self.thick_var.get()}mm.dxf",
+        )
+        if not filepath:
+            return
+        try:
+            from ventilation_company.dxf_exporter import DXFExporter, DXFSettings
+            settings = DXFSettings(
+                layer_details="DETAILS",
+                layer_text="TEXT",
+                layer_sheet="SHEET",
+                text_height=8.0,
+            )
+            exporter = DXFExporter(settings)
+            exporter.export_cutting_plan(self.current_plan, filepath)
+            messagebox.showinfo("Успіх", f"DXF збережено:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося експортувати DXF:\n{e}")
 
     def get_plan(self):
         return self.current_plan
