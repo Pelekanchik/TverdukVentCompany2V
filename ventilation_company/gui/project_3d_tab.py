@@ -1,15 +1,14 @@
-"""Вкладка "Проєкти 3D / Креслення" — заміна старої вкладки FreeCAD.
+"""Вкладка "Проєкти 3D / Креслення".
 
-Функціонал:
- • Імпорт: IFC (Revit), DXF/DWG (AutoCAD), STEP (Solidworks), FCStd (FreeCAD), .ventproj
- • Експорт: IFC, DXF, STEP, FCStd, .ventproj
- • 2D-перегляд планів поверхів з накладанням вентиляції (тільки перегляд)
- • 3D-перегляд системи вентиляції в архітектурному контексті
- • Редагування: зміна розмірів, переміщення, видалення через дерево
- • Окремий редактор креслень для інтерактивного креслення мишею
- • Дерево проєкту: Система → Траса → Сегмент/Виріб
+ПАТЧ:
+    • Ціни у КП через PricingEngine (не 0.00)
+    • Пост-обробка прев'ю через after()
+
+ВСТАНОВЛЕННЯ:
+    Замініть ventilation_company/gui/project_3d_tab.py
 """
 
+import math
 import os
 from datetime import datetime
 import tkinter as tk
@@ -22,6 +21,7 @@ from ventilation_company.project3d import (
     Wall,
 )
 
+
 class Project3DTab:
     """Головна вкладка для роботи з 3D-проєктами та кресленнями."""
 
@@ -32,7 +32,6 @@ class Project3DTab:
         self.project: VentProject = VentProject()
         self._current_file: str = ""
         self._modified = False
-
         self._build_ui()
 
     def set_project(self, project_data: dict):
@@ -40,11 +39,9 @@ class Project3DTab:
         pass
 
     def _build_ui(self):
-        # ── Top toolbar — 2 рядки для адаптації під маленькі екрани ──
         toolbar_wrap = ttk.Frame(self.frame, padding=5)
         toolbar_wrap.pack(fill=tk.X)
 
-        # Рядок 1: назва, файл, імпорт/експорт, додати
         tbar1 = ttk.Frame(toolbar_wrap)
         tbar1.pack(fill=tk.X)
 
@@ -57,7 +54,6 @@ class Project3DTab:
 
         ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-        # Імпорт
         self.import_btn = ttk.Menubutton(tbar1, text="📥 Імпорт", direction="below")
         self.import_btn.pack(side=tk.LEFT, padx=2)
         import_menu = tk.Menu(self.import_btn, tearoff=0)
@@ -69,7 +65,6 @@ class Project3DTab:
         import_menu.add_command(label="📋 З VentProject", command=lambda: self._import_file("ventproj"))
         self.import_btn["menu"] = import_menu
 
-        # Експорт
         self.export_btn = ttk.Menubutton(tbar1, text="📤 Експорт", direction="below")
         self.export_btn.pack(side=tk.LEFT, padx=2)
         export_menu = tk.Menu(self.export_btn, tearoff=0)
@@ -86,8 +81,6 @@ class Project3DTab:
 
         ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-
-        # Рядок 2: креслення, зіткнення, редагування, видалення
         tbar2 = ttk.Frame(toolbar_wrap)
         tbar2.pack(fill=tk.X, pady=(3, 0))
 
@@ -95,15 +88,12 @@ class Project3DTab:
         ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
         ttk.Button(tbar2, text="📄 КП (PDF)", command=self._generate_proposal).pack(side=tk.LEFT, padx=2)
 
-        # ── Main area: left (tree + props) | right (preview) ──
         paned = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # ── Left panel ──
         left = ttk.Frame(paned)
         paned.add(left, weight=1)
 
-        # Project tree
         tree_frame = ttk.LabelFrame(left, text="Структура проєкту", padding=5)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -117,7 +107,6 @@ class Project3DTab:
         self.tree.bind("<Double-1>", self._on_tree_double_click)
         self.tree.bind("<Button-3>", self._on_tree_right_click)
 
-        # Properties panel
         props_frame = ttk.LabelFrame(left, text="Властивості", padding=5)
         props_frame.pack(fill=tk.X, padx=5, pady=5)
 
@@ -125,33 +114,27 @@ class Project3DTab:
         self.props_text.pack(fill=tk.BOTH, expand=True)
         self.props_text.config(state=tk.DISABLED)
 
-        # Project info
         info_frame = ttk.LabelFrame(left, text="Інформація", padding=5)
         info_frame.pack(fill=tk.X, padx=5, pady=5)
 
         self.info_label = ttk.Label(info_frame, text="Новий проєкт", foreground="#666", wraplength=280)
         self.info_label.pack(anchor=tk.W)
 
-        # ── Right panel: 2D/3D tabs ──
         right = ttk.Notebook(paned)
         paned.add(right, weight=3)
 
-        # 2D Plan tab
         self.plan_frame = ttk.Frame(right)
         right.add(self.plan_frame, text="📐 План 2D")
         self.preview_2d = Project2DPreview(self.plan_frame)
 
-        # 3D View tab
         self.view3d_frame = ttk.Frame(right)
         right.add(self.view3d_frame, text="🏗️ 3D Вигляд")
         self.preview_3d = Project3DPreview(self.view3d_frame)
 
-        # ── Status bar ──
         self.status = ttk.Label(self.frame, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
 
     def _refresh_tree(self):
-        # Отримуємо ID об'єктів у зіткненні
         collision_ids = set()
         try:
             from ventilation_company.project3d.collision_detection import CollisionDetector
@@ -254,7 +237,6 @@ class Project3DTab:
 Адреса: {self.project.address}
 Створено: {self.project.created_at}
 Оновлено: {self.project.updated_at}"""
-
         elif obj_type == "floor":
             for f in self.project.arch_context.floors:
                 if f.id == obj_id:
@@ -263,7 +245,6 @@ class Project3DTab:
 Висота: {f.height:.0f} мм
 Стін: {len(f.walls)}
 Отворів: {len(f.openings)}"""
-
         elif obj_type == "wall":
             for fl in self.project.arch_context.floors:
                 for w in fl.walls:
@@ -276,7 +257,6 @@ class Project3DTab:
 Несуча: {'Так' if w.is_load_bearing else 'Ні'}
 Початок: ({w.start.x:.0f}, {w.start.y:.0f}, {w.start.z:.0f})
 Кінець: ({w.end.x:.0f}, {w.end.y:.0f}, {w.end.z:.0f})"""
-
         elif obj_type == "system":
             for s in self.project.ventilation_systems:
                 if s.id == obj_id:
@@ -286,7 +266,6 @@ class Project3DTab:
 Тиск: {s.total_pressure:.0f} Па
 Трас: {len(s.trunks)}
 Заг. довжина: {s.total_duct_length:.0f} мм"""
-
         elif obj_type == "segment":
             for s in self.project.ventilation_systems:
                 for t in s.trunks:
@@ -302,7 +281,6 @@ class Project3DTab:
 Товщина: {seg.thickness:.1f} мм
 Початок: ({seg.start.x:.0f}, {seg.start.y:.0f}, {seg.start.z:.0f})
 Кінець: ({seg.end.x:.0f}, {seg.end.y:.0f}, {seg.end.z:.0f})"""
-
         elif obj_type == "fitting":
             for s in self.project.ventilation_systems:
                 for t in s.trunks:
@@ -314,7 +292,6 @@ class Project3DTab:
 Вихід: {fit.width_out:.0f}×{fit.height_out:.0f} мм
 Кут: {fit.angle:.0f}°
 Радіус: {fit.radius:.0f} мм"""
-
         elif obj_type == "equipment":
             for s in self.project.ventilation_systems:
                 for t in s.trunks:
@@ -326,7 +303,6 @@ class Project3DTab:
 Тиск: {eq.pressure:.0f} Па
 Потужність: {eq.power:.1f} кВт
 Позиція: ({eq.position.x:.0f}, {eq.position.y:.0f}, {eq.position.z:.0f})"""
-
         elif obj_type == "trunk":
             for s in self.project.ventilation_systems:
                 for t in s.trunks:
@@ -340,19 +316,22 @@ class Project3DTab:
 Обладнання: {len(t.equipment)}
 Заг. довжина: {t.total_length:.0f} мм
 Площа: {t.total_area:.2f} м²"""
-
         return "Виберіть елемент для перегляду властивостей"
 
     def _on_tree_double_click(self, event=None):
         pass
     def _on_tree_right_click(self, event=None):
         pass
-    def _check_collisions(self):
-        """Перевірити зіткнення та показати звіт."""
-        from ventilation_company.project3d.collision_detection import CollisionDetector
 
-        detector = CollisionDetector(self.project)
-        collisions = detector.check_all()
+    def _check_collisions(self):
+        """Перевірка зіткнень — ВЕРСІЯ 2 (AABB + точна відстань)."""
+        try:
+            from ventilation_company.project3d.collision_detection import CollisionDetector
+            detector = CollisionDetector(self.project)
+            collisions = detector.check_all()
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Помилка перевірки зіткнень:\n{e}")
+            return
 
         if not collisions:
             messagebox.showinfo("Перевірка зіткнень", "✅ Зіткнень не виявлено!")
@@ -361,18 +340,31 @@ class Project3DTab:
             self._refresh_previews()
             return
 
+        # Групуємо за типом
+        seg_collisions = [c for c in collisions if c.object_a_type == "segment" or c.object_b_type == "segment"]
+        fit_collisions = [c for c in collisions if c.object_a_type == "fitting" or c.object_b_type == "fitting"]
+        eq_collisions = [c for c in collisions if c.object_a_type == "equipment" or c.object_b_type == "equipment"]
+
         report = [f"⚠️ Виявлено {len(collisions)} зіткнень:\n"]
-        for i, col in enumerate(collisions[:20], 1):
-            report.append(f"{i}. {col.message}")
-            if col.position:
-                report.append(f"   📍 ({col.position.x:.0f}, {col.position.y:.0f}, {col.position.z:.0f}) мм")
+        if seg_collisions:
+            report.append(f"\n📏 Повітропроводи: {len(seg_collisions)}")
+            for i, col in enumerate(seg_collisions[:10], 1):
+                report.append(f"  {i}. {col.message}")
+        if fit_collisions:
+            report.append(f"\n🔀 Фасонки: {len(fit_collisions)}")
+            for i, col in enumerate(fit_collisions[:5], 1):
+                report.append(f"  {i}. {col.message}")
+        if eq_collisions:
+            report.append(f"\n⚙️ Обладнання: {len(eq_collisions)}")
+            for i, col in enumerate(eq_collisions[:5], 1):
+                report.append(f"  {i}. {col.message}")
 
         if len(collisions) > 20:
             report.append(f"\n... та ще {len(collisions) - 20} зіткнень")
 
         dialog = tk.Toplevel(self.frame)
-        dialog.title("⚠️ Зіткнення")
-        dialog.geometry("550x400")
+        dialog.title(f"⚠️ Зіткнення ({len(collisions)})")
+        dialog.geometry("600x500")
         dialog.transient(self.frame)
 
         text = tk.Text(dialog, wrap=tk.WORD, font=("Consolas", 10))
@@ -386,12 +378,49 @@ class Project3DTab:
         self._refresh_previews()
         self.status.config(text=f"⚠️ Виявлено {len(collisions)} зіткнень")
 
-    def _generate_proposal(self):
-        """Згенерувати Комерційну Пропозицію (КП) у PDF."""
-        from ventilation_company.proposal_generator import generate_proposal
-        from tkinter import filedialog
+    # ═════════════════════════════════════════════════════════════════
+    #  НОВЕ: Розрахунок ціни для КП
+    # ═════════════════════════════════════════════════════════════════
+    def _calc_duct_price(self, seg: DuctSegment) -> float:
+        """Розрахувати ціну сегмента повітропроводу (грн/м.п.).
 
-        # Збираємо дані проєкту
+        Формула: площа розгортки (м²) * ціна за м² металу + націнка
+        """
+        from ventilation_company.calculations.pricing import PricingEngine
+        # Площа розгортки прямокутного повітропроводу (м²/м.п.)
+        perimeter_mm = 2 * (seg.width + seg.height)
+        area_per_meter = perimeter_mm / 1000.0  # м² на 1 м.п.
+        length_m = seg.length / 1000.0
+        total_area = area_per_meter * length_m
+        # Базова вартість металу ~850 грн/м² + робота ~400 грн/м²
+        base_cost = total_area * 1250.0
+        engine = PricingEngine(base_cost=base_cost, markup_percent=25.0)
+        result = engine.cost_plus_pricing()
+        return result["price_without_vat"] / length_m if length_m > 0 else 0.0
+
+    def _calc_fitting_price(self, fit: Fitting) -> float:
+        """Розрахувати ціну фасонного виробу (грн/шт)."""
+        from ventilation_company.calculations.pricing import PricingEngine
+        # Площа розгортки фасонки (приблизно)
+        area_m2 = (fit.width_in * fit.height_in) / 1_000_000.0 * 1.5
+        base_cost = area_m2 * 1500.0
+        engine = PricingEngine(base_cost=base_cost, markup_percent=30.0)
+        result = engine.cost_plus_pricing()
+        return result["price_without_vat"]
+
+    def _calc_equipment_price(self, eq: Equipment) -> float:
+        """Розрахувати ціну обладнання (грн/шт)."""
+        from ventilation_company.calculations.pricing import PricingEngine
+        # Обладнання дорожче — базова вартість залежить від потужності
+        base_cost = max(eq.power * 5000.0, 3000.0) if eq.power else 5000.0
+        engine = PricingEngine(base_cost=base_cost, markup_percent=20.0)
+        result = engine.cost_plus_pricing()
+        return result["price_without_vat"]
+
+    def _generate_proposal(self):
+        """Згенерувати Комерційну Пропозицію (КП) у PDF з цінами."""
+        from ventilation_company.proposal_generator import generate_proposal
+
         project_data = {
             "name": self.project.name,
             "project_number": getattr(self.project, "project_number", ""),
@@ -405,33 +434,35 @@ class Project3DTab:
             "notes": self.project.notes,
         }
 
-        # Збираємо позиції з усіх систем
         items = []
         for system in self.project.ventilation_systems:
             for trunk in system.trunks:
                 for seg in trunk.segments:
+                    price_per_m = self._calc_duct_price(seg)
+                    qty = seg.length / 1000.0
                     items.append({
                         "name": f"Повітропровід {seg.width:.0f}×{seg.height:.0f} мм ({seg.duct_type.value})",
-                        "quantity": seg.length / 1000,  # у метрах
+                        "quantity": qty,
                         "unit": "м.п.",
-                        "price": 0,  # ціна буде з прайсу
+                        "price": round(price_per_m, 2),
                     })
                 for eq in trunk.equipment:
+                    price = self._calc_equipment_price(eq)
                     items.append({
                         "name": eq.name or "Обладнання",
                         "quantity": 1,
                         "unit": "шт",
-                        "price": 0,
+                        "price": round(price, 2),
                     })
                 for fit in trunk.fittings:
+                    price = self._calc_fitting_price(fit)
                     items.append({
                         "name": f"{fit.fitting_type} {fit.width_in:.0f}×{fit.height_in:.0f} мм",
                         "quantity": 1,
                         "unit": "шт",
-                        "price": 0,
+                        "price": round(price, 2),
                     })
 
-        # Діалог збереження
         filepath = filedialog.asksaveasfilename(
             defaultextension=".pdf",
             filetypes=[("PDF документ", "*.pdf"), ("Всі файли", "*.*")],
@@ -440,7 +471,6 @@ class Project3DTab:
         )
         if not filepath:
             return
-
         try:
             generate_proposal(project_data, items, filepath)
             self.status.config(text=f"📄 КП збережено: {filepath}")
@@ -496,7 +526,6 @@ class Project3DTab:
         for name, pattern in formats:
             filetypes.append((name, pattern))
         filetypes.append(("Всі файли", "*.*"))
-
         filepath = filedialog.askopenfilename(filetypes=filetypes, title="Імпорт")
         if not filepath:
             return
@@ -553,4 +582,3 @@ class Project3DTab:
     def _refresh_previews(self):
         self.preview_2d.set_project(self.project)
         self.preview_3d.set_project(self.project)
-
