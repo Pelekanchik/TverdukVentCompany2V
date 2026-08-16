@@ -71,7 +71,7 @@ class BaseConverter(ABC):
 # ═══════════════════════════════════════════════════════════════
 
 class IFCConverter(BaseConverter):
-    """Конвертер IFC файлів."""
+    """Конвертер IFC файлів (покращений 2D/3D імпорт)."""
 
     SUPPORTED_IMPORT = [".ifc", ".ifczip", ".ifcxml"]
     SUPPORTED_EXPORT = [".ifc"]
@@ -83,6 +83,57 @@ class IFCConverter(BaseConverter):
     def can_export(self, filepath: str) -> bool:
         ext = os.path.splitext(filepath)[1].lower()
         return ext in self.SUPPORTED_EXPORT and IFC_AVAILABLE
+
+    def _get_unit_scale(self, ifc_file) -> float:
+        """Отримати масштаб одиниці виміру (мм в одиниці IFC)."""
+        try:
+            project = ifc_file.by_type("IfcProject")[0]
+            units = project.UnitsInContext
+            for unit in units.Units:
+                if unit.is_a("IfcSIUnit") and unit.UnitType == "LENGTHUNIT":
+                    prefix = getattr(unit, "Prefix", None)
+                    if prefix == "MILLI":
+                        return 1.0
+                    elif prefix == "CENTI":
+                        return 10.0
+                    elif prefix == "DECI":
+                        return 100.0
+                    elif prefix is None:
+                        return 1000.0
+        except Exception:
+            pass
+        return 1000.0
+
+    def _get_property(self, element, pset_name: str, prop_name: str) -> Optional[str]:
+        """Отримати значення властивості з PropertySet."""
+        try:
+            for rel in element.IsDefinedBy:
+                if rel.is_a("IfcRelDefinesByProperties"):
+                    pset = rel.RelatingPropertyDefinition
+                    if pset.is_a("IfcPropertySet") and pset.Name == pset_name:
+                        for prop in pset.HasProperties:
+                            if prop.Name == prop_name and prop.is_a("IfcPropertySingleValue"):
+                                val = prop.NominalValue
+                                if val:
+                                    return str(val.wrappedValue)
+        except Exception:
+            pass
+        return None
+
+    def _get_all_properties(self, element) -> dict:
+        """Отримати всі властивості елемента."""
+        props = {}
+        try:
+            for rel in element.IsDefinedBy:
+                if rel.is_a("IfcRelDefinesByProperties"):
+                    pset = rel.RelatingPropertyDefinition
+                    if pset.is_a("IfcPropertySet"):
+                        for prop in pset.HasProperties:
+                            if prop.is_a("IfcPropertySingleValue") and prop.NominalValue:
+                                props[prop.Name] = prop.NominalValue.wrappedValue
+        except Exception:
+            pass
+        return props
 
     def _get_material(self, element) -> str:
         """Отримати матеріал з IFC елемента."""
@@ -101,38 +152,240 @@ class IFCConverter(BaseConverter):
             pass
         return "оцинкована сталь"
 
-    def _extract_geometry_bounds(self, element) -> Tuple[Point3D, Point3D]:
-        """Отримати bounding box елемента."""
-        try:
-            shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), element)
-            verts = shape.geometry.verts
-            if verts:
-                xs = verts[0::3]
-                ys = verts[1::3]
-                zs = verts[2::3]
-                return (
-                    Point3D(min(xs), min(ys), min(zs)),
-                    Point3D(max(xs), max(ys), max(zs)),
-                )
-        except Exception:
-            pass
-        # Fallback: використовуємо ObjectPlacement
+    def _get_placement(self, element, scale: float = 1000.0) -> Tuple[Point3D, Optional[Tuple[float, float, float]]]:
+        """Отримати розташування та напрямок елемента."""
         try:
             placement = element.ObjectPlacement
             if placement and placement.is_a("IfcLocalPlacement"):
-                coords = placement.RelativePlacement.Location.Coordinates
-                if len(coords) >= 3:
-                    x, y, z = coords[0], coords[1], coords[2]
-                    return (Point3D(x - 500, y - 500, z), Point3D(x + 500, y + 500, z + 3000))
+                # Абсолютні координати
+                def get_absolute_coords(pl):
+                    if not pl or not pl.is_a("IfcLocalPlacement"):
+                        return Point3D(0, 0, 0), (1, 0, 0)
+
+                    rel = pl.RelativePlacement
+                    loc = rel.Location
+                    if loc and hasattr(loc, "Coordinates"):
+                        x = float(loc.Coordinates[0]) * scale if len(loc.Coordinates) > 0 else 0
+                        y = float(loc.Coordinates[1]) * scale if len(loc.Coordinates) > 1 else 0
+                        z = float(loc.Coordinates[2]) * scale if len(loc.Coordinates) > 2 else 0
+                        pos = Point3D(x, y, z)
+                    else:
+                        pos = Point3D(0, 0, 0)
+
+                    # Напрямок
+                    axis = getattr(rel, "Axis", None)
+                    if axis and hasattr(axis, "DirectionRatios"):
+                        dx = float(axis.DirectionRatios[0]) if len(axis.DirectionRatios) > 0 else 0
+                        dy = float(axis.DirectionRatios[1]) if len(axis.DirectionRatios) > 1 else 0
+                        dz = float(axis.DirectionRatios[2]) if len(axis.DirectionRatios) > 2 else 0
+                        direction = (dx, dy, dz)
+                    else:
+                        ref = getattr(rel, "RefDirection", None)
+                        if ref and hasattr(ref, "DirectionRatios"):
+                            dx = float(ref.DirectionRatios[0]) if len(ref.DirectionRatios) > 0 else 1
+                            dy = float(ref.DirectionRatios[1]) if len(ref.DirectionRatios) > 1 else 0
+                            dz = float(ref.DirectionRatios[2]) if len(ref.DirectionRatios) > 2 else 0
+                            direction = (dx, dy, dz)
+                        else:
+                            direction = (1, 0, 0)
+
+                    # Рекурсивно додаємо батьківське розташування
+                    parent = getattr(pl, "PlacementRelTo", None)
+                    if parent:
+                        parent_pos, _ = get_absolute_coords(parent)
+                        pos = Point3D(pos.x + parent_pos.x, pos.y + parent_pos.y, pos.z + parent_pos.z)
+
+                    return pos, direction
+
+                return get_absolute_coords(placement)
+        except Exception as e:
+            pass
+        return Point3D(0, 0, 0), (1, 0, 0)
+
+    def _extract_duct_geometry(self, element, scale: float = 1000.0) -> Optional[Tuple[Point3D, Point3D, float, float, float, str]]:
+        """
+        Витягти геометрію повітропроводу: (start, end, width, height, diameter, shape).
+        Повертає None, якщо не вдалося.
+        """
+        try:
+            # Спочатку шукаємо IfcExtrudedAreaSolid в Representation
+            for rep in element.Representation.Representations:
+                for item in rep.Items:
+                    if item.is_a("IfcExtrudedAreaSolid"):
+                        profile = item.SweptArea
+
+                        # Розміри профілю
+                        width = 400
+                        height = 200
+                        diameter = 0
+                        shape_str = "rect"
+
+                        if profile.is_a("IfcRectangleProfileDef"):
+                            width = float(profile.XDim) * scale
+                            height = float(profile.YDim) * scale
+                            shape_str = "rect"
+                        elif profile.is_a("IfcCircleProfileDef"):
+                            diameter = float(profile.Radius) * 2 * scale
+                            width = diameter
+                            height = diameter
+                            shape_str = "round"
+                        elif profile.is_a("IfcRoundedRectangleProfileDef"):
+                            width = float(profile.XDim) * scale
+                            height = float(profile.YDim) * scale
+                            shape_str = "rect"
+
+                        # Позиція та напрямок екструзії
+                        position = item.Position
+                        depth = float(item.Depth) * scale
+
+                        # Початкова точка
+                        if position and position.is_a("IfcAxis2Placement3D"):
+                            loc = position.Location
+                            sx = float(loc.Coordinates[0]) * scale if len(loc.Coordinates) > 0 else 0
+                            sy = float(loc.Coordinates[1]) * scale if len(loc.Coordinates) > 1 else 0
+                            sz = float(loc.Coordinates[2]) * scale if len(loc.Coordinates) > 2 else 0
+                            start = Point3D(sx, sy, sz)
+
+                            # Напрямок екструзії
+                            axis = getattr(position, "Axis", None)
+                            if axis and hasattr(axis, "DirectionRatios"):
+                                dx = float(axis.DirectionRatios[0]) if len(axis.DirectionRatios) > 0 else 0
+                                dy = float(axis.DirectionRatios[1]) if len(axis.DirectionRatios) > 1 else 0
+                                dz = float(axis.DirectionRatios[2]) if len(axis.DirectionRatios) > 2 else 0
+                            else:
+                                # Беремо напрямок з extruded direction
+                                ext_dir = item.ExtrudedDirection
+                                dx = float(ext_dir.DirectionRatios[0])
+                                dy = float(ext_dir.DirectionRatios[1])
+                                dz = float(ext_dir.DirectionRatios[2])
+
+                            # Кінцева точка = start + direction * depth
+                            end = Point3D(
+                                start.x + dx * depth,
+                                start.y + dy * depth,
+                                start.z + dz * depth,
+                            )
+
+                            return start, end, width, height, diameter, shape_str
         except Exception:
             pass
-        return (Point3D(0, 0, 0), Point3D(1000, 1000, 3000))
+
+        # Fallback: використовуємо ObjectPlacement
+        try:
+            pos, direction = self._get_placement(element, scale)
+            props = self._get_all_properties(element)
+
+            width = 400
+            height = 200
+            diameter = 0
+            shape_str = "rect"
+            length = 1000
+
+            # Шукаємо розміри у властивостях
+            for key, val in props.items():
+                key_lower = key.lower()
+                if any(k in key_lower for k in ["width", "ширина", "b"]):
+                    try:
+                        width = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
+                    except:
+                        pass
+                elif any(k in key_lower for k in ["height", "висота", "h"]):
+                    try:
+                        height = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
+                    except:
+                        pass
+                elif any(k in key_lower for k in ["diameter", "діаметр", "d", "ø"]):
+                    try:
+                        diameter = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
+                        width = diameter
+                        height = diameter
+                        shape_str = "round"
+                    except:
+                        pass
+                elif any(k in key_lower for k in ["length", "довжина", "l"]):
+                    try:
+                        length = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
+                    except:
+                        pass
+
+            dx, dy, dz = direction
+            end = Point3D(
+                pos.x + dx * length,
+                pos.y + dy * length,
+                pos.z + dz * length,
+            )
+
+            return pos, end, width, height, diameter, shape_str
+        except Exception:
+            pass
+
+        return None
+
+    def _get_ports(self, element, scale: float = 1000.0) -> List[Point3D]:
+        """Отримати координати портів (з'єднань) елемента."""
+        ports = []
+        try:
+            for rel in element.IsNestedBy:
+                for port in rel.RelatedObjects:
+                    if port.is_a("IfcDistributionPort"):
+                        placement = port.ObjectPlacement
+                        if placement and placement.is_a("IfcLocalPlacement"):
+                            coords = placement.RelativePlacement.Location.Coordinates
+                            if len(coords) >= 3:
+                                ports.append(Point3D(
+                                    float(coords[0]) * scale,
+                                    float(coords[1]) * scale,
+                                    float(coords[2]) * scale,
+                                ))
+        except Exception:
+            pass
+        return ports
+
+    def _get_storey_for_element(self, element, floors_map: dict) -> Optional[Floor]:
+        """Знайти поверх для елемента."""
+        try:
+            for rel in element.ContainedInStructure:
+                if rel.is_a("IfcRelContainedInSpatialStructure"):
+                    struct = rel.RelatingStructure
+                    if struct.GlobalId in floors_map:
+                        return floors_map[struct.GlobalId]
+        except Exception:
+            pass
+        return None
+
+    def _get_system_for_element(self, element) -> Optional[str]:
+        """Знайти назву системи для елемента."""
+        try:
+            for rel in element.HasAssignments:
+                if rel.is_a("IfcRelAssignsToGroup"):
+                    group = rel.RelatingGroup
+                    if group.is_a("IfcSystem"):
+                        return group.Name or "Система"
+        except Exception:
+            pass
+        return None
+
+    def _get_element_quantity(self, element, qname: str) -> Optional[float]:
+        """Отримати значення кількості (IfcElementQuantity)."""
+        try:
+            for rel in element.IsDefinedBy:
+                if rel.is_a("IfcRelDefinesByProperties"):
+                    qdef = rel.RelatingPropertyDefinition
+                    if qdef.is_a("IfcElementQuantity") and qdef.Name == qname:
+                        for q in qdef.Quantities:
+                            if q.is_a("IfcQuantityLength"):
+                                return float(q.LengthValue)
+        except Exception:
+            pass
+        return None
 
     def import_project(self, filepath: str) -> VentProject:
         if not IFC_AVAILABLE:
             raise ImportError(_warn_missing("ifcopenshell", "pip install ifcopenshell"))
 
         ifc_file = ifcopenshell.open(filepath)
+        scale = self._get_unit_scale(ifc_file)
+
         project = VentProject(
             name=os.path.splitext(os.path.basename(filepath))[0],
         )
@@ -142,7 +395,7 @@ class IFCConverter(BaseConverter):
         for storey in ifc_file.by_type("IfcBuildingStorey"):
             level = 0
             try:
-                level = float(storey.Elevation) * 1000  # м → мм
+                level = float(storey.Elevation) * scale
             except Exception:
                 pass
             floor = Floor(
@@ -156,135 +409,294 @@ class IFCConverter(BaseConverter):
 
         # Стіна
         for wall in ifc_file.by_type("IfcWall"):
-            bounds = self._extract_geometry_bounds(wall)
-            mat = self._get_material(wall)
-            thickness = 200
             try:
-                thickness = float(wall.Width) * 1000 if hasattr(wall, "Width") else 200
-            except Exception:
-                pass
+                pos, direction = self._get_placement(wall, scale)
+                # Для стіни: використовуємо bounding box або довжину
+                length = 3000
+                height = 3000
+                thickness = 200
 
-            wall_obj = Wall(
-                id=wall.GlobalId,
-                name=wall.Name or "Стіна",
-                start=bounds[0],
-                end=Point3D(bounds[1].x, bounds[1].y, bounds[0].z),
-                height=bounds[1].z - bounds[0].z,
-                thickness=thickness,
-                material=WallMaterial.UNKNOWN,
-                is_load_bearing=getattr(wall, "IsLoadBearing", True),
-            )
-            # Прив'язка до поверху
-            storey_id = None
-            try:
-                for rel in wall.ContainedInStructure:
-                    if rel.is_a("IfcRelContainedInSpatialStructure"):
-                        storey_id = rel.RelatingStructure.GlobalId
-                        break
+                # Спробуємо отримати розміри з геометрії
+                for rep in wall.Representation.Representations:
+                    for item in rep.Items:
+                        if item.is_a("IfcExtrudedAreaSolid"):
+                            profile = item.SweptArea
+                            if profile.is_a("IfcRectangleProfileDef"):
+                                length = float(profile.XDim) * scale
+                                thickness = float(profile.YDim) * scale
+                            depth = float(item.Depth) * scale
+                            height = depth
+                            break
+
+                dx, dy, dz = direction
+                # Проєкція на площину XY для 2D
+                end = Point3D(
+                    pos.x + dx * length,
+                    pos.y + dy * length,
+                    pos.z,
+                )
+
+                wall_obj = Wall(
+                    id=wall.GlobalId,
+                    name=wall.Name or "Стіна",
+                    start=pos,
+                    end=end,
+                    height=height,
+                    thickness=thickness,
+                    material=WallMaterial.UNKNOWN,
+                    is_load_bearing=getattr(wall, "IsLoadBearing", True),
+                )
+
+                floor = self._get_storey_for_element(wall, floors_map)
+                if floor:
+                    floor.walls.append(wall_obj)
+                elif project.arch_context.floors:
+                    project.arch_context.floors[0].walls.append(wall_obj)
             except Exception:
                 pass
-            if storey_id and storey_id in floors_map:
-                floors_map[storey_id].walls.append(wall_obj)
-            else:
-                if not project.arch_context.floors:
-                    project.arch_context.floors.append(Floor(name="Поверх 1"))
-                project.arch_context.floors[0].walls.append(wall_obj)
 
         # Отвори
         for opening in ifc_file.by_type("IfcOpeningElement"):
-            bounds = self._extract_geometry_bounds(opening)
-            center = Point3D(
-                (bounds[0].x + bounds[1].x) / 2,
-                (bounds[0].y + bounds[1].y) / 2,
-                (bounds[0].z + bounds[1].z) / 2,
-            )
-            width = bounds[1].x - bounds[0].x
-            height = bounds[1].z - bounds[0].z
-            opening_obj = Opening(
-                id=opening.GlobalId,
-                name=opening.Name or "Отвір",
-                position=center,
-                width=width,
-                height=height,
-            )
-            if project.arch_context.floors:
-                project.arch_context.floors[0].openings.append(opening_obj)
+            try:
+                pos, direction = self._get_placement(opening, scale)
+                width = 400
+                height = 300
+
+                for rep in opening.Representation.Representations:
+                    for item in rep.Items:
+                        if item.is_a("IfcExtrudedAreaSolid"):
+                            profile = item.SweptArea
+                            if profile.is_a("IfcRectangleProfileDef"):
+                                width = float(profile.XDim) * scale
+                                height = float(profile.YDim) * scale
+                            elif profile.is_a("IfcCircleProfileDef"):
+                                width = float(profile.Radius) * 2 * scale
+                                height = width
+                            break
+
+                opening_obj = Opening(
+                    id=opening.GlobalId,
+                    name=opening.Name or "Отвір",
+                    position=pos,
+                    width=width,
+                    height=height,
+                )
+                if project.arch_context.floors:
+                    project.arch_context.floors[0].openings.append(opening_obj)
+            except Exception:
+                pass
 
         # ── Імпорт MEP (вентиляція) ──
-        # IfcDistributionElement, IfcFlowSegment, IfcFlowFitting
-        ducts = []
+        # Групуємо сегменти за системами
+        system_segments = {}
+        system_fittings = {}
+        system_equipment = {}
+
+        # IfcFlowSegment — повітропроводи
         for elem in ifc_file.by_type("IfcFlowSegment"):
-            bounds = self._extract_geometry_bounds(elem)
-            start = bounds[0]
-            end = bounds[1]
-            length = start.distance(end)
-            width = abs(bounds[1].x - bounds[0].x) or 100
-            height = abs(bounds[1].z - bounds[0].z) or 100
+            try:
+                geom = self._extract_duct_geometry(elem, scale)
+                if geom:
+                    start, end, width, height, diameter, shape_str = geom
+                else:
+                    # Fallback
+                    pos, direction = self._get_placement(elem, scale)
+                    dx, dy, dz = direction
+                    length = 1000
+                    end = Point3D(pos.x + dx * length, pos.y + dy * length, pos.z + dz * length)
+                    start = pos
+                    width, height, diameter, shape_str = 400, 200, 0, "rect"
 
-            segment = DuctSegment(
-                id=elem.GlobalId,
-                start=start,
-                end=end,
-                width=width,
-                height=height,
-                length=length,
-                shape=DuctShape.RECT if width != height else DuctShape.ROUND,
-                material=self._get_material(elem),
-            )
-            ducts.append(segment)
+                length = start.distance(end)
 
-        fittings = []
+                segment = DuctSegment(
+                    id=elem.GlobalId,
+                    start=start,
+                    end=end,
+                    width=width,
+                    height=height,
+                    length=length,
+                    shape=DuctShape.RECT if shape_str == "rect" else DuctShape.ROUND,
+                    material=self._get_material(elem),
+                )
+
+                sys_name = self._get_system_for_element(elem) or "Імпортована система"
+                if sys_name not in system_segments:
+                    system_segments[sys_name] = []
+                system_segments[sys_name].append(segment)
+            except Exception:
+                pass
+
+        # IfcFlowFitting — фасонні вироби (коліна, трійники)
         for elem in ifc_file.by_type("IfcFlowFitting"):
-            bounds = self._extract_geometry_bounds(elem)
-            center = Point3D(
-                (bounds[0].x + bounds[1].x) / 2,
-                (bounds[0].y + bounds[1].y) / 2,
-                (bounds[0].z + bounds[1].z) / 2,
-            )
-            fitting = Fitting(
-                id=elem.GlobalId,
-                position=center,
-                fitting_type=elem.Name or "фасонний виріб",
-                width_in=abs(bounds[1].x - bounds[0].x) or 100,
-                height_in=abs(bounds[1].z - bounds[0].z) or 100,
-            )
-            fittings.append(fitting)
+            try:
+                geom = self._extract_duct_geometry(elem, scale)
+                if geom:
+                    start, end, width, height, diameter, shape_str = geom
+                else:
+                    pos, _ = self._get_placement(elem, scale)
+                    start = pos
+                    end = pos
+                    width, height = 400, 200
 
-        if ducts:
-            trunk = VentilationTrunk(
-                name="Імпортована магістраль",
-                segments=ducts,
-                fittings=fittings,
-            )
-            system = VentilationSystem(
-                name="Імпортована система",
-                trunks=[trunk],
-            )
-            project.ventilation_systems.append(system)
+                center = Point3D(
+                    (start.x + end.x) / 2,
+                    (start.y + end.y) / 2,
+                    (start.z + end.z) / 2,
+                )
+
+                fitting = Fitting(
+                    id=elem.GlobalId,
+                    position=center,
+                    fitting_type=elem.Name or "фасонний виріб",
+                    width_in=width,
+                    height_in=height,
+                    width_out=width,
+                    height_out=height,
+                )
+
+                sys_name = self._get_system_for_element(elem) or "Імпортована система"
+                if sys_name not in system_fittings:
+                    system_fittings[sys_name] = []
+                system_fittings[sys_name].append(fitting)
+            except Exception:
+                pass
+
+        # IfcFlowTerminal — обладнання (вентилятори, решітки)
+        for elem in ifc_file.by_type("IfcFlowTerminal"):
+            try:
+                pos, _ = self._get_placement(elem, scale)
+                props = self._get_all_properties(elem)
+                air_flow = 0
+                for key, val in props.items():
+                    if any(k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]):
+                        try:
+                            air_flow = float(val)
+                        except:
+                            pass
+
+                width = 400
+                height = 200
+                length = 300
+
+                # Спробуємо отримати розміри з геометрії
+                for rep in elem.Representation.Representations:
+                    for item in rep.Items:
+                        if item.is_a("IfcExtrudedAreaSolid"):
+                            profile = item.SweptArea
+                            if profile.is_a("IfcRectangleProfileDef"):
+                                width = float(profile.XDim) * scale
+                                height = float(profile.YDim) * scale
+                            depth = float(item.Depth) * scale
+                            length = depth
+                            break
+
+                equip = Equipment(
+                    id=elem.GlobalId,
+                    name=elem.Name or "Обладнання",
+                    position=pos,
+                    width=width,
+                    height=height,
+                    length=length,
+                    air_flow=air_flow,
+                )
+
+                sys_name = self._get_system_for_element(elem) or "Імпортована система"
+                if sys_name not in system_equipment:
+                    system_equipment[sys_name] = []
+                system_equipment[sys_name].append(equip)
+            except Exception:
+                pass
+
+        # Створюємо системи вентиляції
+        all_systems = set(system_segments.keys()) | set(system_fittings.keys()) | set(system_equipment.keys())
+        for sys_name in all_systems:
+            segments = system_segments.get(sys_name, [])
+            fittings = system_fittings.get(sys_name, [])
+            equipment = system_equipment.get(sys_name, [])
+
+            if segments or fittings or equipment:
+                trunk = VentilationTrunk(
+                    name=f"Магістраль {sys_name}",
+                    segments=segments,
+                    fittings=fittings,
+                )
+
+                # Визначаємо тип системи
+                sys_type = "припливна"
+                if any(k in sys_name.lower() for k in ["витяж", "витяжн", "exhaust"]):
+                    sys_type = "витяжна"
+                elif any(k in sys_name.lower() for k in ["приточно-витяжн", "supply-exhaust"]):
+                    sys_type = "приточно-витяжна"
+
+                system = VentilationSystem(
+                    name=sys_name,
+                    system_type=sys_type,
+                    trunks=[trunk],
+                )
+                project.ventilation_systems.append(system)
+
+        # Якщо немає вентиляційних систем, але є архітектура — це нормально
+        # Користувач може додати вентиляцію вручну на основі плану
 
         return project
 
     def export_project(self, project: VentProject, filepath: str) -> None:
+        """Експорт проєкту в IFC (базова реалізація)."""
         if not IFC_AVAILABLE:
             raise ImportError(_warn_missing("ifcopenshell", "pip install ifcopenshell"))
-        # TODO: реалізувати повний IFC-експорт
-        # Поки що — збереження метаданих
-        meta = {
-            "project_name": project.name,
-            "client": project.client,
-            "systems_count": len(project.ventilation_systems),
-            "floors_count": len(project.arch_context.floors),
-            "export_format": "IFC",
-            "note": "Повний IFC-експорт буде реалізовано у наступній версії. Зараз збережено метадані.",
-        }
-        with open(filepath + ".meta.json", "w", encoding="utf-8") as f:
-            json.dump(meta, f, ensure_ascii=False, indent=2)
 
+        ifc_file = ifcopenshell.file(schema="IFC4")
 
-# ═══════════════════════════════════════════════════════════════
-# DXF/DWG Converter (AutoCAD)
-# ═══════════════════════════════════════════════════════════════
+        ifc_project = ifc_file.create_entity(
+            "IfcProject",
+            GlobalId=ifcopenshell.guid.new(),
+            Name=project.name,
+        )
 
+        ifc_building = ifc_file.create_entity(
+            "IfcBuilding",
+            GlobalId=ifcopenshell.guid.new(),
+            Name="Будівля",
+        )
+
+        ifc_file.create_entity(
+            "IfcRelAggregates",
+            GlobalId=ifcopenshell.guid.new(),
+            RelatingObject=ifc_project,
+            RelatedObjects=[ifc_building],
+        )
+
+        for floor in project.arch_context.floors:
+            ifc_storey = ifc_file.create_entity(
+                "IfcBuildingStorey",
+                GlobalId=floor.id or ifcopenshell.guid.new(),
+                Name=floor.name,
+                Elevation=floor.level / 1000.0,
+            )
+            ifc_file.create_entity(
+                "IfcRelAggregates",
+                GlobalId=ifcopenshell.guid.new(),
+                RelatingObject=ifc_building,
+                RelatedObjects=[ifc_storey],
+            )
+
+        for sys in project.ventilation_systems:
+            ifc_system = ifc_file.create_entity(
+                "IfcSystem",
+                GlobalId=ifcopenshell.guid.new(),
+                Name=sys.name,
+            )
+
+            for trunk in sys.trunks:
+                for seg in trunk.segments:
+                    ifc_file.create_entity(
+                        "IfcFlowSegment",
+                        GlobalId=seg.id or ifcopenshell.guid.new(),
+                        Name=f"Сегмент {seg.width}x{seg.height}",
+                    )
+
+        ifc_file.write(filepath)
 class DXFConverter(BaseConverter):
     """Конвертер DXF/DWG файлів."""
 

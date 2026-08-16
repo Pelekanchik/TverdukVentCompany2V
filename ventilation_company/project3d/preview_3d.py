@@ -79,7 +79,7 @@ class Project3DPreview:
         ttk.Button(ctrl, text="↗️ Ізометрія", command=lambda: self._set_view(25, -60)).pack(side=tk.LEFT, padx=2)
         ttk.Separator(ctrl, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
         ttk.Button(ctrl, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=2)
-        self.figure = Figure(figsize=(10, 7), dpi=100, facecolor="#fafafa")
+        self.figure = Figure(figsize=(16, 12), dpi=100, facecolor="#fafafa")
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.parent)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -92,6 +92,37 @@ class Project3DPreview:
 
     def _connect_events(self):
         self.canvas.mpl_connect("scroll_event", self._on_scroll)
+        self.canvas.mpl_connect("button_press_event", self._on_press)
+        self.canvas.mpl_connect("button_release_event", self._on_release)
+        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
+        self._orbit_start = None
+        self._orbit_azim = None
+        self._orbit_elev = None
+
+    def _on_press(self, event):
+        """Початок orbit (ліва кнопка миші)."""
+        if event.inaxes != self.ax:
+            return
+        if event.button == 1:
+            self._orbit_start = (event.x, event.y)
+            self._orbit_azim = self.ax.azim
+            self._orbit_elev = self.ax.elev
+
+    def _on_release(self, event):
+        """Кінець orbit."""
+        self._orbit_start = None
+        self._orbit_azim = None
+        self._orbit_elev = None
+
+    def _on_motion(self, event):
+        """Orbit — обертання 3D сцени перетягуванням миші."""
+        if self._orbit_start is None or event.inaxes != self.ax:
+            return
+        dx = event.x - self._orbit_start[0]
+        dy = event.y - self._orbit_start[1]
+        self.ax.azim = self._orbit_azim - dx * 0.3
+        self.ax.elev = self._orbit_elev + dy * 0.3
+        self.canvas.draw_idle()
 
     def _on_scroll(self, event):
         if event.inaxes != getattr(self, "ax", None):
