@@ -13,7 +13,6 @@ from ventilation_company.gui.project_3d_tab import Project3DTab
 from ventilation_company.gui.products_tab import ProductsTab
 from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.price_list_tab import PriceListTab
-from ventilation_company.gui.metal_prices_tab import MetalPricesTab
 from ventilation_company.gui.specification_tab import SpecificationTab
 from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
@@ -289,7 +288,6 @@ class MainWindow:
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
         self.crm_tab = CRMTab(self.notebook)
         self.dashboard_tab = DashboardTab(self.notebook)
-        self.metal_prices_tab = MetalPricesTab(self.notebook)
 
         self.notebook.add(self.products_tab.frame, text="📦 Вироби")
         self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
@@ -302,7 +300,6 @@ class MainWindow:
         self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
         self.notebook.add(self.crm_tab.frame, text="👥 CRM")
-        self.notebook.add(self.metal_prices_tab.frame, text="🔧 Ціни на метал")
 
         self.price_list_tab._current_project_id = self.current_project_id
 

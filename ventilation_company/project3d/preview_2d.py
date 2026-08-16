@@ -71,7 +71,7 @@ class Project2DPreview:
         ttk.Button(ctrl, text="🔍 -", command=self._zoom_out).pack(side=tk.LEFT, padx=2)
         ttk.Button(ctrl, text="🔄 Центрувати", command=self._center_view).pack(side=tk.LEFT, padx=2)
         ttk.Button(ctrl, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=2)
-        self.figure = Figure(figsize=(10, 7), dpi=100, facecolor=self.COLORS["bg"])
+        self.figure = Figure(figsize=(16, 12), dpi=100, facecolor=self.COLORS["bg"])
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor(self.COLORS["bg"])
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.parent)
@@ -86,6 +86,12 @@ class Project2DPreview:
 
     def _connect_events(self):
         self.canvas.mpl_connect("scroll_event", self._on_scroll)
+        self.canvas.mpl_connect("button_press_event", self._on_press)
+        self.canvas.mpl_connect("button_release_event", self._on_release)
+        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
+        self._pan_start = None
+        self._pan_xlim = None
+        self._pan_ylim = None
 
     def _on_scroll(self, event):
         if event.inaxes != self.ax:
@@ -100,6 +106,33 @@ class Project2DPreview:
         new_ylim = (ydata - (ydata - ylim[0]) * scale, ydata + (ylim[1] - ydata) * scale)
         self.ax.set_xlim(new_xlim)
         self.ax.set_ylim(new_ylim)
+        self.canvas.draw_idle()
+
+    def _on_press(self, event):
+        """Початок pan (середня кнопка миші або ліва + Ctrl)."""
+        if event.inaxes != self.ax:
+            return
+        if event.button == 2 or (event.button == 1 and event.key == "control"):
+            self._pan_start = (event.xdata, event.ydata)
+            self._pan_xlim = self.ax.get_xlim()
+            self._pan_ylim = self.ax.get_ylim()
+
+    def _on_release(self, event):
+        """Кінець pan."""
+        self._pan_start = None
+        self._pan_xlim = None
+        self._pan_ylim = None
+
+    def _on_motion(self, event):
+        """Pan — перетягування."""
+        if self._pan_start is None or event.inaxes != self.ax:
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+        dx = self._pan_start[0] - event.xdata
+        dy = self._pan_start[1] - event.ydata
+        self.ax.set_xlim(self._pan_xlim[0] + dx, self._pan_xlim[1] + dx)
+        self.ax.set_ylim(self._pan_ylim[0] + dy, self._pan_ylim[1] + dy)
         self.canvas.draw_idle()
 
     def _zoom_in(self):

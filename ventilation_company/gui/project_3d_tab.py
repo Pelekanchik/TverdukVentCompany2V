@@ -34,7 +34,6 @@ class Project3DTab:
         self._modified = False
 
         self._build_ui()
-        self._load_demo_if_empty()
 
     def set_project(self, project_data: dict):
         """Завантажити дані проєкту (заглушка для сумісності)."""
@@ -555,9 +554,3 @@ class Project3DTab:
         self.preview_2d.set_project(self.project)
         self.preview_3d.set_project(self.project)
 
-    def _load_demo_if_empty(self):
-        if not self.project.ventilation_systems and not self.project.arch_context.floors:
-            self.project.create_sample_project()
-            self._refresh_tree()
-            self._refresh_previews()
-            self.status.config(text="Завантажено демо-проєкт")
