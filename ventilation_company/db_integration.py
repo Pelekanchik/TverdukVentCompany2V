@@ -1,14 +1,36 @@
-"""Розширена інтеграція з SQLite для збереження проектів, виробів,
-специфікацій та планів розкрою.
+"""Єдиний шар роботи з БД через SQLAlchemy ORM.
 
-🔒 ТРАНЗАКЦІЇ: всі складні операції атомарні (BEGIN → COMMIT/ROLLBACK).
+Покращення v2.1:
+  • Повністю переписано з raw sqlite3 на SQLAlchemy ORM.
+  • Збережено API ProjectDatabase (ті ж методи, ті ж типи повернення).
+  • Транзакції через session.begin() / commit() / rollback().
+  • Всі ORM-об'єкти конвертуються в dict для зворотної сумісності з GUI.
 """
 
-import contextlib
+from __future__ import annotations
+
 import json
-import os
-import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timedelta
+from typing import Generator
+
+from sqlalchemy import func, inspect
+from sqlalchemy.orm import Session
+
+from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.models.project import Project
+from ventilation_company.database.models.unified import (
+    Client,
+    ClientProject,
+    CuttingPlan,
+    Interaction,
+    MaterialPrice,
+    Payment,
+    ProjectProduct,
+    Specification,
+    StandardProductLibrary,
+    WarrantyReminder,
+)
 
 
 class TransactionError(Exception):
@@ -16,315 +38,48 @@ class TransactionError(Exception):
     pass
 
 
-class ProjectDatabase:
-    """Розширений менеджер бази даних для вентиляційних проєктів.
+def _row_to_dict(obj) -> dict | None:
+    """Конвертувати SQLAlchemy ORM об'єкт у dict (як sqlite3.Row)."""
+    if obj is None:
+        return None
+    result = {}
+    for col in inspect(obj).mapper.column_attrs:
+        key = col.key
+        val = getattr(obj, key)
+        if isinstance(val, datetime):
+            val = val.isoformat()
+        # Зворотна сумісність: metadata_json → metadata
+        if key == "metadata_json":
+            key = "metadata"
+        result[key] = val
+    return result
 
-    Усі методи, що модифікують кілька таблиць, використовують
-    атомарні транзакції через контекстний менеджер _transaction().
-    """
+
+def _rows_to_dicts(rows: list) -> list[dict]:
+    """Конвертувати список ORM об'єктів у список dict."""
+    return [_row_to_dict(r) for r in rows if r is not None]
+
+
+class ProjectDatabase:
+    """Єдиний менеджер БД для вентиляційних проєктів (SQLAlchemy ORM)."""
 
     def __init__(self, db_path: str = "data/company.db"):
+        # db_path ігнорується — використовуємо SessionLocal з db.py,
+        # але зберігаємо для зворотної сумісності API.
         self.db_path = db_path
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self._init_tables()
-        self._init_wal_mode()
 
-    # ═══════════════════════════════════════════════════════════════
-    # 🔒 ТРАНЗАКЦІЇ
-    # ═══════════════════════════════════════════════════════════════
-
-    @contextlib.contextmanager
-    def _transaction(self, conn: sqlite3.Connection | None = None):
-        """Контекстний менеджер для атомарних транзакцій.
-
-        Використання:
-            with self._transaction() as conn:
-                conn.execute("INSERT ...")
-                conn.execute("UPDATE ...")
-            # Автоматично COMMIT якщо все ок, ROLLBACK якщо exception
-        """
-        own_conn = conn is None
-        if own_conn:
-            conn = self._get_connection()
+    @contextmanager
+    def _session_scope(self) -> Generator[Session, None, None]:
+        """Контекстний менеджер для сесій з автоматичним commit/rollback."""
+        session = SessionLocal()
         try:
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("BEGIN")
-            yield conn
-            conn.commit()
+            yield session
+            session.commit()
         except Exception as exc:
-            conn.rollback()
+            session.rollback()
             raise TransactionError(f"Помилка транзакції БД: {exc}") from exc
         finally:
-            if own_conn:
-                conn.close()
-
-    def _init_wal_mode(self):
-        """Увімкнути WAL-mode для кращої продуктивності та потокобезпеки."""
-        with self._get_connection() as conn:
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")
-
-    def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
-
-    def _add_column_if_not_exists(self, conn, table: str, column: str, col_type: str):
-        """Додати колонку в таблицю, якщо її ще немає."""
-        cursor = conn.execute(f"PRAGMA table_info({table})")
-        existing = [row[1] for row in cursor.fetchall()]
-        if column not in existing:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
-
-    def _get_table_columns(self, conn, table: str) -> list[str]:
-        """Отримати список колонок таблиці."""
-        cursor = conn.execute(f"PRAGMA table_info({table})")
-        return [row[1] for row in cursor.fetchall()]
-
-    def _init_tables(self):
-        """Ініціалізація таблиць (якщо не існують) + міграція існуючих."""
-        with self._get_connection() as conn:
-            # Проєкти
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS projects (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    client TEXT,
-                    status TEXT DEFAULT 'draft',
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    metadata TEXT
-                )
-                """
-            )
-
-            # Міграція колонок
-            self._add_column_if_not_exists(conn, "projects", "description", "TEXT")
-            self._add_column_if_not_exists(conn, "projects", "client", "TEXT")
-            self._add_column_if_not_exists(conn, "projects", "status", "TEXT DEFAULT 'draft'")
-            self._add_column_if_not_exists(conn, "projects", "updated_at", "TEXT DEFAULT CURRENT_TIMESTAMP")
-            self._add_column_if_not_exists(conn, "projects", "metadata", "TEXT")
-            self._add_column_if_not_exists(conn, "projects", "drawing_path", "TEXT")
-            self._add_column_if_not_exists(conn, "projects", "customer_price", "REAL DEFAULT 0")
-            self._add_column_if_not_exists(conn, "projects", "cost_price", "REAL DEFAULT 0")
-            self._add_column_if_not_exists(conn, "projects", "salary_total", "REAL DEFAULT 0")
-            self._add_column_if_not_exists(conn, "projects", "profit", "REAL DEFAULT 0")
-            self._add_column_if_not_exists(conn, "projects", "assigned_to", "INTEGER")
-            self._add_column_if_not_exists(conn, "projects", "created_by", "INTEGER")
-
-            # Вироби в проєкті
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS project_products (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    product_type TEXT,
-                    width REAL,
-                    height REAL,
-                    length REAL,
-                    thickness REAL,
-                    material TEXT,
-                    quantity INTEGER DEFAULT 1,
-                    metal_area_m2 REAL,
-                    weight_kg REAL,
-                    unit_price REAL DEFAULT 0,
-                    total_price REAL DEFAULT 0,
-                    notes TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Специфікації
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS specifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    name TEXT,
-                    format TEXT DEFAULT 'json',
-                    content TEXT NOT NULL,
-                    total_items INTEGER,
-                    total_quantity INTEGER,
-                    total_weight_kg REAL,
-                    total_area_m2 REAL,
-                    total_price REAL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Плани розкрою
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS cutting_plans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_id INTEGER NOT NULL,
-                    name TEXT,
-                    sheet_width REAL,
-                    sheet_height REAL,
-                    thickness REAL,
-                    material TEXT,
-                    sheets_required INTEGER,
-                    utilization_percent REAL,
-                    waste_percent REAL,
-                    plan_data TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Бібліотека стандартних виробів
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS standard_products_library (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    product_type TEXT NOT NULL,
-                    width REAL,
-                    height REAL,
-                    length REAL,
-                    thickness REAL,
-                    material TEXT,
-                    default_quantity INTEGER DEFAULT 1,
-                    parameters TEXT,
-                    is_active INTEGER DEFAULT 1,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-
-            # Ціни на матеріали
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS material_prices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    material TEXT NOT NULL,
-                    thickness REAL,
-                    price_per_kg REAL,
-                    price_per_m2 REAL,
-                    currency TEXT DEFAULT 'UAH',
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(material, thickness)
-                )
-                """
-            )
-
-            # Клієнти
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS clients (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    contact_person TEXT,
-                    phone TEXT,
-                    email TEXT,
-                    address TEXT,
-                    company_type TEXT,
-                    edrpou TEXT,
-                    notes TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-
-            # Взаємодії
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS interactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    client_id INTEGER NOT NULL,
-                    date TEXT DEFAULT CURRENT_TIMESTAMP,
-                    interaction_type TEXT DEFAULT 'дзвінок',
-                    subject TEXT,
-                    description TEXT,
-                    result TEXT,
-                    next_action TEXT,
-                    next_action_date TEXT,
-                    created_by TEXT,
-                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Платежі
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS payments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    client_id INTEGER NOT NULL,
-                    date TEXT DEFAULT CURRENT_TIMESTAMP,
-                    amount REAL DEFAULT 0,
-                    currency TEXT DEFAULT 'UAH',
-                    payment_type TEXT DEFAULT 'вхідний',
-                    purpose TEXT,
-                    project_name TEXT,
-                    notes TEXT,
-                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Проєкти клієнта
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS client_projects (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    client_id INTEGER NOT NULL,
-                    project_name TEXT NOT NULL,
-                    project_number TEXT,
-                    start_date TEXT,
-                    end_date TEXT,
-                    status TEXT DEFAULT 'в роботі',
-                    total_amount REAL DEFAULT 0,
-                    warranty_months INTEGER DEFAULT 24,
-                    description TEXT,
-                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                )
-                """
-            )
-
-            # Користувачі
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    full_name TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'monter',
-                    is_active INTEGER DEFAULT 1,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    last_login TEXT
-                )
-                """
-            )
-
-            # Нагадування про гарантію
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS warranty_reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    client_id INTEGER NOT NULL,
-                    client_project_id INTEGER,
-                    project_name TEXT NOT NULL,
-                    reminder_date TEXT NOT NULL,
-                    description TEXT,
-                    is_completed INTEGER DEFAULT 0,
-                    completed_at TEXT,
-                    notes TEXT,
-                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-                )
-                """
-            )
+            session.close()
 
     # ═══════════════════════════════════════════════════════════════
     # ПРОЄКТИ
@@ -339,86 +94,46 @@ class ProjectDatabase:
         **extra_fields,
     ) -> int:
         """Створити новий проєкт."""
-        with self._get_connection() as conn:
-            cursor = conn.execute("PRAGMA table_info(projects)")
-            col_info = {
-                row[1]: {"type": row[2], "notnull": row[3], "default": row[4]}
-                for row in cursor.fetchall()
-            }
-
-            data = {"name": name}
-            if "description" in col_info:
-                data["description"] = description
-            if "client" in col_info:
-                data["client"] = client
-            if "metadata" in col_info:
-                data["metadata"] = json.dumps(metadata) if metadata else None
-            if "status" in col_info:
-                data["status"] = "draft"
-            if "created_at" in col_info:
-                data["created_at"] = datetime.now().isoformat()
-            if "updated_at" in col_info:
-                data["updated_at"] = datetime.now().isoformat()
-
-            for key, value in extra_fields.items():
-                if key in col_info and key not in data:
-                    data[key] = value
-
+        with self._session_scope() as session:
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            defaults = {
-                "project_number": f"PRJ-{timestamp}",
-                "total_area": 0.0, "total_cost": 0.0,
-                "total_weight": 0.0, "profit": 0.0, "markup": 0.0,
-                "client_name": "", "client_phone": "", "client_email": "",
-                "address": "", "notes": "", "author": "", "manager": "",
-                "drawing_path": "", "customer_price": 0.0,
-                "cost_price": 0.0, "salary_total": 0.0,
-            }
-
-            for col_name, info in col_info.items():
-                if col_name not in data and info["notnull"] == 1 and info["default"] is None:
-                    col_type = info["type"].upper()
-                    if col_name in defaults:
-                        data[col_name] = defaults[col_name]
-                    elif any(t in col_type for t in ["INT", "REAL", "FLOAT", "NUM"]):
-                        data[col_name] = 0
-                    elif any(t in col_type for t in ["TEXT", "CHAR", "VARCHAR"]):
-                        data[col_name] = ""
-                    elif any(t in col_type for t in ["DATE", "TIME"]):
-                        data[col_name] = datetime.now().isoformat()
-                    else:
-                        data[col_name] = ""
-
-            cols = ", ".join(data.keys())
-            placeholders = ", ".join(["?"] * len(data))
-            cursor = conn.execute(
-                f"INSERT INTO projects ({cols}) VALUES ({placeholders})",
-                tuple(data.values()),
+            project = Project(
+                project_number=f"PRJ-{timestamp}",
+                name=name,
+                description=description,
+                client=client,
+                metadata_json=json.dumps(metadata, ensure_ascii=False) if metadata else None,
+                status="draft",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                total_area=0.0,
+                customer_price=0.0,
+                cost_price=0.0,
+                salary_total=0.0,
+                profit=0.0,
             )
-            conn.commit()
-            return cursor.lastrowid
+            # Додаткові поля
+            for key, value in extra_fields.items():
+                if hasattr(project, key):
+                    setattr(project, key, value)
+
+            session.add(project)
+            session.flush()  # отримати id до commit
+            return project.id
 
     def get_project(self, project_id: int) -> dict | None:
         """Отримати проєкт за ID."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM projects WHERE id = ?", (project_id,)
-            ).fetchone()
-            return dict(row) if row else None
+        with self._session_scope() as session:
+            project = session.get(Project, project_id)
+            return _row_to_dict(project)
 
     def get_all_projects(self, status: str | None = None) -> list[dict]:
         """Отримати всі проєкти (або за статусом)."""
-        with self._get_connection() as conn:
+        with self._session_scope() as session:
+            query = session.query(Project)
             if status:
-                rows = conn.execute(
-                    "SELECT * FROM projects WHERE status = ? ORDER BY updated_at DESC",
-                    (status,),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT * FROM projects ORDER BY updated_at DESC"
-                ).fetchall()
-            return [dict(r) for r in rows]
+                query = query.filter(Project.status == status)
+            rows = query.order_by(Project.updated_at.desc()).all()
+            return _rows_to_dicts(rows)
 
     def list_projects(self, status: str | None = None) -> list[dict]:
         """Alias для get_all_projects."""
@@ -426,195 +141,209 @@ class ProjectDatabase:
 
     def update_project(self, project_id: int, **kwargs) -> bool:
         """Оновити проєкт."""
-        with self._get_connection() as conn:
-            columns = self._get_table_columns(conn, "projects")
-            allowed = {
-                "name", "description", "client", "status", "metadata",
-                "drawing_path", "customer_price", "cost_price",
-                "salary_total", "profit",
-            }
-            updates = {
-                k: v for k, v in kwargs.items() if k in allowed and k in columns
-            }
-            if not updates:
+        allowed = {
+            "name", "description", "client", "status", "metadata",
+            "drawing_path", "customer_price", "cost_price",
+            "salary_total", "profit", "notes", "total_area",
+            "ventilation_type", "air_flow", "pressure", "address",
+        }
+        updates = {k: v for k, v in kwargs.items() if k in allowed}
+        if not updates:
+            return False
+
+        if "metadata" in updates and isinstance(updates["metadata"], dict):
+            updates["metadata_json"] = json.dumps(updates.pop("metadata"), ensure_ascii=False)
+
+        with self._session_scope() as session:
+            project = session.get(Project, project_id)
+            if not project:
                 return False
-
-            if "updated_at" in columns:
-                updates["updated_at"] = datetime.now().isoformat()
-            if "metadata" in updates and isinstance(updates["metadata"], dict):
-                updates["metadata"] = json.dumps(updates["metadata"])
-
-            fields = ", ".join(f"{k} = ?" for k in updates)
-            values = list(updates.values()) + [project_id]
-
-            conn.execute(f"UPDATE projects SET {fields} WHERE id = ?", values)
-            conn.commit()
+            for k, v in updates.items():
+                if hasattr(project, k):
+                    setattr(project, k, v)
+            project.updated_at = datetime.now()
             return True
 
     def delete_project(self, project_id: int) -> bool:
-        """Видалити проєкт (каскадне видалення виробів, специфікацій тощо)."""
-        with self._transaction() as conn:
-            conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-        return True
+        """Видалити проєкт (каскадне видалення через ORM)."""
+        with self._session_scope() as session:
+            project = session.get(Project, project_id)
+            if not project:
+                return False
+            session.delete(project)
+            return True
 
     def duplicate_project(self, project_id: int, new_name: str | None = None) -> int:
-        """Дублювати проєкт з усіма виробами (АТОМАРНО)."""
-        project = self.get_project(project_id)
-        if not project:
-            raise ValueError(f"Проєкт {project_id} не знайдено")
+        """Дублювати проєкт з усіма виробами."""
+        with self._session_scope() as session:
+            project = session.get(Project, project_id)
+            if not project:
+                raise ValueError(f"Проєкт {project_id} не знайдено")
 
-        with self._transaction() as conn:
-            # 1. Створюємо новий проєкт
-            new_id = self._create_project_in_conn(
-                conn,
-                name=new_name or f"{project['name']} (копія)",
-                description=project.get("description", ""),
-                client=project.get("client", ""),
-                metadata=json.loads(project["metadata"]) if project.get("metadata") else None,
+            # Новий проєкт
+            new_project = Project(
+                project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S")}",
+                name=new_name or f"{project.name} (копія)",
+                description=project.description,
+                client=project.client,
+                status="draft",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                total_area=project.total_area,
+                drawing_path=project.drawing_path,
+                customer_price=0.0,
+                cost_price=0.0,
+                salary_total=0.0,
+                profit=0.0,
             )
+            session.add(new_project)
+            session.flush()
 
-            # 2. Копіюємо всі вироби
-            products = self._get_project_products_in_conn(conn, project_id)
-            for p in products:
-                self._add_product_to_project_in_conn(conn, new_id, {
-                    "name": p["name"],
-                    "product_type": p["product_type"],
-                    "width": p["width"],
-                    "height": p["height"],
-                    "length": p["length"],
-                    "thickness": p["thickness"],
-                    "material": p["material"],
-                    "quantity": p["quantity"],
-                    "metal_area_m2": p["metal_area_m2"],
-                    "weight_kg": p["weight_kg"],
-                    "notes": p["notes"],
-                })
+            # Копіюємо вироби
+            for p in project.project_products:
+                new_product = ProjectProduct(
+                    project_id=new_project.id,
+                    name=p.name,
+                    product_type=p.product_type,
+                    width=p.width,
+                    height=p.height,
+                    length=p.length,
+                    thickness=p.thickness,
+                    material=p.material,
+                    quantity=p.quantity,
+                    metal_area_m2=p.metal_area_m2,
+                    weight_kg=p.weight_kg,
+                    unit_price=p.unit_price,
+                    total_price=p.total_price,
+                    notes=p.notes,
+                )
+                session.add(new_product)
 
-            # 3. Оновлюємо updated_at нового проєкту
-            conn.execute(
-                "UPDATE projects SET updated_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), new_id),
-            )
+            return new_project.id
 
-        return new_id
-
-    # ── Хелпери для транзакцій (працюють з існуючим conn) ──
+    # ── Хелпери для транзакцій (працюють з існуючою сесією) ──
 
     def _create_project_in_conn(
-        self, conn: sqlite3.Connection, name: str,
+        self, session: Session, name: str,
         description: str = "", client: str = "",
         metadata: dict | None = None,
     ) -> int:
         """Створити проєкт у межах транзакції."""
-        cursor = conn.execute(
-            """INSERT INTO projects (name, description, client, status, created_at, updated_at, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (name, description, client, "draft",
-             datetime.now().isoformat(), datetime.now().isoformat(),
-             json.dumps(metadata) if metadata else None),
+        project = Project(
+            project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S")}",
+            name=name,
+            description=description,
+            client=client,
+            metadata_json=json.dumps(metadata, ensure_ascii=False) if metadata else None,
+            status="draft",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
-        return cursor.lastrowid
+        session.add(project)
+        session.flush()
+        return project.id
 
     def _get_project_products_in_conn(
-        self, conn: sqlite3.Connection, project_id: int
+        self, session: Session, project_id: int
     ) -> list[dict]:
         """Отримати вироби проєкту у межах транзакції."""
-        rows = conn.execute(
-            "SELECT * FROM project_products WHERE project_id = ? ORDER BY id",
-            (project_id,),
-        ).fetchall()
-        return [dict(r) for r in rows]
+        rows = (
+            session.query(ProjectProduct)
+            .filter(ProjectProduct.project_id == project_id)
+            .order_by(ProjectProduct.id)
+            .all()
+        )
+        return _rows_to_dicts(rows)
 
     def _add_product_to_project_in_conn(
-        self, conn: sqlite3.Connection, project_id: int, product: dict
+        self, session: Session, project_id: int, product: dict
     ) -> int:
         """Додати виріб у межах транзакції."""
-        cursor = conn.execute(
-            """INSERT INTO project_products
-            (project_id, name, product_type, width, height, length,
-             thickness, material, quantity, metal_area_m2, weight_kg,
-             unit_price, total_price, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                project_id,
-                product.get("name", ""),
-                product.get("product_type", ""),
-                product.get("width", 0),
-                product.get("height", 0),
-                product.get("length", 0),
-                product.get("thickness", 0.7),
-                product.get("material", "оцинкована сталь"),
-                product.get("quantity", 1),
-                product.get("metal_area_m2", 0),
-                product.get("weight_kg", 0),
-                product.get("unit_price", 0),
-                product.get("total_price", 0),
-                product.get("notes", ""),
-            ),
+        pp = ProjectProduct(
+            project_id=project_id,
+            name=product.get("name", ""),
+            product_type=product.get("product_type", ""),
+            width=product.get("width", 0),
+            height=product.get("height", 0),
+            length=product.get("length", 0),
+            thickness=product.get("thickness", 0.7),
+            material=product.get("material", "оцинкована сталь"),
+            quantity=product.get("quantity", 1),
+            metal_area_m2=product.get("metal_area_m2", 0),
+            weight_kg=product.get("weight_kg", 0),
+            unit_price=product.get("unit_price", 0),
+            total_price=product.get("total_price", 0),
+            notes=product.get("notes", ""),
         )
-        return cursor.lastrowid
+        session.add(pp)
+        session.flush()
+        return pp.id
 
     # ═══════════════════════════════════════════════════════════════
     # ВИРОБИ В ПРОЄКТІ
     # ═══════════════════════════════════════════════════════════════
 
     def add_product_to_project(self, project_id: int, product: dict) -> int:
-        """Додати виріб до проєкту (АТОМАРНО: виріб + оновлення проєкту)."""
-        with self._transaction() as conn:
-            product_id = self._add_product_to_project_in_conn(conn, project_id, product)
-            conn.execute(
-                "UPDATE projects SET updated_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), project_id),
-            )
-        return product_id
+        """Додати виріб до проєкту."""
+        with self._session_scope() as session:
+            product_id = self._add_product_to_project_in_conn(session, project_id, product)
+            project = session.get(Project, project_id)
+            if project:
+                project.updated_at = datetime.now()
+            return product_id
 
     def get_project_products(self, project_id: int) -> list[dict]:
         """Отримати всі вироби проєкту."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM project_products WHERE project_id = ? ORDER BY id",
-                (project_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            return self._get_project_products_in_conn(session, project_id)
 
     def update_product(self, product_id: int, **kwargs) -> bool:
         """Оновити виріб."""
         allowed = {
             "name", "product_type", "width", "height", "length",
             "thickness", "material", "quantity", "metal_area_m2",
-            "weight_kg", "notes",
+            "weight_kg", "notes", "unit_price", "total_price",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
 
-        fields = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [product_id]
-
-        with self._get_connection() as conn:
-            conn.execute(f"UPDATE project_products SET {fields} WHERE id = ?", values)
-            conn.commit()
+        with self._session_scope() as session:
+            product = session.get(ProjectProduct, product_id)
+            if not product:
+                return False
+            for k, v in updates.items():
+                setattr(product, k, v)
             return True
 
     def delete_product(self, product_id: int) -> bool:
         """Видалити виріб."""
-        with self._transaction() as conn:
-            conn.execute("DELETE FROM project_products WHERE id = ?", (product_id,))
-        return True
+        with self._session_scope() as session:
+            product = session.get(ProjectProduct, product_id)
+            if not product:
+                return False
+            session.delete(product)
+            return True
 
     def get_project_summary(self, project_id: int) -> dict:
         """Отримати зведення по проєкту."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                """SELECT
-                COUNT(*) as total_items,
-                SUM(quantity) as total_quantity,
-                SUM(weight_kg * quantity) as total_weight,
-                SUM(metal_area_m2 * quantity) as total_area
-                FROM project_products WHERE project_id = ?""",
-                (project_id,),
-            ).fetchone()
-            return dict(row) if row else {}
+        with self._session_scope() as session:
+            result = (
+                session.query(
+                    func.count(ProjectProduct.id).label("total_items"),
+                    func.coalesce(func.sum(ProjectProduct.quantity), 0).label("total_quantity"),
+                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
+                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
+                )
+                .filter(ProjectProduct.project_id == project_id)
+                .first()
+            )
+            return {
+                "total_items": result.total_items or 0,
+                "total_quantity": result.total_quantity or 0,
+                "total_weight": float(result.total_weight or 0),
+                "total_area": float(result.total_area or 0),
+            }
 
     # ═══════════════════════════════════════════════════════════════
     # СПЕЦИФІКАЦІЇ
@@ -635,47 +364,44 @@ class ProjectDatabase:
         )
         summary = spec_data.get("summary", {}) if isinstance(spec_data, dict) else {}
 
-        with self._transaction() as conn:
-            cursor = conn.execute(
-                """INSERT INTO specifications
-                (project_id, name, format, content, total_items, total_quantity,
-                 total_weight_kg, total_area_m2, total_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    project_id, name, format, content,
-                    summary.get("total_items", 0),
-                    summary.get("total_quantity", 0),
-                    summary.get("total_weight_kg", 0),
-                    summary.get("total_area_m2", 0),
-                    summary.get("total_price", 0),
-                ),
+        with self._session_scope() as session:
+            spec = Specification(
+                project_id=project_id,
+                name=name,
+                format=format,
+                content=content,
+                total_items=summary.get("total_items", 0),
+                total_quantity=summary.get("total_quantity", 0),
+                total_weight_kg=summary.get("total_weight_kg", 0),
+                total_area_m2=summary.get("total_area_m2", 0),
+                total_price=summary.get("total_price", 0),
             )
-        return cursor.lastrowid
+            session.add(spec)
+            session.flush()
+            return spec.id
 
     def get_specifications(self, project_id: int) -> list[dict]:
         """Отримати всі специфікації проєкту."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM specifications WHERE project_id = ? ORDER BY created_at DESC",
-                (project_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(Specification)
+                .filter(Specification.project_id == project_id)
+                .order_by(Specification.created_at.desc())
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def get_specification(self, spec_id: int) -> dict | None:
         """Отримати специфікацію за ID."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM specifications WHERE id = ?", (spec_id,)
-            ).fetchone()
-            if row:
-                data = dict(row)
-                if data.get("format") == "json" and data.get("content"):
-                    try:
-                        data["parsed_content"] = json.loads(data["content"])
-                    except Exception:
-                        pass
-                return data
-            return None
+        with self._session_scope() as session:
+            spec = session.get(Specification, spec_id)
+            data = _row_to_dict(spec)
+            if data and data.get("format") == "json" and data.get("content"):
+                try:
+                    data["parsed_content"] = json.loads(data["content"])
+                except Exception:
+                    pass
+            return data
 
     # ═══════════════════════════════════════════════════════════════
     # ПЛАНИ РОЗКРОЮ
@@ -687,37 +413,36 @@ class ProjectDatabase:
         """Зберегти план розкрою."""
         summary = plan.get("summary", {})
 
-        with self._transaction() as conn:
-            cursor = conn.execute(
-                """INSERT INTO cutting_plans
-                (project_id, name, sheet_width, sheet_height, thickness, material,
-                 sheets_required, utilization_percent, waste_percent, plan_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    project_id, name,
-                    plan.get("sheet_width", 1250),
-                    plan.get("sheet_height", 2500),
-                    plan.get("thickness", 0.7),
-                    plan.get("material", "оцинкована сталь"),
-                    summary.get("sheets_required", 0),
-                    summary.get("utilization_percent", 0),
-                    summary.get("waste_percent", 0),
-                    json.dumps(plan, ensure_ascii=False),
-                ),
+        with self._session_scope() as session:
+            cp = CuttingPlan(
+                project_id=project_id,
+                name=name,
+                sheet_width=plan.get("sheet_width", 1250),
+                sheet_height=plan.get("sheet_height", 2500),
+                thickness=plan.get("thickness", 0.7),
+                material=plan.get("material", "оцинкована сталь"),
+                sheets_required=summary.get("sheets_required", 0),
+                utilization_percent=summary.get("utilization_percent", 0),
+                waste_percent=summary.get("waste_percent", 0),
+                plan_data=json.dumps(plan, ensure_ascii=False),
             )
-        return cursor.lastrowid
+            session.add(cp)
+            session.flush()
+            return cp.id
 
     def get_cutting_plans(self, project_id: int) -> list[dict]:
         """Отримати плани розкрою проєкту."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM cutting_plans WHERE project_id = ? ORDER BY created_at DESC",
-                (project_id,),
-            ).fetchall()
+        with self._session_scope() as session:
+            rows = (
+                session.query(CuttingPlan)
+                .filter(CuttingPlan.project_id == project_id)
+                .order_by(CuttingPlan.created_at.desc())
+                .all()
+            )
             result = []
             for r in rows:
-                data = dict(r)
-                if data.get("plan_data"):
+                data = _row_to_dict(r)
+                if data and data.get("plan_data"):
                     try:
                         data["parsed_plan"] = json.loads(data["plan_data"])
                     except Exception:
@@ -741,37 +466,38 @@ class ProjectDatabase:
         parameters: dict | None = None,
     ) -> int:
         """Додати виріб у бібліотеку стандартних виробів."""
-        with self._transaction() as conn:
-            cursor = conn.execute(
-                """INSERT INTO standard_products_library
-                (name, product_type, width, height, length, thickness, material, parameters)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    name, product_type, width, height, length, thickness, material,
-                    json.dumps(parameters) if parameters else None,
-                ),
+        with self._session_scope() as session:
+            sp = StandardProductLibrary(
+                name=name,
+                product_type=product_type,
+                width=width,
+                height=height,
+                length=length,
+                thickness=thickness,
+                material=material,
+                parameters=json.dumps(parameters) if parameters else None,
             )
-        return cursor.lastrowid
+            session.add(sp)
+            session.flush()
+            return sp.id
 
     def get_standard_products(
         self, product_type: str | None = None, active_only: bool = True
     ) -> list[dict]:
         """Отримати стандартні вироби з бібліотеки."""
-        with self._get_connection() as conn:
-            query = "SELECT * FROM standard_products_library WHERE 1=1"
-            params = []
+        with self._session_scope() as session:
+            query = session.query(StandardProductLibrary)
             if active_only:
-                query += " AND is_active = 1"
+                query = query.filter(StandardProductLibrary.is_active == 1)
             if product_type:
-                query += " AND product_type = ?"
-                params.append(product_type)
-            query += " ORDER BY product_type, name"
-
-            rows = conn.execute(query, params).fetchall()
+                query = query.filter(StandardProductLibrary.product_type == product_type)
+            rows = query.order_by(
+                StandardProductLibrary.product_type, StandardProductLibrary.name
+            ).all()
             result = []
             for r in rows:
-                data = dict(r)
-                if data.get("parameters"):
+                data = _row_to_dict(r)
+                if data and data.get("parameters"):
                     try:
                         data["parsed_parameters"] = json.loads(data["parameters"])
                     except Exception:
@@ -792,14 +518,13 @@ class ProjectDatabase:
         if "parameters" in updates and isinstance(updates["parameters"], dict):
             updates["parameters"] = json.dumps(updates["parameters"])
 
-        fields = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [product_id]
-
-        with self._transaction() as conn:
-            conn.execute(
-                f"UPDATE standard_products_library SET {fields} WHERE id = ?", values
-            )
-        return True
+        with self._session_scope() as session:
+            product = session.get(StandardProductLibrary, product_id)
+            if not product:
+                return False
+            for k, v in updates.items():
+                setattr(product, k, v)
+            return True
 
     # ═══════════════════════════════════════════════════════════════
     # ЦІНИ НА МАТЕРІАЛИ
@@ -812,54 +537,58 @@ class ProjectDatabase:
         price_per_kg: float | None = None,
         price_per_m2: float | None = None,
     ) -> int:
-        """Встановити/оновити ціну матеріалу (АТОМАРНО)."""
-        with self._transaction() as conn:
-            existing = conn.execute(
-                "SELECT id FROM material_prices WHERE material = ? AND thickness = ?",
-                (material, thickness),
-            ).fetchone()
-
-            if existing:
-                updates = []
-                values = []
-                if price_per_kg is not None:
-                    updates.append("price_per_kg = ?")
-                    values.append(price_per_kg)
-                if price_per_m2 is not None:
-                    updates.append("price_per_m2 = ?")
-                    values.append(price_per_m2)
-                if updates:
-                    updates.append("updated_at = CURRENT_TIMESTAMP")
-                    values.extend([existing["id"]])
-                    conn.execute(
-                        f"UPDATE material_prices SET {', '.join(updates)} WHERE id = ?",
-                        values,
-                    )
-                return existing["id"]
-            else:
-                cursor = conn.execute(
-                    """INSERT INTO material_prices (material, thickness, price_per_kg, price_per_m2)
-                    VALUES (?, ?, ?, ?)""",
-                    (material, thickness, price_per_kg, price_per_m2),
+        """Встановити/оновити ціну матеріалу."""
+        with self._session_scope() as session:
+            existing = (
+                session.query(MaterialPrice)
+                .filter(
+                    MaterialPrice.material == material,
+                    MaterialPrice.thickness == thickness,
                 )
-                return cursor.lastrowid
+                .first()
+            )
+            if existing:
+                if price_per_kg is not None:
+                    existing.price_per_kg = price_per_kg
+                if price_per_m2 is not None:
+                    existing.price_per_m2 = price_per_m2
+                existing.updated_at = datetime.now()
+                session.flush()
+                return existing.id
+            else:
+                mp = MaterialPrice(
+                    material=material,
+                    thickness=thickness,
+                    price_per_kg=price_per_kg,
+                    price_per_m2=price_per_m2,
+                    updated_at=datetime.now(),
+                )
+                session.add(mp)
+                session.flush()
+                return mp.id
 
     def get_material_prices(self) -> list[dict]:
         """Отримати всі ціни на матеріали."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM material_prices ORDER BY material, thickness"
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(MaterialPrice)
+                .order_by(MaterialPrice.material, MaterialPrice.thickness)
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def get_material_price(self, material: str, thickness: float) -> float | None:
         """Отримати ціну за кг для конкретного матеріалу."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT price_per_kg FROM material_prices WHERE material = ? AND thickness = ?",
-                (material, thickness),
-            ).fetchone()
-            return row["price_per_kg"] if row else None
+        with self._session_scope() as session:
+            row = (
+                session.query(MaterialPrice)
+                .filter(
+                    MaterialPrice.material == material,
+                    MaterialPrice.thickness == thickness,
+                )
+                .first()
+            )
+            return row.price_per_kg if row else None
 
     # ═══════════════════════════════════════════════════════════════
     # КЛІЄНТИ
@@ -870,16 +599,23 @@ class ProjectDatabase:
         email: str = "", address: str = "", company_type: str = "",
         edrpou: str = "", notes: str = "",
     ) -> int:
-        """Додати клієнта (АТОМАРНО)."""
-        with self._transaction() as conn:
-            cur = conn.execute(
-                """INSERT INTO clients (name, contact_person, phone, email, address,
-                company_type, edrpou, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (name, contact, phone, email, address, company_type, edrpou, notes,
-                 datetime.now().isoformat(), datetime.now().isoformat()),
+        """Додати клієнта."""
+        with self._session_scope() as session:
+            client = Client(
+                name=name,
+                contact_person=contact,
+                phone=phone,
+                email=email,
+                address=address,
+                company_type=company_type,
+                edrpou=edrpou,
+                notes=notes,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
             )
-        return cur.lastrowid
+            session.add(client)
+            session.flush()
+            return client.id
 
     def update_client(self, client_id: int, **kwargs) -> bool:
         """Оновити клієнта."""
@@ -888,43 +624,46 @@ class ProjectDatabase:
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return False
-        fields["updated_at"] = datetime.now().isoformat()
-        sets = ", ".join(f"{k} = ?" for k in fields)
+        fields["updated_at"] = datetime.now()
 
-        with self._transaction() as conn:
-            conn.execute(f"UPDATE clients SET {sets} WHERE id = ?",
-                         (*fields.values(), client_id))
-        return True
+        with self._session_scope() as session:
+            client = session.get(Client, client_id)
+            if not client:
+                return False
+            for k, v in fields.items():
+                setattr(client, k, v)
+            return True
 
     def get_client(self, client_id: int) -> dict | None:
         """Отримати клієнта за ID."""
-        with self._get_connection() as conn:
-            row = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
-            return dict(row) if row else None
+        with self._session_scope() as session:
+            return _row_to_dict(session.get(Client, client_id))
 
     def get_all_clients(self, search: str = "") -> list[dict]:
         """Отримати всіх клієнтів."""
-        with self._get_connection() as conn:
+        with self._session_scope() as session:
+            query = session.query(Client).order_by(Client.name)
             if search:
                 like = f"%{search}%"
-                rows = conn.execute(
-                    """SELECT * FROM clients WHERE name LIKE ? OR phone LIKE ? OR email LIKE ?
-                    ORDER BY name""", (like, like, like)
-                ).fetchall()
-            else:
-                rows = conn.execute("SELECT * FROM clients ORDER BY name").fetchall()
-            return [dict(r) for r in rows]
+                query = query.filter(
+                    Client.name.ilike(like)
+                    | Client.phone.ilike(like)
+                    | Client.email.ilike(like)
+                )
+            return _rows_to_dicts(query.all())
 
     def get_clients(self, search: str = "") -> list[dict]:
-        """Отримати всіх клієнтів (аліас для get_all_clients)."""
+        """Alias для get_all_clients."""
         return self.get_all_clients(search)
 
-
     def delete_client(self, client_id: int) -> bool:
-        """Видалити клієнта (каскадне видалення)."""
-        with self._transaction() as conn:
-            conn.execute("DELETE FROM clients WHERE id = ?", (client_id,))
-        return True
+        """Видалити клієнта (каскадне видалення через ORM)."""
+        with self._session_scope() as session:
+            client = session.get(Client, client_id)
+            if not client:
+                return False
+            session.delete(client)
+            return True
 
     # ═══════════════════════════════════════════════════════════════
     # ВЗАЄМОДІЇ
@@ -936,31 +675,42 @@ class ProjectDatabase:
         next_action: str = "", next_action_date: str = "",
         created_by: str = "",
     ) -> int:
-        """Додати взаємодію (АТОМАРНО)."""
-        with self._transaction() as conn:
-            cur = conn.execute(
-                """INSERT INTO interactions (client_id, date, interaction_type, subject,
-                description, result, next_action, next_action_date, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (client_id, datetime.now().isoformat(), interaction_type, subject,
-                 description, result, next_action, next_action_date, created_by),
+        """Додати взаємодію."""
+        with self._session_scope() as session:
+            inter = Interaction(
+                client_id=client_id,
+                date=datetime.now(),
+                interaction_type=interaction_type,
+                subject=subject,
+                description=description,
+                result=result,
+                next_action=next_action,
+                next_action_date=next_action_date,
+                created_by=created_by,
             )
-        return cur.lastrowid
+            session.add(inter)
+            session.flush()
+            return inter.id
 
     def get_client_interactions(self, client_id: int) -> list[dict]:
         """Отримати взаємодії клієнта."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM interactions WHERE client_id = ? ORDER BY date DESC",
-                (client_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(Interaction)
+                .filter(Interaction.client_id == client_id)
+                .order_by(Interaction.date.desc())
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def delete_interaction(self, interaction_id: int) -> bool:
         """Видалити взаємодію."""
-        with self._transaction() as conn:
-            conn.execute("DELETE FROM interactions WHERE id = ?", (interaction_id,))
-        return True
+        with self._session_scope() as session:
+            inter = session.get(Interaction, interaction_id)
+            if not inter:
+                return False
+            session.delete(inter)
+            return True
 
     # ═══════════════════════════════════════════════════════════════
     # ПЛАТЕЖІ
@@ -971,34 +721,49 @@ class ProjectDatabase:
         payment_type: str = "вхідний", purpose: str = "",
         project_name: str = "", notes: str = "",
     ) -> int:
-        """Додати платіж (АТОМАРНО)."""
-        with self._transaction() as conn:
-            cur = conn.execute(
-                """INSERT INTO payments (client_id, date, amount, currency, payment_type,
-                purpose, project_name, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (client_id, datetime.now().isoformat(), amount, currency, payment_type,
-                 purpose, project_name, notes),
+        """Додати платіж."""
+        with self._session_scope() as session:
+            payment = Payment(
+                client_id=client_id,
+                date=datetime.now(),
+                amount=amount,
+                currency=currency,
+                payment_type=payment_type,
+                purpose=purpose,
+                project_name=project_name,
+                notes=notes,
             )
-        return cur.lastrowid
+            session.add(payment)
+            session.flush()
+            return payment.id
 
     def get_client_payments(self, client_id: int) -> list[dict]:
         """Отримати платежі клієнта."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM payments WHERE client_id = ? ORDER BY date DESC",
-                (client_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(Payment)
+                .filter(Payment.client_id == client_id)
+                .order_by(Payment.date.desc())
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def get_client_balance(self, client_id: int) -> float:
         """Отримати баланс клієнта."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                """SELECT SUM(CASE WHEN payment_type = 'вхідний' THEN amount ELSE -amount END) as balance
-                FROM payments WHERE client_id = ?""", (client_id,)
-            ).fetchone()
-            return float(row["balance"] or 0.0)
+        with self._session_scope() as session:
+            result = (
+                session.query(
+                    func.sum(
+                        func.case(
+                            (Payment.payment_type == "вхідний", Payment.amount),
+                            else_=-Payment.amount,
+                        )
+                    ).label("balance")
+                )
+                .filter(Payment.client_id == client_id)
+                .first()
+            )
+            return float(result.balance or 0.0)
 
     # ═══════════════════════════════════════════════════════════════
     # ПРОЄКТИ КЛІЄНТА
@@ -1011,52 +776,59 @@ class ProjectDatabase:
         total_amount: float = 0, warranty_months: int = 24,
         description: str = "",
     ) -> int:
-        """Додати проєкт клієнта (АТОМАРНО: проєкт + нагадування про гарантію)."""
-        with self._transaction() as conn:
-            cur = conn.execute(
-                """INSERT INTO client_projects (client_id, project_name, project_number,
-                start_date, end_date, status, total_amount, warranty_months, description)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (client_id, project_name, project_number, start_date, end_date,
-                 status, total_amount, warranty_months, description),
+        """Додати проєкт клієнта + нагадування про гарантію."""
+        with self._session_scope() as session:
+            cp = ClientProject(
+                client_id=client_id,
+                project_name=project_name,
+                project_number=project_number,
+                start_date=start_date,
+                end_date=end_date,
+                status=status,
+                total_amount=total_amount,
+                warranty_months=warranty_months,
+                description=description,
             )
-            project_id = cur.lastrowid
+            session.add(cp)
+            session.flush()
 
             # Автоматично створюємо нагадування про гарантію
             if end_date and warranty_months > 0:
                 try:
                     end_dt = datetime.fromisoformat(end_date)
                     reminder_dt = end_dt + timedelta(days=warranty_months * 30)
-                    conn.execute(
-                        """INSERT INTO warranty_reminders
-                        (client_id, client_project_id, project_name, reminder_date,
-                         description, is_completed, notes)
-                        VALUES (?, ?, ?, ?, ?, 0, ?)""",
-                        (client_id, project_id, project_name, reminder_dt.isoformat(),
-                         f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_date})",
-                         ""),
+                    wr = WarrantyReminder(
+                        client_id=client_id,
+                        client_project_id=cp.id,
+                        project_name=project_name,
+                        reminder_date=reminder_dt.isoformat(),
+                        description=f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_date})",
+                        is_completed=0,
                     )
+                    session.add(wr)
                 except Exception:
                     pass
-        return project_id
+            return cp.id
 
     def get_client_projects(self, client_id: int) -> list[dict]:
         """Отримати проєкти клієнта."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM client_projects WHERE client_id = ? ORDER BY start_date DESC",
-                (client_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(ClientProject)
+                .filter(ClientProject.client_id == client_id)
+                .order_by(ClientProject.start_date.desc())
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def update_client_project_status(self, project_id: int, status: str) -> bool:
         """Оновити статус проєкту клієнта."""
-        with self._transaction() as conn:
-            conn.execute(
-                "UPDATE client_projects SET status = ? WHERE id = ?",
-                (status, project_id),
-            )
-        return True
+        with self._session_scope() as session:
+            cp = session.get(ClientProject, project_id)
+            if not cp:
+                return False
+            cp.status = status
+            return True
 
     # ═══════════════════════════════════════════════════════════════
     # НАГАДУВАННЯ ПРО ГАРАНТІЮ
@@ -1067,52 +839,59 @@ class ProjectDatabase:
         reminder_date: str, description: str = "",
         client_project_id: int = None, notes: str = "",
     ) -> int:
-        """Додати нагадування про гарантію (АТОМАРНО)."""
-        with self._transaction() as conn:
-            cur = conn.execute(
-                """INSERT INTO warranty_reminders (client_id, client_project_id, project_name,
-                reminder_date, description, is_completed, notes)
-                VALUES (?, ?, ?, ?, ?, 0, ?)""",
-                (client_id, client_project_id, project_name, reminder_date, description, notes),
+        """Додати нагадування про гарантію."""
+        with self._session_scope() as session:
+            wr = WarrantyReminder(
+                client_id=client_id,
+                client_project_id=client_project_id,
+                project_name=project_name,
+                reminder_date=reminder_date,
+                description=description,
+                is_completed=0,
+                notes=notes,
             )
-        return cur.lastrowid
+            session.add(wr)
+            session.flush()
+            return wr.id
 
     def get_warranty_reminders(
         self, client_id: int = None, upcoming_days: int = 30
     ) -> list[dict]:
         """Отримати нагадування про гарантію."""
-        with self._get_connection() as conn:
-            future = (datetime.now() + timedelta(days=upcoming_days)).isoformat()
-            now = datetime.now().isoformat()
+        future = (datetime.now() + timedelta(days=upcoming_days)).isoformat()
+        now = datetime.now().isoformat()
+
+        with self._session_scope() as session:
+            query = (
+                session.query(WarrantyReminder, Client.name.label("client_name"))
+                .join(Client, WarrantyReminder.client_id == Client.id)
+                .filter(
+                    WarrantyReminder.reminder_date <= future,
+                    WarrantyReminder.reminder_date >= now,
+                    WarrantyReminder.is_completed == 0,
+                )
+            )
             if client_id:
-                rows = conn.execute(
-                    """SELECT wr.*, c.name as client_name FROM warranty_reminders wr
-                    JOIN clients c ON wr.client_id = c.id
-                    WHERE wr.client_id = ? AND wr.reminder_date <= ? AND wr.reminder_date >= ?
-                    AND wr.is_completed = 0
-                    ORDER BY wr.reminder_date ASC""",
-                    (client_id, future, now),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    """SELECT wr.*, c.name as client_name FROM warranty_reminders wr
-                    JOIN clients c ON wr.client_id = c.id
-                    WHERE wr.reminder_date <= ? AND wr.reminder_date >= ?
-                    AND wr.is_completed = 0
-                    ORDER BY wr.reminder_date ASC""",
-                    (future, now),
-                ).fetchall()
-            return [dict(r) for r in rows]
+                query = query.filter(WarrantyReminder.client_id == client_id)
+            rows = query.order_by(WarrantyReminder.reminder_date.asc()).all()
+
+            result = []
+            for wr, client_name in rows:
+                data = _row_to_dict(wr)
+                data["client_name"] = client_name
+                result.append(data)
+            return result
 
     def complete_warranty_reminder(self, reminder_id: int, notes: str = "") -> bool:
         """Відмітити нагадування як виконане."""
-        with self._transaction() as conn:
-            conn.execute(
-                """UPDATE warranty_reminders SET is_completed = 1, completed_at = ?, notes = ?
-                WHERE id = ?""",
-                (datetime.now().isoformat(), notes, reminder_id),
-            )
-        return True
+        with self._session_scope() as session:
+            wr = session.get(WarrantyReminder, reminder_id)
+            if not wr:
+                return False
+            wr.is_completed = 1
+            wr.completed_at = datetime.now().isoformat()
+            wr.notes = notes
+            return True
 
     # ═══════════════════════════════════════════════════════════════
     # ДАШБОРД — СТАТИСТИКА
@@ -1120,161 +899,212 @@ class ProjectDatabase:
 
     def get_dashboard_stats(self) -> dict:
         """KPI для дашборду."""
-        with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT SUM(total_amount) as total FROM client_projects WHERE status IN ('завершено', 'гарантія', 'закрито')"
-            ).fetchone()
-            total_revenue = float(row["total"] or 0)
+        with self._session_scope() as session:
+            total_revenue = (
+                session.query(func.sum(ClientProject.total_amount))
+                .filter(ClientProject.status.in_(["завершено", "гарантія", "закрито"]))
+                .scalar()
+            ) or 0
 
-            row = conn.execute(
-                "SELECT AVG(total_amount) as avg FROM client_projects WHERE total_amount > 0"
-            ).fetchone()
-            avg_check = float(row["avg"] or 0)
+            avg_check = (
+                session.query(func.avg(ClientProject.total_amount))
+                .filter(ClientProject.total_amount > 0)
+                .scalar()
+            ) or 0
 
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM client_projects WHERE status = 'в роботі'"
-            ).fetchone()
-            active_projects = int(row["cnt"] or 0)
+            active_projects = (
+                session.query(func.count(ClientProject.id))
+                .filter(ClientProject.status == "в роботі")
+                .scalar()
+            ) or 0
 
             now = datetime.now().isoformat()
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM client_projects WHERE end_date < ? AND status != 'закрито'",
-                (now,),
-            ).fetchone()
-            overdue_projects = int(row["cnt"] or 0)
+            overdue_projects = (
+                session.query(func.count(ClientProject.id))
+                .filter(ClientProject.end_date < now, ClientProject.status != "закрито")
+                .scalar()
+            ) or 0
 
-            row = conn.execute("SELECT COUNT(*) as cnt FROM clients").fetchone()
-            total_clients = int(row["cnt"] or 0)
+            total_clients = (
+                session.query(func.count(Client.id)).scalar()
+            ) or 0
 
             return {
-                "total_revenue": total_revenue,
-                "avg_check": avg_check,
-                "active_projects": active_projects,
-                "overdue_projects": overdue_projects,
-                "total_clients": total_clients,
+                "total_revenue": float(total_revenue),
+                "avg_check": float(avg_check),
+                "active_projects": int(active_projects),
+                "overdue_projects": int(overdue_projects),
+                "total_clients": int(total_clients),
             }
 
     def get_production_report(self) -> dict:
-        """Зведений звіт по виробництву (проєкти + вироби)."""
-        with self._get_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) as cnt FROM projects").fetchone()
-            total_projects = int(row["cnt"] or 0)
+        """Зведений звіт по виробництву."""
+        with self._session_scope() as session:
+            total_projects = (
+                session.query(func.count(Project.id)).scalar()
+            ) or 0
 
-            rows = conn.execute(
-                "SELECT status, COUNT(*) as cnt FROM projects GROUP BY status"
-            ).fetchall()
-            by_status = {r["status"]: int(r["cnt"]) for r in rows}
+            by_status = {
+                row.status: int(row.cnt)
+                for row in session.query(
+                    Project.status, func.count(Project.id).label("cnt")
+                ).group_by(Project.status).all()
+            }
 
-            row = conn.execute(
-                """SELECT COUNT(*) as cnt,
-                          COALESCE(SUM(quantity), 0) as total_qty,
-                          COALESCE(SUM(weight_kg * quantity), 0) as total_weight,
-                          COALESCE(SUM(metal_area_m2 * quantity), 0) as total_area
-                FROM project_products"""
-            ).fetchone()
+            result = (
+                session.query(
+                    func.count(ProjectProduct.id).label("cnt"),
+                    func.coalesce(func.sum(ProjectProduct.quantity), 0).label("total_qty"),
+                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
+                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
+                )
+                .first()
+            )
 
             return {
-                "total_projects": total_projects,
+                "total_projects": int(total_projects),
                 "projects_by_status": by_status,
-                "total_products": int(row["cnt"] or 0),
-                "total_quantity": int(row["total_qty"] or 0),
-                "total_weight_kg": float(row["total_weight"] or 0),
-                "total_metal_area_m2": float(row["total_area"] or 0),
-            }    
+                "total_products": int(result.cnt or 0),
+                "total_quantity": int(result.total_qty or 0),
+                "total_weight_kg": float(result.total_weight or 0),
+                "total_metal_area_m2": float(result.total_area or 0),
+            }
 
     def get_monthly_revenue(self, months: int = 12) -> list[dict]:
         """Виручка по місяцях."""
-        with self._get_connection() as conn:
-            since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
-            rows = conn.execute(
-                """SELECT strftime('%Y-%m', end_date) as month, SUM(total_amount) as amount
-                FROM client_projects
-                WHERE end_date IS NOT NULL AND end_date >= ?
-                GROUP BY month
-                ORDER BY month""",
-                (since + "-01",),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    func.strftime("%Y-%m", ClientProject.end_date).label("month"),
+                    func.sum(ClientProject.total_amount).label("amount"),
+                )
+                .filter(
+                    ClientProject.end_date.isnot(None),
+                    ClientProject.end_date >= since + "-01",
+                )
+                .group_by("month")
+                .order_by("month")
+                .all()
+            )
+            return [{"month": r.month, "amount": float(r.amount or 0)} for r in rows]
 
     def get_project_status_counts(self) -> dict:
         """Кількість проєктів за статусами."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                "SELECT status, COUNT(*) as cnt FROM client_projects GROUP BY status"
-            ).fetchall()
-            return {r["status"]: r["cnt"] for r in rows}
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    ClientProject.status, func.count(ClientProject.id).label("cnt")
+                )
+                .group_by(ClientProject.status)
+                .all()
+            )
+            return {r.status: int(r.cnt) for r in rows}
 
     def get_top_clients(self, limit: int = 5) -> list[dict]:
         """ТОП клієнтів за сумою замовлень."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                """SELECT c.name, SUM(cp.total_amount) as total
-                FROM clients c
-                JOIN client_projects cp ON c.id = cp.client_id
-                GROUP BY c.id
-                ORDER BY total DESC
-                LIMIT ?""",
-                (limit,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    Client.name, func.sum(ClientProject.total_amount).label("total")
+                )
+                .join(ClientProject, Client.id == ClientProject.client_id)
+                .group_by(Client.id)
+                .order_by(func.sum(ClientProject.total_amount).desc())
+                .limit(limit)
+                .all()
+            )
+            return [{"name": r.name, "total": float(r.total or 0)} for r in rows]
 
     def get_monthly_project_status(self, months: int = 6) -> list[dict]:
         """Кількість проєктів по місяцях за статусами."""
-        with self._get_connection() as conn:
-            since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
-            rows = conn.execute(
-                """SELECT strftime('%Y-%m', start_date) as month,
-                SUM(CASE WHEN status = 'в роботі' THEN 1 ELSE 0 END) as active,
-                SUM(CASE WHEN status IN ('завершено', 'гарантія', 'закрито') THEN 1 ELSE 0 END) as completed
-                FROM client_projects
-                WHERE start_date IS NOT NULL AND start_date >= ?
-                GROUP BY month
-                ORDER BY month""",
-                (since + "-01",),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    func.strftime("%Y-%m", ClientProject.start_date).label("month"),
+                    func.sum(
+                        func.case((ClientProject.status == "в роботі", 1), else_=0)
+                    ).label("active"),
+                    func.sum(
+                        func.case(
+                            (ClientProject.status.in_(["завершено", "гарантія", "закрито"]), 1),
+                            else_=0,
+                        )
+                    ).label("completed"),
+                )
+                .filter(
+                    ClientProject.start_date.isnot(None),
+                    ClientProject.start_date >= since + "-01",
+                )
+                .group_by("month")
+                .order_by("month")
+                .all()
+            )
+            return [
+                {"month": r.month, "active": int(r.active or 0), "completed": int(r.completed or 0)}
+                for r in rows
+            ]
 
     def get_monthly_avg_check(self, months: int = 12) -> list[dict]:
         """Середній чек по місяцях."""
-        with self._get_connection() as conn:
-            since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
-            rows = conn.execute(
-                """SELECT strftime('%Y-%m', end_date) as month, AVG(total_amount) as avg
-                FROM client_projects
-                WHERE end_date IS NOT NULL AND end_date >= ? AND total_amount > 0
-                GROUP BY month
-                ORDER BY month""",
-                (since + "-01",),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    func.strftime("%Y-%m", ClientProject.end_date).label("month"),
+                    func.avg(ClientProject.total_amount).label("avg"),
+                )
+                .filter(
+                    ClientProject.end_date.isnot(None),
+                    ClientProject.end_date >= since + "-01",
+                    ClientProject.total_amount > 0,
+                )
+                .group_by("month")
+                .order_by("month")
+                .all()
+            )
+            return [{"month": r.month, "avg": float(r.avg or 0)} for r in rows]
 
     def get_overdue_projects(self) -> list[dict]:
         """Прострочені проєкти."""
-        with self._get_connection() as conn:
-            now = datetime.now().isoformat()
-            rows = conn.execute(
-                """SELECT * FROM client_projects
-                WHERE end_date < ? AND status != 'закрито'
-                ORDER BY end_date ASC""",
-                (now,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+        now = datetime.now().isoformat()
+        with self._session_scope() as session:
+            rows = (
+                session.query(ClientProject)
+                .filter(ClientProject.end_date < now, ClientProject.status != "закрито")
+                .order_by(ClientProject.end_date.asc())
+                .all()
+            )
+            return _rows_to_dicts(rows)
 
     def get_material_usage_report(self) -> list[dict]:
         """Звіт по використанню матеріалів."""
-        with self._get_connection() as conn:
-            rows = conn.execute(
-                """SELECT
-                material, thickness,
-                SUM(quantity) as total_quantity,
-                SUM(weight_kg * quantity) as total_weight,
-                SUM(metal_area_m2 * quantity) as total_area,
-                COUNT(DISTINCT project_id) as projects_count
-                FROM project_products
-                GROUP BY material, thickness
-                ORDER BY total_weight DESC"""
-            ).fetchall()
-            return [dict(r) for r in rows]
+        with self._session_scope() as session:
+            rows = (
+                session.query(
+                    ProjectProduct.material,
+                    ProjectProduct.thickness,
+                    func.sum(ProjectProduct.quantity).label("total_quantity"),
+                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
+                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
+                    func.count(func.distinct(ProjectProduct.project_id)).label("projects_count"),
+                )
+                .group_by(ProjectProduct.material, ProjectProduct.thickness)
+                .order_by(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity).desc())
+                .all()
+            )
+            return [
+                {
+                    "material": r.material,
+                    "thickness": r.thickness,
+                    "total_quantity": int(r.total_quantity or 0),
+                    "total_weight": float(r.total_weight or 0),
+                    "total_area": float(r.total_area or 0),
+                    "projects_count": int(r.projects_count or 0),
+                }
+                for r in rows
+            ]
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1297,56 +1127,52 @@ def save_project_full(
     cutting_plan: dict | None = None,
     db_path: str = "data/company.db",
 ) -> dict:
-    """Зберегти повний проєкт (вироби + специфікація + розкрій) АТОМАРНО."""
+    """Зберегти повний проєкт (вироби + специфікація + розкрій) атомарно."""
     db = ProjectDatabase(db_path)
 
-    with db._transaction() as conn:
-        project_id = db._create_project_in_conn(conn, name=project_name)
+    with db._session_scope() as session:
+        project_id = db._create_project_in_conn(session, name=project_name)
 
         for p in products:
-            db._add_product_to_project_in_conn(conn, project_id, p)
+            db._add_product_to_project_in_conn(session, project_id, p)
 
         spec_id = None
         if spec_data:
             content = json.dumps(spec_data, ensure_ascii=False)
             summary = spec_data.get("summary", {})
-            cursor = conn.execute(
-                """INSERT INTO specifications
-                (project_id, name, format, content, total_items, total_quantity,
-                 total_weight_kg, total_area_m2, total_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    project_id, "Специфікація", "json", content,
-                    summary.get("total_items", 0),
-                    summary.get("total_quantity", 0),
-                    summary.get("total_weight_kg", 0),
-                    summary.get("total_area_m2", 0),
-                    summary.get("total_price", 0),
-                ),
+            spec = Specification(
+                project_id=project_id,
+                name="Специфікація",
+                format="json",
+                content=content,
+                total_items=summary.get("total_items", 0),
+                total_quantity=summary.get("total_quantity", 0),
+                total_weight_kg=summary.get("total_weight_kg", 0),
+                total_area_m2=summary.get("total_area_m2", 0),
+                total_price=summary.get("total_price", 0),
             )
-            spec_id = cursor.lastrowid
+            session.add(spec)
+            session.flush()
+            spec_id = spec.id
 
         plan_id = None
         if cutting_plan:
             summary = cutting_plan.get("summary", {})
-            cursor = conn.execute(
-                """INSERT INTO cutting_plans
-                (project_id, name, sheet_width, sheet_height, thickness, material,
-                 sheets_required, utilization_percent, waste_percent, plan_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    project_id, "План розкрою",
-                    cutting_plan.get("sheet_width", 1250),
-                    cutting_plan.get("sheet_height", 2500),
-                    cutting_plan.get("thickness", 0.7),
-                    cutting_plan.get("material", "оцинкована сталь"),
-                    summary.get("sheets_required", 0),
-                    summary.get("utilization_percent", 0),
-                    summary.get("waste_percent", 0),
-                    json.dumps(cutting_plan, ensure_ascii=False),
-                ),
+            cp = CuttingPlan(
+                project_id=project_id,
+                name="План розкрою",
+                sheet_width=cutting_plan.get("sheet_width", 1250),
+                sheet_height=cutting_plan.get("sheet_height", 2500),
+                thickness=cutting_plan.get("thickness", 0.7),
+                material=cutting_plan.get("material", "оцинкована сталь"),
+                sheets_required=summary.get("sheets_required", 0),
+                utilization_percent=summary.get("utilization_percent", 0),
+                waste_percent=summary.get("waste_percent", 0),
+                plan_data=json.dumps(cutting_plan, ensure_ascii=False),
             )
-            plan_id = cursor.lastrowid
+            session.add(cp)
+            session.flush()
+            plan_id = cp.id
 
     return {
         "project_id": project_id,

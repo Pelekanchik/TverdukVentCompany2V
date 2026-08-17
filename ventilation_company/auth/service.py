@@ -1,52 +1,32 @@
-"""Сервіс автентифікації та авторизації.
+"""Сервіс автентифікації та авторизації (SQLAlchemy ORM).
 
-Використовує PBKDF2 для хешування паролів та sqlite3 напряму.
-Поточний користувач зберігається як singleton.
+Покращення v2.1:
+  • Повністю переписано з raw sqlite3 на SQLAlchemy ORM.
+  • Збережено клас User для зворотної сумісності з GUI.
+  • Дефолтні паролі більше не хардкодяться.
+  • При першому запуску генерується випадковий пароль для admin.
 """
 
+from __future__ import annotations
+
 import hashlib
+import json
 import os
 import secrets
-import sqlite3
+import stat
 from typing import Optional
 
 from ventilation_company.auth.permissions import Role, has_permission
+from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.models.user import UserORM
 
-# Шлях до БД (та сама, що й у config.py)
-_DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "company.db"
-)
-
-
-def _get_conn() -> sqlite3.Connection:
-    """Підключення до БД."""
-    os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _ensure_users_table():
-    """Створити таблицю users, якщо її ще немає."""
-    with _get_conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'monter',
-                is_active INTEGER DEFAULT 1,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                last_login TEXT
-            )
-        """)
-        conn.commit()
+# Шлях до тимчасового файлу з обліковими даними першого запуску
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SETUP_FILE = os.path.join(_BASE_DIR, "data", ".setup_credentials.json")
 
 
 class User:
-    """Проста dataclass-користувач (без SQLAlchemy)."""
+    """Проста dataclass-користувач (зворотна сумісність з GUI)."""
 
     def __init__(self, id: int, username: str, password_hash: str,
                  full_name: str, role: str, is_active: int = 1,
@@ -62,7 +42,7 @@ class User:
 
 
 class AuthService:
-    """Сервіс автентифікації з хешуванням паролів (sqlite3)."""
+    """Сервіс автентифікації з хешуванням паролів (SQLAlchemy ORM)."""
 
     _instance: Optional["AuthService"] = None
     _current_user: Optional[User] = None
@@ -73,7 +53,10 @@ class AuthService:
         return cls._instance
 
     def __init__(self):
-        _ensure_users_table()
+        pass  # ініціалізація відкладена до першого використання
+
+    def _session(self):
+        return SessionLocal()
 
     # ── Хешування ──
     @staticmethod
@@ -96,16 +79,16 @@ class AuthService:
             AuthService._hash_password(password, salt), stored
         )
 
-    def _row_to_user(self, row: sqlite3.Row) -> User:
+    def _orm_to_user(self, orm: UserORM) -> User:
         return User(
-            id=row["id"],
-            username=row["username"],
-            password_hash=row["password_hash"],
-            full_name=row["full_name"],
-            role=row["role"],
-            is_active=row["is_active"],
-            created_at=row["created_at"],
-            last_login=row["last_login"],
+            id=orm.id,
+            username=orm.username,
+            password_hash=orm.password_hash,
+            full_name=orm.full_name,
+            role=orm.role,
+            is_active=orm.is_active,
+            created_at=orm.created_at.isoformat() if orm.created_at else None,
+            last_login=orm.last_login.isoformat() if orm.last_login else None,
         )
 
     # ── CRUD користувачів ──
@@ -120,41 +103,55 @@ class AuthService:
         if isinstance(role, str):
             role = Role(role)
 
-        with _get_conn() as conn:
-            existing = conn.execute(
-                "SELECT id FROM users WHERE username = ?", (username,)
-            ).fetchone()
+        session = self._session()
+        try:
+            existing = session.query(UserORM).filter(
+                UserORM.username == username
+            ).first()
             if existing:
                 raise ValueError(f"Користувач '{username}' вже існує")
 
-            cur = conn.execute(
-                """INSERT INTO users (username, password_hash, full_name, role, is_active)
-                   VALUES (?, ?, ?, ?, 1)""",
-                (username, self._hash_password(password), full_name, role.value),
+            user_orm = UserORM(
+                username=username,
+                password_hash=self._hash_password(password),
+                full_name=full_name,
+                role=role.value,
+                is_active=1,
             )
-            conn.commit()
-            return self.get_user(cur.lastrowid)
+            session.add(user_orm)
+            session.commit()
+            session.refresh(user_orm)
+            return self._orm_to_user(user_orm)
+        finally:
+            session.close()
 
     def get_user(self, user_id: int) -> Optional[User]:
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE id = ? AND is_active = 1", (user_id,)
-            ).fetchone()
-            return self._row_to_user(row) if row else None
+        session = self._session()
+        try:
+            orm = session.get(UserORM, user_id)
+            return self._orm_to_user(orm) if orm else None
+        finally:
+            session.close()
 
     def get_user_by_username(self, username: str) -> Optional[User]:
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE username = ? AND is_active = 1", (username,)
-            ).fetchone()
-            return self._row_to_user(row) if row else None
+        session = self._session()
+        try:
+            orm = session.query(UserORM).filter(
+                UserORM.username == username, UserORM.is_active == 1
+            ).first()
+            return self._orm_to_user(orm) if orm else None
+        finally:
+            session.close()
 
     def list_users(self) -> list[User]:
-        with _get_conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM users WHERE is_active = 1 ORDER BY id"
-            ).fetchall()
-            return [self._row_to_user(r) for r in rows]
+        session = self._session()
+        try:
+            rows = session.query(UserORM).filter(
+                UserORM.is_active == 1
+            ).order_by(UserORM.id).all()
+            return [self._orm_to_user(r) for r in rows]
+        finally:
+            session.close()
 
     def update_user(self, user_id: int, **kwargs) -> bool:
         allowed = {"full_name", "role", "is_active"}
@@ -164,13 +161,17 @@ class AuthService:
         if not fields:
             return False
 
-        sets = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [user_id]
-
-        with _get_conn() as conn:
-            conn.execute(f"UPDATE users SET {sets} WHERE id = ?", values)
-            conn.commit()
+        session = self._session()
+        try:
+            orm = session.get(UserORM, user_id)
+            if not orm:
+                return False
+            for k, v in fields.items():
+                setattr(orm, k, v)
+            session.commit()
             return True
+        finally:
+            session.close()
 
     def delete_user(self, user_id: int) -> bool:
         """Soft-delete."""
@@ -179,18 +180,20 @@ class AuthService:
     # ── Автентифікація ──
     def authenticate(self, username: str, password: str) -> Optional[User]:
         """Перевірити логін/пароль і повернути користувача."""
-        user = self.get_user_by_username(username)
-        if user and self._verify_password(password, user.password_hash):
-            from datetime import datetime
-            with _get_conn() as conn:
-                conn.execute(
-                    "UPDATE users SET last_login = ? WHERE id = ?",
-                    (datetime.now().isoformat(), user.id),
-                )
-                conn.commit()
-            self._current_user = user
-            return user
-        return None
+        session = self._session()
+        try:
+            orm = session.query(UserORM).filter(
+                UserORM.username == username, UserORM.is_active == 1
+            ).first()
+            if orm and self._verify_password(password, orm.password_hash):
+                from datetime import datetime
+                orm.last_login = datetime.now()
+                session.commit()
+                self._current_user = self._orm_to_user(orm)
+                return self._current_user
+            return None
+        finally:
+            session.close()
 
     def logout(self):
         """Вийти з системи."""
@@ -223,24 +226,71 @@ class AuthService:
     def is_monter(self) -> bool:
         return self._current_user is not None and self._current_user.role == Role.MONTER.value
 
-    # ── Ініціалізація ──
-    def ensure_default_users(self):
-        """Створити дефолтних користувачів, якщо таблиця порожня."""
-        with _get_conn() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM users"
-            ).fetchone()["cnt"]
+    # ── Ініціалізація першого запуску ──
+    @staticmethod
+    def _generate_temp_password(length: int = 12) -> str:
+        """Згенерувати криптографічно стійкий тимчасовий пароль."""
+        alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return "".join(secrets.choice(alphabet) for _ in range(length))
 
-        if count == 0:
-            self.create_user("admin", "admin123", "Адміністратор", Role.DIRECTOR)
-            self.create_user("engineer", "eng123", "Іван Інженер", Role.ENGINEER)
-            self.create_user("accountant", "acc123", "Олена Бухгалтер", Role.ACCOUNTANT)
-            self.create_user("monter", "mon123", "Петро Монтажник", Role.MONTER)
-            print("[AUTH] Створено дефолтних користувачів:")
-            print("  admin / admin123      (Директор)")
-            print("  engineer / eng123     (Інженер)")
-            print("  accountant / acc123   (Бухгалтер)")
-            print("  monter / mon123       (Монтажник)")
+    def ensure_default_users(self):
+        """Створити дефолтного адміністратора при першому запуску.
+
+        • Якщо в БД ще немає жодного користувача — створюється admin
+          з випадковим паролем.
+        • Пароль зберігається у файл .setup_credentials.json (тимчасово).
+        • Інші ролі НЕ створюються автоматично.
+        """
+        session = self._session()
+        try:
+            count = session.query(UserORM).count()
+            if count == 0:
+                temp_password = self._generate_temp_password()
+                user_orm = UserORM(
+                    username="admin",
+                    password_hash=self._hash_password(temp_password),
+                    full_name="Адміністратор",
+                    role=Role.DIRECTOR.value,
+                    is_active=1,
+                )
+                session.add(user_orm)
+                session.commit()
+
+                os.makedirs(os.path.dirname(_SETUP_FILE), exist_ok=True)
+                setup_data = {
+                    "username": "admin",
+                    "password": temp_password,
+                    "role": "director",
+                    "created_at": __import__("datetime").datetime.now().isoformat(),
+                    "note": "Видаліть цей файл після першого входу. Пароль рекомендується змінити.",
+                }
+                with open(_SETUP_FILE, "w", encoding="utf-8") as f:
+                    json.dump(setup_data, f, ensure_ascii=False, indent=2)
+                try:
+                    os.chmod(_SETUP_FILE, stat.S_IRUSR | stat.S_IWUSR)
+                except OSError:
+                    pass
+        finally:
+            session.close()
+
+    def has_setup_credentials(self) -> bool:
+        return os.path.exists(_SETUP_FILE)
+
+    def get_setup_credentials(self) -> dict | None:
+        if not self.has_setup_credentials():
+            return None
+        try:
+            with open(_SETUP_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+
+    def clear_setup_credentials(self):
+        if os.path.exists(_SETUP_FILE):
+            try:
+                os.remove(_SETUP_FILE)
+            except OSError:
+                pass
 
 
 # ── Глобальний екземпляр ──
