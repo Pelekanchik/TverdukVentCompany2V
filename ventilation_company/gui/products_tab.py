@@ -168,7 +168,6 @@ class ProductsTab:
 
     def _load_dynamic_types(self, event=None):
         try:
-            from ventilation_company.gui.settings_tab import PricingSettings
             settings = PricingSettings.get_instance()
             self._dynamic_types = {}
             for p in settings.products:
@@ -182,7 +181,6 @@ class ProductsTab:
 
     def _get_custom_formula(self, product_name: str) -> str:
         try:
-            from ventilation_company.gui.settings_tab import PricingSettings
             settings = PricingSettings.get_instance()
             for p in settings.products:
                 if p.get("name", "").strip() == product_name.strip():
@@ -898,7 +896,6 @@ class ProductsTab:
 
     def _calc_price(self, product: StandardProduct) -> float:
         try:
-            from ventilation_company.gui.settings_tab import PricingSettings
             pricing = PricingSettings.get_instance()
             data = product.to_dict()
             return pricing.calculate_product_price(data)

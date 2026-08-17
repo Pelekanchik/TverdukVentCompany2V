@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -24,6 +24,12 @@ if TYPE_CHECKING:
 
 class Project(Base):
     __tablename__ = "projects"
+
+    __table_args__ = (
+        Index("idx_project_number", "project_number"),
+        Index("idx_project_client", "client"),
+        Index("idx_project_status", "status"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_number: Mapped[str] = mapped_column(String, unique=True, nullable=False)

@@ -43,6 +43,7 @@ from ventilation_company.database.models.unified import (
     WarrantyReminder,
 )
 from ventilation_company.database.models.user import UserORM
+from ventilation_company.database.models.calc_template import CalcTemplate
 
 __all__ = [
     "Base",
@@ -73,4 +74,5 @@ __all__ = [
     "ClientProject",
     "WarrantyReminder",
     "UserORM",
+    "CalcTemplate",
 ]

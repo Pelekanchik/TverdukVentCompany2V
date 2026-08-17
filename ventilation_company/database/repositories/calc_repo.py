@@ -66,7 +66,6 @@ class CalculationRepository:
         for k, v in kwargs.items():
             if k in allowed and hasattr(calc, k):
                 setattr(calc, k, v)
-        from datetime import datetime
 
         calc.created_at = datetime.now().isoformat()  # або updated_at, якщо є
         self.db.commit()

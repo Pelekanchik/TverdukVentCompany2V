@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -10,6 +10,10 @@ from ventilation_company.database.base import Base
 
 class ProductType(Base):
     __tablename__ = "product_types"
+
+    __table_args__ = (
+        Index("idx_pt_slug", "slug"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)

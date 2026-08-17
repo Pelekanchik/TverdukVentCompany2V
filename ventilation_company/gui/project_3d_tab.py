@@ -326,7 +326,6 @@ class Project3DTab:
     def _check_collisions(self):
         """Перевірка зіткнень — ВЕРСІЯ 2 (AABB + точна відстань)."""
         try:
-            from ventilation_company.project3d.collision_detection import CollisionDetector
             detector = CollisionDetector(self.project)
             collisions = detector.check_all()
         except Exception as e:
@@ -400,7 +399,6 @@ class Project3DTab:
 
     def _calc_fitting_price(self, fit: Fitting) -> float:
         """Розрахувати ціну фасонного виробу (грн/шт)."""
-        from ventilation_company.calculations.pricing import PricingEngine
         # Площа розгортки фасонки (приблизно)
         area_m2 = (fit.width_in * fit.height_in) / 1_000_000.0 * 1.5
         base_cost = area_m2 * 1500.0
@@ -410,7 +408,6 @@ class Project3DTab:
 
     def _calc_equipment_price(self, eq: Equipment) -> float:
         """Розрахувати ціну обладнання (грн/шт)."""
-        from ventilation_company.calculations.pricing import PricingEngine
         # Обладнання дорожче — базова вартість залежить від потужності
         base_cost = max(eq.power * 5000.0, 3000.0) if eq.power else 5000.0
         engine = PricingEngine(base_cost=base_cost, markup_percent=20.0)

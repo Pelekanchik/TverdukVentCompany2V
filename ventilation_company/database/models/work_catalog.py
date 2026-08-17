@@ -1,8 +1,8 @@
-﻿"""ORM-РјРѕРґРµР»СЊ РґР»СЏ РєР°С‚Р°Р»РѕРіСѓ СЂРѕР±С–С‚."""
+"""ORM-РјРѕРґРµР»СЊ РґР»СЏ РєР°С‚Р°Р»РѕРіСѓ СЂРѕР±С–С‚."""
 
 from __future__ import annotations
 
-from sqlalchemy import Float, Integer, String
+from sqlalchemy import Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base

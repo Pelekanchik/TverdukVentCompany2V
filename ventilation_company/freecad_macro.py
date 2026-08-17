@@ -842,7 +842,6 @@ def main():
 
         if not success:
             try:
-                import Import
                 _log("Trying Import.export([doc])...")
                 Import.export([doc], output_path)
                 success = os.path.exists(output_path) and os.path.getsize(output_path) > 0
@@ -880,7 +879,6 @@ def main():
 
     elif fmt == "obj":
         try:
-            import Mesh
             meshes = []
             for obj in export_objects:
                 try:
@@ -897,7 +895,6 @@ def main():
 
     elif fmt in ("iges", "igs"):
         try:
-            import Import
             Import.export(export_objects, output_path)
             success = os.path.exists(output_path) and os.path.getsize(output_path) > 0
             _log("Result: " + str(success))
