@@ -15,6 +15,7 @@ import json
 import os
 import threading
 import tkinter as tk
+from dataclasses import dataclass, field
 from tkinter import messagebox, ttk
 
 from ventilation_company.gui.markup_matrix_tab import (
@@ -117,6 +118,39 @@ DEFAULT_PRODUCTS = [
     {"name": "Заглушка кругла", "formula": "metal_area * material_price * 1.25", "labor_hours": 0.20, "description": "Витиск + фальци"},
     {"name": "Гнучка вставка", "formula": "metal_area * 35.0 + 25.0", "labor_hours": 0.10, "description": "Тканина + обжим"},
 ]
+
+
+@dataclass
+class PriceStep:
+    """Один крок розрахунку ціни."""
+
+    name: str
+    calc: str
+    value: float
+
+
+@dataclass
+class PriceBreakdown:
+    """Повний результат розрахунку ціни виробу.
+
+    Містить і фінальну ціну (total), і покрокове розбиття (steps) —
+    замінює колишнє дублювання calculate_product_price /
+    calculate_product_price_detailed.
+    """
+
+    formula: str
+    steps: list = field(default_factory=list)
+    total: float = 0.0
+
+    def to_dict(self) -> dict:
+        """Серіалізація у формат колишнього calculate_product_price_detailed."""
+        return {
+            "formula": self.formula,
+            "steps": [
+                {"name": s.name, "calc": s.calc, "value": s.value} for s in self.steps
+            ],
+            "total": self.total,
+        }
 
 
 class PricingSettings:
@@ -296,63 +330,13 @@ class PricingSettings:
                     rate, diff = 120.0, 0.0
                 self.labor_rates[lower_name] = {"rate_per_m2": rate, "difficulty_percent": diff}
 
-    def calculate_product_price(self, product_data):
-        self.reload()
-        material = product_data.get("material", "оцинкована сталь")
-        thickness = product_data.get("thickness", 0.7)
-        metal_area = product_data.get("metal_area_m2", product_data.get("metal_area", 0))
-        weight = product_data.get("weight_kg", product_data.get("weight", 0))
-        quantity = product_data.get("quantity", 1)
-        bolt_count = product_data.get("bolt_count", 0)
-        material_price = self.get_material_price(material, thickness)
-        ptype = product_data.get("type", product_data.get("product_type", ""))
-        formula = "metal_area * material_price * 1.15"
-        labor_hours = 0.15
-        for p in self.products:
-            if p["name"].lower() in ptype.lower() or ptype.lower() in p["name"].lower():
-                formula = p.get("formula", formula)
-                labor_hours = p.get("labor_hours", 0.15)
-                break
-        try:
-            namespace = {
-                "metal_area": metal_area,
-                "metal_area_m2": metal_area,
-                "thickness": thickness,
-                "material_price": material_price,
-                "weight": weight,
-                "weight_kg": weight,
-                "quantity": quantity,
-                "bolt_count": bolt_count,
-                "length": product_data.get("length", 0),
-            }
-            namespace.update(self.custom_params)
-            for key, value in product_data.items():
-                if key not in namespace and isinstance(value, (int, float)) and not key.startswith("_"):
-                    namespace[key] = value
-            evaluator = SafeFormulaEvaluator()
-            price = evaluator.eval(formula, namespace)
-        except (ValueError, ZeroDivisionError, TypeError) as exc:
-            print(f'[PricingSettings] Помилка формули "{formula}": {exc}. Використано fallback.')
-            if metal_area > 0:
-                price = metal_area * material_price * 1.15
-            else:
-                price = weight * material_price * 1.15
-        waste_mult = 1 + (self.overhead.get("waste_percent", 8) / 100)
-        price *= waste_mult
-        labor_info = self.get_labor_rate(ptype)
-        rate_per_m2 = labor_info.get("rate_per_m2", 120.0)
-        difficulty = labor_info.get("difficulty_percent", 0.0)
-        labor_cost = metal_area * rate_per_m2 * (1 + difficulty / 100)
-        price += labor_cost
-        depr = sum(self.depreciation.values()) / len(self.depreciation) if self.depreciation else 4
-        price *= 1 + depr / 100
-        elec = weight * self.overhead.get("electricity_per_kg", 2.5)
-        price += elec
-        markup = self.get_markup_percent(product_data)
-        price *= 1 + markup / 100
-        return round(price, 2)
+    def calculate_price_breakdown(self, product_data) -> PriceBreakdown:
+        """Єдина точка розрахунку ціни виробу.
 
-    def calculate_product_price_detailed(self, product_data):
+        Повертає PriceBreakdown: total — кінцева ціна, steps — проміжні
+        кроки розрахунку. Короткий і детальний варіанти нижче є просто
+        різними уявленнями цього результату.
+        """
         self.reload()
         material = product_data.get("material", "оцинкована сталь")
         thickness = product_data.get("thickness", 0.7)
@@ -412,19 +396,27 @@ class PricingSettings:
         mat_key, cat_key = classify_product(product_data.get("name", ""), ptype, material)
         is_std = is_standard_size(product_data.get("width", 0), product_data.get("height", 0), product_data.get("length", 0), product_data.get("diameter", 0))
         size_label = "стандарт" if is_std else "нестандарт"
-        return {
-            "formula": formula,
-            "steps": [
-                {"name": "1. Базова ціна (метал)", "calc": f"{metal_area:.4f} м² × {material_price:.2f} грн/кг × коеф.", "value": round(base_price, 2)},
-                {"name": "2. Відходи металу", "calc": f"× (1 + {waste_pct:.1f}%) = × {waste_mult:.3f}", "value": round(after_waste, 2)},
-                {"name": "3. Зарплата робітників", "calc": f"{metal_area:.4f} м² × {rate_per_m2:.2f} грн/м² × (1 + {difficulty:.1f}%)", "value": round(labor_cost, 2)},
-                {"name": "4. Після зарплати", "calc": f"{after_waste:.2f} + {labor_cost:.2f}", "value": round(after_labor, 2)},
-                {"name": "5. Амортизація обладнання", "calc": f"× (1 + {depr:.2f}%)", "value": round(after_depr, 2)},
-                {"name": "6. Електроенергія", "calc": f"{weight:.3f} кг × {elec_rate:.2f} грн/кг", "value": round(elec_cost, 2)},
-                {"name": "7. Процентна націнка", "calc": f"× (1 + {markup_pct:.1f}%) — {mat_key} / {PRODUCT_TYPE_LABELS.get(cat_key, cat_key)} / {thickness} мм / {size_label}", "value": round(final_price, 2)},
+        return PriceBreakdown(
+            formula=formula,
+            steps=[
+                PriceStep("1. Базова ціна (метал)", f"{metal_area:.4f} м² × {material_price:.2f} грн/кг × коеф.", round(base_price, 2)),
+                PriceStep("2. Відходи металу", f"× (1 + {waste_pct:.1f}%) = × {waste_mult:.3f}", round(after_waste, 2)),
+                PriceStep("3. Зарплата робітників", f"{metal_area:.4f} м² × {rate_per_m2:.2f} грн/м² × (1 + {difficulty:.1f}%)", round(labor_cost, 2)),
+                PriceStep("4. Після зарплати", f"{after_waste:.2f} + {labor_cost:.2f}", round(after_labor, 2)),
+                PriceStep("5. Амортизація обладнання", f"× (1 + {depr:.2f}%)", round(after_depr, 2)),
+                PriceStep("6. Електроенергія", f"{weight:.3f} кг × {elec_rate:.2f} грн/кг", round(elec_cost, 2)),
+                PriceStep("7. Процентна націнка", f"× (1 + {markup_pct:.1f}%) — {mat_key} / {PRODUCT_TYPE_LABELS.get(cat_key, cat_key)} / {thickness} мм / {size_label}", round(final_price, 2)),
             ],
-            "total": round(final_price, 2),
-        }
+            total=round(final_price, 2),
+        )
+
+    def calculate_product_price(self, product_data):
+        """Ціна виробу (коротка форма) — обгортка над calculate_price_breakdown."""
+        return self.calculate_price_breakdown(product_data).total
+
+    def calculate_product_price_detailed(self, product_data):
+        """Ціна з покроковим розбиттям — обгортка над calculate_price_breakdown."""
+        return self.calculate_price_breakdown(product_data).to_dict()
 
 
 class SettingsTab:
