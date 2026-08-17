@@ -4,9 +4,11 @@
   • Додано connect_args={"check_same_thread": False} для безпечної
     роботи SQLite з SQLAlchemy в однопоточному GUI.
   • Збережено scoped_session для потокобезпечності.
+  • Додано get_calc_db() для зворотної сумісності з template_repo (raw sqlite3).
 """
 
 import os
+import sqlite3
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -38,3 +40,8 @@ def get_db():
         yield session
     finally:
         session.close()
+
+
+def get_calc_db():
+    """Повертає sqlite3 connection для зворотної сумісності (calc_templates)."""
+    return sqlite3.connect(DB_PATH)

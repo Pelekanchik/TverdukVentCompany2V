@@ -1,8 +1,12 @@
 """ORM-моделі бази даних VentCompany.
 
+Імпортуємо Base для реєстрації таблиць.
+
 Важливо: імпортувати всі моделі тут, щоб Base.metadata
 міг створити всі таблиці через create_all().
 """
+
+from ventilation_company.database.base import Base
 
 from ventilation_company.database.models.project import (
     Project,
@@ -41,6 +45,7 @@ from ventilation_company.database.models.unified import (
 from ventilation_company.database.models.user import UserORM
 
 __all__ = [
+    "Base",
     "Project",
     "ProjectComponent",
     "ProjectMaterial",
