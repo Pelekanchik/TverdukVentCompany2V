@@ -273,8 +273,8 @@ class CRMTab:
             self.proj_tree.insert("", tk.END, iid=str(r["id"]), values=(
                 r.get("project_name", ""),
                 r.get("project_number", "") or "—",
-                r.get("start_date", "") or "—",
-                r.get("end_date", "") or "—",
+                (r.get("start_date").strftime("%Y-%m-%d") if r.get("start_date") else "—"),
+                (r.get("end_date").strftime("%Y-%m-%d") if r.get("end_date") else "—"),
                 r.get("status", ""),
                 f"{r.get('total_amount', 0):,.2f}",
             ))
@@ -284,7 +284,7 @@ class CRMTab:
         rows = self.db.get_warranty_reminders(self._selected_client_id, upcoming_days=3650)
         for r in rows:
             self.warr_tree.insert("", tk.END, iid=str(r["id"]), values=(
-                r.get("reminder_date", "")[:10],
+                (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
                 r.get("project_name", ""),
                 r.get("description", "") or "—",
                 "✅ Так" if r.get("is_completed") else "❌ Ні",
@@ -620,7 +620,7 @@ class CRMTab:
         rows = self.db.get_warranty_reminders(upcoming_days=365)
         for r in rows:
             tree.insert("", tk.END, values=(
-                r.get("reminder_date", "")[:10],
+                (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
                 r.get("client_name", ""),
                 r.get("project_name", ""),
                 r.get("description", "") or "—",
