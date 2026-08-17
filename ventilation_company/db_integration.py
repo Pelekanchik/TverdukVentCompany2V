@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Generator
 
-from sqlalchemy import func, inspect
+from sqlalchemy import case, func, inspect
 from sqlalchemy.orm import Session
 
 from ventilation_company.database.db import SessionLocal
@@ -754,7 +754,7 @@ class ProjectDatabase:
             result = (
                 session.query(
                     func.sum(
-                        func.case(
+                        case(
                             (Payment.payment_type == "вхідний", Payment.amount),
                             else_=-Payment.amount,
                         )
@@ -1024,10 +1024,10 @@ class ProjectDatabase:
                 session.query(
                     func.strftime("%Y-%m", ClientProject.start_date).label("month"),
                     func.sum(
-                        func.case((ClientProject.status == "в роботі", 1), else_=0)
+                        case((ClientProject.status == "в роботі", 1), else_=0)
                     ).label("active"),
                     func.sum(
-                        func.case(
+                        case(
                             (ClientProject.status.in_(["завершено", "гарантія", "закрито"]), 1),
                             else_=0,
                         )
