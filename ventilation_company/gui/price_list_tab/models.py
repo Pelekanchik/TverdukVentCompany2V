@@ -18,6 +18,11 @@ import tkinter as tk
 import zipfile
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+
+from ventilation_company.utils.logging_config import get_logger
+
+_logger = get_logger("price_list")
+from decimal import Decimal
 from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
@@ -62,17 +67,17 @@ class PriceItem:
     unit: str = "шт"
     quantity: int = 1
 
-    cost_price: float = 0.0
-    markup_percent: float = 30.0
-    labor_cost: float = 0.0
-    material_cost: float = 0.0
-    overhead_cost: float = 0.0
+    cost_price: Decimal = Decimal("0")
+    markup_percent: float = 30.0  # % — float OK
+    labor_cost: Decimal = Decimal("0")
+    material_cost: Decimal = Decimal("0")
+    overhead_cost: Decimal = Decimal("0")
     supplier: str = ""
-    supplier_price: float = 0.0
+    supplier_price: Decimal = Decimal("0")
     notes_internal: str = ""
 
-    unit_price: float = 0.0
-    total_price: float = 0.0
+    unit_price: Decimal = Decimal("0")
+    total_price: Decimal = Decimal("0")
     notes_public: str = ""
 
     created_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
@@ -86,20 +91,22 @@ class PriceItem:
         self.recalculate()
 
     def recalculate(self):
+        from ventilation_company.utils.money import money_round
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
             base = self.cost_price + self.labor_cost + self.overhead_cost
-        self.unit_price = base * (1 + self.markup_percent / 100)
-        self.total_price = self.unit_price * self.quantity
+        self.unit_price = money_round(base * Decimal(str(1 + self.markup_percent / 100)))
+        self.total_price = money_round(self.unit_price * Decimal(str(self.quantity)))
 
     @property
-    def profit(self) -> float:
+    def profit(self) -> Decimal:
+        from ventilation_company.utils.money import money_round
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
             base = self.cost_price + self.labor_cost + self.overhead_cost
-        return (self.unit_price - base) * self.quantity
+        return money_round((self.unit_price - base) * Decimal(str(self.quantity)))
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -124,7 +131,7 @@ class PriceListManager:
                     data = json.load(f)
                 self.items = [PriceItem.from_dict(item) for item in data.get("items", [])]
             except Exception as e:
-                print(f"[PriceList] Помилка завантаження: {e}")
+                _logger.error("Помилка завантаження прайс-листа: %s", e)
                 self.items = []
         else:
             self.items = []
@@ -391,7 +398,7 @@ class PriceListManager:
                     self.save()
                 return imported
             except Exception as e:
-                print(f"[PriceList] Помилка читання з БД: {e}")
+                _logger.error("Помилка читання прайс-листа з БД: %s", e)
         return 0
 
     def _import_from_zip_archives(self, archive_dir: str = ARCHIVE_DIR) -> int:
@@ -438,7 +445,7 @@ class PriceListManager:
                             self.items.append(item)
                             imported += 1
             except Exception as e:
-                print(f"[PriceList] Помилка читання {filename}: {e}")
+                _logger.error("Помилка читання архіву %s: %s", filename, e)
         if imported > 0:
             self.save()
         return imported

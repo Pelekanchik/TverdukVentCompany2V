@@ -3,6 +3,11 @@
 import copy
 import math
 from dataclasses import dataclass, field
+from decimal import Decimal
+
+from ventilation_company.utils.logging_config import get_logger
+
+_logger = get_logger("products")
 from enum import Enum
 from typing import Optional
 
@@ -38,10 +43,10 @@ class StandardProduct:
     weight: float = field(init=False)
     has_flanges: bool = False
     flange_count: int = 0
-    flange_price: float = 0
+    flange_price: Decimal = Decimal("0")
     profile: float = 30.0
-    unit_price: float = 0
-    total_price: float = 0
+    unit_price: Decimal = Decimal("0")
+    total_price: Decimal = Decimal("0")
     notes: str = ""
 
     def __post_init__(self):
@@ -92,8 +97,8 @@ class StandardProduct:
             "flange_count": self.flange_count,
             "flange_price": self.flange_price,
             "profile": self.profile,
-            "unit_price": round(self.unit_price, 2),
-            "total_price": round(self.total_price, 2),
+            "unit_price": str(self.unit_price),
+            "total_price": str(self.total_price),
             "notes": self.notes,
         }
         # Додаємо специфічні поля підкласів

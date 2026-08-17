@@ -1,0 +1,12 @@
+2026-08-17 21:42:56 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 21:42:56 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_214256
+2026-08-17 21:42:57 | ERROR    | ventcompany | [DB] Помилка SQLAlchemy: name 'Numeric' is not defined
+2026-08-17 21:45:13 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 21:45:13 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_214513
+2026-08-17 21:45:15 | ERROR    | ventcompany | [DB] Помилка SQLAlchemy: Could not resolve all types within mapped annotation: "Mapped[Decimal]".  Ensure all types are written correctly and are imported within the module in use.
+2026-08-17 21:47:19 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 21:47:19 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_214719
+2026-08-17 21:47:21 | ERROR    | ventcompany | [DB] Помилка SQLAlchemy: from __future__ imports must occur at the beginning of the file (work_catalog.py, line 4)
+2026-08-17 21:49:11 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 21:49:11 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_214911
+2026-08-17 21:49:13 | INFO     | ventcompany | [DB] Міграції Alembic застосовано

@@ -1,3 +1,4 @@
+from decimal import Decimal
 """Вкладка "💰 Ціноутворення" для GUI.
 
 Налаштування:
