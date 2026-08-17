@@ -15,14 +15,30 @@ import sys
 
 
 def _init_db_tables():
-    """Створити всі SQLAlchemy-таблиці при запуску."""
+    """Створити/оновити всі SQLAlchemy-таблиці при запуску.
+
+    Спочатку пробуємо Alembic (міграції), якщо не вдалось — fallback на create_all().
+    """
     try:
-        # Імпортуємо моделі — це реєструє всі таблиці в Base.metadata
+        # Спробуємо Alembic спочатку
+        import subprocess
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            print("[DB] Міграції Alembic застосовано")
+            return
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass  # alembic не встановлено або таймаут
+
+    # Fallback: створити таблиці напряму
+    try:
         import ventilation_company.database.models
         from ventilation_company.database.base import Base
         from ventilation_company.database.db import engine
         Base.metadata.create_all(bind=engine)
-        print("[DB] Таблиці SQLAlchemy створено/оновлено")
+        print("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
     except Exception as e:
         print(f"[DB] Попередження SQLAlchemy: {e}")
 
