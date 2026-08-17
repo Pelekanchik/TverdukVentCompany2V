@@ -169,7 +169,7 @@ class ProductsTab:
     def _load_dynamic_types(self, event=None):
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
-            settings = PricingSettings()
+            settings = PricingSettings.get_instance()
             self._dynamic_types = {}
             for p in settings.products:
                 name = p.get("name", "").strip()
@@ -183,7 +183,7 @@ class ProductsTab:
     def _get_custom_formula(self, product_name: str) -> str:
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
-            settings = PricingSettings()
+            settings = PricingSettings.get_instance()
             for p in settings.products:
                 if p.get("name", "").strip() == product_name.strip():
                     return p.get("formula", "")
@@ -706,7 +706,7 @@ class ProductsTab:
             is_std = is_standard_size(w, h, length, w if is_round_prod else 0)
             size_label = "стандарт" if is_std else "нестандарт"
 
-            pricing = PricingSettings()
+            pricing = PricingSettings.get_instance()
             markup_pct = pricing.get_markup_percent(product_data)
 
             self.category_label.config(text=f"{mat_key} / {cat_key} / {size_label}")
@@ -717,7 +717,7 @@ class ProductsTab:
 
         # --- Тепер розрахунок ціни ---
         try:
-            pricing = PricingSettings()
+            pricing = PricingSettings.get_instance()
 
             selected_name = self.type_var.get()
             ptype = self.PRODUCT_TYPES.get(selected_name, "")
@@ -899,7 +899,7 @@ class ProductsTab:
     def _calc_price(self, product: StandardProduct) -> float:
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
-            pricing = PricingSettings()
+            pricing = PricingSettings.get_instance()
             data = product.to_dict()
             return pricing.calculate_product_price(data)
         except Exception as e:
