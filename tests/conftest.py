@@ -65,6 +65,13 @@ def db_session(engine, tables):
 
 
 @pytest.fixture
+def project_db(engine, tables):
+    """Provide a ProjectDatabase instance connected to the test engine."""
+    from ventilation_company.db_integration import ProjectDatabase
+    return ProjectDatabase(engine=engine)
+
+
+@pytest.fixture
 def temp_db_path():
     """Provide a temporary database file path.
 

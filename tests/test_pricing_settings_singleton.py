@@ -3,6 +3,7 @@
 Запуск:  pytest tests/test_pricing_settings_singleton.py -v
 """
 
+import json
 import os
 import tempfile
 import threading
@@ -62,7 +63,6 @@ class TestFileLock:
 
             # Файл має існувати і бути валідним JSON
             assert os.path.exists(path)
-            import json
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             assert "material_prices" in data

@@ -86,7 +86,8 @@ class TestProjectDatabase:
 
     def test_duplicate_project_not_found(self, temp_db_path):
         db = ProjectDatabase(temp_db_path)
-        with pytest.raises(ValueError, match="не знайдено"):
+        from ventilation_company.db_integration import TransactionError
+        with pytest.raises(TransactionError, match="не знайдено"):
             db.duplicate_project(99999)
 
     # ── Вироби ──────────────────────────────────────────────
