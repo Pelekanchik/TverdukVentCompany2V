@@ -1,4 +1,10 @@
-"""Підключення до БД та сесії."""
+"""Підключення до БД та сесії.
+
+Покращення v2.1:
+  • Додано connect_args={"check_same_thread": False} для безпечної
+    роботи SQLite з SQLAlchemy в однопоточному GUI.
+  • Збережено scoped_session для потокобезпечності.
+"""
 
 import os
 
@@ -15,6 +21,7 @@ engine = create_engine(
     f"sqlite:///{DB_PATH}",
     echo=False,  # True для дебагу SQL-запитів
     future=True,
+    connect_args={"check_same_thread": False},
 )
 
 # Фабрика сесій

@@ -3,6 +3,11 @@
 ВЕНТИЛЯЦІЙНА ВИРОБНИЧА ФІРМА
 Запуск: python main.py        → GUI режим
         python main.py --cli  → Консольний режим
+
+Покращення v2.1:
+  • _init_db_tables() тепер імпортує всі ORM-моделі перед create_all(),
+    щоб SQLAlchemy створила ВСІ таблиці (включно з users, clients тощо).
+  • Прибрано окреме створення users через sqlite3 — тепер єдиний шар ORM.
 """
 
 import importlib.util
@@ -11,27 +16,37 @@ import sys
 
 
 def _init_db_tables():
-    """Створити SQLAlchemy-таблиці (обхід багнутого database/__init__.py)."""
-    try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        db_path_mod = os.path.join(base_dir, "ventilation_company", "database", "db.py")
-        base_path = os.path.join(base_dir, "ventilation_company", "database", "base.py")
+    """Створити всі SQLAlchemy-таблиці при запуску."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
 
-        spec_db = importlib.util.spec_from_file_location("db", db_path_mod)
+    try:
+        # ── Динамічний імпорт (обхід циклічних імпортів) ──
+        db_path = os.path.join(base_dir, "ventilation_company", "database", "db.py")
+        base_path = os.path.join(base_dir, "ventilation_company", "database", "base.py")
+        models_path = os.path.join(
+            base_dir, "ventilation_company", "database", "models", "__init__.py"
+        )
+
+        spec_db = importlib.util.spec_from_file_location("db", db_path)
         db_mod = importlib.util.module_from_spec(spec_db)
+        sys.modules["db"] = db_mod
         spec_db.loader.exec_module(db_mod)
 
         spec_base = importlib.util.spec_from_file_location("base", base_path)
         base_mod = importlib.util.module_from_spec(spec_base)
+        sys.modules["base"] = base_mod
         spec_base.loader.exec_module(base_mod)
+
+        # Імпортуємо models/__init__.py — це реєструє ВСІ таблиці в Base.metadata
+        spec_models = importlib.util.spec_from_file_location("models", models_path)
+        models_mod = importlib.util.module_from_spec(spec_models)
+        sys.modules["models"] = models_mod
+        spec_models.loader.exec_module(models_mod)
 
         base_mod.Base.metadata.create_all(bind=db_mod.engine)
         print("[DB] Таблиці SQLAlchemy створено/оновлено")
     except Exception as e:
         print(f"[DB] Попередження SQLAlchemy: {e}")
-
-    # Таблиця users створюється автоматично в AuthService.__init__()
-    # (ventilation_company/auth/service.py — sqlite3 напряму)
 
 
 def run_gui():

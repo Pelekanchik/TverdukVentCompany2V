@@ -1,11 +1,10 @@
 """Вікно автентифікації (логін / пароль / реєстрація).
 
-ПАТЧ:
-    • Прибрано вкладку "👥 Користувачі" — тепер вона у вкладці "Мій кабінет"
-    • Додано property user_role для передачі ролі у головне вікно
-
-ВСТАНОВЛЕННЯ:
-    Замініть оригінальний ventilation_company/gui/login_window.py цим файлом.
+ПАТЧ v2.1:
+ • Прибрано вкладку "👥 Користувачі" — тепер вона у вкладці "Мій кабінет"
+ • Додано property user_role для передачі ролі у головне вікно
+ • Видалено хардкод-підказку з паролями
+ • Додано діалог першого запуску з показом випадкового пароля admin
 """
 
 import tkinter as tk
@@ -21,7 +20,7 @@ class LoginWindow:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("🔐 VentCompany — Вхід в систему")
-        self.root.geometry("460x520")          # Менше — прибрано вкладку користувачів
+        self.root.geometry("460x520")
         self.root.resizable(True, True)
         self.root.minsize(420, 450)
         self.root.configure(bg="#18181b")
@@ -59,21 +58,22 @@ class LoginWindow:
         self.tabs.pack(fill=tk.BOTH, expand=True, pady=5)
 
         self.tab_login = tk.Frame(self.tabs, bg="#18181b")
-        self.tabs.add(self.tab_login, text="  🔐 Вхід  ")
+        self.tabs.add(self.tab_login, text=" 🔐 Вхід ")
         self._build_login_tab(self.tab_login)
 
         self.tab_register = tk.Frame(self.tabs, bg="#18181b")
-        self.tabs.add(self.tab_register, text="  📝 Реєстрація  ")
+        self.tabs.add(self.tab_register, text=" 📝 Реєстрація ")
         self._build_register_tab(self.tab_register)
 
         self.lbl_status = tk.Label(card, text="", font=("Segoe UI", 9),
                                    bg="#18181b", fg="#ef4444")
         self.lbl_status.pack(pady=(5, 0))
 
+        # Підказка без паролів — тільки загальна інформація
         hint = tk.Label(card,
-            text="Дефолтні: admin/admin123 | engineer/eng123\n"
-                 "accountant/acc123 | monter/mon123",
-            font=("Segoe UI", 8), bg="#18181b", fg="#52525b", justify="center")
+                        text="Якщо ви вперше запускаєте програму,\n"
+                             "з'явиться вікно з тимчасовим паролем адміністратора.",
+                        font=("Segoe UI", 8), bg="#18181b", fg="#52525b", justify="center")
         hint.pack(side=tk.BOTTOM, pady=5)
 
     def _styled_entry(self, parent, show=None, width=32):
@@ -99,12 +99,12 @@ class LoginWindow:
         frm = tk.Frame(parent, bg="#18181b", padx=25, pady=15)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        self._styled_label(frm, "👤  Логін").pack(fill=tk.X, pady=(15, 2))
+        self._styled_label(frm, "👤 Логін").pack(fill=tk.X, pady=(15, 2))
         self.entry_user = self._styled_entry(frm)
         self.entry_user.pack(fill=tk.X, ipady=5)
         self.entry_user.focus()
 
-        self._styled_label(frm, "🔒  Пароль").pack(fill=tk.X, pady=(12, 2))
+        self._styled_label(frm, "🔒 Пароль").pack(fill=tk.X, pady=(12, 2))
         self.entry_pass = self._styled_entry(frm, show="•")
         self.entry_pass.pack(fill=tk.X, ipady=5)
 
@@ -118,23 +118,23 @@ class LoginWindow:
         frm = tk.Frame(parent, bg="#18181b", padx=25, pady=10)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        self._styled_label(frm, "👤  Логін *").pack(fill=tk.X, pady=(8, 2))
+        self._styled_label(frm, "👤 Логін *").pack(fill=tk.X, pady=(8, 2))
         self.reg_user = self._styled_entry(frm)
         self.reg_user.pack(fill=tk.X, ipady=4)
 
-        self._styled_label(frm, "📝  Повне ім'я *").pack(fill=tk.X, pady=(8, 2))
+        self._styled_label(frm, "📝 Повне ім'я *").pack(fill=tk.X, pady=(8, 2))
         self.reg_name = self._styled_entry(frm)
         self.reg_name.pack(fill=tk.X, ipady=4)
 
-        self._styled_label(frm, "🔒  Пароль *").pack(fill=tk.X, pady=(8, 2))
+        self._styled_label(frm, "🔒 Пароль *").pack(fill=tk.X, pady=(8, 2))
         self.reg_pass = self._styled_entry(frm, show="•")
         self.reg_pass.pack(fill=tk.X, ipady=4)
 
-        self._styled_label(frm, "🔒  Підтвердіть пароль *").pack(fill=tk.X, pady=(8, 2))
+        self._styled_label(frm, "🔒 Підтвердіть пароль *").pack(fill=tk.X, pady=(8, 2))
         self.reg_pass2 = self._styled_entry(frm, show="•")
         self.reg_pass2.pack(fill=tk.X, ipady=4)
 
-        self._styled_label(frm, "🛡️  Посада *").pack(fill=tk.X, pady=(8, 2))
+        self._styled_label(frm, "🛡️ Посада *").pack(fill=tk.X, pady=(8, 2))
         self.reg_role = ttk.Combobox(frm, values=[
             "Директор", "Інженер", "Бухгалтер", "Монтажник"
         ], state="readonly", font=("Segoe UI", 10))
@@ -153,6 +153,8 @@ class LoginWindow:
         user = auth.authenticate(username, password)
         if user:
             self.logged_in_user = user
+            # Якщо це був перший вхід — видаляємо файл з тимчасовими даними
+            auth.clear_setup_credentials()
             self.root.destroy()
         else:
             self.lbl_status.config(text="❌ Невірний логін або пароль", fg="#ef4444")
@@ -198,7 +200,78 @@ class LoginWindow:
         return self.logged_in_user is not None
 
 
+def _show_first_run_dialog(parent):
+    """Показати модальне вікно з тимчасовим паролем адміністратора."""
+    creds = auth.get_setup_credentials()
+    if not creds:
+        return
+
+    dialog = tk.Toplevel(parent)
+    dialog.title("🔐 Перший запуск — облікові дані адміністратора")
+    dialog.geometry("480x280")
+    dialog.configure(bg="#18181b")
+    dialog.transient(parent)
+    dialog.grab_set()
+    dialog.resizable(False, False)
+
+    # Центрування
+    dialog.update_idletasks()
+    x = parent.winfo_x() + (parent.winfo_width() // 2) - (480 // 2)
+    y = parent.winfo_y() + (parent.winfo_height() // 2) - (280 // 2)
+    dialog.geometry(f"+{x}+{y}")
+
+    tk.Label(dialog, text="🏭 VentCompany", font=("Segoe UI", 18, "bold"),
+             bg="#18181b", fg="#f97316").pack(pady=(15, 5))
+
+    tk.Label(dialog, text="Створено обліковий запис адміністратора",
+             font=("Segoe UI", 11), bg="#18181b", fg="#e4e4e7").pack()
+
+    tk.Label(dialog, text="Збережіть ці дані — їх більше не буде показано!",
+             font=("Segoe UI", 9, "bold"), bg="#18181b", fg="#ef4444").pack(pady=(10, 5))
+
+    # Логін
+    frm_user = tk.Frame(dialog, bg="#18181b")
+    frm_user.pack(fill=tk.X, padx=30, pady=3)
+    tk.Label(frm_user, text="Логін:", font=("Segoe UI", 10), bg="#18181b",
+             fg="#a1a1aa", width=10, anchor="w").pack(side=tk.LEFT)
+    lbl_user = tk.Label(frm_user, text=creds["username"], font=("Consolas", 11, "bold"),
+                        bg="#27272a", fg="#84cc16", padx=10, pady=3)
+    lbl_user.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    # Пароль
+    frm_pass = tk.Frame(dialog, bg="#18181b")
+    frm_pass.pack(fill=tk.X, padx=30, pady=3)
+    tk.Label(frm_pass, text="Пароль:", font=("Segoe UI", 10), bg="#18181b",
+             fg="#a1a1aa", width=10, anchor="w").pack(side=tk.LEFT)
+    lbl_pass = tk.Label(frm_pass, text=creds["password"], font=("Consolas", 11, "bold"),
+                        bg="#27272a", fg="#f97316", padx=10, pady=3)
+    lbl_pass.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    def _copy_and_close():
+        parent.clipboard_clear()
+        parent.clipboard_append(creds["password"])
+        parent.update()
+        dialog.destroy()
+
+    tk.Button(dialog, text="📋 Копіювати пароль і закрити",
+              font=("Segoe UI", 10, "bold"), bg="#f97316", fg="#18181b",
+              activebackground="#fb923c", relief="flat", cursor="hand2",
+              command=_copy_and_close).pack(pady=(20, 5), ipadx=10, ipady=5)
+
+    tk.Label(dialog, text="Рекомендується одразу змінити пароль у вкладці «Мій кабінет»",
+             font=("Segoe UI", 8), bg="#18181b", fg="#52525b").pack(pady=(5, 10))
+
+    parent.wait_window(dialog)
+
+
 def show_login() -> bool:
+    """Показати вікно входу. При першому запуску — створити admin і показати пароль."""
     auth.ensure_default_users()
     win = LoginWindow()
+
+    # Якщо є тимчасові облікові дані — показуємо діалог ПЕРЕД головним вікном
+    if auth.has_setup_credentials():
+        win.root.update()
+        win.root.after(100, lambda: _show_first_run_dialog(win.root))
+
     return win.run()
