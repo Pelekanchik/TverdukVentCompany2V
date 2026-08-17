@@ -10,3 +10,16 @@
 2026-08-17 21:49:11 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
 2026-08-17 21:49:11 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_214911
 2026-08-17 21:49:13 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
+2026-08-17 22:29:14 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 22:29:14 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_222914
+2026-08-17 22:29:14 | INFO     | ventcompany | 🛡️ Бекап створено перед міграцією: data/company.db.backup.20260817_222914
+2026-08-17 22:29:15 | INFO     | ventcompany | ✅ Міграції успішно застосовано
+2026-08-17 22:29:28 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 22:29:28 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_222928
+2026-08-17 22:29:29 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
+2026-08-17 22:33:09 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 22:33:09 | WARNING  | ventcompany.backup | БД не знайдено для бекапу: data/company.db
+2026-08-17 22:33:10 | INFO     | ventcompany | ✅ Міграції успішно застосовано
+2026-08-17 22:33:18 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-17 22:33:18 | WARNING  | ventcompany.backup | БД не знайдено для бекапу: data/company.db
+2026-08-17 22:33:19 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
