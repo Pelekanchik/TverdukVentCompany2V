@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 from datetime import datetime
 
 from ventilation_company.gui.theme_manager import get_theme_manager
+from ventilation_company.services.price_importer import PriceImporter
 
 PRICING_SETTINGS_FILE = "data/pricing_settings.json"
 
@@ -33,10 +34,11 @@ DEFAULT_PRICES = {
 
 
 class MetalPricesManager:
-    def __init__(self, filepath: str = PRICING_SETTINGS_FILE):
+    def __init__(self, parent, filepath: str = PRICING_SETTINGS_FILE):
         self.filepath = filepath
         self.prices: dict[str, dict[float, float]] = {}
         self.load()
+        self._build_ui(parent)
 
     def load(self):
         if os.path.exists(self.filepath):
@@ -131,6 +133,7 @@ class MetalPricesTab:
 
     def __init__(self, parent: ttk.Notebook):
         self.frame = ttk.Frame(parent)
+        self.frame.pack(fill=tk.BOTH, expand=True)
         self.manager = MetalPricesManager()
         self.theme = get_theme_manager()
         self._build_ui()
@@ -139,7 +142,7 @@ class MetalPricesTab:
     def _fg(self, key="fg"):
         return self.theme.color(key)
 
-    def _build_ui(self):
+    def _build_ui(self, parent):
         top = ttk.Frame(self.frame, padding=5)
         top.pack(fill=tk.X)
 
@@ -325,3 +328,63 @@ class MetalPricesTab:
 
     def get_manager(self) -> MetalPricesManager:
         return self.manager
+
+    def _import_prices(self):
+        """Імпортувати ціни з Excel/CSV файлу."""
+        from tkinter import filedialog
+
+        filepath = filedialog.askopenfilename(
+            title="Виберіть файл з цінами",
+            filetypes=[
+                ("Excel файли", "*.xlsx *.xls"),
+                ("CSV файли", "*.csv"),
+                ("Всі файли", "*.*"),
+            ],
+        )
+        if not filepath:
+            return
+
+        importer = PriceImporter()
+
+        try:
+            if filepath.lower().endswith((".xlsx", ".xls")):
+                updated, skipped, errors = importer.import_from_excel(filepath)
+            else:
+                updated, skipped, errors = importer.import_from_csv(filepath)
+
+            # Оновити таблицю
+            self._refresh_table()
+
+            # Показати підсумок
+            summary = importer.get_import_summary()
+            if errors:
+                messagebox.showwarning("Імпорт завершено з попередженнями", summary)
+            else:
+                messagebox.showinfo("Імпорт успішний", summary)
+
+        except Exception as e:
+            messagebox.showerror("Помилка імпорту", str(e))
+
+    def _export_template(self):
+        """Експортувати шаблон CSV для заповнення."""
+        from tkinter import filedialog
+
+        filepath = filedialog.asksaveasfilename(
+            title="Зберегти шаблон",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialfile="price_template.csv",
+        )
+        if not filepath:
+            return
+
+        import csv
+        with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Матеріал", "Товщина", "Ціна за кг", "Ціна за м²", "Дата"])
+            writer.writerow(["оцинкована сталь", "0.7", "380", "", "2026-08-17"])
+            writer.writerow(["нержавіюча сталь", "1.0", "1200", "", "2026-08-17"])
+            writer.writerow(["алюміній", "0.5", "320", "", "2026-08-17"])
+
+        messagebox.showinfo("Шаблон", f"Шаблон збережено:\n{filepath}")
+
