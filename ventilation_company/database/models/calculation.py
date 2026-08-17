@@ -5,8 +5,10 @@ from __future__ import annotations
 # ДОДАТИ на початок файлу (після імпортів sqlalchemy):
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Integer, String
+from sqlalchemy import Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from decimal import Decimal
 
 from ventilation_company.database.base import Base
 
@@ -20,15 +22,15 @@ class Calculation(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     calculation_type: Mapped[str | None] = mapped_column(String, nullable=True)
-    materials_cost: Mapped[float] = mapped_column(Float, default=0)
-    components_cost: Mapped[float] = mapped_column(Float, default=0)
-    works_cost: Mapped[float] = mapped_column(Float, default=0)
-    overhead_cost: Mapped[float] = mapped_column(Float, default=0)
-    total_cost: Mapped[float] = mapped_column(Float, default=0)
-    markup_amount: Mapped[float] = mapped_column(Float, default=0)
+    materials_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    components_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    works_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    overhead_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    total_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    markup_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     vat_amount: Mapped[float] = mapped_column(Float, default=0)
-    final_price: Mapped[float] = mapped_column(Float, default=0)
-    profit: Mapped[float] = mapped_column(Float, default=0)
+    final_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    profit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     calculated_at: Mapped[str | None] = mapped_column(String, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="calculations")

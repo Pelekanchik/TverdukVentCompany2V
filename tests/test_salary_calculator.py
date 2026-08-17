@@ -1,3 +1,4 @@
+from decimal import Decimal
 """Розширені тести для SalaryCalculator."""
 
 import pytest

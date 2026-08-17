@@ -18,7 +18,17 @@ def _init_db_tables():
     """Створити/оновити всі SQLAlchemy-таблиці при запуску.
 
     Спочатку пробуємо Alembic (міграції), якщо не вдалось — fallback на create_all().
+    Перед міграціями автоматично створюється резервна копія БД.
     """
+    from ventilation_company.utils.logging_config import setup_logging
+    from ventilation_company.utils.backup import create_backup, cleanup_old_backups
+
+    logger = setup_logging()
+
+    # Бекап перед будь-якими змінами
+    create_backup()
+    cleanup_old_backups(keep=10)
+
     try:
         # Спробуємо Alembic спочатку
         import subprocess
@@ -27,10 +37,10 @@ def _init_db_tables():
             capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            print("[DB] Міграції Alembic застосовано")
+            logger.info("[DB] Міграції Alembic застосовано")
             return
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass  # alembic не встановлено або таймаут
+        logger.warning("Alembic не знайдено або таймаут, використовуємо create_all()")
 
     # Fallback: створити таблиці напряму
     try:
@@ -38,9 +48,9 @@ def _init_db_tables():
         from ventilation_company.database.base import Base
         from ventilation_company.database.db import engine
         Base.metadata.create_all(bind=engine)
-        print("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
+        logger.info("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
     except Exception as e:
-        print(f"[DB] Попередження SQLAlchemy: {e}")
+        logger.error("[DB] Помилка SQLAlchemy: %s", e)
 
 
 def run_gui():
@@ -51,8 +61,10 @@ def run_gui():
         from ventilation_company.gui.main_window import main as gui_main
         gui_main()
     except ImportError as e:
-        print(f"Помилка запуску GUI: {e}")
-        print("Спробуйте: pip install tk")
+        from ventilation_company.utils.logging_config import get_logger
+        log = get_logger("main")
+        log.error("Помилка запуску GUI: %s", e)
+        log.info("Спробуйте: pip install tk")
         raise
 
 

@@ -8,10 +8,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Float, ForeignKey, Index, Integer, String, Text, DateTime, JSON,
+    Float, ForeignKey, Index, Integer, Numeric, String, Text, DateTime, JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,8 +38,8 @@ class ProjectProduct(Base):
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     metal_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    unit_price: Mapped[float] = mapped_column(Float, default=0)
-    total_price: Mapped[float] = mapped_column(Float, default=0)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, default=datetime.now, nullable=True
@@ -58,9 +59,9 @@ class Specification(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     total_items: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    total_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    total_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
-    total_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)  # кг — float OK
+    total_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)  # м² — float OK
+    total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, default=datetime.now, nullable=True
     )
@@ -117,8 +118,8 @@ class MaterialPrice(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     material: Mapped[str] = mapped_column(String, nullable=False)
     thickness: Mapped[float | None] = mapped_column(Float, nullable=True)
-    price_per_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    price_per_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_per_kg: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    price_per_m2: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String, default="UAH")
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, default=datetime.now, nullable=True
@@ -234,7 +235,7 @@ class ClientProject(Base):
     start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String, default="в роботі")
-    total_amount: Mapped[float] = mapped_column(Float, default=0)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     warranty_months: Mapped[int] = mapped_column(Integer, default=24)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 

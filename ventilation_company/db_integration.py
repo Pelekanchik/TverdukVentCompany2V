@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Generator
 
 from sqlalchemy import case, func, inspect
@@ -19,6 +20,9 @@ from sqlalchemy.orm import Session
 
 from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.project import Project
+from ventilation_company.utils.backup import create_backup
+from ventilation_company.utils.logging_config import get_logger
+from ventilation_company.utils.money import to_decimal, money_round
 from ventilation_company.database.models.unified import (
     Client,
     ClientProject,
@@ -31,6 +35,9 @@ from ventilation_company.database.models.unified import (
     StandardProductLibrary,
     WarrantyReminder,
 )
+
+
+_logger = get_logger("db_integration")
 
 
 class TransactionError(Exception):
@@ -565,8 +572,8 @@ class ProjectDatabase:
         self,
         material: str,
         thickness: float,
-        price_per_kg: float | None = None,
-        price_per_m2: float | None = None,
+        price_per_kg = None,
+        price_per_m2 = None,
     ) -> int:
         """Встановити/оновити ціну матеріалу."""
         with self._session_scope() as session:
@@ -608,7 +615,7 @@ class ProjectDatabase:
             )
             return _rows_to_dicts(rows)
 
-    def get_material_price(self, material: str, thickness: float) -> float | None:
+    def get_material_price(self, material: str, thickness: float):
         """Отримати ціну за кг для конкретного матеріалу."""
         with self._session_scope() as session:
             row = (
@@ -813,7 +820,7 @@ class ProjectDatabase:
         self, client_id: int, project_name: str,
         project_number: str = "", start_date: str = "",
         end_date: str = "", status: str = "в роботі",
-        total_amount: float = 0, warranty_months: int = 24,
+        total_amount = Decimal("0"), warranty_months: int = 24,
         description: str = "",
     ) -> int:
         """Додати проєкт клієнта + нагадування про гарантію."""
@@ -988,7 +995,7 @@ class ProjectDatabase:
             ) or 0
 
             return {
-                "total_revenue": float(total_revenue),
+                "total_revenue": money_round(total_revenue),
                 "avg_check": float(avg_check),
                 "active_projects": int(active_projects),
                 "overdue_projects": int(overdue_projects),
@@ -1024,7 +1031,7 @@ class ProjectDatabase:
                 "projects_by_status": by_status,
                 "total_products": int(result.cnt or 0),
                 "total_quantity": int(result.total_qty or 0),
-                "total_weight_kg": float(result.total_weight or 0),
+                "total_weight_kg": float(result.total_weight or 0),  # кг — float OK
                 "total_metal_area_m2": float(result.total_area or 0),
             }
 
