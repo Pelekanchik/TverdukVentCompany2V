@@ -915,6 +915,11 @@ class ProjectDatabase:
                 rows = conn.execute("SELECT * FROM clients ORDER BY name").fetchall()
             return [dict(r) for r in rows]
 
+    def get_clients(self, search: str = "") -> list[dict]:
+        """Отримати всіх клієнтів (аліас для get_all_clients)."""
+        return self.get_all_clients(search)
+
+
     def delete_client(self, client_id: int) -> bool:
         """Видалити клієнта (каскадне видалення)."""
         with self._transaction() as conn:
@@ -1148,6 +1153,34 @@ class ProjectDatabase:
                 "overdue_projects": overdue_projects,
                 "total_clients": total_clients,
             }
+
+    def get_production_report(self) -> dict:
+        """Зведений звіт по виробництву (проєкти + вироби)."""
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM projects").fetchone()
+            total_projects = int(row["cnt"] or 0)
+
+            rows = conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM projects GROUP BY status"
+            ).fetchall()
+            by_status = {r["status"]: int(r["cnt"]) for r in rows}
+
+            row = conn.execute(
+                """SELECT COUNT(*) as cnt,
+                          COALESCE(SUM(quantity), 0) as total_qty,
+                          COALESCE(SUM(weight_kg * quantity), 0) as total_weight,
+                          COALESCE(SUM(metal_area_m2 * quantity), 0) as total_area
+                FROM project_products"""
+            ).fetchone()
+
+            return {
+                "total_projects": total_projects,
+                "projects_by_status": by_status,
+                "total_products": int(row["cnt"] or 0),
+                "total_quantity": int(row["total_qty"] or 0),
+                "total_weight_kg": float(row["total_weight"] or 0),
+                "total_metal_area_m2": float(row["total_area"] or 0),
+            }    
 
     def get_monthly_revenue(self, months: int = 12) -> list[dict]:
         """Виручка по місяцях."""
