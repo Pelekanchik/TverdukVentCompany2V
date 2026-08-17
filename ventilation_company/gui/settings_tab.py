@@ -13,6 +13,7 @@
 import contextlib
 import json
 import os
+import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -24,6 +25,11 @@ from ventilation_company.gui.markup_matrix_tab import (
     is_standard_size,
 )
 from ventilation_company.gui.theme_manager import get_theme_manager
+
+# ═══════════════════════════════════════════════════════════════════
+# 🔒 БЕЗПЕКА: заміна небезпечного eval() на SafeFormulaEvaluator
+# ═══════════════════════════════════════════════════════════════════
+from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
 
 SETTINGS_FILE = "data/pricing_settings.json"
 
@@ -105,8 +111,8 @@ DEFAULT_PRODUCTS = [
     {"name": "Трійник круглий", "formula": "metal_area * material_price * 1.55", "labor_hours": 0.90, "description": "Врізка в трубу + зварка"},
     {"name": "Перехід прямокутний", "formula": "metal_area * material_price * 1.40", "labor_hours": 0.60, "description": "Трапецієподібна розгортка"},
     {"name": "Перехід круглий", "formula": "metal_area * material_price * 1.45", "labor_hours": 0.70, "description": "Конусна розгортка"},
-    {"name": "Відвід прямокутний", "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*pi/180/1000) * material_price * 1.60", "labor_hours": 1.00, "description": "Сегментне коліно"},
-    {"name": "Відвід круглий", "formula": "(pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*pi/180/1000) * material_price * 1.65", "labor_hours": 1.10, "description": "Гнуте коліно"},
+    {"name": "Відвід прямокутний", "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*math.pi/180/1000) * material_price * 1.60", "labor_hours": 1.00, "description": "Сегментне коліно"},
+    {"name": "Відвід круглий", "formula": "(math.pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*math.pi/180/1000) * material_price * 1.65", "labor_hours": 1.10, "description": "Гнуте коліно"},
     {"name": "Заглушка прямокутна", "formula": "metal_area * material_price * 1.25", "labor_hours": 0.20, "description": "Дно + фальци"},
     {"name": "Заглушка кругла", "formula": "metal_area * material_price * 1.25", "labor_hours": 0.20, "description": "Витиск + фальци"},
     {"name": "Гнучка вставка", "formula": "metal_area * 35.0 + 25.0", "labor_hours": 0.10, "description": "Тканина + обжим"},
@@ -114,24 +120,82 @@ DEFAULT_PRODUCTS = [
 
 
 class PricingSettings:
-    """Менеджер налаштувань ціноутворення."""
+    """Менеджер налаштувань ціноутворення (Singleton з файловим блокуванням).
 
-    def __init__(self, filepath=SETTINGS_FILE):
+    Гарантує, що всі вкладки GUI працюють з одним і тим самим
+    екземпляром даних, і запис у файл є атомарним.
+    """
+
+    _instance: "PricingSettings | None" = None
+    _lock = threading.Lock()
+
+    def __new__(cls, filepath: str = SETTINGS_FILE) -> "PricingSettings":
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+
+    @classmethod
+    def get_instance(cls, filepath: str = SETTINGS_FILE) -> "PricingSettings":
+        """Отримати єдиний екземпляр налаштувань."""
+        return cls(filepath)
+
+    def __init__(self, filepath: str = SETTINGS_FILE):
+        # Ініціалізуємо лише один раз (singleton)
+        if self._initialized:
+            return
+        self._initialized = True
+
         self.filepath = filepath
-        self.material_prices = {}
-        self.overhead = {}
-        self.depreciation = {}
-        self.markup_percent = DEFAULT_MARKUP_PERCENT
-        self.markup_matrix = build_default_markup_matrix()
-        self.products = []
-        self.custom_params = {}
-        self.labor_rates = {}
+        self._file_lock = threading.Lock()
+        self._last_modified: float = 0.0
+
+        # Дані
+        self.material_prices: dict = {}
+        self.overhead: dict = {}
+        self.depreciation: dict = {}
+        self.markup_percent: float = DEFAULT_MARKUP_PERCENT
+        self.markup_matrix: dict = {}
+        self.products: list = []
+        self.custom_params: dict = {}
+        self.labor_rates: dict = {}
+
         self.load()
 
-    def load(self):
-        if os.path.exists(self.filepath):
+    # ── Файлові операції з блокуванням ──
+
+    def _atomic_write(self, data: dict) -> None:
+        """Атомарний запис: спочатку у тимчасовий файл, потім rename."""
+        os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
+        temp_path = self.filepath + ".tmp"
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, self.filepath)
+        self._last_modified = os.path.getmtime(self.filepath)
+
+    def _read_file(self) -> dict:
+        """Безпечне читання файлу з блокуванням."""
+        with self._file_lock:
+            if not os.path.exists(self.filepath):
+                return {}
             with open(self.filepath, encoding="utf-8") as f:
-                data = json.load(f)
+                return json.load(f)
+
+    def reload(self) -> None:
+        """Перечитати файл, якщо він змінився ззовні."""
+        if os.path.exists(self.filepath):
+            mtime = os.path.getmtime(self.filepath)
+            if mtime > self._last_modified:
+                self.load()
+
+    def load(self) -> None:
+        """Завантажити налаштування з файлу або встановити за замовчуванням."""
+        data = self._read_file()
+        if data:
             self.material_prices = data.get("material_prices", DEFAULT_MATERIAL_PRICES)
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
@@ -153,30 +217,28 @@ class PricingSettings:
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
             self.save()
 
-    def save(self):
-        os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-        with open(self.filepath, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "material_prices": self.material_prices,
-                    "overhead": self.overhead,
-                    "depreciation": self.depreciation,
-                    "markup_percent": self.markup_percent,
-                    "markup_matrix": self.markup_matrix,
-                    "products": self.products,
-                    "custom_params": self.custom_params,
-                    "labor_rates": self.labor_rates,
-                },
-                f,
-                ensure_ascii=False,
-                indent=2,
-            )
+    def save(self) -> None:
+        """Зберегти налаштування атомарно."""
+        data = {
+            "material_prices": self.material_prices,
+            "overhead": self.overhead,
+            "depreciation": self.depreciation,
+            "markup_percent": self.markup_percent,
+            "markup_matrix": self.markup_matrix,
+            "products": self.products,
+            "custom_params": self.custom_params,
+            "labor_rates": self.labor_rates,
+        }
+        with self._file_lock:
+            self._atomic_write(data)
 
     def get_material_price(self, material, thickness):
+        self.reload()
         mat = self.material_prices.get(material, {})
         return mat.get(str(thickness), 55.0)
 
     def get_labor_rate(self, product_type: str) -> dict:
+        self.reload()
         ptype = product_type.lower().strip()
         if ptype in self.labor_rates:
             return self.labor_rates[ptype]
@@ -186,6 +248,7 @@ class PricingSettings:
         return {"rate_per_m2": 120.0, "difficulty_percent": 0.0}
 
     def get_markup_percent(self, product_data: dict) -> float:
+        self.reload()
         name = product_data.get("name", "")
         ptype = product_data.get("type", product_data.get("product_type", ""))
         material = product_data.get("material", "оцинкована сталь")
@@ -234,6 +297,7 @@ class PricingSettings:
                 self.labor_rates[lower_name] = {"rate_per_m2": rate, "difficulty_percent": diff}
 
     def calculate_product_price(self, product_data):
+        self.reload()
         material = product_data.get("material", "оцинкована сталь")
         thickness = product_data.get("thickness", 0.7)
         metal_area = product_data.get("metal_area_m2", product_data.get("metal_area", 0))
@@ -251,7 +315,6 @@ class PricingSettings:
                 break
         try:
             namespace = {
-                "__builtins__": {},
                 "metal_area": metal_area,
                 "metal_area_m2": metal_area,
                 "thickness": thickness,
@@ -266,8 +329,10 @@ class PricingSettings:
             for key, value in product_data.items():
                 if key not in namespace and isinstance(value, (int, float)) and not key.startswith("_"):
                     namespace[key] = value
-            price = eval(formula, namespace)
-        except Exception:
+            evaluator = SafeFormulaEvaluator()
+            price = evaluator.eval(formula, namespace)
+        except (ValueError, ZeroDivisionError, TypeError) as exc:
+            print(f'[PricingSettings] Помилка формули "{formula}": {exc}. Використано fallback.')
             if metal_area > 0:
                 price = metal_area * material_price * 1.15
             else:
@@ -288,6 +353,7 @@ class PricingSettings:
         return round(price, 2)
 
     def calculate_product_price_detailed(self, product_data):
+        self.reload()
         material = product_data.get("material", "оцинкована сталь")
         thickness = product_data.get("thickness", 0.7)
         metal_area = product_data.get("metal_area_m2", product_data.get("metal_area", 0))
@@ -305,7 +371,6 @@ class PricingSettings:
                 break
         try:
             namespace = {
-                "__builtins__": {},
                 "metal_area": metal_area, "metal_area_m2": metal_area,
                 "thickness": thickness, "material_price": material_price,
                 "weight": weight, "weight_kg": weight,
@@ -324,8 +389,10 @@ class PricingSettings:
             for key, value in product_data.items():
                 if key not in namespace and isinstance(value, (int, float)) and not key.startswith("_"):
                     namespace[key] = value
-            base_price = eval(formula, namespace)
-        except Exception:
+            evaluator = SafeFormulaEvaluator()
+            base_price = evaluator.eval(formula, namespace)
+        except (ValueError, ZeroDivisionError, TypeError) as exc:
+            print(f'[PricingSettings] Помилка формули "{formula}": {exc}. Використано fallback.')
             base_price = metal_area * material_price * 1.15 if metal_area > 0 else weight * material_price * 1.15
         waste_pct = self.overhead.get("waste_percent", 8)
         waste_mult = 1 + waste_pct / 100
@@ -365,7 +432,7 @@ class SettingsTab:
 
     def __init__(self, parent: ttk.Notebook):
         self.frame = ttk.Frame(parent)
-        self.settings = PricingSettings()
+        self.settings = PricingSettings.get_instance()
         self.theme = get_theme_manager()
         self._build_ui()
         self._refresh_all()
@@ -459,9 +526,9 @@ class SettingsTab:
             self.depr_vars[key] = var
 
         info_text = """💡 Формула ціни:
- (метал × товщина × ціна × коефіцієнт) × (1 + відходи%)
- + зарплата (грн/м² × площа × важкість) + електроенергія × вага
- × (1 + середня амортизація%) × (1 + націнка%)"""
+(метал × товщина × ціна × коефіцієнт) × (1 + відходи%)
++ зарплата (грн/м² × площа × важкість) + електроенергія × вага
+× (1 + середня амортизація%) × (1 + націнка%)"""
         info = ttk.Label(
             self.costs_frame,
             text=info_text,
@@ -516,14 +583,14 @@ class SettingsTab:
         help_frame.pack(fill=tk.X, padx=5, pady=5, side=tk.BOTTOM)
         help_text = (
             "Формула розрахунку зарплати у виробі:\n"
-            " Зарплата = metal_area × ставка × (1 + важкість / 100)\n\n"
+            "  Зарплата = metal_area × ставка × (1 + важкість / 100)\n\n"
             "Приклад:\n"
-            " Повітропровід 400×200×1000 мм, площа 1.2 м²\n"
-            " Ставка 120 грн/м², важкість 0%\n"
-            " Зарплата = 1.2 × 120 × 1.0 = 144 грн\n\n"
-            " Трійник, площа 2.5 м²\n"
-            " Ставка 250 грн/м², важкість 25%\n"
-            " Зарплата = 2.5 × 250 × 1.25 = 781.25 грн"
+            "  Повітропровід 400×200×1000 мм, площа 1.2 м²\n"
+            "  Ставка 120 грн/м², важкість 0%\n"
+            "  Зарплата = 1.2 × 120 × 1.0 = 144 грн\n\n"
+            "  Трійник, площа 2.5 м²\n"
+            "  Ставка 250 грн/м², важкість 25%\n"
+            "  Зарплата = 2.5 × 250 × 1.25 = 781.25 грн"
         )
         ttk.Label(help_frame, text=help_text, foreground=self._fg("green"), justify=tk.LEFT, font=("Consolas", 9)).pack(anchor=tk.W)
 
@@ -637,9 +704,9 @@ class SettingsTab:
             " • length * material_price * 0.5\n"
             " • metal_area * material_price * 1.15 + transport_km * 5\n\n"
             "Стандартні змінні (завжди доступні):\n"
-            " metal_area, metal_area_m2, thickness, material_price,\n"
-            " weight, weight_kg, quantity, bolt_count,\n"
-            " width, height, length"
+            "  metal_area, metal_area_m2, thickness, material_price,\n"
+            "  weight, weight_kg, quantity, bolt_count,\n"
+            "  width, height, length"
         )
         ttk.Label(help_frame, text=help_text, foreground=self._fg("green"), justify=tk.LEFT, font=("Consolas", 9)).pack(anchor=tk.W)
 
@@ -686,10 +753,10 @@ class SettingsTab:
 
         examples = (
             "Приклади параметрів:\n"
-            " flange_price — ціна одного фланця (грн)\n"
-            " coating_price — вартість покриття (грн/м²)\n"
-            " transport_km — відстань доставки (км)\n"
-            " packing_cost — вартість упаковки (грн)"
+            "  flange_price — ціна одного фланця (грн)\n"
+            "  coating_price — вартість покриття (грн/м²)\n"
+            "  transport_km — відстань доставки (км)\n"
+            "  packing_cost — вартість упаковки (грн)"
         )
         ttk.Label(dialog, text=examples, foreground=self._fg("fg_muted"), justify=tk.LEFT, font=("Consolas", 9)).grid(
             row=3, column=0, columnspan=2, padx=10, pady=10, sticky=tk.W
@@ -779,33 +846,33 @@ class SettingsTab:
 
         param_help = (
             "Доступні змінні у формулі (завжди доступні):\n"
-            " metal_area — площа металу (м²)\n"
-            " thickness — товщина (мм)\n"
-            " material_price — ціна металу (грн/кг)\n"
-            " weight — вага (кг)\n"
-            " quantity — кількість\n"
-            " bolt_count — кількість болтів\n"
-            " width — ширина виробу (мм)\n"
-            " height — висота виробу (мм)\n"
-            " length — довжина виробу (мм)\n\n"
+            "  metal_area — площа металу (м²)\n"
+            "  thickness — товщина (мм)\n"
+            "  material_price — ціна металу (грн/кг)\n"
+            "  weight — вага (кг)\n"
+            "  quantity — кількість\n"
+            "  bolt_count — кількість болтів\n"
+            "  width — ширина виробу (мм)\n"
+            "  height — висота виробу (мм)\n"
+            "  length — довжина виробу (мм)\n\n"
             "Додаткові параметри (автоматично створять поля вводу):\n"
-            " angle — кут згину (°)\n"
-            " radius — радіус дуги (мм)\n"
-            " branch_width / branch_height — відгалуження Ш×В (мм)\n"
-            " branch_length — довжина відгалуження (мм)\n"
-            " branch_offset — відстань від краю (мм)\n"
-            " branch_diameter — Ø відгалуження (мм)\n"
-            " end_width / end_height — кінцеві розміри (мм)\n"
-            " end_diameter — кінцевий Ø (мм)\n"
-            " flange_border / flange_width — ширина полки (мм)\n"
-            " depth — глибина (мм)\n"
-            " border — ширина загину (мм)\n"
-            " segments — кількість сегментів\n"
-            " bolt_count — кількість болтів\n"
-            " bolt_diameter — Ø отвору під болт (мм)\n"
-            " bolt_spacing — крок отворів (мм)\n\n"
+            "  angle — кут згину (°)\n"
+            "  radius — радіус дуги (мм)\n"
+            "  branch_width / branch_height — відгалуження Ш×В (мм)\n"
+            "  branch_length — довжина відгалуження (мм)\n"
+            "  branch_offset — відстань від краю (мм)\n"
+            "  branch_diameter — Ø відгалуження (мм)\n"
+            "  end_width / end_height — кінцеві розміри (мм)\n"
+            "  end_diameter — кінцевий Ø (мм)\n"
+            "  flange_border / flange_width — ширина полки (мм)\n"
+            "  depth — глибина (мм)\n"
+            "  border — ширина загину (мм)\n"
+            "  segments — кількість сегментів\n"
+            "  bolt_count — кількість болтів\n"
+            "  bolt_diameter — Ø отвору під болт (мм)\n"
+            "  bolt_spacing — крок отворів (мм)\n\n"
             "Кастомні параметри (з вкладки 'Параметри формул'):\n"
-            " " + ", ".join(self.settings.custom_params.keys()) if self.settings.custom_params else " (немає)"
+            "  " + ", ".join(self.settings.custom_params.keys()) if self.settings.custom_params else "  (немає)"
         )
         ttk.Label(dialog, text=param_help, foreground=self._fg("green"), justify=tk.LEFT).grid(
             row=4, column=0, columnspan=2, padx=10, pady=10, sticky=tk.W
