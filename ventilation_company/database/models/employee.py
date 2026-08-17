@@ -1,6 +1,6 @@
 """ORM-модель для співробітників."""
 
-from sqlalchemy import Float, Integer, String
+from sqlalchemy import Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base
@@ -8,6 +8,10 @@ from ventilation_company.database.base import Base
 
 class Employee(Base):
     __tablename__ = "employees"
+
+    __table_args__ = (
+        Index("idx_emp_position", "position"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String, nullable=False)

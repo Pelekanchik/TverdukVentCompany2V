@@ -63,7 +63,7 @@ class MetalPricesManager:
             try:
                 with open(self.filepath, encoding="utf-8") as f:
                     data = json.load(f)
-            except:
+            except (ValueError, TypeError):
                 pass
         material_prices = {}
         for material, thicknesses in self.prices.items():

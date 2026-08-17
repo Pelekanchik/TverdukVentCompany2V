@@ -45,15 +45,17 @@ class AuthService:
     """Сервіс автентифікації з хешуванням паролів (SQLAlchemy ORM)."""
 
     _instance: Optional["AuthService"] = None
-    _current_user: Optional[User] = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._current_user = None
         return cls._instance
 
     def __init__(self):
-        pass  # ініціалізація відкладена до першого використання
+        if not hasattr(self, "_initialized"):
+            self._current_user = None
+            self._initialized = True
 
     def _session(self):
         return SessionLocal()

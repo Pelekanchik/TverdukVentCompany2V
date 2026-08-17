@@ -78,7 +78,6 @@ class TestFileLock:
             s1.save()
 
             # Імітуємо зміну ззовні
-            import json
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             data["custom_params"]["reload_test"] = 222.0
@@ -121,7 +120,6 @@ class TestThreadSafety:
             assert not errors, f"Помилки при паралельному записі: {errors}"
 
             # Перевіримо, що файл валідний
-            import json
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             assert "custom_params" in data

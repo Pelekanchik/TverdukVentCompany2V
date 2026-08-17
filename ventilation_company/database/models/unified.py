@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Float, ForeignKey, Integer, String, Text, DateTime, JSON,
+    Float, ForeignKey, Index, Integer, String, Text, DateTime, JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -133,6 +133,11 @@ class Client(Base):
     """Клієнти."""
     __tablename__ = "clients"
 
+    __table_args__ = (
+        Index("idx_client_name", "name"),
+        Index("idx_client_edrpou", "edrpou"),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     contact_person: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -167,6 +172,11 @@ class Interaction(Base):
     """Взаємодії з клієнтами."""
     __tablename__ = "interactions"
 
+    __table_args__ = (
+        Index("idx_interaction_client", "client_id"),
+        Index("idx_interaction_date", "date"),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     date: Mapped[datetime | None] = mapped_column(
@@ -187,6 +197,11 @@ class Payment(Base):
     """Платежі."""
     __tablename__ = "payments"
 
+    __table_args__ = (
+        Index("idx_payment_client", "client_id"),
+        Index("idx_payment_date", "date"),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     date: Mapped[datetime | None] = mapped_column(
@@ -205,6 +220,12 @@ class Payment(Base):
 class ClientProject(Base):
     """Проєкти клієнта (окремі від внутрішніх проєктів)."""
     __tablename__ = "client_projects"
+
+    __table_args__ = (
+        Index("idx_cp_client", "client_id"),
+        Index("idx_cp_status", "status"),
+        Index("idx_cp_start", "start_date"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))

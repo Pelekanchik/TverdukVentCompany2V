@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -10,6 +10,11 @@ from ventilation_company.database.base import Base
 
 class CalcMaterial(Base):
     __tablename__ = "calc_materials"
+
+    __table_args__ = (
+        Index("idx_cm_name", "name"),
+        Index("idx_cm_active", "is_active"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -32,6 +37,11 @@ class SubtypeMaterial(Base):
 
 class CalcCalculation(Base):
     __tablename__ = "calc_calculations"
+
+    __table_args__ = (
+        Index("idx_cc_status", "status"),
+        Index("idx_cc_client", "client_name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_name: Mapped[str | None] = mapped_column(String, nullable=True)

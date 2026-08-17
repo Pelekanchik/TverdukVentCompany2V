@@ -44,7 +44,6 @@ class TestFormatDate:
         assert result == "10.08.2026"
 
     def test_custom_format(self):
-        from datetime import datetime
 
         result = format_date(datetime(2026, 8, 10), fmt="%Y-%m-%d")
         assert result == "2026-08-10"

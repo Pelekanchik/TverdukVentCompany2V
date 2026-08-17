@@ -188,7 +188,3 @@ class VentProject:
         self.ventilation_systems = [system]
 
 
-# Імпорти для зручності
-from ventilation_company.project3d.vent_system import (
-    DuctType, DuctShape, DuctSegment, Fitting, Equipment, VentilationTrunk, VentilationSystem
-)

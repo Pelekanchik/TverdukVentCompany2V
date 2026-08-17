@@ -287,12 +287,12 @@ class IFCConverter(BaseConverter):
                 if any(k in key_lower for k in ["width", "ширина", "b"]):
                     try:
                         width = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 elif any(k in key_lower for k in ["height", "висота", "h"]):
                     try:
                         height = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 elif any(k in key_lower for k in ["diameter", "діаметр", "d", "ø"]):
                     try:
@@ -300,12 +300,12 @@ class IFCConverter(BaseConverter):
                         width = diameter
                         height = diameter
                         shape_str = "round"
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 elif any(k in key_lower for k in ["length", "довжина", "l"]):
                     try:
                         length = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except:
+                    except (ValueError, TypeError):
                         pass
 
             dx, dy, dz = direction
@@ -572,7 +572,7 @@ class IFCConverter(BaseConverter):
                     if any(k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]):
                         try:
                             air_flow = float(val)
-                        except:
+                        except (ValueError, TypeError):
                             pass
 
                 width = 400
@@ -964,7 +964,6 @@ class FreeCADConverter(BaseConverter):
         return ext in self.SUPPORTED_EXPORT
 
     def import_project(self, filepath: str) -> VentProject:
-        from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
 
         project = VentProject(
             name=os.path.splitext(os.path.basename(filepath))[0],
@@ -974,7 +973,6 @@ class FreeCADConverter(BaseConverter):
             # Використовуємо FreeCAD CLI для імпорту
             script = f"""
 import FreeCAD
-import json
 doc = FreeCAD.openDocument("{filepath}")
 result = {{"objects": []}}
 for obj in doc.Objects:
@@ -1020,7 +1018,6 @@ doc.close()
         return project
 
     def export_project(self, project: VentProject, filepath: str) -> None:
-        from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
 
         if not FREECAD_AVAILABLE or not FREECAD_CMD:
             raise RuntimeError("FreeCAD не знайдено. Встановіть FreeCAD для експорту у FCStd.")

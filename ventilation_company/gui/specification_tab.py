@@ -815,9 +815,6 @@ class SpecificationTab:
         products = self.db.get_project_products(pid)
 
         try:
-            import tempfile
-            import platform
-            import subprocess
 
             fd, pdf_path = tempfile.mkstemp(suffix=".pdf", prefix=f"project_{pid}_")
             os.close(fd)
