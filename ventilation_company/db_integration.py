@@ -63,15 +63,46 @@ def _rows_to_dicts(rows: list) -> list[dict]:
 class ProjectDatabase:
     """Єдиний менеджер БД для вентиляційних проєктів (SQLAlchemy ORM)."""
 
-    def __init__(self, db_path: str = "data/company.db"):
-        # db_path ігнорується — використовуємо SessionLocal з db.py,
-        # але зберігаємо для зворотної сумісності API.
+    def __init__(self, db_path: str = "data/company.db", engine=None):
         self.db_path = db_path
+        if engine is not None:
+            from sqlalchemy.orm import sessionmaker
+            self._session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        elif db_path != "data/company.db":
+            # Тестовий режим: створюємо engine для переданого шляху
+            from sqlalchemy import create_engine, event
+            from sqlalchemy.orm import sessionmaker
+            test_engine = create_engine(f"sqlite:///{db_path}", future=True)
+            # Увімкнути WAL mode для тестів
+            @event.listens_for(test_engine, "connect")
+            def set_sqlite_pragma(dbapi_conn, connection_record):
+                dbapi_conn.execute("PRAGMA journal_mode=WAL")
+            from ventilation_company.database.base import Base
+            Base.metadata.create_all(test_engine)
+            self._session_factory = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+        else:
+            self._session_factory = SessionLocal
+
+    @contextmanager
+    def _get_connection(self):
+        """Повертає raw sqlite3 connection (для тестів WAL-режиму)."""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    @contextmanager
+    def _transaction(self):
+        """Контекстний менеджер для транзакцій (зворотна сумісність з тестами)."""
+        with self._session_scope() as session:
+            yield session
 
     @contextmanager
     def _session_scope(self) -> Generator[Session, None, None]:
         """Контекстний менеджер для сесій з автоматичним commit/rollback."""
-        session = SessionLocal()
+        session = self._session_factory()
         try:
             yield session
             session.commit()
@@ -95,7 +126,7 @@ class ProjectDatabase:
     ) -> int:
         """Створити новий проєкт."""
         with self._session_scope() as session:
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
             project = Project(
                 project_number=f"PRJ-{timestamp}",
                 name=name,
@@ -182,7 +213,7 @@ class ProjectDatabase:
 
             # Новий проєкт
             new_project = Project(
-                project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S")}",
+                project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S-%f")}",
                 name=new_name or f"{project.name} (копія)",
                 description=project.description,
                 client=project.client,
@@ -230,7 +261,7 @@ class ProjectDatabase:
     ) -> int:
         """Створити проєкт у межах транзакції."""
         project = Project(
-            project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S")}",
+            project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S-%f")}",
             name=name,
             description=description,
             client=client,

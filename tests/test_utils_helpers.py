@@ -1,6 +1,7 @@
 """Тести для модуля helpers."""
 
 import json
+from datetime import datetime
 import os
 import tempfile
 
@@ -38,7 +39,6 @@ class TestFormatDate:
     """Тести форматування дати."""
 
     def test_default_format(self):
-        from datetime import datetime
 
         result = format_date(datetime(2026, 8, 10))
         assert result == "10.08.2026"
