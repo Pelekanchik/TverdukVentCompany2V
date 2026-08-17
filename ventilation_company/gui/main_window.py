@@ -18,6 +18,7 @@ from ventilation_company.gui.price_list_tab import PriceListTab
 from ventilation_company.gui.specification_tab import SpecificationTab
 from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
+from ventilation_company.gui.metal_prices_tab import MetalPricesTab
 from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
 from ventilation_company.gui.crm_tab import CRMTab
 from ventilation_company.gui.dashboard_tab import DashboardTab
@@ -287,32 +288,87 @@ class MainWindow:
             get_products_callback=self._get_products,
             get_project_info_callback=self._get_project_info,
         )
-        self.aerodynamics_tab = AerodynamicsTab(self.notebook)
-        self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
-        self.crm_tab = CRMTab(self.notebook)
-        self.documents_tab = DocumentsTab(self.notebook)
-        self.dashboard_tab = DashboardTab(self.notebook)
+        # ═══════════════════════════════════════════════════════
+        # 5 ГОЛОВНИХ ВКЛАДОК (згруповано з 13)
+        # ═══════════════════════════════════════════════════════
 
-        self.notebook.add(self.products_tab.frame, text="📦 Вироби")
-        self.notebook.add(self.spec_tab.frame, text="📋 Специфікація")
-        self.notebook.add(self.cutting_tab.frame, text="✂️ Розкрій")
-        self.notebook.add(self.project_3d_tab.frame, text="🏗️ Проєкти 3D")
-        self.notebook.add(self.settings_tab.frame, text="💰 Ціноутворення")
-        self.notebook.add(self.production_tab.frame, text="🏭 Виробництво")
-        self.notebook.add(self.material_order_tab.frame, text="📦 Матеріали")
-        self.notebook.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
-        self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
-        self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
-        self.notebook.add(self.documents_tab.frame, text="📄 Документи")
-        self.notebook.add(self.crm_tab.frame, text="👥 CRM")
+        # ── 1. 📋 ПРОЄКТ (Вироби + Специфікація + Розкрій + 3D) ───
+        self.project_frame = ttk.Frame(self.notebook)
+        self.project_nb = ttk.Notebook(self.project_frame)
+        self.project_nb.pack(fill=tk.BOTH, expand=True)
 
-        # === 🏠 Мій кабінет ===
+        self.products_tab = ProductsTab(self.project_nb)
+        self.project_nb.add(self.products_tab.frame, text="🔧 Вироби")
+
+        self.spec_tab = SpecificationTab(
+            self.project_nb,
+            ProjectDatabase(),
+        )
+        self.project_nb.add(self.spec_tab.frame, text="📋 Специфікація")
+
+        self.cutting_tab = CuttingTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
+        self.project_nb.add(self.cutting_tab.frame, text="✂️ Розкрій")
+
+        self.project_3d_tab = Project3DTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
+        self.project_nb.add(self.project_3d_tab.frame, text="🧊 3D")
+
+        self.notebook.add(self.project_frame, text="📋 Проєкт")
+
+        # ── 2. 💰 ФІНАНСИ (Ціноутворення + Прайс + Документи) ────
+        self.finance_frame = ttk.Frame(self.notebook)
+        self.finance_nb = ttk.Notebook(self.finance_frame)
+        self.finance_nb.pack(fill=tk.BOTH, expand=True)
+
+        self.settings_tab = SettingsTab(self.finance_nb)
+        self.finance_nb.add(self.settings_tab.frame, text="💰 Ціноутворення")
+
+        self.price_list_tab = PriceListTab(self.finance_nb, get_products_callback=self._get_products)
+        self.finance_nb.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
+
+        self.documents_tab = DocumentsTab(self.finance_nb)
+        self.finance_nb.add(self.documents_tab.frame, text="📄 Документи")
+
+        self.notebook.add(self.finance_frame, text="💰 Фінанси")
+
+        # ── 3. 🏭 ВИРОБНИЦТВО (Виробництво + Матеріали + Аеро) ────
+        self.prod_frame = ttk.Frame(self.notebook)
+        self.prod_nb = ttk.Notebook(self.prod_frame)
+        self.prod_nb.pack(fill=tk.BOTH, expand=True)
+
+        self.production_tab = ProductionTab(self.prod_nb, get_products_callback=self.products_tab.get_products_data)
+        self.prod_nb.add(self.production_tab.frame, text="🏭 Виробництво")
+
+        self.material_order_tab = MaterialOrderTab(
+            self.prod_nb,
+            get_products_callback=self.products_tab.get_products_data,
+        )
+        self.prod_nb.add(self.material_order_tab.frame, text="📦 Матеріали")
+
+        self.aerodynamics_tab = AerodynamicsTab(self.prod_nb)
+        self.prod_nb.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
+
+        self.notebook.add(self.prod_frame, text="🏭 Виробництво")
+
+        # ── 4. 📊 АНАЛІТИКА (Дашборд + CRM) ──────────────────────
+        self.analytics_frame = ttk.Frame(self.notebook)
+        self.analytics_nb = ttk.Notebook(self.analytics_frame)
+        self.analytics_nb.pack(fill=tk.BOTH, expand=True)
+
+        self.dashboard_tab = DashboardTab(self.analytics_nb)
+        self.analytics_nb.add(self.dashboard_tab.frame, text="📊 Дашборд")
+
+        self.crm_tab = CRMTab(self.analytics_nb)
+        self.analytics_nb.add(self.crm_tab.frame, text="👥 CRM")
+
+        self.notebook.add(self.analytics_frame, text="📊 Аналітика")
+
+        # ── 5. 👤 КАБІНЕТ ───────────────────────────────────────
         self.cabinet_tab = CabinetTab(
             self.notebook,
             current_user=self.current_user.username,
             is_director=self.is_director,
         )
-        self.notebook.add(self.cabinet_tab, text="🏠 Мій кабінет")
+        self.notebook.add(self.cabinet_tab, text="👤 Кабінет")
 
         self.price_list_tab._current_project_id = self.current_project_id
 
@@ -324,7 +380,7 @@ class MainWindow:
         )
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
-        self.notebook.select(self.dashboard_tab.frame)
+        self.notebook.select(0)
 
     def _apply_permissions(self):
         for tab_text, required_perms in TAB_PERMISSIONS.items():
@@ -365,6 +421,10 @@ class MainWindow:
 
     def _on_products_changed(self):
         self.status_bar.config(text=f"Виробів: {len(self.products_tab.get_library())}")
+
+    def _on_materials_changed(self):
+        """Обробник зміни матеріалів."""
+        pass
 
     def _get_products_for_price(self):
         try:
