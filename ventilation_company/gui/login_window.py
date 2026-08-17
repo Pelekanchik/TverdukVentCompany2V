@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from ventilation_company.auth.service import auth
+from ventilation_company.auth.password_policy import validate_password
 from ventilation_company.auth.permissions import get_role_label
 
 

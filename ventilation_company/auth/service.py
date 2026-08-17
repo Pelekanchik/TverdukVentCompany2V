@@ -9,7 +9,12 @@
 
 from __future__ import annotations
 
-import hashlib
+from ventilation_company.auth.password_policy import (
+    hash_password,
+    verify_password,
+    validate_password,
+    PasswordValidationResult,
+)
 import json
 import os
 import secrets
@@ -60,26 +65,20 @@ class AuthService:
     def _session(self):
         return SessionLocal()
 
-    # ── Хешування ──
+    # ── Хешування (bcrypt) ──
     @staticmethod
-    def _hash_password(password: str, salt: Optional[str] = None) -> str:
-        """PBKDF2-HMAC-SHA256 з salt."""
-        if salt is None:
-            salt = secrets.token_hex(16)
-        pwd_hash = hashlib.pbkdf2_hmac(
-            "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000
-        ).hex()
-        return f"{salt}${pwd_hash}"
+    def _hash_password(password: str) -> str:
+        """bcrypt хешування пароля."""
+        return hash_password(password)
 
     @staticmethod
     def _verify_password(password: str, stored: str) -> bool:
-        """Перевірити пароль проти збереженого хешу."""
-        if "$" not in stored:
-            return False
-        salt, _ = stored.split("$", 1)
-        return secrets.compare_digest(
-            AuthService._hash_password(password, salt), stored
-        )
+        """Перевірити пароль через bcrypt."""
+        return verify_password(password, stored)
+
+    def check_password_policy(self, password: str) -> PasswordValidationResult:
+        """Перевірити пароль на відповідність політиці."""
+        return validate_password(password)
 
     def _orm_to_user(self, orm: UserORM) -> User:
         return User(
