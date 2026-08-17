@@ -12,6 +12,7 @@ from ventilation_company.db_integration import ProjectDatabase, save_project_ful
 from ventilation_company.gui.cutting_tab import CuttingTab
 from ventilation_company.gui.project_3d_tab import Project3DTab
 from ventilation_company.gui.products_tab import ProductsTab
+from ventilation_company.gui.documents_tab import DocumentsTab
 from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.price_list_tab import PriceListTab
 from ventilation_company.gui.specification_tab import SpecificationTab
@@ -289,6 +290,7 @@ class MainWindow:
         self.aerodynamics_tab = AerodynamicsTab(self.notebook)
         self.price_list_tab = PriceListTab(self.notebook, get_products_callback=self._get_products)
         self.crm_tab = CRMTab(self.notebook)
+        self.documents_tab = DocumentsTab(self.notebook)
         self.dashboard_tab = DashboardTab(self.notebook)
 
         self.notebook.add(self.products_tab.frame, text="📦 Вироби")
@@ -301,6 +303,7 @@ class MainWindow:
         self.notebook.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
         self.notebook.add(self.dashboard_tab.frame, text="📊 Дашборд")
         self.notebook.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
+        self.notebook.add(self.documents_tab.frame, text="📄 Документи")
         self.notebook.add(self.crm_tab.frame, text="👥 CRM")
 
         # === 🏠 Мій кабінет ===
