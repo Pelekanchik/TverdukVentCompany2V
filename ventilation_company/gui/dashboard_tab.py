@@ -288,7 +288,7 @@ class DashboardTab:
         overdue = self.db.get_overdue_projects()
         if overdue:
             names = [p["project_name"][:20] for p in overdue[:5]]
-            days = [(datetime.now() - datetime.fromisoformat(p["end_date"])).days
+            days = [(datetime.now() - (p["end_date"] if isinstance(p["end_date"], datetime) else datetime.fromisoformat(p["end_date"]))).days
                     for p in overdue[:5]]
             bars = ax.barh(names, days,
                            color=theme["chart_danger"],

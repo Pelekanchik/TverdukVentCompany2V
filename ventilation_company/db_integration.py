@@ -707,6 +707,15 @@ class ProjectDatabase:
         created_by: str = "",
     ) -> int:
         """Додати взаємодію."""
+        parsed_date = None
+        if next_action_date:
+            if isinstance(next_action_date, datetime):
+                parsed_date = next_action_date
+            else:
+                try:
+                    parsed_date = datetime.strptime(next_action_date, "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
         with self._session_scope() as session:
             inter = Interaction(
                 client_id=client_id,
@@ -716,7 +725,7 @@ class ProjectDatabase:
                 description=description,
                 result=result,
                 next_action=next_action,
-                next_action_date=next_action_date,
+                next_action_date=parsed_date,
                 created_by=created_by,
             )
             session.add(inter)
@@ -808,13 +817,31 @@ class ProjectDatabase:
         description: str = "",
     ) -> int:
         """Додати проєкт клієнта + нагадування про гарантію."""
+        parsed_start = None
+        parsed_end = None
+        if start_date:
+            if isinstance(start_date, datetime):
+                parsed_start = start_date
+            else:
+                try:
+                    parsed_start = datetime.strptime(start_date, "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
+        if end_date:
+            if isinstance(end_date, datetime):
+                parsed_end = end_date
+            else:
+                try:
+                    parsed_end = datetime.strptime(end_date, "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
         with self._session_scope() as session:
             cp = ClientProject(
                 client_id=client_id,
                 project_name=project_name,
                 project_number=project_number,
-                start_date=start_date,
-                end_date=end_date,
+                start_date=parsed_start,
+                end_date=parsed_end,
                 status=status,
                 total_amount=total_amount,
                 warranty_months=warranty_months,
@@ -824,16 +851,16 @@ class ProjectDatabase:
             session.flush()
 
             # Автоматично створюємо нагадування про гарантію
-            if end_date and warranty_months > 0:
+            if parsed_end and warranty_months > 0:
                 try:
-                    end_dt = datetime.fromisoformat(end_date)
-                    reminder_dt = end_dt + timedelta(days=warranty_months * 30)
+                    reminder_dt = parsed_end + timedelta(days=warranty_months * 30)
+                    end_str = parsed_end.strftime("%Y-%m-%d")
                     wr = WarrantyReminder(
                         client_id=client_id,
                         client_project_id=cp.id,
                         project_name=project_name,
-                        reminder_date=reminder_dt.isoformat(),
-                        description=f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_date})",
+                        reminder_date=reminder_dt,
+                        description=f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_str})",
                         is_completed=0,
                     )
                     session.add(wr)
@@ -1049,7 +1076,7 @@ class ProjectDatabase:
 
     def get_monthly_project_status(self, months: int = 6) -> list[dict]:
         """Кількість проєктів по місяцях за статусами."""
-        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        since = datetime.now() - timedelta(days=months * 31)
         with self._session_scope() as session:
             rows = (
                 session.query(
@@ -1066,7 +1093,7 @@ class ProjectDatabase:
                 )
                 .filter(
                     ClientProject.start_date.isnot(None),
-                    ClientProject.start_date >= since + "-01",
+                    ClientProject.start_date >= since,
                 )
                 .group_by("month")
                 .order_by("month")

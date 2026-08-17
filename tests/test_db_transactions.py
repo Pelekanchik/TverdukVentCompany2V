@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 
 import pytest
+from datetime import datetime
 
 from ventilation_company.db_integration import ProjectDatabase, TransactionError, save_project_full
 
@@ -148,7 +149,7 @@ class TestTransactions:
         pid = db.add_client_project(
             client_id=cid,
             project_name="Гарантійний проєкт",
-            end_date="2026-12-31",
+            end_date=datetime(2026, 12, 31),
             warranty_months=24,
         )
 
@@ -166,7 +167,7 @@ class TestTransactions:
         cid = db.add_client(name="Тест")
         rid = db.add_warranty_reminder(
             client_id=cid, project_name="Проєкт",
-            reminder_date="2026-12-01", description="Тест",
+            reminder_date=datetime(2026, 12, 1), description="Тест",
         )
 
         db.complete_warranty_reminder(rid, notes="Виконано")
