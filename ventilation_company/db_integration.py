@@ -250,6 +250,8 @@ class ProjectDatabase:
                     material=p.material,
                     quantity=p.quantity,
                     metal_area_m2=p.metal_area_m2,
+                    blank_area_m2=p.blank_area_m2,
+                    material_area_m2=p.material_area_m2,
                     weight_kg=p.weight_kg,
                     unit_price=p.unit_price,
                     total_price=p.total_price,
@@ -308,6 +310,8 @@ class ProjectDatabase:
             material=product.get("material", "оцинкована сталь"),
             quantity=product.get("quantity", 1),
             metal_area_m2=product.get("metal_area_m2", 0),
+            blank_area_m2=product.get("blank_area_m2", 0),
+            material_area_m2=product.get("material_area_m2", 0),
             weight_kg=product.get("weight_kg", 0),
             unit_price=product.get("unit_price", 0),
             total_price=product.get("total_price", 0),
@@ -339,7 +343,7 @@ class ProjectDatabase:
         """Оновити виріб."""
         allowed = {
             "name", "product_type", "width", "height", "length",
-            "thickness", "material", "quantity", "metal_area_m2",
+            "thickness", "material", "quantity", "metal_area_m2", "blank_area_m2", "material_area_m2",
             "weight_kg", "notes", "unit_price", "total_price",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
