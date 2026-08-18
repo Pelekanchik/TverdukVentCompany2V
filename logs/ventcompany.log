@@ -83,3 +83,9 @@
 2026-08-17 23:49:22 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260817_234922
 2026-08-17 23:49:22 | INFO     | ventcompany.backup | 🗑️ Видалено старий бекап: company.db.backup.20260817_231432
 2026-08-17 23:49:23 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
+2026-08-18 10:18:32 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-18 10:18:32 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260818_101832
+2026-08-18 10:18:32 | INFO     | ventcompany.backup | 🗑️ Видалено старий бекап: company.db.backup.20260817_232228
+2026-08-18 10:18:33 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
+2026-08-18 10:19:03 | DEBUG    | ventcompany.products | [] mat=2.950×380.0=1120.97 | labor=173.75 | flanges=0.00 | total=1294.72
+2026-08-18 10:19:03 | DEBUG    | ventcompany.products | [] mat=2.950×380.0=1120.97 | labor=173.75 | flanges=0.00 | total=1294.72
