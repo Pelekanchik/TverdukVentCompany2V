@@ -1,17 +1,13 @@
-"""Стандартні вироби для вентиляційних систем — Етап 1+2.
+"""Стандартні вироби для вентиляційних систем — Етапи 1+2+3.
 
 Покращення:
-  • Розділено 3 площі: surface_area (поверхня), blank_area (заготовка),
-    material_area (з урахуванням KIM та відходів).
-  • calculate_weight() тепер рахує від blank_area (реальна заготовка).
-  • calculate_price() підтягує ціни з pricing_settings.json.
-  • Додано технологічні припуски (замок, різ, згин) через manufacturing_params.
-  • Перероблено формули для RectDuct, RoundDuct, RectElbow, RoundElbow.
+  • Розділено 3 площі: surface_area, blank_area, material_area.
+  • Параметри виробництва з manufacturing_settings.json (KIM, припуски).
+  • Ціноутворення через CostEngine (material_area × ціна + blank_area × робота + ПДВ).
 
 Зворотна сумісність:
-  • MaterialType і Thickness залишено Enum (для старого коду).
-  • Поле metal_area → property, що повертає surface_area.
-  • Метод calculate_metal_area() → делегує calculate_surface_area().
+  • MaterialType і Thickness — Enum.
+  • metal_area → property = surface_area.
 """
 
 from __future__ import annotations
@@ -22,6 +18,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import ClassVar
 
+from ventilation_company.calculations.cost_engine import CostEngine
 from ventilation_company.manufacturing_params import (
     ProductCategory,
     get_labor_rate,
@@ -35,20 +32,16 @@ _logger = get_logger("products")
 
 
 # ═══════════════════════════════════════════════════════════
-# ENUMS (зворотна сумісність)
+# ENUMS
 # ═══════════════════════════════════════════════════════════
 
 class MaterialType(Enum):
-    """Тип матеріалу."""
-
     GALVANIZED = "оцинкована сталь"
     STAINLESS = "нержавіюча сталь"
     ALUMINUM = "алюміній"
 
 
 class Thickness(Enum):
-    """Товщина металу, мм."""
-
     T0_5 = 0.5
     T0_7 = 0.7
     T0_9 = 0.9
@@ -69,7 +62,6 @@ _MATERIAL_TYPE_MAP: dict[str, str] = {
 
 
 def _normalize_material(material_value: MaterialType | str) -> str:
-    """Нормалізувати назву матеріалу в строку для pricing_settings.json."""
     if isinstance(material_value, MaterialType):
         return material_value.value
     lowered = str(material_value).lower().strip()
@@ -77,7 +69,6 @@ def _normalize_material(material_value: MaterialType | str) -> str:
 
 
 def _normalize_thickness(thickness_value: Thickness | float) -> float:
-    """Нормалізувати товщину в float."""
     if isinstance(thickness_value, Thickness):
         return thickness_value.value
     return float(thickness_value)
@@ -91,41 +82,29 @@ def _normalize_thickness(thickness_value: Thickness | float) -> float:
 class StandardProduct:
     """Базовий клас виробу вентиляції з покращеним розрахунком площ."""
 
-    # ── Ідентифікація ──
     name: str
     product_type: str = ""
-
-    # ── Розміри (мм) ──
     width: float = 0
     height: float = 0
     length: float = 0
-
-    # ── Матеріал ──
     thickness: Thickness | float = field(default=Thickness.T0_7)
     material: MaterialType | str = field(default=MaterialType.GALVANIZED)
-
-    # ── Кількість ──
     quantity: int = 1
-
-    # ── Фланці ──
     has_flanges: bool = False
     flange_count: int = 0
     flange_price: Decimal = Decimal("0")
     profile: float = 30.0
-
-    # ── Нотатки ──
     notes: str = ""
 
-    # ── Обчислювані поля (init=False) ──
-    surface_area: float = field(init=False)     # площа поверхні готового виробу, м²
-    blank_area: float = field(init=False)       # площа листової заготовки з припусками, м²
-    material_area: float = field(init=False)    # blank_area / KIM (реальні витрати металу), м²
-    weight: float = field(init=False)           # вага, кг
-    unit_price: Decimal = Decimal("0")          # ціна за шт
-    total_price: Decimal = Decimal("0")         # ціна × кількість
+    surface_area: float = field(init=False)
+    blank_area: float = field(init=False)
+    material_area: float = field(init=False)
+    weight: float = field(init=False)
+    unit_price: Decimal = Decimal("0")
+    total_price: Decimal = Decimal("0")
 
-    # ── Категорія для manufacturing_params ──
     _category: ClassVar[ProductCategory] = ProductCategory.RECT_DUCT
+    _cost_engine: ClassVar = CostEngine()
 
     def __post_init__(self):
         if not self.product_type:
@@ -138,56 +117,40 @@ class StandardProduct:
             self.unit_price = Decimal(str(self.calculate_price()))
         self.total_price = self.unit_price * self.quantity
 
-    # ── ЗВОРОТНЯ СУМІСНІСТЬ ──
+    # ── Зворотна сумісність ──
 
     @property
     def metal_area(self) -> float:
-        """Псевдонім для surface_area (для старого коду)."""
         return self.surface_area
 
     def calculate_metal_area(self) -> float:
-        """Псевдонім для calculate_surface_area() (для старого коду)."""
         return self.calculate_surface_area()
 
     def _material_str(self) -> str:
-        """Нормалізована строка матеріалу."""
         return _normalize_material(self.material)
 
     def _thickness_float(self) -> float:
-        """Нормалізована товщина як float."""
         return _normalize_thickness(self.thickness)
 
-    # ── РОЗРАХУНОК ПЛОЩ ──
+    # ── Площі ──
 
     def calculate_surface_area(self) -> float:
-        """Площа поверхні готового виробу (м²) — для покриття, ізоляції."""
         return 0.0
 
     def calculate_blank_area(self) -> float:
-        """Площа листової заготовки з технологічними припусками (м²).
-
-        Це площа металу, який реально потрібно розкроїти,
-        з урахуванням замка, припусків на різ, ребер жорсткості.
-        """
         return self.surface_area
 
     def calculate_material_area(self) -> float:
-        """Реальна площа матеріалу з урахуванням KIM та відходів (м²).
-
-        material_area = blank_area / KIM_effective
-        Це те, скільки металу фактично витрачається.
-        """
         params = get_params(self._category)
         kim_eff = params.effective_kim()
         if kim_eff <= 0:
             return self.blank_area
         return self.blank_area / kim_eff
 
-    # ── ВАГА ──
+    # ── Вага ──
 
     def calculate_weight(self) -> float:
-        """Вага виробу, кг — рахується від площі заготовки."""
-        density = 7850  # кг/м³ для сталі
+        density = 7850
         material_str = self._material_str()
         if "нержав" in material_str:
             density = 7900
@@ -196,45 +159,57 @@ class StandardProduct:
         t = self._thickness_float()
         return self.blank_area * (t / 1000) * density
 
-    # ── ЦІНА ──
+    # ── Ціна (Етап 3: через CostEngine) ──
 
     def calculate_price(self) -> float:
-        """Розрахунок ціни виробу з цінами з pricing_settings.json."""
-        # 1. Ціна матеріалу
+        """Розрахунок ціни через CostEngine (синхронізовано з pricing_settings.json)."""
+        try:
+            breakdown = self._cost_engine.calculate(
+                product_type=self.product_type,
+                material_name=self._material_str(),
+                thickness_mm=self._thickness_float(),
+                surface_area_m2=self.surface_area,
+                blank_area_m2=self.blank_area,
+                material_area_m2=self.material_area,
+                quantity=1,  # unit price
+                flange_count=self.flange_count,
+                flange_price=float(self.flange_price),
+            )
+            return breakdown.final_price
+        except Exception as e:
+            _logger.warning("CostEngine failed: %s, fallback to legacy pricing", e)
+            return self._legacy_calculate_price()
+
+    def get_cost_breakdown(self):
+        """Отримати детальний розбив собівартості (CostBreakdown)."""
+        return self._cost_engine.calculate(
+            product_type=self.product_type,
+            material_name=self._material_str(),
+            thickness_mm=self._thickness_float(),
+            surface_area_m2=self.surface_area,
+            blank_area_m2=self.blank_area,
+            material_area_m2=self.material_area,
+            quantity=self.quantity,
+            flange_count=self.flange_count,
+            flange_price=float(self.flange_price),
+        )
+
+    def _legacy_calculate_price(self) -> float:
+        """Fallback старий розрахунок (якщо CostEngine недоступний)."""
         material_key = self._material_str()
         t = self._thickness_float()
         material_price = get_material_price(material_key, t)
         material_cost = self.material_area * material_price
-
-        # 2. Вартість роботи
         labor = get_labor_rate(self.product_type.lower().strip())
         rate_per_m2 = labor.get("rate_per_m2", 100.0)
         difficulty = labor.get("difficulty_percent", 0.0)
         labor_cost = self.blank_area * rate_per_m2 * (1 + difficulty / 100)
+        flange_cost = self.flange_count * float(self.flange_price) if self.has_flanges else 0.0
+        return round(material_cost + labor_cost + flange_cost, 2)
 
-        # 3. Фланці
-        flange_cost = 0.0
-        if self.has_flanges:
-            flange_cost = self.flange_count * float(self.flange_price)
-
-        total = material_cost + labor_cost + flange_cost
-
-        _logger.debug(
-            "[%s] mat=%.3f×%.1f=%.2f | labor=%.2f | flanges=%.2f | total=%.2f",
-            self.name,
-            self.material_area,
-            material_price,
-            material_cost,
-            labor_cost,
-            flange_cost,
-            total,
-        )
-        return round(total, 2)
-
-    # ── СЕРІАЛІЗАЦІЯ ──
+    # ── Серіалізація ──
 
     def to_dict(self) -> dict:
-        """Конвертувати у словник для серіалізації."""
         data = {
             "name": self.name,
             "product_type": self.product_type,
@@ -247,7 +222,7 @@ class StandardProduct:
             "surface_area_m2": round(self.surface_area, 4),
             "blank_area_m2": round(self.blank_area, 4),
             "material_area_m2": round(self.material_area, 4),
-            "metal_area_m2": round(self.metal_area, 4),  # backward compat
+            "metal_area_m2": round(self.metal_area, 4),
             "weight_kg": round(self.weight, 4),
             "has_flanges": self.has_flanges,
             "flange_count": self.flange_count,
@@ -257,7 +232,6 @@ class StandardProduct:
             "total_price": str(self.total_price),
             "notes": self.notes,
         }
-        # Додаємо специфічні поля підкласів
         for field_name in [
             "branch_width", "branch_height", "branch_length",
             "branch_diameter", "branch_offset", "end_width",
@@ -274,21 +248,28 @@ class StandardProduct:
 
     @classmethod
     def from_dict(cls, data: dict) -> "StandardProduct":
-        """Створити виріб зі словника."""
-        # Відновлюємо Enum зі строк/чисел для зворотної сумісності
         raw_material = data.get("material", "оцинкована сталь")
         material = MaterialType.GALVANIZED
         for m in MaterialType:
             if m.value == raw_material:
                 material = m
                 break
-
         raw_thickness = data.get("thickness", 0.7)
         thickness = Thickness.T0_7
         for th in Thickness:
             if abs(th.value - raw_thickness) < 0.01:
                 thickness = th
                 break
+
+        # Конвертуємо ціни в Decimal для коректної арифметики
+        def _to_decimal(val):
+            if isinstance(val, Decimal):
+                return val
+            if isinstance(val, (int, float)):
+                return Decimal(str(val))
+            if isinstance(val, str):
+                return Decimal(val)
+            return Decimal("0")
 
         return cls(
             name=data.get("name", ""),
@@ -301,10 +282,10 @@ class StandardProduct:
             quantity=data.get("quantity", 1),
             has_flanges=data.get("has_flanges", False),
             flange_count=data.get("flange_count", 0),
-            flange_price=data.get("flange_price", 0),
+            flange_price=_to_decimal(data.get("flange_price", 0)),
             profile=data.get("profile", 30.0),
-            unit_price=data.get("unit_price", 0),
-            total_price=data.get("total_price", 0),
+            unit_price=_to_decimal(data.get("unit_price", 0)),
+            total_price=_to_decimal(data.get("total_price", 0)),
             notes=data.get("notes", ""),
         )
 
@@ -315,55 +296,33 @@ class StandardProduct:
 
 @dataclass
 class RectDuct(StandardProduct):
-    """Прямокутний повітропровід.
-
-    Розгортка: периметр перерізу + замок (подвійний фальц).
-    Довжина заготовки = довжина виробу + 2×припуск на різ.
-    """
-
     _category = ProductCategory.RECT_DUCT
 
     def calculate_surface_area(self) -> float:
-        """Площа поверхні готового виробу."""
         w = self.width / 1000
         h = self.height / 1000
         l = self.length / 1000
         return 2 * (w + h) * l
 
     def calculate_blank_area(self) -> float:
-        """Площа заготовки з припусками на замок і різ."""
         params = get_params(self._category)
         t = self._thickness_float()
-
-        # Припуск на замок залежить від товщини
-        seam_mm = seam_allowance_for_thickness(
-            params.seam_allowance_mm, t, factor=20.0
-        )
+        seam_mm = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
         cut_mm = params.cut_allowance_mm
-
-        w_mm = self.width
-        h_mm = self.height
-        l_mm = self.length
-
-        # Розгорнута ширина = периметр + замок
+        w_mm, h_mm, l_mm = self.width, self.height, self.length
         unfolded_width_mm = 2 * (w_mm + h_mm) + seam_mm
-        # Довжина заготовки
         unfolded_length_mm = l_mm + 2 * cut_mm
-
         blank_m2 = (unfolded_width_mm * unfolded_length_mm) / 1_000_000
-
-        # Ребра жорсткості
         if params.stiffener_rule.enabled:
-            threshold_mm = params.stiffener_rule.threshold_mm
-            count_per_side = params.stiffener_rule.count_per_side
-            profile_mm = params.stiffener_rule.profile_mm
-            stiffener_area_m2 = 0.0
-            if w_mm > threshold_mm:
-                stiffener_area_m2 += count_per_side * 2 * (h_mm / 1000) * (profile_mm / 1000)
-            if h_mm > threshold_mm:
-                stiffener_area_m2 += count_per_side * 2 * (w_mm / 1000) * (profile_mm / 1000)
-            blank_m2 += stiffener_area_m2
-
+            threshold = params.stiffener_rule.threshold_mm
+            count = params.stiffener_rule.count_per_side
+            profile = params.stiffener_rule.profile_mm
+            extra = 0.0
+            if w_mm > threshold:
+                extra += count * 2 * (h_mm / 1000) * (profile / 1000)
+            if h_mm > threshold:
+                extra += count * 2 * (w_mm / 1000) * (profile / 1000)
+            blank_m2 += extra
         return blank_m2
 
 
@@ -373,170 +332,111 @@ class RectDuct(StandardProduct):
 
 @dataclass
 class RoundDuct(StandardProduct):
-    """Круглий повітропровід (спірально-навивний).
-
-    Заготовка — смуга металу, що навивається спіраллю.
-    Ширина смуги = π·D / cos(helix_angle).
-    """
-
     _category = ProductCategory.ROUND_DUCT
 
     def calculate_surface_area(self) -> float:
-        """Площа поверхні готового виробу."""
-        d = self.width / 1000  # діаметр, м
+        d = self.width / 1000
         l = self.length / 1000
         return math.pi * d * l
 
     def calculate_blank_area(self) -> float:
-        """Площа заготовки — смуга для спіральної навивки."""
         params = get_params(self._category)
         d_mm = self.width
         l_mm = self.length
         cut_mm = params.cut_allowance_mm
-
         if params.helix_angle_deg > 0:
-            # Спіральна навивка
             helix_rad = math.radians(params.helix_angle_deg)
             strip_width_mm = math.pi * d_mm / math.cos(helix_rad)
         else:
-            # Замкова труба — ширина = π·D + замок
             t = self._thickness_float()
             seam_mm = seam_allowance_for_thickness(20.0, t, factor=15.0)
             strip_width_mm = math.pi * d_mm + seam_mm
-
         strip_length_mm = l_mm + 2 * cut_mm
         blank_m2 = (strip_width_mm * strip_length_mm) / 1_000_000
-
-        # Ребра жорсткості
         if params.stiffener_rule.enabled:
-            threshold_mm = params.stiffener_rule.threshold_mm
-            count_per_side = params.stiffener_rule.count_per_side
-            profile_mm = params.stiffener_rule.profile_mm
-            if d_mm > threshold_mm:
-                ring_length_mm = math.pi * d_mm
-                ring_count = count_per_side * max(1, int(l_mm / 1000))
-                stiffener_m2 = ring_count * (ring_length_mm * profile_mm) / 1_000_000
-                blank_m2 += stiffener_m2
-
+            threshold = params.stiffener_rule.threshold_mm
+            count = params.stiffener_rule.count_per_side
+            profile = params.stiffener_rule.profile_mm
+            if d_mm > threshold:
+                ring_length = math.pi * d_mm
+                ring_count = count * max(1, int(l_mm / 1000))
+                blank_m2 += ring_count * (ring_length * profile) / 1_000_000
         return blank_m2
 
 
 # ═══════════════════════════════════════════════════════════
-# ПРЯМОКУТНЕ КОЛІНО (ВІДВІД)
+# КОЛІНА
 # ═══════════════════════════════════════════════════════════
 
 @dataclass
 class RectElbow(StandardProduct):
-    """Прямокутне коліно з подовженнями.
-
-    Параметри (як у CAMduct):
-      • width  (A) — ширина перерізу, мм
-      • height (B) — глибина (висота) перерізу, мм
-      • angle  (C) — кут згину, °
-      • radius (F) — внутрішній радіус горловини, мм
-      • top_extension    (D) — верхнє подовження, мм
-      • bottom_extension (E) — нижнє подовження, мм
-    """
-
     _category = ProductCategory.RECT_ELBOW
-
     angle: float = 90
     radius: float = 50
     top_extension: float = 100
     bottom_extension: float = 100
 
     def calculate_surface_area(self) -> float:
-        """Площа поверхні готового коліна."""
         w = self.width / 1000
         h = self.height / 1000
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         top_ext = self.top_extension / 1000
         bottom_ext = self.bottom_extension / 1000
-
         perimeter = 2 * (w + h)
-        straight_area = perimeter * (top_ext + bottom_ext)
-        mean_radius = r + h / 2
-        arc_length = mean_radius * angle_rad
-        bend_area = perimeter * arc_length
-
-        return straight_area + bend_area
+        straight = perimeter * (top_ext + bottom_ext)
+        mean_r = r + h / 2
+        arc = mean_r * angle_rad
+        bend = perimeter * arc
+        return straight + bend
 
     def calculate_blank_area(self) -> float:
-        """Площа заготовки коліна з припусками."""
         params = get_params(self._category)
         t = self._thickness_float()
         w_mm = self.width
         h_mm = self.height
         r_mm = self.radius
         angle_rad = math.radians(self.angle)
-        top_mm = self.top_extension
-        bottom_mm = self.bottom_extension
-
-        seam_mm = seam_allowance_for_thickness(
-            params.seam_allowance_mm, t, factor=20.0
-        )
+        seam_mm = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
         cut_mm = params.cut_allowance_mm
         bend_mm = params.bend_allowance_mm
+        unfolded_width = 2 * (w_mm + h_mm) + seam_mm
+        mean_r = r_mm + h_mm / 2
+        arc = mean_r * angle_rad
+        total_len = self.top_extension + self.bottom_extension + arc + 2 * cut_mm + bend_mm
+        return (unfolded_width * total_len) / 1_000_000
 
-        unfolded_width_mm = 2 * (w_mm + h_mm) + seam_mm
-
-        mean_r_mm = r_mm + h_mm / 2
-        arc_mm = mean_r_mm * angle_rad
-        total_length_mm = top_mm + bottom_mm + arc_mm + 2 * cut_mm + bend_mm
-
-        return (unfolded_width_mm * total_length_mm) / 1_000_000
-
-
-# ═══════════════════════════════════════════════════════════
-# КРУГЛЕ КОЛІНО (ВІДВІД)
-# ═══════════════════════════════════════════════════════════
 
 @dataclass
 class RoundElbow(StandardProduct):
-    """Кругле коліно з подовженнями."""
-
     _category = ProductCategory.ROUND_ELBOW
-
     angle: float = 90
     radius: float = 50
     top_extension: float = 100
     bottom_extension: float = 100
 
     def calculate_surface_area(self) -> float:
-        """Площа поверхні готового коліна."""
         d = self.width / 1000
         r = self.radius / 1000
         angle_rad = math.radians(self.angle)
         top_ext = self.top_extension / 1000
         bottom_ext = self.bottom_extension / 1000
-
-        straight_area = math.pi * d * (top_ext + bottom_ext)
-        mean_radius = r + d / 2
-        arc_length = mean_radius * angle_rad
-        bend_area = math.pi * d * arc_length
-
-        return straight_area + bend_area
+        straight = math.pi * d * (top_ext + bottom_ext)
+        mean_r = r + d / 2
+        arc = mean_r * angle_rad
+        bend = math.pi * d * arc
+        return straight + bend
 
     def calculate_blank_area(self) -> float:
-        """Площа заготовки — смуга для гнутого коліна."""
         params = get_params(self._category)
         d_mm = self.width
         r_mm = self.radius
         angle_rad = math.radians(self.angle)
-        top_mm = self.top_extension
-        bottom_mm = self.bottom_extension
-
-        cut_mm = params.cut_allowance_mm
-        bend_mm = params.bend_allowance_mm
-
-        strip_width_mm = math.pi * d_mm
-
-        mean_r_mm = r_mm + d_mm / 2
-        arc_mm = mean_r_mm * angle_rad
-        total_length_mm = top_mm + bottom_mm + arc_mm + 2 * cut_mm + bend_mm
-
-        return (strip_width_mm * total_length_mm) / 1_000_000
+        strip_width = math.pi * d_mm
+        mean_r = r_mm + d_mm / 2
+        arc = mean_r * angle_rad
+        total_len = self.top_extension + self.bottom_extension + arc + 2 * params.cut_allowance_mm + params.bend_allowance_mm
+        return (strip_width * total_len) / 1_000_000
 
 
 # ═══════════════════════════════════════════════════════════
@@ -545,9 +445,8 @@ class RoundElbow(StandardProduct):
 
 @dataclass
 class RectFlange(StandardProduct):
-    """Прямокутний фланець."""
-
     _category = ProductCategory.RECT_FLANGE
+    bolt_count: int = 0
 
     def calculate_surface_area(self) -> float:
         w = self.width / 1000
@@ -557,53 +456,42 @@ class RectFlange(StandardProduct):
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
-        w_mm = self.width
-        h_mm = self.height
-        p_mm = self.profile
-        seam_mm = params.seam_allowance_mm
-        cut_mm = params.cut_allowance_mm
-        blank_w = w_mm + 2 * p_mm + seam_mm + 2 * cut_mm
-        blank_h = h_mm + 2 * p_mm + seam_mm + 2 * cut_mm
-        total = (blank_w * blank_h) / 1_000_000
-        if hasattr(self, "bolt_count") and self.bolt_count > 0:
-            bolt_d = getattr(self, "bolt_diameter", 8)
-            bolt_area = self.bolt_count * math.pi * (bolt_d / 1000 / 2) ** 2
-            total -= bolt_area
+        w_mm, h_mm, p_mm = self.width, self.height, self.profile
+        seam, cut = params.seam_allowance_mm, params.cut_allowance_mm
+        bw = w_mm + 2 * p_mm + seam + 2 * cut
+        bh = h_mm + 2 * p_mm + seam + 2 * cut
+        total = (bw * bh) / 1_000_000
+        if self.bolt_count > 0:
+            bd = getattr(self, "bolt_diameter", 8)
+            total -= self.bolt_count * math.pi * (bd / 1000 / 2) ** 2
         return total
 
 
 @dataclass
 class RoundFlange(StandardProduct):
-    """Круглий фланець."""
-
     _category = ProductCategory.ROUND_FLANGE
+    bolt_count: int = 0
 
     def calculate_surface_area(self) -> float:
         d = self.width / 1000
         border = self.profile / 1000
-        outer_d = d + 2 * border
-        return math.pi * (outer_d / 2) ** 2
+        return math.pi * ((d + 2 * border) / 2) ** 2
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
-        d_mm = self.width
-        p_mm = self.profile
-        seam_mm = params.seam_allowance_mm
-        cut_mm = params.cut_allowance_mm
-        outer_d = d_mm + 2 * p_mm + seam_mm + 2 * cut_mm
-        total = math.pi * (outer_d / 2) ** 2 / 1_000_000
-        if hasattr(self, "bolt_count") and self.bolt_count > 0:
-            bolt_d = getattr(self, "bolt_diameter", 8)
-            total -= self.bolt_count * math.pi * (bolt_d / 1000 / 2) ** 2
+        d_mm, p_mm = self.width, self.profile
+        seam, cut = params.seam_allowance_mm, params.cut_allowance_mm
+        outer = d_mm + 2 * p_mm + seam + 2 * cut
+        total = math.pi * (outer / 2) ** 2 / 1_000_000
+        if self.bolt_count > 0:
+            bd = getattr(self, "bolt_diameter", 8)
+            total -= self.bolt_count * math.pi * (bd / 1000 / 2) ** 2
         return total
 
 
 @dataclass
 class RectTee(StandardProduct):
-    """Прямокутний трійник."""
-
     _category = ProductCategory.RECT_TEE
-
     branch_width: float = 200
     branch_height: float = 200
     branch_length: float = 400
@@ -616,28 +504,20 @@ class RectTee(StandardProduct):
         bw = self.branch_width / 1000
         bh = self.branch_height / 1000
         bl = self.branch_length / 1000
-        main_area = 2 * (w + h) * l
-        branch_area = 2 * (bw + bh) * bl
-        return main_area + branch_area
+        return 2 * (w + h) * l + 2 * (bw + bh) * bl
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         t = self._thickness_float()
         base = self.calculate_surface_area()
-        seam_mm = seam_allowance_for_thickness(
-            params.seam_allowance_mm, t, factor=20.0
-        )
-        cut_mm = params.cut_allowance_mm
-        factor = 1 + (seam_mm * 2 + cut_mm * 4) / (self.width + self.height + 1)
+        seam = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
+        factor = 1 + (seam * 2 + params.cut_allowance_mm * 4) / (self.width + self.height + 1)
         return base * factor
 
 
 @dataclass
 class RoundTee(StandardProduct):
-    """Круглий трійник."""
-
     _category = ProductCategory.ROUND_TEE
-
     branch_diameter: float = 200
     branch_length: float = 400
     branch_offset: float = 300
@@ -647,25 +527,18 @@ class RoundTee(StandardProduct):
         l = self.length / 1000
         bd = self.branch_diameter / 1000
         bl = self.branch_length / 1000
-        main_area = math.pi * d * l
-        branch_area = math.pi * bd * bl
-        return main_area + branch_area
+        return math.pi * d * l + math.pi * bd * bl
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        cut_mm = params.cut_allowance_mm
-        bend_mm = params.bend_allowance_mm
-        factor = 1 + (cut_mm * 3 + bend_mm) / (self.width + 1) * 0.01
+        factor = 1 + (params.cut_allowance_mm * 3 + params.bend_allowance_mm) / (self.width + 1) * 0.01
         return base * max(factor, 1.05)
 
 
 @dataclass
 class RectTransition(StandardProduct):
-    """Прямокутний перехід."""
-
     _category = ProductCategory.RECT_TRANSITION
-
     end_width: float = 300
     end_height: float = 150
 
@@ -675,50 +548,37 @@ class RectTransition(StandardProduct):
         w2 = self.end_width / 1000
         h2 = self.end_height / 1000
         l = self.length / 1000
-        avg_perimeter = 2 * ((w1 + w2) / 2 + (h1 + h2) / 2)
-        return avg_perimeter * l
+        return 2 * ((w1 + w2) / 2 + (h1 + h2) / 2) * l
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         t = self._thickness_float()
         base = self.calculate_surface_area()
-        seam_mm = seam_allowance_for_thickness(
-            params.seam_allowance_mm, t, factor=20.0
-        )
-        cut_mm = params.cut_allowance_mm
-        bend_mm = params.bend_allowance_mm
-        factor = 1 + (seam_mm + cut_mm * 2 + bend_mm) / (self.width + self.height + 1)
+        seam = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
+        factor = 1 + (seam + params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (self.width + self.height + 1)
         return base * factor
 
 
 @dataclass
 class RoundTransition(StandardProduct):
-    """Круглий перехід (конус)."""
-
     _category = ProductCategory.ROUND_TRANSITION
-
     end_diameter: float = 300
 
     def calculate_surface_area(self) -> float:
         d1 = self.width / 1000
         d2 = self.end_diameter / 1000
         l = self.length / 1000
-        avg_d = (d1 + d2) / 2
-        return math.pi * avg_d * l
+        return math.pi * ((d1 + d2) / 2) * l
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        cut_mm = params.cut_allowance_mm
-        bend_mm = params.bend_allowance_mm
-        factor = 1 + (cut_mm * 2 + bend_mm) / (self.width + 1) * 0.01
+        factor = 1 + (params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (self.width + 1) * 0.01
         return base * max(factor, 1.03)
 
 
 @dataclass
 class RectCap(StandardProduct):
-    """Прямокутна заглушка."""
-
     _category = ProductCategory.RECT_CAP
 
     def calculate_surface_area(self) -> float:
@@ -730,42 +590,30 @@ class RectCap(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        seam_mm = params.seam_allowance_mm
-        cut_mm = params.cut_allowance_mm
-        factor = 1 + (seam_mm + cut_mm * 2) / (self.width + self.height + 1)
+        factor = 1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (self.width + self.height + 1)
         return base * factor
 
 
 @dataclass
 class RoundCap(StandardProduct):
-    """Кругла заглушка."""
-
     _category = ProductCategory.ROUND_CAP
-
     depth: float = 30
 
     def calculate_surface_area(self) -> float:
         d = self.width / 1000
         depth = self.depth / 1000
-        base_area = math.pi * (d / 2) ** 2
-        side_area = math.pi * d * depth
-        return base_area + side_area
+        return math.pi * (d / 2) ** 2 + math.pi * d * depth
 
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        seam_mm = params.seam_allowance_mm
-        cut_mm = params.cut_allowance_mm
-        factor = 1 + (seam_mm + cut_mm * 2) / (self.width + 1) * 0.01
+        factor = 1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (self.width + 1) * 0.01
         return base * max(factor, 1.02)
 
 
 @dataclass
 class FlexibleConnector(StandardProduct):
-    """Гнучка вставка."""
-
     _category = ProductCategory.FLEXIBLE
-
     fabric_type: str = "поліестер"
 
     def calculate_surface_area(self) -> float:
@@ -777,34 +625,26 @@ class FlexibleConnector(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        cut_mm = params.cut_allowance_mm
-        factor = 1 + cut_mm * 2 / (self.length + 1) * 0.01
+        factor = 1 + params.cut_allowance_mm * 2 / (self.length + 1) * 0.01
         return base * max(factor, 1.01)
 
     def calculate_price(self) -> float:
-        """Спеціальна ціна для гнучкої вставки (тканина, не метал).
-
-        Зворотна сумісність: старий код мав баг подвійного множення на quantity.
-        """
         fabric_prices = {"поліестер": 80.0, "склотканина": 150.0, "ПВХ": 120.0}
         price_per_m2 = fabric_prices.get(self.fabric_type, 80.0)
-        return self.metal_area * price_per_m2 * self.quantity
+        return self.metal_area * price_per_m2
 
     def __post_init__(self):
         super().__post_init__()
-        # Зворотна сумісність: старий код використовував float, не Decimal
         self.unit_price = float(self.unit_price)
         self.total_price = float(self.total_price)
 
 
 # ═══════════════════════════════════════════════════════════
-# БІБЛІОТЕКА ВИРОБІВ
+# БІБЛІОТЕКА
 # ═══════════════════════════════════════════════════════════
 
 @dataclass
 class ProductLibrary:
-    """Бібліотека виробів."""
-
     products: list = field(default_factory=list)
 
     def add(self, product: StandardProduct):
@@ -818,20 +658,15 @@ class ProductLibrary:
         self.products.clear()
 
     def get_total_surface_area(self) -> float:
-        """Загальна площа поверхні (для покриття/ізоляції)."""
         return sum(p.surface_area * p.quantity for p in self.products)
 
     def get_total_blank_area(self) -> float:
-        """Загальна площа заготовок (для розкрою)."""
         return sum(p.blank_area * p.quantity for p in self.products)
 
     def get_total_material_area(self) -> float:
-        """Загальна площа матеріалу з KIM (для собівартості)."""
         return sum(p.material_area * p.quantity for p in self.products)
 
-    # ── Зворотна сумісність ──
     def get_total_metal_area(self) -> float:
-        """Псевдонім для get_total_surface_area() (старий код)."""
         return self.get_total_surface_area()
 
     def get_total_weight(self) -> float:
@@ -841,15 +676,12 @@ class ProductLibrary:
         return sum(p.total_price for p in self.products)
 
     def get_specification(self) -> list[dict]:
-        """Отримати згруповану специфікацію."""
         from collections import defaultdict
-
         grouped = defaultdict(lambda: {"quantity": 0, "products": []})
         for p in self.products:
             key = (p.product_type, p.width, p.height, p.length, p._thickness_float(), p._material_str())
             grouped[key]["quantity"] += p.quantity
             grouped[key]["products"].append(p)
-
         result = []
         for key, data in grouped.items():
             p = data["products"][0]
@@ -883,11 +715,10 @@ class ProductLibrary:
 
 
 # ═══════════════════════════════════════════════════════════
-# ХЕЛПЕРИ ДЛЯ ФАБРИЧНИХ МЕТОДІВ
+# ХЕЛПЕРИ / ФАБРИКИ
 # ═══════════════════════════════════════════════════════════
 
 def _resolve_thickness(thickness: float | Thickness) -> Thickness:
-    """Конвертувати float у Thickness Enum для зворотної сумісності."""
     if isinstance(thickness, Thickness):
         return thickness
     for th in Thickness:
@@ -897,7 +728,6 @@ def _resolve_thickness(thickness: float | Thickness) -> Thickness:
 
 
 def _resolve_material(material: str | MaterialType) -> MaterialType:
-    """Конвертувати строку у MaterialType Enum для зворотної сумісності."""
     if isinstance(material, MaterialType):
         return material
     for m in MaterialType:
@@ -906,50 +736,33 @@ def _resolve_material(material: str | MaterialType) -> MaterialType:
     return MaterialType.GALVANIZED
 
 
-# ═══════════════════════════════════════════════════════════
-# ФАБРИЧНІ МЕТОДИ
-# ═══════════════════════════════════════════════════════════
-
 def make_rect_duct(
-    width: float,
-    height: float,
-    length: float,
+    width: float, height: float, length: float,
     thickness: float | Thickness = 0.7,
     material: str | MaterialType = "оцинкована сталь",
     quantity: int = 1,
 ) -> RectDuct:
-    """Фабричний метод для прямокутного повітропроводу."""
     thick = _resolve_thickness(thickness)
     mat = _resolve_material(material)
     return RectDuct(
         name=f"Повітропровід {width:.0f}×{height:.0f}×{length:.0f}",
         product_type="повітропровід прямокутний",
-        width=width,
-        height=height,
-        length=length,
-        thickness=thick,
-        material=mat,
-        quantity=quantity,
+        width=width, height=height, length=length,
+        thickness=thick, material=mat, quantity=quantity,
     )
 
 
 def make_round_duct(
-    diameter: float,
-    length: float,
+    diameter: float, length: float,
     thickness: float | Thickness = 0.7,
     material: str | MaterialType = "оцинкована сталь",
     quantity: int = 1,
 ) -> RoundDuct:
-    """Фабричний метод для круглого повітропроводу."""
     thick = _resolve_thickness(thickness)
     mat = _resolve_material(material)
     return RoundDuct(
         name=f"Повітропровід Ø{diameter:.0f}×{length:.0f}",
         product_type="повітропровід круглий",
-        width=diameter,
-        height=diameter,
-        length=length,
-        thickness=thick,
-        material=mat,
-        quantity=quantity,
+        width=diameter, height=diameter, length=length,
+        thickness=thick, material=mat, quantity=quantity,
     )
