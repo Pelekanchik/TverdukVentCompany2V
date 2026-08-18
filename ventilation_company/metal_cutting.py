@@ -1,4 +1,5 @@
-"""Модуль розкрою листового металу.
+"""
+Модуль розкрою листового металу.
 Алгоритми розкладки деталей на стандартних листах з мінімізацією відходів.
 Підтримує Bottom-Left heuristic та Guillotine cutting.
 """
@@ -19,14 +20,13 @@ class SheetSize(Enum):
 
 @dataclass
 class Detail:
+    """Деталь для розкрою (розгорнута площа виробу)."""
+
     name: str
-    width: float
-    height: float
-    product_type: str = ""
+    width: float  # мм (розгорнута ширина заготовки)
+    height: float  # мм (розгорнута довжина заготовки)
     quantity: int = 1
-    notes: str = ""
-    material: str = ""
-    thickness: float = 0.5
+    product_type: str = ""
 
     # Припуски
     bend_allowance: float = 3.0  # мм, припуск на згин з кожного боку
@@ -73,15 +73,16 @@ class PlacedDetail:
 
 @dataclass
 class Sheet:
-    """Лист металу для розкрою (покращений)."""
+    """Лист металу для розкрою."""
 
-    width: float
-    height: float
-    thickness: float
+    width: float  # мм
+    height: float  # мм
+    thickness: float  # мм
     material: str = "оцинкована сталь"
 
     placed_details: list[PlacedDetail] = field(default_factory=list)
     free_rectangles: list[tuple[float, float, float, float]] = field(default_factory=list)
+    # (x, y, width, height) — вільні прямокутники
 
     def __post_init__(self):
         if not self.free_rectangles:
@@ -101,138 +102,106 @@ class Sheet:
 
     @property
     def utilization(self) -> float:
+        """Коефіцієнт використання листа (0-1)."""
         if self.total_area == 0:
             return 0
         return self.used_area / self.total_area
 
     def place_detail(self, detail: Detail, x: float, y: float, rotated: bool = False) -> bool:
+        """Розмістити деталь на листі."""
         w = detail.total_height if rotated else detail.total_width
         h = detail.total_width if rotated else detail.total_height
 
-        if x + w > self.width + 0.01 or y + h > self.height + 0.01:
+        # Перевірка меж
+        if x + w > self.width or y + h > self.height:
             return False
 
+        # Перевірка перетину з іншими деталями
         for p in self.placed_details:
-            if not (x + w <= p.x + 0.01 or p.x + p.width <= x + 0.01 or
-                    y + h <= p.y + 0.01 or p.y + p.height <= y + 0.01):
+            if not (x + w <= p.x or p.x + p.width <= x or y + h <= p.y or p.y + p.height <= y):
                 return False
 
         self.placed_details.append(PlacedDetail(detail, x, y, rotated))
-        self._guillotine_split(x, y, w, h)
-        self._merge_rectangles()
+        self._update_free_rectangles(x, y, w, h)
         return True
 
-    def _guillotine_split(self, x: float, y: float, w: float, h: float):
-        """Guillotine split: розбиваємо тільки на 2 прямокутники."""
+    def _update_free_rectangles(self, x: float, y: float, w: float, h: float):
+        """Оновити список вільних прямокутників після розміщення деталі."""
         new_free = []
         for rx, ry, rw, rh in self.free_rectangles:
+            # Перевіряємо перетин
             if x + w <= rx or rx + rw <= x or y + h <= ry or ry + rh <= y:
                 new_free.append((rx, ry, rw, rh))
                 continue
 
-            # Справа від деталі
-            if x + w < rx + rw:
-                new_free.append((x + w, ry, rx + rw - x - w, rh))
-            # Зверху над деталлю
+            # Розбиваємо вільний прямокутник
+            # Зверху
+            if y > ry:
+                new_free.append((rx, ry, rw, y - ry))
+            # Знизу
             if y + h < ry + rh:
                 new_free.append((rx, y + h, rw, ry + rh - y - h))
+            # Зліва
+            if x > rx:
+                new_free.append((rx, ry, x - rx, rh))
+            # Справа
+            if x + w < rx + rw:
+                new_free.append((x + w, ry, rx + rw - x - w, rh))
 
+        # Видаляємо вкладені та занадто маленькі прямокутники
         self.free_rectangles = self._clean_rectangles(new_free)
 
-    def _clean_rectangles(self, rectangles):
-        min_size = 5
+    def _clean_rectangles(
+        self, rectangles: list[tuple[float, float, float, float]]
+    ) -> list[tuple[float, float, float, float]]:
+        """Очистити список прямокутників від вкладених та занадто малих."""
+        # Фільтр за мінімальним розміром (10 мм)
+        min_size = 10
         filtered = [(x, y, w, h) for x, y, w, h in rectangles if w >= min_size and h >= min_size]
+
+        # Видалення вкладених
         result = []
         for i, (x1, y1, w1, h1) in enumerate(filtered):
             is_nested = False
             for j, (x2, y2, w2, h2) in enumerate(filtered):
-                if i != j and x1 >= x2 - 0.1 and y1 >= y2 - 0.1 and \
-                   x1 + w1 <= x2 + w2 + 0.1 and y1 + h1 <= y2 + h2 + 0.1:
+                if i != j and x1 >= x2 and y1 >= y2 and x1 + w1 <= x2 + w2 and y1 + h1 <= y2 + h2:
                     is_nested = True
                     break
             if not is_nested:
-                result.append((round(x1, 2), round(y1, 2), round(w1, 2), round(h1, 2)))
+                result.append((x1, y1, w1, h1))
+
         return result
 
-    def _merge_rectangles(self):
-        """Об'єднує суміжні вільні прямокутники по горизонталі/вертикалі."""
-        changed = True
-        rects = list(self.free_rectangles)
-        while changed:
-            changed = False
-            merged = []
-            used = set()
-            for i, (x1, y1, w1, h1) in enumerate(rects):
-                if i in used:
-                    continue
-                for j, (x2, y2, w2, h2) in enumerate(rects):
-                    if i >= j or j in used:
-                        continue
-                    # Об'єднання по вертикалі (однакова ширина, суміжні по Y)
-                    if abs(x1 - x2) < 1 and abs(w1 - w2) < 1:
-                        if abs(y1 + h1 - y2) < 1:
-                            rects[i] = (x1, y1, w1, h1 + h2)
-                            used.add(j)
-                            changed = True
-                            break
-                        elif abs(y2 + h2 - y1) < 1:
-                            rects[i] = (x1, y2, w1, h1 + h2)
-                            used.add(j)
-                            changed = True
-                            break
-                    # Об'єднання по горизонталі (однакова висота, суміжні по X)
-                    if abs(y1 - y2) < 1 and abs(h1 - h2) < 1:
-                        if abs(x1 + w1 - x2) < 1:
-                            rects[i] = (x1, y1, w1 + w2, h1)
-                            used.add(j)
-                            changed = True
-                            break
-                        elif abs(x2 + w2 - x1) < 1:
-                            rects[i] = (x2, y1, w1 + w2, h1)
-                            used.add(j)
-                            changed = True
-                            break
-                if changed:
-                    break
-            if changed:
-                rects = [r for k, r in enumerate(rects) if k not in used]
-        self.free_rectangles = self._clean_rectangles(rects)
-
     def find_best_position(self, detail: Detail) -> tuple[float, float, bool] | None:
-        """Best-Fit: найменший вільний прямокутник, в який вміщається деталь."""
+        """Знайти найкращу позицію для деталі (Bottom-Left heuristic)."""
         best = None
-        best_waste = float("inf")
+        best_score = float("inf")
 
-        candidates = []
         for rx, ry, rw, rh in self.free_rectangles:
             for rotated in [False, True]:
                 w = detail.total_height if rotated else detail.total_width
                 h = detail.total_width if rotated else detail.total_height
-                if w <= rw + 0.01 and h <= rh + 0.01:
-                    waste = rw * rh - w * h
-                    candidates.append((waste, rx, ry, rotated, rx, ry, rw, rh))
 
-        if not candidates:
-            return None
+                if w <= rw and h <= rh:
+                    # Score: лівіше і нижче = краще
+                    score = rx + ry * 2  # пріоритет нижнього розміщення
+                    if score < best_score:
+                        best_score = score
+                        best = (rx, ry, rotated)
 
-        # Сортуємо: спочатку найменший waste, потім нижче-лівіше
-        candidates.sort(key=lambda c: (c[0], c[2], c[1]))
-        _, rx, ry, rotated, _, _, _, _ = candidates[0]
-        return (rx, ry, rotated)
+        return best
 
     def to_dict(self) -> dict:
-        """Серіалізація листа в словник."""
         return {
-            "width": self.width,
-            "height": self.height,
+            "sheet_size": f"{self.width}×{self.height} мм",
             "thickness": self.thickness,
             "material": self.material,
             "total_area_m2": round(self.total_area, 4),
             "used_area_m2": round(self.used_area, 4),
             "waste_area_m2": round(self.waste_area, 4),
-            "utilization": round(self.utilization, 4),
-            "placed_count": len(self.placed_details),
-            "placed_details": [
+            "utilization_percent": round(self.utilization * 100, 2),
+            "details_count": len(self.placed_details),
+            "details": [
                 {
                     "name": p.detail.name,
                     "x": p.x,
@@ -244,7 +213,6 @@ class Sheet:
                 for p in self.placed_details
             ],
         }
-
 
 
 @dataclass
@@ -323,305 +291,91 @@ class MetalCutter:
         self.material = material
 
     def create_details_from_products(self, products: list[dict]) -> list[Detail]:
-        """Створити деталі для розкрою зі списку виробів."""
+        """Створити деталі для розкрою зі списку виробів (dict)."""
         details = []
         for p in products:
-            # Розгорнуті розміри залежать від типу виробу
             detail = self._product_to_detail(p)
             if detail:
                 details.append(detail)
         return details
 
-    def _product_to_detail(self, product: dict) -> Detail:
-        """Перетворити виріб (dict) у деталь для розкрою з нормалізацією типу."""
+    def create_details_from_standard_products(self, products: list) -> list[Detail]:
+        """Створити деталі для розкрою зі списку StandardProduct (Етап 4).
+
+        Використовує cutting_integration для точних розмірів заготовки.
+        """
+        from ventilation_company.cutting_integration import products_to_details
+
+        return products_to_details(products)
+
+    def _product_to_detail(self, product: dict) -> Detail | None:
+        """Конвертувати виріб (dict) у деталь для розкрою."""
+        ptype = product.get("type", "").lower()
+        w = product.get("width", 0)
+        h = product.get("height", 0)
+        l = product.get("length", 0)
+        qty = product.get("quantity", 1)
         name = product.get("name", "Деталь")
-        raw_type = product.get("product_type", product.get("type", "")).lower().strip()
-        quantity = int(product.get("quantity", 1))
-        notes = product.get("notes", "")
 
-        # ── НОРМАЛІЗАЦІЯ ТИПУ ──
-        pt = raw_type
-        if "прямокутн" in pt and "повітропровід" in pt:
-            product_type = "rect_duct"
-        elif "кругл" in pt and "повітропровід" in pt:
-            product_type = "round_duct"
-        elif "фланець" in pt and "прямокутн" in pt:
-            product_type = "rect_flange"
-        elif "фланець" in pt and "кругл" in pt:
-            product_type = "round_flange"
-        elif "трійник" in pt and "прямокутн" in pt:
-            product_type = "rect_tee"
-        elif "трійник" in pt and "кругл" in pt:
-            product_type = "round_tee"
-        elif "перехід" in pt and "прямокутн" in pt:
-            product_type = "rect_transition"
-        elif "перехід" in pt and "кругл" in pt:
-            product_type = "round_transition"
-        elif ("відвід" in pt or "коліно" in pt) and "прямокутн" in pt:
-            product_type = "rect_elbow"
-        elif ("відвід" in pt or "коліно" in pt) and "кругл" in pt:
-            product_type = "round_elbow"
-        elif ("заглушка" in pt or "кап" in pt) and "прямокутн" in pt:
-            product_type = "rect_cap"
-        elif ("заглушка" in pt or "кап" in pt) and "кругл" in pt:
-            product_type = "round_cap"
-        elif "гнучк" in pt or "вставка" in pt:
-            product_type = "flexible"
-        elif "rect_duct" in pt:
-            product_type = "rect_duct"
-        elif "round_duct" in pt:
-            product_type = "round_duct"
-        elif "rect_flange" in pt:
-            product_type = "rect_flange"
-        elif "round_flange" in pt:
-            product_type = "round_flange"
-        elif "rect_tee" in pt:
-            product_type = "rect_tee"
-        elif "round_tee" in pt:
-            product_type = "round_tee"
-        elif "rect_transition" in pt:
-            product_type = "rect_transition"
-        elif "round_transition" in pt:
-            product_type = "round_transition"
-        elif "rect_elbow" in pt:
-            product_type = "rect_elbow"
-        elif "round_elbow" in pt:
-            product_type = "round_elbow"
-        elif "rect_cap" in pt:
-            product_type = "rect_cap"
-        elif "round_cap" in pt:
-            product_type = "round_cap"
-        else:
-            product_type = pt
+        if "повітропровід" in ptype and "прямокутний" in ptype:
+            perimeter = 2 * (w + h)
+            return Detail(name=name, width=perimeter, height=l, quantity=qty, product_type=ptype)
 
-        # ── ПРЯМОКУТНИЙ ПОВІТРОПРОВІД ──
-        if product_type == "rect_duct":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            length = float(product.get("length", 0))
-            perimeter = 2 * (width + height)
-            return Detail(
-                name=name,
-                width=perimeter,
-                height=length,
-                product_type="прямокутний повітропровід",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "повітропровід" in ptype and "круглий" in ptype:
+            unfolded_w = math.pi * h
+            return Detail(name=name, width=unfolded_w, height=l, quantity=qty, product_type=ptype)
 
-        # ── КРУГЛИЙ ПОВІТРОПРОВІД ──
-        elif product_type == "round_duct":
-            diameter = float(product.get("width", product.get("height", 0)))
-            length = float(product.get("length", 0))
-            return Detail(
-                name=name,
-                width=3.141592653589793 * diameter,
-                height=length,
-                product_type="круглий повітропровід",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "фланець" in ptype and "прямокутний" in ptype:
+            border = product.get("flange_border", 30)
+            return Detail(name=name, width=w + 2 * border, height=h + 2 * border, quantity=qty, product_type=ptype)
 
-        # ── ФЛАНЕЦЬ ПРЯМОКУТНИЙ ──
-        elif product_type == "rect_flange":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            profile = float(product.get("profile", 30))
-            return Detail(
-                name=name,
-                width=width + 2 * profile,
-                height=height + 2 * profile,
-                product_type="фланець прямокутний",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "фланець" in ptype and "круглий" in ptype:
+            border = product.get("flange_width", 30)
+            d = h
+            return Detail(name=name, width=d + 2 * border, height=d + 2 * border, quantity=qty, product_type=ptype)
 
-        # ── ФЛАНЕЦЬ КРУГЛИЙ ──
-        elif product_type == "round_flange":
-            diameter = float(product.get("width", product.get("height", 0)))
-            profile = float(product.get("profile", 30))
-            return Detail(
-                name=name,
-                width=diameter + 2 * profile,
-                height=diameter + 2 * profile,
-                product_type="фланець круглий",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "трійник" in ptype and "прямокутний" in ptype:
+            bw = product.get("branch_width", w)
+            bh = product.get("branch_height", h)
+            bl = product.get("branch_length", l)
+            main_perim = 2 * (w + h)
+            branch_perim = 2 * (bw + bh)
+            return Detail(name=name, width=max(main_perim, branch_perim), height=l + bl, quantity=qty, product_type=ptype)
 
-        # ── ТРІЙНИК ПРЯМОКУТНИЙ ──
-        elif product_type == "rect_tee":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            length = float(product.get("length", 0))
-            branch_w = float(product.get("branch_width", width * 0.5))
-            branch_h = float(product.get("branch_height", height * 0.5))
-            branch_l = float(product.get("branch_length", 400))
-            offset = float(product.get("branch_offset", 300))
-            main_p = 2 * (width + height)
-            branch_p = 2 * (branch_w + branch_h)
-            return Detail(
-                name=name,
-                width=max(main_p, branch_p),
-                height=length + branch_l + offset,
-                product_type="трійник прямокутний",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "перехід" in ptype and "прямокутний" in ptype:
+            ew = product.get("end_width", w)
+            eh = product.get("end_height", h)
+            p1 = 2 * (w + h)
+            p2 = 2 * (ew + eh)
+            return Detail(name=name, width=max(p1, p2), height=l, quantity=qty, product_type=ptype)
 
-        # ── ТРІЙНИК КРУГЛИЙ ──
-        elif product_type == "round_tee":
-            d = float(product.get("width", product.get("height", 0)))
-            length = float(product.get("length", 0))
-            branch_d = float(product.get("branch_diameter", d * 0.5))
-            branch_l = float(product.get("branch_length", 400))
-            offset = float(product.get("branch_offset", 300))
-            main_p = 3.141592653589793 * d
-            branch_p = 3.141592653589793 * branch_d
-            return Detail(
-                name=name,
-                width=max(main_p, branch_p),
-                height=length + branch_l + offset,
-                product_type="трійник круглий",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "відвід" in ptype or "коліно" in ptype:
+            angle = product.get("angle", 90)
+            r = product.get("radius", 150)
+            arc_len = math.radians(angle) * r
+            perim = 2 * (w + h) if "прямокутний" in ptype else math.pi * h
+            return Detail(name=name, width=perim, height=arc_len, quantity=qty, product_type=ptype)
 
-        # ── ПЕРЕХІД ПРЯМОКУТНИЙ ──
-        elif product_type == "rect_transition":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            length = float(product.get("length", 0))
-            end_w = float(product.get("end_width", width * 0.5))
-            end_h = float(product.get("end_height", height * 0.5))
-            avg_p = 2 * ((width + end_w) / 2 + (height + end_h) / 2)
-            return Detail(
-                name=name,
-                width=avg_p,
-                height=length,
-                product_type="перехід прямокутний",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "заглушка" in ptype and "прямокутна" in ptype:
+            border = product.get("flange_border", 25)
+            return Detail(name=name, width=w + 2 * border, height=h + 2 * border, quantity=qty, product_type=ptype)
 
-        # ── ПЕРЕХІД КРУГЛИЙ ──
-        elif product_type == "round_transition":
-            d = float(product.get("width", product.get("height", 0)))
-            length = float(product.get("length", 0))
-            end_d = float(product.get("end_diameter", d * 0.5))
-            avg_p = 3.141592653589793 * (d + end_d) / 2
-            return Detail(
-                name=name,
-                width=avg_p,
-                height=length,
-                product_type="перехід круглий",
-                quantity=quantity,
-                notes=notes,
-            )
-
-        # ── КОЛІНО ПРЯМОКУТНЕ ──
-        elif product_type == "rect_elbow":
-            width = float(product.get("width", 0))           # A
-            height = float(product.get("height", 0))         # B
-            angle = float(product.get("angle", 90))           # C
-            radius = float(product.get("radius", 150))        # F
-            top_ext = float(product.get("top_extension", 100))      # D
-            bottom_ext = float(product.get("bottom_extension", 100))  # E
-            p = 2 * (width + height)
-            arc = (radius + height / 2) * math.radians(angle)
-            total_length = top_ext + bottom_ext + arc
-            return Detail(
-                name=name,
-                width=p,
-                height=total_length,
-                product_type="коліно прямокутне",
-                quantity=quantity,
-                notes=notes,
-            )
-
-        # ── КОЛІНО КРУГЛЕ ──
-        elif product_type == "round_elbow":
-            d = float(product.get("width", product.get("height", 0)))  # A
-            angle = float(product.get("angle", 90))                     # C
-            radius = float(product.get("radius", 150))                  # F
-            top_ext = float(product.get("top_extension", 100))             # D
-            bottom_ext = float(product.get("bottom_extension", 100))    # E
-            p = 3.141592653589793 * d
-            arc = (radius + d / 2) * math.radians(angle)
-            total_length = top_ext + bottom_ext + arc
-            return Detail(
-                name=name,
-                width=p,
-                height=total_length,
-                product_type="коліно кругле",
-                quantity=quantity,
-                notes=notes,
-            )
-
-        # ── ЗАГЛУШКА ПРЯМОКУТНА ──
-        elif product_type == "rect_cap":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            profile = float(product.get("profile", 30))
-            return Detail(
-                name=name,
-                width=width + 2 * profile,
-                height=height + 2 * profile,
-                product_type="заглушка прямокутна",
-                quantity=quantity,
-                notes=notes,
-            )
-
-        # ── ЗАГЛУШКА КРУГЛА ──
-        elif product_type == "round_cap":
-            d = float(product.get("width", product.get("height", 0)))
-            depth = float(product.get("depth", 30))
-            return Detail(
-                name=name,
-                width=3.141592653589793 * d,
-                height=depth,
-                product_type="заглушка кругла",
-                quantity=quantity,
-                notes=notes,
-            )
-
-        # ── ГНУЧКА ВСТАВКА ──
-        elif product_type == "flexible":
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            length = float(product.get("length", 0))
-            p = 2 * (width + height)
-            return Detail(
-                name=name,
-                width=p,
-                height=length,
-                product_type="гнучка вставка",
-                quantity=quantity,
-                notes=notes,
-            )
+        elif "заглушка" in ptype and "кругла" in ptype:
+            depth = product.get("depth", 30)
+            d = h
+            return Detail(name=name, width=math.pi * d, height=d / 2 + depth, quantity=qty, product_type=ptype)
 
         else:
-            # Невідомий тип — повертаємо як є
-            width = float(product.get("width", 0))
-            height = float(product.get("height", 0))
-            return Detail(
-                name=name,
-                width=width,
-                height=height,
-                product_type=product_type,
-                quantity=quantity,
-                notes=notes,
-            )
+            return Detail(name=name, width=w, height=h, quantity=qty, product_type=ptype)
 
     def calculate_cutting(
         self, details: list[Detail], allow_rotation: bool = True, sort_by_area: bool = True
     ) -> CuttingPlan:
-        """Розрахувати оптимальний розкрій (покращений)."""
+        """Розрахувати оптимальний розкрій."""
         plan = CuttingPlan()
 
         if sort_by_area:
-            # Сортуємо: спочатку за шириною (для стабільності), потім за площею
-            details = sorted(details, key=lambda d: (-max(d.total_width, d.total_height), -d.total_area))
+            details = sorted(details, key=lambda d: d.total_area, reverse=True)
 
         flat_details = []
         for d in details:
@@ -633,8 +387,6 @@ class MetalCutter:
                         height=d.height,
                         quantity=1,
                         product_type=d.product_type,
-                        material=d.material,
-                        thickness=d.thickness,
                         bend_allowance=d.bend_allowance,
                         cut_allowance=d.cut_allowance,
                     )
@@ -644,7 +396,7 @@ class MetalCutter:
 
         for detail in flat_details:
             placed = False
-            # Спробуємо на існуючих листах
+
             for sheet in plan.sheets:
                 pos = sheet.find_best_position(detail)
                 if pos:
@@ -667,29 +419,49 @@ class MetalCutter:
                         plan.sheets.append(new_sheet)
                         placed = True
 
-            if not placed:
-                unplaced.append(detail)
+                if not placed:
+                    unplaced.append(detail)
 
         plan.unplaced_details = unplaced
         return plan
 
     def calculate_from_products(self, products: list[dict]) -> CuttingPlan:
-        """Повний конвеєр: вироби → деталі → план розкрою."""
+        """Повний конвеєр: вироби (dict) → деталі → план розкрою."""
         details = self.create_details_from_products(products)
         return self.calculate_cutting(details)
 
+    def calculate_from_standard_products(self, products: list) -> CuttingPlan:
+        """Повний конвеєр: StandardProduct → деталі → план розкрою (Етап 4)."""
+        details = self.create_details_from_standard_products(products)
+        return self.calculate_cutting(details)
+
     def get_metal_summary(self, products: list[dict]) -> dict:
-        """Отримати зведену інформацію про потребу в металі."""
+        """Отримати зведену інформацію про потребу в металі (з dict)."""
         details = self.create_details_from_products(products)
         plan = self.calculate_cutting(details)
-
         total_detail_area = sum(d.total_area for d in details)
 
         return {
             "details_count": sum(d.quantity for d in details),
             "details_area_m2": round(total_detail_area, 4),
             "sheets_required": plan.total_sheets,
-            # FIX: self.height → self.sheet_height
+            "sheet_size": f"{self.sheet_width}×{self.sheet_height} мм",
+            "total_metal_area_m2": round(plan.total_area, 4),
+            "waste_percent": round(plan.total_waste_percent, 2),
+            "utilization_percent": round(plan.overall_utilization * 100, 2),
+            "plan": plan.to_dict(),
+        }
+
+    def get_metal_summary_for_standard_products(self, products: list) -> dict:
+        """Отримати зведену інформацію про потребу в металі (з StandardProduct)."""
+        details = self.create_details_from_standard_products(products)
+        plan = self.calculate_cutting(details)
+        total_detail_area = sum(d.total_area for d in details)
+
+        return {
+            "details_count": sum(d.quantity for d in details),
+            "details_area_m2": round(total_detail_area, 4),
+            "sheets_required": plan.total_sheets,
             "sheet_size": f"{self.sheet_width}×{self.sheet_height} мм",
             "total_metal_area_m2": round(plan.total_area, 4),
             "waste_percent": round(plan.total_waste_percent, 2),
@@ -702,17 +474,34 @@ class MetalCutter:
 # ШВИДКІ ФУНКЦІЇ
 # =========================================================
 
+
 def calculate_sheet_cutting(
     products: list[dict], sheet_size: tuple[float, float] = (1250, 2500), thickness: float = 0.7
 ) -> CuttingPlan:
-    """Швидкий розрахунок розкрою зі списку виробів."""
+    """Швидкий розрахунок розкрою зі списку виробів (dict)."""
     cutter = MetalCutter(sheet_width=sheet_size[0], sheet_height=sheet_size[1], thickness=thickness)
     return cutter.calculate_from_products(products)
+
+
+def calculate_sheet_cutting_for_standard_products(
+    products: list, sheet_size: tuple[float, float] = (1250, 2500), thickness: float = 0.7
+) -> CuttingPlan:
+    """Швидкий розрахунок розкрою зі списку StandardProduct (Етап 4)."""
+    cutter = MetalCutter(sheet_width=sheet_size[0], sheet_height=sheet_size[1], thickness=thickness)
+    return cutter.calculate_from_standard_products(products)
 
 
 def estimate_metal_needed(
     products: list[dict], sheet_size: tuple[float, float] = (1250, 2500), thickness: float = 0.7
 ) -> dict:
-    """Оцінка необхідної кількості металу."""
+    """Оцінка необхідної кількості металу (з dict)."""
     cutter = MetalCutter(sheet_width=sheet_size[0], sheet_height=sheet_size[1], thickness=thickness)
     return cutter.get_metal_summary(products)
+
+
+def estimate_metal_needed_for_standard_products(
+    products: list, sheet_size: tuple[float, float] = (1250, 2500), thickness: float = 0.7
+) -> dict:
+    """Оцінка необхідної кількості металу (з StandardProduct, Етап 4)."""
+    cutter = MetalCutter(sheet_width=sheet_size[0], sheet_height=sheet_size[1], thickness=thickness)
+    return cutter.get_metal_summary_for_standard_products(products)
