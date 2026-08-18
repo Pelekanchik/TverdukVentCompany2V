@@ -288,9 +288,9 @@ class TestFlexibleConnector:
 
     def test_calculate_price_polyester(self):
         f = FlexibleConnector(name="Вставка", width=400, height=200, length=200, fabric_type="поліестер", quantity=2)
-        # Примітка: в коді програми calculate_price множить на quantity,
-        # а total_price знову множить на quantity (подвійне множення)
-        expected = f.metal_area * 80.0 * 2 * 2  # fabric_price * quantity * quantity
+        # unit_price = metal_area * fabric_price (за 1 шт)
+        # total_price = unit_price * quantity
+        expected = f.metal_area * 80.0 * 2
         assert abs(f.total_price - expected) < 0.01
 
     def test_calculate_price_glass(self):
