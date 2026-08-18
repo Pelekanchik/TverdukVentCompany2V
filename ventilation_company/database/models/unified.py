@@ -37,6 +37,8 @@ class ProjectProduct(Base):
     material: Mapped[str | None] = mapped_column(String, nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     metal_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    blank_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    material_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
