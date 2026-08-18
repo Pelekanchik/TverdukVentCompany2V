@@ -1,0 +1,191 @@
+{
+  "_description": "Виробничі параметри для розрахунку площ заготовок. Редагуйте значення — вони застосуються автоматично.",
+  "_version": "2.1.0",
+  "material_densities_kg_m3": {
+    "сталь_оцинкована": 7850,
+    "сталь_нержавіюча": 7900,
+    "алюміній": 2700
+  },
+  "seam_allowance_formula": {
+    "base_mm": 10.0,
+    "factor_per_mm_thickness": 20.0,
+    "_comment": "seam = base + factor * thickness"
+  },
+  "categories": {
+    "rect_duct": {
+      "name": "Прямокутний повітропровід",
+      "name_uk": "Прямокутний повітропровід",
+      "seam_allowance_mm": 15.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": true,
+        "threshold_mm": 500,
+        "count_per_side": 1,
+        "profile_mm": 30
+      },
+      "kim": 0.88,
+      "helix_angle_deg": 0.0,
+      "waste_percent": 2.0
+    },
+    "round_duct": {
+      "name": "Круглий повітропровід",
+      "name_uk": "Круглий повітропровід (спіральний)",
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": true,
+        "threshold_mm": 630,
+        "count_per_side": 1,
+        "profile_mm": 25
+      },
+      "kim": 0.92,
+      "waste_percent": 1.5,
+      "helix_angle_deg": 4.0
+    },
+    "rect_elbow": {
+      "name": "Прямокутне коліно",
+      "name_uk": "Відвід прямокутний",
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 3.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.68,
+      "waste_percent": 4.0,
+      "helix_angle_deg": 0.0
+    },
+    "round_elbow": {
+      "name": "Кругле коліно",
+      "name_uk": "Відвід круглий",
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 2.5,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.72,
+      "waste_percent": 3.0,
+      "helix_angle_deg": 0.0
+    },
+    "rect_tee": {
+      "name": "Прямокутний трійник",
+      "name_uk": "Трійник прямокутний",
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 3.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.62,
+      "waste_percent": 5.0,
+      "helix_angle_deg": 0.0
+    },
+    "round_tee": {
+      "name": "Круглий трійник",
+      "name_uk": "Трійник круглий",
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 2.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.65,
+      "waste_percent": 4.0,
+      "helix_angle_deg": 0.0
+    },
+    "rect_transition": {
+      "name": "Прямокутний перехід",
+      "name_uk": "Перехід прямокутний",
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 2.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.7,
+      "waste_percent": 3.0,
+      "helix_angle_deg": 0.0
+    },
+    "round_transition": {
+      "name": "Круглий перехід",
+      "name_uk": "Перехід круглий",
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 2.0,
+      "bend_allowance_mm": 1.5,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.73,
+      "waste_percent": 3.0,
+      "helix_angle_deg": 0.0
+    },
+    "rect_flange": {
+      "name": "Прямокутний фланець",
+      "name_uk": "Фланець прямокутний",
+      "seam_allowance_mm": 10.0,
+      "cut_allowance_mm": 1.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.78,
+      "waste_percent": 2.0,
+      "helix_angle_deg": 0.0
+    },
+    "round_flange": {
+      "name": "Круглий фланець",
+      "name_uk": "Фланець круглий",
+      "seam_allowance_mm": 10.0,
+      "cut_allowance_mm": 1.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.8,
+      "waste_percent": 2.0,
+      "helix_angle_deg": 0.0
+    },
+    "rect_cap": {
+      "name": "Прямокутна заглушка",
+      "name_uk": "Заглушка прямокутна",
+      "seam_allowance_mm": 15.0,
+      "cut_allowance_mm": 1.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.82,
+      "waste_percent": 2.0,
+      "helix_angle_deg": 0.0
+    },
+    "round_cap": {
+      "name": "Кругла заглушка",
+      "name_uk": "Заглушка кругла",
+      "seam_allowance_mm": 10.0,
+      "cut_allowance_mm": 1.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.85,
+      "waste_percent": 2.0,
+      "helix_angle_deg": 0.0
+    },
+    "flexible": {
+      "name": "Гнучка вставка",
+      "name_uk": "Гнучка вставка",
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 0.0,
+      "stiffener_rule": {
+        "enabled": false
+      },
+      "kim": 0.95,
+      "waste_percent": 1.0,
+      "helix_angle_deg": 0.0
+    }
+  }
+}

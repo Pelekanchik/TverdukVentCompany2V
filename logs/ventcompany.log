@@ -89,3 +89,14 @@
 2026-08-18 10:18:33 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
 2026-08-18 10:19:03 | DEBUG    | ventcompany.products | [] mat=2.950×380.0=1120.97 | labor=173.75 | flanges=0.00 | total=1294.72
 2026-08-18 10:19:03 | DEBUG    | ventcompany.products | [] mat=2.950×380.0=1120.97 | labor=173.75 | flanges=0.00 | total=1294.72
+2026-08-18 11:37:07 | INFO     | ventcompany | Логування налаштовано | рівень: INFO
+2026-08-18 11:37:07 | INFO     | ventcompany.backup | ✅ Бекап створено: data/company.db.backup.20260818_113707
+2026-08-18 11:37:07 | INFO     | ventcompany.backup | 🗑️ Видалено старий бекап: company.db.backup.20260817_232635
+2026-08-18 11:37:08 | INFO     | ventcompany | [DB] Міграції Alembic застосовано
+2026-08-18 11:37:30 | DEBUG    | ventcompany.products | [] mat=0.168×380.0=63.82 | labor=12.84 | flanges=0.00 | total=76.66
+2026-08-18 11:37:30 | DEBUG    | ventcompany.products | [] mat=0.168×380.0=63.82 | labor=12.84 | flanges=0.00 | total=76.66
+2026-08-18 11:37:30 | DEBUG    | ventcompany.products | [] mat=0.168×380.0=63.82 | labor=12.84 | flanges=0.00 | total=76.66
+2026-08-18 11:39:20 | DEBUG    | ventcompany.products | [] mat=0.000×380.0=0.00 | labor=0.00 | flanges=0.00 | total=0.00
+2026-08-18 11:39:20 | DEBUG    | ventcompany.products | [] mat=0.000×380.0=0.00 | labor=0.00 | flanges=0.00 | total=0.00
+2026-08-18 11:39:25 | DEBUG    | ventcompany.products | [] mat=1.124×380.0=427.29 | labor=73.40 | flanges=0.00 | total=500.69
+2026-08-18 11:39:25 | DEBUG    | ventcompany.products | [] mat=1.124×380.0=427.29 | labor=73.40 | flanges=0.00 | total=500.69

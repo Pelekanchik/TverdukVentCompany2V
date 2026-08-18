@@ -1,4 +1,4 @@
-"""Стандартні вироби для вентиляційних систем — Етап 1.
+"""Стандартні вироби для вентиляційних систем — Етап 1+2.
 
 Покращення:
   • Розділено 3 площі: surface_area (поверхня), blank_area (заготовка),
@@ -101,7 +101,6 @@ class StandardProduct:
     length: float = 0
 
     # ── Матеріал ──
-    # Типи залишено гнучкими (Enum | str / float) для зворотної сумісності
     thickness: Thickness | float = field(default=Thickness.T0_7)
     material: MaterialType | str = field(default=MaterialType.GALVANIZED)
 
@@ -354,13 +353,13 @@ class RectDuct(StandardProduct):
         blank_m2 = (unfolded_width_mm * unfolded_length_mm) / 1_000_000
 
         # Ребра жорсткості
-        if params.stiffener_rule:
-            threshold_mm, count_per_side, profile_mm = params.stiffener_rule
+        if params.stiffener_rule.enabled:
+            threshold_mm = params.stiffener_rule.threshold_mm
+            count_per_side = params.stiffener_rule.count_per_side
+            profile_mm = params.stiffener_rule.profile_mm
             stiffener_area_m2 = 0.0
-            # По ширині
             if w_mm > threshold_mm:
                 stiffener_area_m2 += count_per_side * 2 * (h_mm / 1000) * (profile_mm / 1000)
-            # По висоті
             if h_mm > threshold_mm:
                 stiffener_area_m2 += count_per_side * 2 * (w_mm / 1000) * (profile_mm / 1000)
             blank_m2 += stiffener_area_m2
@@ -409,10 +408,11 @@ class RoundDuct(StandardProduct):
         blank_m2 = (strip_width_mm * strip_length_mm) / 1_000_000
 
         # Ребра жорсткості
-        if params.stiffener_rule:
-            threshold_mm, count_per_side, profile_mm = params.stiffener_rule
+        if params.stiffener_rule.enabled:
+            threshold_mm = params.stiffener_rule.threshold_mm
+            count_per_side = params.stiffener_rule.count_per_side
+            profile_mm = params.stiffener_rule.profile_mm
             if d_mm > threshold_mm:
-                # Ребро — кільце навколо труби
                 ring_length_mm = math.pi * d_mm
                 ring_count = count_per_side * max(1, int(l_mm / 1000))
                 stiffener_m2 = ring_count * (ring_length_mm * profile_mm) / 1_000_000
@@ -436,19 +436,14 @@ class RectElbow(StandardProduct):
       • radius (F) — внутрішній радіус горловини, мм
       • top_extension    (D) — верхнє подовження, мм
       • bottom_extension (E) — нижнє подовження, мм
-
-    Площа поверхні (готова):
-      S = 2·(W+H)·[(top+bottom) + (r + H/2)·α]
-
-    Площа заготовки — збільшена на припуски згину та замок.
     """
 
     _category = ProductCategory.RECT_ELBOW
 
     angle: float = 90
-    radius: float = 50          # внутрішній радіус горловини (F), мм
-    top_extension: float = 100    # верхнє подовження (D), мм
-    bottom_extension: float = 100 # нижнє подовження (E), мм
+    radius: float = 50
+    top_extension: float = 100
+    bottom_extension: float = 100
 
     def calculate_surface_area(self) -> float:
         """Площа поверхні готового коліна."""
@@ -478,17 +473,14 @@ class RectElbow(StandardProduct):
         top_mm = self.top_extension
         bottom_mm = self.bottom_extension
 
-        # Припуски
         seam_mm = seam_allowance_for_thickness(
             params.seam_allowance_mm, t, factor=20.0
         )
         cut_mm = params.cut_allowance_mm
         bend_mm = params.bend_allowance_mm
 
-        # Периметр заготовки (з замком)
         unfolded_width_mm = 2 * (w_mm + h_mm) + seam_mm
 
-        # Довжина заготовки = подовження + дуга + припуски
         mean_r_mm = r_mm + h_mm / 2
         arc_mm = mean_r_mm * angle_rad
         total_length_mm = top_mm + bottom_mm + arc_mm + 2 * cut_mm + bend_mm
@@ -502,15 +494,7 @@ class RectElbow(StandardProduct):
 
 @dataclass
 class RoundElbow(StandardProduct):
-    """Кругле коліно з подовженнями.
-
-    Параметри:
-      • width  — діаметр труби, мм
-      • angle  — кут згину, °
-      • radius — внутрішній радіус горловини, мм
-      • top_extension    — верхнє подовження, мм
-      • bottom_extension — нижнє подовження, мм
-    """
+    """Кругле коліно з подовженнями."""
 
     _category = ProductCategory.ROUND_ELBOW
 
@@ -546,10 +530,8 @@ class RoundElbow(StandardProduct):
         cut_mm = params.cut_allowance_mm
         bend_mm = params.bend_allowance_mm
 
-        # Ширина смуги = π·D (окружність)
         strip_width_mm = math.pi * d_mm
 
-        # Довжина смуги
         mean_r_mm = r_mm + d_mm / 2
         arc_mm = mean_r_mm * angle_rad
         total_length_mm = top_mm + bottom_mm + arc_mm + 2 * cut_mm + bend_mm
@@ -558,7 +540,7 @@ class RoundElbow(StandardProduct):
 
 
 # ═══════════════════════════════════════════════════════════
-# ІНШІ ВИРОБИ (залишено для сумісності, формули базові)
+# ІНШІ ВИРОБИ
 # ═══════════════════════════════════════════════════════════
 
 @dataclass
@@ -583,7 +565,6 @@ class RectFlange(StandardProduct):
         blank_w = w_mm + 2 * p_mm + seam_mm + 2 * cut_mm
         blank_h = h_mm + 2 * p_mm + seam_mm + 2 * cut_mm
         total = (blank_w * blank_h) / 1_000_000
-        # Віднімаємо площу отворів (приблизно)
         if hasattr(self, "bolt_count") and self.bolt_count > 0:
             bolt_d = getattr(self, "bolt_diameter", 8)
             bolt_area = self.bolt_count * math.pi * (bolt_d / 1000 / 2) ** 2
@@ -642,13 +623,11 @@ class RectTee(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         t = self._thickness_float()
-        # Трійник — складна деталь, blank ≈ surface + припуски
         base = self.calculate_surface_area()
         seam_mm = seam_allowance_for_thickness(
             params.seam_allowance_mm, t, factor=20.0
         )
         cut_mm = params.cut_allowance_mm
-        # Наближено: збільшуємо на припуски (~10% + seam/cut)
         factor = 1 + (seam_mm * 2 + cut_mm * 4) / (self.width + self.height + 1)
         return base * factor
 
@@ -806,11 +785,9 @@ class FlexibleConnector(StandardProduct):
         """Спеціальна ціна для гнучкої вставки (тканина, не метал).
 
         Зворотна сумісність: старий код мав баг подвійного множення на quantity.
-        calculate_price() множить на quantity, і __post_init__ знову множить.
         """
         fabric_prices = {"поліестер": 80.0, "склотканина": 150.0, "ПВХ": 120.0}
         price_per_m2 = fabric_prices.get(self.fabric_type, 80.0)
-        # Старий код використовував metal_area (surface_area), не blank_area
         return self.metal_area * price_per_m2 * self.quantity
 
     def __post_init__(self):
@@ -888,7 +865,7 @@ class ProductLibrary:
                 "surface_area_m2": round(p.surface_area, 4),
                 "blank_area_m2": round(p.blank_area, 4),
                 "material_area_m2": round(p.material_area, 4),
-                "metal_area_m2": round(p.metal_area, 4),  # backward compat
+                "metal_area_m2": round(p.metal_area, 4),
                 "weight_kg": round(p.weight, 4),
                 "unit_price": round(float(p.unit_price), 2),
                 "total_price": round(float(p.unit_price) * data["quantity"], 2),
