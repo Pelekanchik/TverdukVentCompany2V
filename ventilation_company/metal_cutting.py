@@ -172,7 +172,39 @@ class Sheet:
 
         return result
 
-    def find_best_position(self, detail: Detail) -> tuple[float, float, bool] | None:
+    def find_best_position(
+        self, detail: Detail, heuristic: str = "bottom_left"
+    ) -> tuple[float, float, bool] | None:
+        """Знайти найкращу позицію для деталі.
+
+        Args:
+            detail: Деталь для розміщення.
+            heuristic: Евристика пошуку — "bottom_left" | "best_fit".
+
+        Returns:
+            (x, y, rotated) або None.
+        """
+        best = None
+        best_score = float("inf")
+
+        for rx, ry, rw, rh in self.free_rectangles:
+            for rotated in [False, True]:
+                w = detail.total_height if rotated else detail.total_width
+                h = detail.total_width if rotated else detail.total_height
+
+                if w <= rw and h <= rh:
+                    if heuristic == "best_fit":
+                        # Найщільніше вміщення — мінімальний залишок площі
+                        score = (rw * rh) - (w * h)
+                    else:
+                        # Bottom-Left: лівіше і нижче = краще
+                        score = rx + ry * 2
+
+                    if score < best_score:
+                        best_score = score
+                        best = (rx, ry, rotated)
+
+        return best
         """Знайти найкращу позицію для деталі (Bottom-Left heuristic)."""
         best = None
         best_score = float("inf")
@@ -368,17 +400,79 @@ class MetalCutter:
         else:
             return Detail(name=name, width=w, height=h, quantity=qty, product_type=ptype)
 
+    # ─────────────────────────────────────────────────────────
+    # РОЗКРІЙ — кілька стратегій з автовибором
+    # ─────────────────────────────────────────────────────────
+
     def calculate_cutting(
-        self, details: list[Detail], allow_rotation: bool = True, sort_by_area: bool = True
+        self,
+        details: list[Detail],
+        allow_rotation: bool = True,
+        strategy: str = "auto",
     ) -> CuttingPlan:
-        """Розрахувати оптимальний розкрій."""
+        """Розрахувати оптимальний розкрій.
+
+        Args:
+            details: Список деталей.
+            allow_rotation: Дозволити поворот на 90°.
+            strategy: "auto" | "bottom_left" | "best_fit".
+                "auto" — запускає кілька стратегій і вибирає найкращу.
+        """
+        if strategy == "auto":
+            candidates = []
+
+            # 1. Площа ↓ + Bottom-Left
+            candidates.append(
+                self._run_strategy(details, sort_by="area", heuristic="bottom_left", allow_rotation=allow_rotation)
+            )
+            # 2. Площа ↓ + Best-Fit
+            candidates.append(
+                self._run_strategy(details, sort_by="area", heuristic="best_fit", allow_rotation=allow_rotation)
+            )
+            # 3. Ширина ↓ + Best-Fit
+            candidates.append(
+                self._run_strategy(details, sort_by="width", heuristic="best_fit", allow_rotation=allow_rotation)
+            )
+            # 4. Висота ↓ + Best-Fit
+            candidates.append(
+                self._run_strategy(details, sort_by="height", heuristic="best_fit", allow_rotation=allow_rotation)
+            )
+
+            # Вибираємо найкращу: мінімум листів, потім максимум utilization
+            best = min(
+                candidates,
+                key=lambda p: (p.total_sheets, -(p.overall_utilization * 100)),
+            )
+            return best
+
+        # Конкретна стратегія
+        return self._run_strategy(
+            details, sort_by="area", heuristic=strategy, allow_rotation=allow_rotation
+        )
+
+    def _run_strategy(
+        self,
+        details: list[Detail],
+        sort_by: str,
+        heuristic: str,
+        allow_rotation: bool,
+    ) -> CuttingPlan:
+        """Виконати один прохід розкрою з заданою стратегією."""
         plan = CuttingPlan()
 
-        if sort_by_area:
-            details = sorted(details, key=lambda d: d.total_area, reverse=True)
+        # Сортування
+        if sort_by == "area":
+            sorted_details = sorted(details, key=lambda d: d.total_area, reverse=True)
+        elif sort_by == "width":
+            sorted_details = sorted(details, key=lambda d: d.total_width, reverse=True)
+        elif sort_by == "height":
+            sorted_details = sorted(details, key=lambda d: d.total_height, reverse=True)
+        else:
+            sorted_details = list(details)
 
+        # Розгортаємо quantity в окремі деталі
         flat_details = []
-        for d in details:
+        for d in sorted_details:
             for _ in range(d.quantity):
                 flat_details.append(
                     Detail(
@@ -392,13 +486,11 @@ class MetalCutter:
                     )
                 )
 
-        unplaced = []
-
         for detail in flat_details:
             placed = False
 
             for sheet in plan.sheets:
-                pos = sheet.find_best_position(detail)
+                pos = sheet.find_best_position(detail, heuristic=heuristic)
                 if pos:
                     x, y, rotated = pos
                     if sheet.place_detail(detail, x, y, rotated):
@@ -412,7 +504,7 @@ class MetalCutter:
                     thickness=self.thickness,
                     material=self.material,
                 )
-                pos = new_sheet.find_best_position(detail)
+                pos = new_sheet.find_best_position(detail, heuristic=heuristic)
                 if pos:
                     x, y, rotated = pos
                     if new_sheet.place_detail(detail, x, y, rotated):
@@ -420,9 +512,8 @@ class MetalCutter:
                         placed = True
 
                 if not placed:
-                    unplaced.append(detail)
+                    plan.unplaced_details.append(detail)
 
-        plan.unplaced_details = unplaced
         return plan
 
     def calculate_from_products(self, products: list[dict]) -> CuttingPlan:
