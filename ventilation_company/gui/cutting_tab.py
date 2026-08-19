@@ -4,6 +4,8 @@
 ПАТЧ:
     • Додано кнопки експорту G-код (плазма) та DXF (гільйотина)
     • Додано метод get_plan() для сумісності
+    • Виправлено дублікат у __init__
+    • Додано debug-логування в _calculate
 
 ВСТАНОВЛЕННЯ:
     Замініть ventilation_company/gui/cutting_tab.py
@@ -27,10 +29,11 @@ class CuttingTab:
 
     THICKNESSES = ["0.5", "0.7", "1.0", "1.2", "1.5", "2.0"]
 
-    def __init__(self, parent: ttk.Notebook, get_products_callback):
+    def __init__(self, parent: ttk.Notebook, get_products_callback, get_standard_products_callback=None):
         self.frame = ttk.Frame(parent)
 
         self.get_products = get_products_callback
+        self.get_standard_products = get_standard_products_callback
         self.current_plan = None
         self._tooltip_win = None
         self._tooltip_after = None
@@ -123,8 +126,18 @@ class CuttingTab:
         ).pack(side=tk.LEFT)
 
     def _calculate(self):
-        products = self.get_products()
-        self.run_cutting_for_products(products)
+        try:
+            products = self.get_products()
+            print(f"[DEBUG] Отримано {len(products) if products else 0} виробів для розкрою")
+            if hasattr(self, "get_standard_products") and self.get_standard_products:
+                sp = self.get_standard_products()
+                print(f"[DEBUG] StandardProducts: {len(sp) if sp else 0}")
+            self.run_cutting_for_products(products)
+        except Exception as e:
+            import traceback
+            err = traceback.format_exc()
+            print(f"[DEBUG] ПОМИЛКА в _calculate: {err}")
+            messagebox.showerror("Помилка", f"Помилка отримання виробів:\n{str(e)}\n\nДеталі в консолі.")
 
     def run_cutting_for_products(self, products):
         """Запустити розкрій для конкретного списку виробів (напр. з архіву)."""
@@ -142,7 +155,15 @@ class CuttingTab:
                 material=self.material_var.get(),
             )
 
-            self.current_plan = cutter.calculate_from_products(products)
+            # Етап 4: використовуємо точні розміри заготовки з StandardProduct
+            if self.get_standard_products:
+                standard_products = self.get_standard_products()
+                if standard_products:
+                    self.current_plan = cutter.calculate_from_standard_products(standard_products)
+                else:
+                    self.current_plan = cutter.calculate_from_products(products)
+            else:
+                self.current_plan = cutter.calculate_from_products(products)
             self._update_results()
             self._draw_sheets()
 

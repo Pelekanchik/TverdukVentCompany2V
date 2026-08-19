@@ -267,15 +267,17 @@ class MainWindow:
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 8))
 
-        self.products_tab = ProductsTab(
-            self.notebook, on_products_changed=self._on_products_changed
-        )
+        # ═══════════════════════════════════════════════════════
+        # 5 ГОЛОВНИХ ВКЛАДОК (згруповано з 13)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 8))
+
         self.spec_tab = SpecificationTab(
             self.notebook,
             get_products_callback=self._get_products,
             on_cutting_request=self._open_cutting_for_project,
         )
-        self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products)
+        self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products, get_standard_products_callback=self._get_standard_products)
         self.project_3d_tab = Project3DTab(self.notebook, self)
         self.settings_tab = SettingsTab(self.notebook)
         self.production_tab = ProductionTab(
@@ -297,16 +299,18 @@ class MainWindow:
         self.project_nb = ttk.Notebook(self.project_frame)
         self.project_nb.pack(fill=tk.BOTH, expand=True)
 
-        self.products_tab = ProductsTab(self.project_nb)
+        self.products_tab = ProductsTab(
+            self.project_nb, on_products_changed=self._on_products_changed
+        )
         self.project_nb.add(self.products_tab.frame, text="🔧 Вироби")
 
         self.spec_tab = SpecificationTab(
             self.project_nb,
-            ProjectDatabase(),
+            get_products_callback=self._get_products,
         )
         self.project_nb.add(self.spec_tab.frame, text="📋 Специфікація")
 
-        self.cutting_tab = CuttingTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
+        self.cutting_tab = CuttingTab(self.project_nb, get_products_callback=self._get_products, get_standard_products_callback=self._get_standard_products)
         self.project_nb.add(self.cutting_tab.frame, text="✂️ Розкрій")
 
         self.project_3d_tab = Project3DTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
@@ -410,6 +414,12 @@ class MainWindow:
         pass
 
     def _get_products(self):
+        return self.products_tab.get_products_dict()
+
+    def _get_standard_products(self):
+        return self.products_tab.get_standard_products()
+
+    def _set_products(self, products):
         return self.products_tab.get_products_dict()
 
     def _set_products(self, products):

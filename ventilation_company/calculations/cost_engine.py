@@ -96,6 +96,8 @@ class CostBreakdown:
     overhead_percent: float = 0.0
     depreciation_percent: float = 0.0
     markup_percent: float = 0.0
+    category_waste_percent: float = 0.0
+    category_waste_cost: float = 0.0
     vat_rate: float = 20.0
 
     def per_unit(self) -> "CostBreakdown":
@@ -121,6 +123,8 @@ class CostBreakdown:
             price_no_vat=self.price_no_vat / self.quantity,
             vat_amount=self.vat_amount / self.quantity,
             final_price=self.final_price / self.quantity,
+            category_waste_percent=self.category_waste_percent,
+            category_waste_cost=self.category_waste_cost / self.quantity,
             material_price_per_m2=self.material_price_per_m2,
             labor_rate_per_m2=self.labor_rate_per_m2,
             labor_difficulty_percent=self.labor_difficulty_percent,
@@ -208,6 +212,20 @@ class CostEngine:
         """Базова націнка, %."""
         return self.pricing.get("markup_percent", 30.0)
 
+    def _get_category_waste_percent(self, product_type: str) -> float:
+        """Отримати %% запасу на брак/поворот для категорії виробу."""
+        factors = self.pricing.get("category_waste_factors", {})
+        pt = product_type.lower().strip()
+        if "повітропровід прямокутний" in pt:
+            return factors.get("rect_duct", 0.0)
+        elif "повітропровід круглий" in pt:
+            return factors.get("round_duct", 0.0)
+        elif any(k in pt for k in ["фланець прямокутний", "трійник прямокутний", "перехід прямокутний", "відвід прямокутний", "заглушка прямокутна"]):
+            return factors.get("rect_fitting", 0.0)
+        elif any(k in pt for k in ["фланець круглий", "трійник круглий", "перехід круглий", "відвід круглий", "заглушка кругла"]):
+            return factors.get("round_fitting", 0.0)
+        return 0.0
+
     def _get_vat_rate(self) -> float:
         return 20.0
 
@@ -222,6 +240,7 @@ class CostEngine:
         quantity: int = 1,
         flange_count: int = 0,
         flange_price: float = 0.0,
+        category_waste_percent: float = 0.0,
         custom_markup_percent: float | None = None,
     ) -> CostBreakdown:
         """Розрахувати собівартість і ціну виробу.
@@ -256,6 +275,13 @@ class CostEngine:
         result.material_price_per_m2 = material_price
         result.material_cost = material_area_m2 * material_price * quantity
 
+        # ── 1b. Запас на брак/поворот по категорії ──
+        if category_waste_percent == 0.0:
+            category_waste_percent = self._get_category_waste_percent(product_type)
+        result.category_waste_percent = category_waste_percent
+        result.category_waste_cost = result.material_cost * category_waste_percent / 100
+        result.material_cost += result.category_waste_cost
+
         # ── 2. Вартість роботи ──
         labor_rate, labor_difficulty = self._get_labor_rate(product_type)
         result.labor_rate_per_m2 = labor_rate
@@ -282,6 +308,15 @@ class CostEngine:
             + result.depreciation_cost
             + result.flange_cost
             + result.other_cost
+        )
+        result.base_cost = (
+            result.material_cost
+            + result.labor_cost
+            + result.overhead_cost
+            + result.depreciation_cost
+            + result.flange_cost
+            + result.other_cost
+            + result.category_waste_cost
         )
 
         # ── 7. Нцінка і прибуток ──
@@ -331,4 +366,5 @@ class CostEngine:
             quantity=getattr(product, "quantity", 1),
             flange_count=getattr(product, "flange_count", 0),
             flange_price=float(getattr(product, "flange_price", 0)),
+            category_waste_percent=getattr(product, "category_waste_percent", 0.0),
         )

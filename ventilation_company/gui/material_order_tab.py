@@ -6,8 +6,9 @@ from tkinter import filedialog, messagebox, ttk
 from datetime import datetime
 
 from ventilation_company.material_order import (
+    MaterialItem,
+    MaterialOrder,
     MaterialCalculator,
-    MaterialOrderExporter,
     calculate_material_order,
     export_material_order_to_excel,
 )
@@ -57,6 +58,13 @@ class MaterialOrderTab:
         table_frame = ttk.LabelFrame(self.frame, text="Перелік матеріалів", padding=5)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
+        # Кнопки CRUD над таблицею (grid в table_frame)
+        crud_frame = ttk.Frame(table_frame)
+        crud_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
+        ttk.Button(crud_frame, text="➕ Додати", command=self._add_item).pack(side=tk.LEFT, padx=2)
+        ttk.Button(crud_frame, text="✏️ Редагувати", command=self._edit_item).pack(side=tk.LEFT, padx=2)
+        ttk.Button(crud_frame, text="🗑️ Видалити", command=self._delete_item).pack(side=tk.LEFT, padx=2)
+
         cols = ("№", "Категорія", "Найменування", "Специфікація", "Од. вим.", "Кількість", "Ціна", "Сума", "Примітки")
         self.tree = ttk.Treeview(table_frame, columns=cols, show="headings", height=18)
 
@@ -69,10 +77,10 @@ class MaterialOrderTab:
         hsb = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
-        table_frame.grid_rowconfigure(0, weight=1)
+        self.tree.grid(row=1, column=0, sticky="nsew")
+        vsb.grid(row=1, column=1, sticky="ns")
+        hsb.grid(row=2, column=0, sticky="ew")
+        table_frame.grid_rowconfigure(1, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
 
         # ── Підсумок ──
@@ -98,10 +106,120 @@ class MaterialOrderTab:
         # ── Підказка ──
         hint = ttk.Label(
             self.frame,
-            text="💡 Натисніть «Розрахувати потребу» щоб сформувати заявку на основі виробів проєкту. Потім експортуйте в Excel для постачальника.",
+            text="💡 Натисніть «Розрахувати потребу» щоб сформувати заявку на основі виробів проєкту, або додайте матеріали вручну. Потім експортуйте в Excel для постачальника.",
             foreground="#666", font=("Arial", 8)
         )
         hint.pack(anchor=tk.W, padx=5, pady=2)
+
+    # ── CRUD методи ──
+
+    def _add_item(self):
+        """Діалог додавання матеріалу."""
+        self._item_dialog()
+
+    def _edit_item(self):
+        """Діалог редагування матеріалу."""
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Увага", "Оберіть матеріал для редагування.")
+            return
+        idx = self.tree.index(sel[0])
+        if self.current_order and 0 <= idx < len(self.current_order.items):
+            self._item_dialog(self.current_order.items[idx], idx)
+
+    def _delete_item(self):
+        """Видалити вибраний матеріал."""
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Увага", "Оберіть матеріал для видалення.")
+            return
+        idx = self.tree.index(sel[0])
+        if self.current_order and 0 <= idx < len(self.current_order.items):
+            if messagebox.askyesno("Підтвердження", f'Видалити "{self.current_order.items[idx].name}"?'):
+                self.current_order.items.pop(idx)
+                self._update_table()
+                self._update_summary()
+
+    def _item_dialog(self, item=None, index=None):
+        """Універсальний діалог додавання/редагування матеріалу."""
+        title = "Редагувати матеріал" if item else "Додати матеріал"
+        dlg = tk.Toplevel(self.frame)
+        dlg.title(title)
+        dlg.geometry("450x380")
+        dlg.transient(self.frame)
+        dlg.grab_set()
+
+        frm = ttk.Frame(dlg, padding=15)
+        frm.pack(fill=tk.BOTH, expand=True)
+
+        # Поля
+        ttk.Label(frm, text="Категорія *").grid(row=0, column=0, sticky=tk.W, pady=5)
+        cat_var = tk.StringVar(value=item.category if item else "Листовий метал")
+        ttk.Combobox(frm, values=["Листовий метал", "Ущільнювачі", "Кріплення", "Ізоляція", "Комплектуючі", "Розхідні матеріали"],
+                     textvariable=cat_var, state="readonly", width=30).grid(row=0, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Найменування *").grid(row=1, column=0, sticky=tk.W, pady=5)
+        name_var = tk.StringVar(value=item.name if item else "")
+        ttk.Entry(frm, textvariable=name_var, width=32).grid(row=1, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Специфікація").grid(row=2, column=0, sticky=tk.W, pady=5)
+        spec_var = tk.StringVar(value=item.specification if item else "")
+        ttk.Entry(frm, textvariable=spec_var, width=32).grid(row=2, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Од. вим. *").grid(row=3, column=0, sticky=tk.W, pady=5)
+        unit_var = tk.StringVar(value=item.unit if item else "шт")
+        ttk.Entry(frm, textvariable=unit_var, width=10).grid(row=3, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Кількість *").grid(row=4, column=0, sticky=tk.W, pady=5)
+        qty_var = tk.StringVar(value=str(item.quantity if item else 1))
+        ttk.Entry(frm, textvariable=qty_var, width=10).grid(row=4, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Ціна за од.").grid(row=5, column=0, sticky=tk.W, pady=5)
+        price_var = tk.StringVar(value=str(item.price_per_unit if item else 0))
+        ttk.Entry(frm, textvariable=price_var, width=10).grid(row=5, column=1, sticky=tk.W, pady=5)
+
+        ttk.Label(frm, text="Примітки").grid(row=6, column=0, sticky=tk.W, pady=5)
+        notes_var = tk.StringVar(value=item.notes if item else "")
+        ttk.Entry(frm, textvariable=notes_var, width=32).grid(row=6, column=1, sticky=tk.W, pady=5)
+
+        status = ttk.Label(frm, text="", foreground="#ef4444")
+        status.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=5)
+
+        def save():
+            try:
+                cat = cat_var.get().strip()
+                name = name_var.get().strip()
+                unit = unit_var.get().strip()
+                qty = float(qty_var.get() or 0)
+                price = float(price_var.get() or 0)
+                if not cat or not name or not unit:
+                    status.config(text="⚠️ Заповніть обов'язкові поля", foreground="#f59e0b")
+                    return
+                new_item = MaterialItem(
+                    category=cat,
+                    name=name,
+                    specification=spec_var.get().strip(),
+                    unit=unit,
+                    quantity=qty,
+                    price_per_unit=price,
+                    notes=notes_var.get().strip(),
+                )
+                if self.current_order is None:
+                    self.current_order = MaterialOrder(
+                        project_name=self.project_var.get(),
+                        items=[new_item],
+                    )
+                elif item is not None and index is not None:
+                    self.current_order.items[index] = new_item
+                else:
+                    self.current_order.items.append(new_item)
+                self._update_table()
+                self._update_summary()
+                dlg.destroy()
+            except ValueError:
+                status.config(text="❌ Кількість і ціна мають бути числами", foreground="#ef4444")
+
+        ttk.Button(frm, text="💾 Зберегти", command=save).grid(row=8, column=0, columnspan=2, pady=10)
 
     def _calculate(self):
         """Розрахувати потребу в матеріалах."""
@@ -170,7 +288,7 @@ class MaterialOrderTab:
     def _export_excel(self):
         """Експортувати заявку в Excel."""
         if not self.current_order:
-            messagebox.showwarning("Увага", "Спочатку розрахуйте потребу.")
+            messagebox.showwarning("Увага", "Спочатку розрахуйте потребу або додайте матеріали.")
             return
 
         fpath = filedialog.asksaveasfilename(
@@ -191,7 +309,7 @@ class MaterialOrderTab:
     def _export_pdf(self):
         """Експортувати заявку в PDF (через Excel → PDF або fpdf2)."""
         if not self.current_order:
-            messagebox.showwarning("Увага", "Спочатку розрахуйте потребу.")
+            messagebox.showwarning("Увага", "Спочатку розрахуйте потребу або додайте матеріали.")
             return
 
         fpath = filedialog.asksaveasfilename(

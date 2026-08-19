@@ -4,15 +4,15 @@
   • Excel (.xlsx, .xls) — через openpyxl
   • CSV (.csv) — стандартний парсер
 
-Очікувані колонки:
+Очікувані колонки (основна одиниця — грн/м²):
   • Матеріал (Material) — назва матеріалу
   • Товщина (Thickness) — мм
-  • Ціна за кг (Price per kg) — грн
-  • Ціна за м² (Price per m2) — грн (опціонально)
+  • Ціна за м² (Price per m2) — грн/м² (основна)
+  • Ціна за кг (Price per kg) — грн/кг (опціонально, для зворотної сумісності)
   • Дата (Date) — дата актуальності (опціонально)
 
 Автоматично:
-  • Оновлює ціни в data/pricing_settings.json
+  • Оновлює ціни в data/pricing_settings.json (у форматі грн/м²)
   • Створює бекап перед змінами
   • Перераховує всі відкриті прорахунки
   • Записує історію змін у logs/price_history.json
@@ -21,7 +21,7 @@
 import csv
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -32,6 +32,14 @@ _logger = get_logger("price_importer")
 
 PRICING_SETTINGS_FILE = "data/pricing_settings.json"
 PRICE_HISTORY_FILE = "logs/price_history.json"
+
+DENSITIES = {
+    "оцинкована сталь": 7850,
+    "нержавіюча сталь": 7900,
+    "алюміній": 2700,
+    "пластик ПВХ": 1400,
+    "ізоляція (базальтова вата)": 100,
+}
 
 
 @dataclass
@@ -45,7 +53,7 @@ class PriceRecord:
     supplier: str = ""
 
     def is_valid(self) -> bool:
-        return bool(self.material) and self.thickness > 0 and self.price_per_kg > 0
+        return bool(self.material) and self.thickness > 0 and (self.price_per_m2 > 0 or self.price_per_kg > 0)
 
 
 class PriceImporter:
@@ -162,18 +170,18 @@ class PriceImporter:
 
         return self._apply_changes()
 
-    def _map_headers(self, headers: list[str]) -> dict[str, str]:
-        """Скласти мапу заголовків → ключі."""
-        mapping = {}
+    def _map_headers(self, headers: list[str]) -> dict[str, int]:
+        """Скласти мапу заголовків → індекси."""
+        mapping: dict[str, int] = {}
         for i, h in enumerate(headers):
             if any(k in h for k in ["матеріал", "material", "назва", "name"]):
                 mapping["material"] = i
             elif any(k in h for k in ["товщина", "thickness", "толщина", "mm"]):
                 mapping["thickness"] = i
-            elif any(k in h for k in ["ціна за кг", "price per kg", "ціна/кг", "грн/кг"]):
-                mapping["price_kg"] = i
             elif any(k in h for k in ["ціна за м²", "price per m2", "ціна/м²", "грн/м²"]):
                 mapping["price_m2"] = i
+            elif any(k in h for k in ["ціна за кг", "price per kg", "ціна/кг", "грн/кг"]):
+                mapping["price_kg"] = i
             elif any(k in h for k in ["дата", "date", "дата актуальності"]):
                 mapping["date"] = i
         return mapping
@@ -188,10 +196,10 @@ class PriceImporter:
             record.material = self._normalize_material(row.get(idx, "")) if idx is not None else ""
             idx = header_map.get("thickness")
             record.thickness = self._parse_thickness(row.get(idx, 0)) if idx is not None else 0
-            idx = header_map.get("price_kg")
-            record.price_per_kg = self._parse_price(row.get(idx, 0)) if idx is not None else 0
             idx = header_map.get("price_m2")
             record.price_per_m2 = self._parse_price(row.get(idx)) if idx is not None else None
+            idx = header_map.get("price_kg")
+            record.price_per_kg = self._parse_price(row.get(idx, 0)) if idx is not None else 0
             idx = header_map.get("date")
             record.date = str(row.get(idx, "")) if idx is not None else ""
         else:
@@ -201,18 +209,18 @@ class PriceImporter:
             record.thickness = self._parse_thickness(
                 row.get("Товщина", row.get("Thickness", row.get("товщина", 0)))
             )
-            record.price_per_kg = self._parse_price(
-                row.get("Ціна за кг", row.get("Price per kg", row.get("ціна за кг", 0)))
-            )
             record.price_per_m2 = self._parse_price(
                 row.get("Ціна за м²", row.get("Price per m2", row.get("ціна за м²", None)))
             ) or None
+            record.price_per_kg = self._parse_price(
+                row.get("Ціна за кг", row.get("Price per kg", row.get("ціна за кг", 0)))
+            )
             record.date = str(row.get("Дата", row.get("Date", "")))
 
         return record
 
     def _apply_changes(self) -> tuple[int, int, list[str]]:
-        """Застосувати імпортовані ціни до pricing_settings.json."""
+        """Застосувати імпортовані ціни до pricing_settings.json (грн/м²)."""
         if not self.imported:
             return 0, 0, self.errors
 
@@ -220,13 +228,12 @@ class PriceImporter:
         create_backup(PRICING_SETTINGS_FILE)
 
         # Завантажити поточні ціни
-        data = {}
+        data: dict[str, Any] = {}
         if os.path.exists(PRICING_SETTINGS_FILE):
             with open(PRICING_SETTINGS_FILE, encoding="utf-8") as f:
                 data = json.load(f)
 
         material_prices = data.get("material_prices", {})
-        old_prices = json.dumps(material_prices, ensure_ascii=False)
 
         # Застосувати нові ціни
         for record in self.imported:
@@ -237,20 +244,29 @@ class PriceImporter:
             if record.material not in material_prices:
                 material_prices[record.material] = {}
 
+            # Визначити ціну за м²
+            if record.price_per_m2 and record.price_per_m2 > 0:
+                price_to_save = record.price_per_m2
+            else:
+                # Обчислити з грн/кг
+                density = DENSITIES.get(record.material, 7850)
+                weight_per_m2 = (record.thickness / 1000) * density
+                price_to_save = record.price_per_kg * weight_per_m2
+
             old_price = material_prices[record.material].get(str(record.thickness))
-            material_prices[record.material][str(record.thickness)] = record.price_per_kg
+            material_prices[record.material][str(record.thickness)] = price_to_save
 
             if old_price is not None:
-                change_pct = ((record.price_per_kg - old_price) / old_price) * 100
+                change_pct = ((price_to_save - old_price) / old_price) * 100
                 _logger.info(
-                    "💰 Оновлено: %s %.1fмм | %.2f → %.2f грн/кг (%+.1f%%)",
-                    record.material, record.thickness, old_price, record.price_per_kg, change_pct
+                    "💰 Оновлено: %s %.1fмм | %.2f → %.2f грн/м² (%+.1f%%)",
+                    record.material, record.thickness, old_price, price_to_save, change_pct
                 )
                 self.updated_count += 1
             else:
                 _logger.info(
-                    "➕ Новий: %s %.1fмм | %.2f грн/кг",
-                    record.material, record.thickness, record.price_per_kg
+                    "➕ Новий: %s %.1fмм | %.2f грн/м²",
+                    record.material, record.thickness, price_to_save
                 )
                 self.updated_count += 1
 
@@ -274,7 +290,7 @@ class PriceImporter:
 
     def _save_history(self):
         """Зберегти історію змін цін."""
-        history = []
+        history: list[dict] = []
         if os.path.exists(PRICE_HISTORY_FILE):
             with open(PRICE_HISTORY_FILE, encoding="utf-8") as f:
                 history = json.load(f)
@@ -289,6 +305,7 @@ class PriceImporter:
                 {
                     "material": r.material,
                     "thickness": r.thickness,
+                    "price_per_m2": r.price_per_m2,
                     "price_per_kg": r.price_per_kg,
                     "supplier": r.supplier,
                 }

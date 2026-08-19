@@ -23,9 +23,14 @@ class BaseDocument(FPDF, ABC):
         self.doc_number = ""
         self.doc_date = datetime.now().strftime("%d.%m.%Y")
         self.set_auto_page_break(auto=True, margin=15)
-        # fpdf2 2.7.4+ включає DejaVu шрифти з коробки
-        pass
-        self.set_font("DejaVu", "", 10)
+        # Реєструємо Unicode-шрифт (системний з кирилицею)
+        try:
+            from ventilation_company.pdf_generator import _find_fonts
+            regular, bold = _find_fonts()
+            self.add_font("DejaVu", "", regular, uni=True)
+            self.add_font("DejaVu", "B", bold, uni=True)
+        except Exception as exc:
+            _logger.warning("Не вдалося завантажити Unicode-шрифт: %s. PDF може не відображати кирилицю.", exc)
 
     def header(self):
         """Заголовок кожної сторінки."""

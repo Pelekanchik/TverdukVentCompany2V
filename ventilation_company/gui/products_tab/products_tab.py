@@ -7,18 +7,6 @@ from collections.abc import Callable
 from dataclasses import fields
 from tkinter import filedialog, messagebox, ttk
 
-from ventilation_company.gui.products_tab.tooltip import Tooltip
-from ventilation_company.gui.products_tab.formula_utils import (
-    get_custom_formula,
-    parse_formula_params,
-    safe_float,
-    get_extra,
-    calc_price,
-    calc_preview_area,
-)
-from ventilation_company.gui.products_tab.product_builder import CustomProduct, validate_product_input
-from ventilation_company.gui.products_tab import tree_manager
-
 from ventilation_company.freecad_models import FREECAD_AVAILABLE, export_products_to_freecad
 from ventilation_company.standard_products import (
     FlexibleConnector,
@@ -39,10 +27,77 @@ from ventilation_company.standard_products import (
     make_rect_duct,
     make_round_duct,
 )
+
 from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
 from ventilation_company.gui.settings_tab import PricingSettings
 
-# ── TOOLTIP КЛАС ВИНЕСЕНО В tooltip.py ─────────────────────
+
+# ── TOOLTIP КЛАС ────────────────────────────────────────────
+
+class Tooltip:
+    """Вспливаюча підказка для віджетів tkinter."""
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        widget.bind("<Enter>", self._on_enter)
+        widget.bind("<Leave>", self._on_leave)
+        widget.bind("<ButtonPress>", self._on_leave)
+
+    def _on_enter(self, event=None):
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() // 2
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            tw, text=self.text, justify=tk.LEFT,
+            background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+            font=("tahoma", "9", "normal"), padx=5, pady=3
+        )
+        label.pack(ipadx=1)
+
+    def _on_leave(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+
+# ── КОНСТАНТИ ──────────────────────────────────────────────
+
+PYTHON_KEYWORDS = {
+    "if", "else", "elif", "and", "or", "not", "in", "is",
+    "True", "False", "None", "for", "while", "def", "class",
+    "return", "import", "from", "as", "try", "except", "finally",
+    "with", "lambda", "pass", "break", "continue", "raise",
+    "yield", "global", "nonlocal", "assert", "del"
+}
+
+PARAM_FIELDS = {
+    "angle": {"label": "Кут згину (°):", "type": "float", "default": "90"},
+    "radius": {"label": "Радіус дуги (мм):", "type": "float", "default": "150"},
+    "branch_width": {"label": "Відгалуження Ш (мм):", "type": "float", "default": "200"},
+    "branch_height":{"label": "Відгалуження В (мм):", "type": "float", "default": "200"},
+    "branch_length":{"label": "Довжина відгалуж. (мм):","type": "float", "default": "400"},
+    "branch_offset":{"label": "Відстань від краю (мм):","type": "float", "default": "300"},
+    "branch_diameter":{"label": "Ø відгалуження (мм):", "type": "float", "default": "200"},
+    "end_width": {"label": "Кінцева ширина (мм):", "type": "float", "default": "300"},
+    "end_height": {"label": "Кінцева висота (мм):", "type": "float", "default": "150"},
+    "end_diameter": {"label": "Кінцевий Ø (мм):", "type": "float", "default": "300"},
+    "depth": {"label": "Глибина (мм):", "type": "float", "default": "30"},
+    "border": {"label": "Ширина загину (мм):", "type": "float", "default": "25"},
+    "segments": {"label": "Кількість сегментів:", "type": "int", "default": "3"},
+    "bolt_count": {"label": "Кількість болтів:", "type": "int", "default": "8"},
+    "bolt_diameter":{"label": "Ø отвору під болт (мм):","type": "float", "default": "10"},
+    "bolt_spacing": {"label": "Крок отворів (мм):", "type": "float", "default": "100"},
+}
+
+INTERNAL_VARS = {
+    "metal_area", "metal_area_m2", "thickness", "material_price",
+    "weight", "weight_kg", "quantity", "length", "width", "height",
+    "profile", "__builtins__",
+}
+
 
 class ProductsTab:
     BASE_PRODUCT_TYPES = {
@@ -146,7 +201,7 @@ class ProductsTab:
     def get_products_data(self) -> list[dict]:
         """Повернути список виробів у форматі dict для синхронізації з прайс-листом."""
         result = []
-        for p in self.products:
+        for p in self.library.products:
             if hasattr(p, "to_dict"):
                 result.append(p.to_dict())
             elif isinstance(p, dict):
@@ -325,7 +380,8 @@ class ProductsTab:
         self.summary_label.pack(fill=tk.X, pady=(0, 5))
 
         columns = ("type", "dimensions", "material", "thickness", "qty",
-                   "area_unit", "area_total", "price_unit", "price_total")
+                   "area_unit", "area_total", "blank_unit", "blank_total",
+                   "mat_unit", "mat_total", "price_unit", "price_total")
         self.tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=20)
 
         self.tree.heading("type", text="Тип")
@@ -333,20 +389,28 @@ class ProductsTab:
         self.tree.heading("material", text="Матеріал")
         self.tree.heading("thickness", text="Товщ.")
         self.tree.heading("qty", text="К-ть")
-        self.tree.heading("area_unit", text="Площа 1шт, м²")
-        self.tree.heading("area_total", text="Площа заг., м²")
-        self.tree.heading("price_unit", text="Ціна 1шт, грн")
-        self.tree.heading("price_total", text="Ціна заг., грн")
+        self.tree.heading("area_unit", text="Поверхня 1шт")
+        self.tree.heading("area_total", text="Поверхня заг.")
+        self.tree.heading("blank_unit", text="Заготівля 1шт")
+        self.tree.heading("blank_total", text="Заготівля заг.")
+        self.tree.heading("mat_unit", text="Матеріал 1шт")
+        self.tree.heading("mat_total", text="Матеріал заг.")
+        self.tree.heading("price_unit", text="Ціна 1шт")
+        self.tree.heading("price_total", text="Ціна заг.")
 
         self.tree.column("type", width=140)
         self.tree.column("dimensions", width=90)
         self.tree.column("material", width=110)
         self.tree.column("thickness", width=45, anchor=tk.CENTER)
         self.tree.column("qty", width=45, anchor=tk.CENTER)
-        self.tree.column("area_unit", width=85, anchor=tk.CENTER)
-        self.tree.column("area_total", width=85, anchor=tk.CENTER)
-        self.tree.column("price_unit", width=90, anchor=tk.CENTER)
-        self.tree.column("price_total", width=90, anchor=tk.CENTER)
+        self.tree.column("area_unit", width=70, anchor=tk.CENTER)
+        self.tree.column("area_total", width=70, anchor=tk.CENTER)
+        self.tree.column("blank_unit", width=70, anchor=tk.CENTER)
+        self.tree.column("blank_total", width=70, anchor=tk.CENTER)
+        self.tree.column("mat_unit", width=70, anchor=tk.CENTER)
+        self.tree.column("mat_total", width=70, anchor=tk.CENTER)
+        self.tree.column("price_unit", width=80, anchor=tk.CENTER)
+        self.tree.column("price_total", width=80, anchor=tk.CENTER)
 
         scrollbar = ttk.Scrollbar(right_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -682,10 +746,11 @@ class ProductsTab:
                 else:
                     profile = self.PROFILE_ROUND.get(pk, 30.0)
 
-            metal_area = self._calc_preview_area(ptype, selected_name, w, h, length, profile)
-
-            density = 7850
-            weight = metal_area * (thickness.value / 1000) * density
+            preview_product = self._create_preview_product(ptype, selected_name, w, h, length, thickness, material, profile)
+            metal_area = preview_product.surface_area
+            blank_area = preview_product.blank_area
+            material_area = preview_product.material_area
+            weight = preview_product.weight
 
             dynamic_values = {}
             for param_name, var in self._dynamic_vars.items():
@@ -708,6 +773,8 @@ class ProductsTab:
                 "material": material.value,
                 "thickness": thickness.value,
                 "metal_area_m2": metal_area,
+                "blank_area_m2": blank_area,
+                "material_area_m2": material_area,
                 "weight_kg": weight,
                 "quantity": qty,
                 "width": w, "height": h, "length": length,
@@ -823,6 +890,90 @@ class ProductsTab:
                 return 0
         except Exception:
             return 0
+
+
+    def _create_preview_product(self, ptype, selected_name, w, h, length, thickness, material, profile):
+        """Створити тимчасовий продукт для попереднього перегляду розрахунків."""
+        if ptype.startswith("custom_"):
+            custom_area = self._safe_float(self.custom_area_var.get(), 0)
+            class CustomProduct(StandardProduct):
+                def __post_init__(self):
+                    self.product_type = selected_name
+                    super().__post_init__()
+                def calculate_metal_area(self):
+                    return custom_area
+            return CustomProduct(
+                name=selected_name, product_type=selected_name,
+                width=w, height=h, length=length,
+                thickness=thickness, material=material, quantity=1,
+            )
+        elif ptype == "rect_duct":
+            return make_rect_duct(w, h, length, thickness.value, material, 1)
+        elif ptype == "round_duct":
+            return make_round_duct(w, length, thickness.value, material, 1)
+        elif ptype == "rect_flange":
+            return RectFlange(name="", width=w, height=h, length=0, thickness=thickness,
+                              material=material, quantity=1, profile=profile)
+        elif ptype == "round_flange":
+            return RoundFlange(name="", width=w, height=w, length=0, thickness=thickness,
+                               material=material, quantity=1, profile=profile)
+        elif ptype == "rect_tee":
+            bw = self._get_extra("branch_width", 200)
+            bh = self._get_extra("branch_height", 200)
+            bl = self._get_extra("branch_length", 400)
+            offset = self._get_extra("branch_offset", 300)
+            return RectTee(name="", width=w, height=h, length=length, thickness=thickness,
+                           material=material, quantity=1,
+                           branch_width=bw, branch_height=bh, branch_length=bl, branch_offset=offset)
+        elif ptype == "round_tee":
+            bd = self._get_extra("branch_diameter", 200)
+            bl = self._get_extra("branch_length", 400)
+            offset = self._get_extra("branch_offset", 300)
+            return RoundTee(name="", width=w, height=w, length=length, thickness=thickness,
+                            material=material, quantity=1,
+                            branch_diameter=bd, branch_length=bl, branch_offset=offset)
+        elif ptype == "rect_transition":
+            ew = self._get_extra("end_width", 300)
+            eh = self._get_extra("end_height", 150)
+            return RectTransition(name="", width=w, height=h, length=length, thickness=thickness,
+                                  material=material, quantity=1, end_width=ew, end_height=eh)
+        elif ptype == "round_transition":
+            ed = self._get_extra("end_diameter", 300)
+            return RoundTransition(name="", width=w, height=w, length=length, thickness=thickness,
+                                   material=material, quantity=1, end_diameter=ed)
+        elif ptype == "rect_elbow":
+            angle = self._get_extra("angle", 90)
+            radius = self._get_extra("radius", 150)
+            top_ext = float(self._extra_vars.get("top_extension", {}).get() or 100)
+            bottom_ext = float(self._extra_vars.get("bottom_extension", {}).get() or 100)
+            return RectElbow(name="", width=w, height=h, length=0, thickness=thickness,
+                             material=material, quantity=1,
+                             angle=angle, radius=radius,
+                             top_extension=top_ext, bottom_extension=bottom_ext)
+        elif ptype == "round_elbow":
+            angle = self._get_extra("angle", 90)
+            radius = self._get_extra("radius", 150)
+            top_ext = float(self._extra_vars.get("top_extension", {}).get() or 100)
+            bottom_ext = float(self._extra_vars.get("bottom_extension", {}).get() or 100)
+            return RoundElbow(name="", width=w, height=w, length=0, thickness=thickness,
+                              material=material, quantity=1,
+                              angle=angle, radius=radius,
+                              top_extension=top_ext, bottom_extension=bottom_ext)
+        elif ptype == "rect_cap":
+            border = self._get_extra("border", 25)
+            return RectCap(name="", width=w, height=h, length=0, thickness=thickness,
+                           material=material, quantity=1, profile=border)
+        elif ptype == "round_cap":
+            depth = self._get_extra("depth", 30)
+            return RoundCap(name="", width=w, height=w, length=0, thickness=thickness,
+                            material=material, quantity=1, depth=depth)
+        elif ptype == "flexible":
+            fabric = self._extra_vars.get("fabric_type", tk.StringVar(value="поліестер")).get()
+            return FlexibleConnector(name="", width=w, height=h, length=length, thickness=thickness,
+                                     material=material, quantity=1, fabric_type=fabric)
+        else:
+            return StandardProduct(name="", width=w, height=h, length=length, thickness=thickness,
+                                   material=material, quantity=1)
 
     def _get_extra(self, key: str, default: float = 0) -> float:
         var = self._extra_vars.get(key)
@@ -1101,8 +1252,12 @@ class ProductsTab:
                     p.material.value,
                     p.thickness.value,
                     p.quantity,
-                    f"{p.metal_area:.3f}",
-                    f"{p.metal_area * p.quantity:.3f}",
+                    f"{p.surface_area:.3f}",
+                    f"{p.surface_area * p.quantity:.3f}",
+                    f"{p.blank_area:.3f}",
+                    f"{p.blank_area * p.quantity:.3f}",
+                    f"{p.material_area:.3f}",
+                    f"{p.material_area * p.quantity:.3f}",
                     f"{p.unit_price:.2f}",
                     f"{p.total_price:.2f}",
                 ),
@@ -1110,10 +1265,11 @@ class ProductsTab:
 
     def _update_summary(self):
         total = len(self.library)
-        area = self.library.get_total_metal_area()
+        blank = self.library.get_total_blank_area()
+        mat = self.library.get_total_material_area()
         price = self.library.get_total_price()
         self.summary_label.config(
-            text=f"Всього: {total} виробів | {area:.3f} м² | {price:.2f} грн"
+            text=f"Всього: {total} виробів | Заготівля: {blank:.3f} м² | Матеріал: {mat:.3f} м² | {price:.2f} грн"
         )
 
     def _get_selected_index(self) -> int:
@@ -1264,6 +1420,13 @@ class ProductsTab:
         return self.library
 
     def get_products_dict(self):
+        return self.library.to_dict()
+
+    def get_standard_products(self):
+        """Повернути список StandardProduct об'єктів (для розкрою)."""
+        return list(self.library.products)
+
+    def load_products_from_dict(self, products: list[dict]):
         return self.library.to_dict()
 
     def load_products_from_dict(self, products: list[dict]):

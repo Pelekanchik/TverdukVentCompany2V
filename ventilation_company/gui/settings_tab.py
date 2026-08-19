@@ -79,6 +79,13 @@ DEFAULT_DEPRECIATION = {
     "plasma_percent": 6.0,
 }
 
+DEFAULT_CATEGORY_WASTE_FACTORS = {
+    "rect_duct": 0.0,        # прямокутні труби
+    "rect_fitting": 0.0,     # прямокутні фасонні
+    "round_duct": 0.0,       # круглі труби
+    "round_fitting": 0.0,    # круглі фасонні
+}
+
 DEFAULT_MARKUP_PERCENT = 30.0
 DEFAULT_MARKUP_MATRIX = build_default_markup_matrix()
 
@@ -196,6 +203,7 @@ class PricingSettings:
         self.products: list = []
         self.custom_params: dict = {}
         self.labor_rates: dict = {}
+        self.category_waste_factors: dict = {}
 
         self.load()
 
@@ -239,6 +247,7 @@ class PricingSettings:
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
             self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
+            self.category_waste_factors = data.get("category_waste_factors", DEFAULT_CATEGORY_WASTE_FACTORS.copy())
             self.sync_labor_rates()
             self.save()
         else:
@@ -250,6 +259,7 @@ class PricingSettings:
             self.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
+            self.category_waste_factors = DEFAULT_CATEGORY_WASTE_FACTORS.copy()
             self.save()
 
     def save(self) -> None:
@@ -263,6 +273,7 @@ class PricingSettings:
             "products": self.products,
             "custom_params": self.custom_params,
             "labor_rates": self.labor_rates,
+            "category_waste_factors": self.category_waste_factors,
         }
         with self._file_lock:
             self._atomic_write(data)
@@ -281,6 +292,28 @@ class PricingSettings:
             if key in ptype or ptype in key:
                 return value
         return {"rate_per_m2": 120.0, "difficulty_percent": 0.0}
+
+    def get_category_waste_factor(self, product_type: str) -> float:
+        """Отримати %% запасу на брак/поворот для категорії виробу."""
+        self.reload()
+        ptype = product_type.lower().strip()
+        # Визначаємо категорію
+        category = self._classify_category(ptype)
+        return self.category_waste_factors.get(category, 0.0)
+
+    def _classify_category(self, product_type: str) -> str:
+        """Класифікувати виріб у одну з 4 категорій."""
+        pt = product_type.lower().strip()
+        if "повітропровід прямокутний" in pt:
+            return "rect_duct"
+        elif "повітропровід круглий" in pt:
+            return "round_duct"
+        elif any(k in pt for k in ["фланець прямокутний", "трійник прямокутний", "перехід прямокутний", "відвід прямокутний", "заглушка прямокутна"]):
+            return "rect_fitting"
+        elif any(k in pt for k in ["фланець круглий", "трійник круглий", "перехід круглий", "відвід круглий", "заглушка кругла"]):
+            return "round_fitting"
+        else:
+            return "rect_duct"  # fallback
 
     def get_markup_percent(self, product_data: dict) -> float:
         self.reload()
@@ -400,7 +433,7 @@ class PricingSettings:
         return PriceBreakdown(
             formula=formula,
             steps=[
-                PriceStep("1. Базова ціна (метал)", f"{metal_area:.4f} м² × {material_price:.2f} грн/кг × коеф.", round(base_price, 2)),
+                PriceStep("1. Базова ціна (метал)", f"{metal_area:.4f} м² × {material_price:.2f} грн/м² × коеф.", round(base_price, 2)),
                 PriceStep("2. Відходи металу", f"× (1 + {waste_pct:.1f}%) = × {waste_mult:.3f}", round(after_waste, 2)),
                 PriceStep("3. Зарплата робітників", f"{metal_area:.4f} м² × {rate_per_m2:.2f} грн/м² × (1 + {difficulty:.1f}%)", round(labor_cost, 2)),
                 PriceStep("4. Після зарплати", f"{after_waste:.2f} + {labor_cost:.2f}", round(after_labor, 2)),
@@ -469,8 +502,12 @@ class SettingsTab:
         self.markup_tab = MarkupMatrixTab(self.notebook, self.settings)
         self.notebook.add(self.markup_tab.frame, text="📐 Націнки по категоріях")
 
+        self.waste_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.waste_frame, text="📦 Коефіцієнти запасу")
+        self._build_waste_tab()
+
     def _build_metal_tab(self):
-        ttk.Label(self.metal_frame, text="Ціни на метал (грн/кг)", font=("Arial", 11, "bold")).pack(pady=5)
+        ttk.Label(self.metal_frame, text="Ціни на метал (грн/м²)", font=("Arial", 11, "bold")).pack(pady=5)
         frame = ttk.Frame(self.metal_frame)
         frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         thicknesses = ["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"]
@@ -841,7 +878,7 @@ class SettingsTab:
             "Доступні змінні у формулі (завжди доступні):\n"
             "  metal_area — площа металу (м²)\n"
             "  thickness — товщина (мм)\n"
-            "  material_price — ціна металу (грн/кг)\n"
+            "  material_price — ціна металу (грн/м²)\n"
             "  weight — вага (кг)\n"
             "  quantity — кількість\n"
             "  bolt_count — кількість болтів\n"
@@ -939,6 +976,51 @@ class SettingsTab:
         self.settings.save()
         messagebox.showinfo("Успіх", "Налаштування збережено!")
 
+    def _build_waste_tab(self):
+        """Вкладка коефіцієнтів запасу на брак/поворот по категоріях."""
+        top = ttk.Frame(self.waste_frame, padding=5)
+        top.pack(fill=tk.X)
+        ttk.Label(top, text="📦 Коефіцієнти запасу на брак/поворот (%)", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Button(top, text="💾 Зберегти", command=self._save_waste_factors).pack(side=tk.RIGHT, padx=5)
+
+        frame = ttk.LabelFrame(self.waste_frame, text="Налаштування коефіцієнтів по категоріях", padding=10)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.waste_vars = {}
+        categories = [
+            ("rect_duct", "Прямокутні труби (повітропроводи)"),
+            ("rect_fitting", "Прямокутні фасонні вироби (фланці, трійники, відводи...)"),
+            ("round_duct", "Круглі труби (повітропроводи)"),
+            ("round_fitting", "Круглі фасонні вироби (фланці, трійники, відводи...)"),
+        ]
+        for i, (key, label) in enumerate(categories):
+            ttk.Label(frame, text=label, font=("Arial", 10)).grid(row=i, column=0, sticky=tk.W, pady=8, padx=5)
+            var = tk.StringVar(value=str(self.settings.category_waste_factors.get(key, 0.0)))
+            ent = ttk.Entry(frame, textvariable=var, width=10)
+            ent.grid(row=i, column=1, padx=5, pady=8, sticky=tk.W)
+            ttk.Label(frame, text="%").grid(row=i, column=2, sticky=tk.W, pady=8)
+            self.waste_vars[key] = var
+
+        help_text = (
+            "💡 Коефіцієнт запасу додається до вартості матеріалу:\n"
+            "   Вартість матеріалу × (1 + коефіцієнт_категорії / 100)\n\n"
+            "Приклад: якщо коефіцієнт = 5%, то вартість металу\n"
+            "збільшується на 5% для відповідної категорії виробів."
+        )
+        ttk.Label(frame, text=help_text, foreground=self._fg("fg_muted"),
+                justify=tk.LEFT, font=("Consolas", 9)).grid(row=len(categories), column=0,
+                columnspan=3, sticky=tk.W, pady=15, padx=5)
+
+    def _save_waste_factors(self):
+        """Зберегти коефіцієнти запасу."""
+        try:
+            for key, var in self.waste_vars.items():
+                self.settings.category_waste_factors[key] = float(var.get())
+            self.settings.save()
+            messagebox.showinfo("Успіх", "Коефіцієнти запасу збережено!")
+        except ValueError:
+            messagebox.showwarning("Увага", "Усі значення мають бути числами.")
+
     def _reset_defaults(self):
         if messagebox.askyesno("Підтвердження", "Скинути всі налаштування до замовчування?"):
             self.settings.material_prices = DEFAULT_MATERIAL_PRICES.copy()
@@ -948,5 +1030,6 @@ class SettingsTab:
             self.settings.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.settings.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.settings.labor_rates = DEFAULT_LABOR_RATES.copy()
+            self.settings.category_waste_factors = DEFAULT_CATEGORY_WASTE_FACTORS.copy()
             self._refresh_all()
             self.settings.save()
