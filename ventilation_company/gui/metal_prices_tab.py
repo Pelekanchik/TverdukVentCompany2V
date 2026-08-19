@@ -1,15 +1,17 @@
 """🔧 Вкладка "Ціни на метал" — управління цінами на листовий метал.
 
 Працює з тим самим файлом data/pricing_settings.json, що й PricingSettings.
+Основна одиниця — грн/м².
 """
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import tkinter as tk
-from tkinter import messagebox, ttk
 from datetime import datetime
+from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.gui.theme_manager import get_theme_manager
 from ventilation_company.services.price_importer import PriceImporter
@@ -25,20 +27,20 @@ DENSITIES = {
 }
 
 DEFAULT_PRICES = {
-    "оцинкована сталь": {0.5: 45.0, 0.7: 42.0, 1.0: 40.0, 1.2: 38.0, 1.5: 36.0, 2.0: 34.0},
-    "нержавіюча сталь": {0.5: 120.0, 0.7: 115.0, 1.0: 110.0, 1.2: 108.0, 1.5: 105.0, 2.0: 100.0},
-    "алюміній": {0.5: 180.0, 0.7: 175.0, 1.0: 170.0, 1.2: 168.0, 1.5: 165.0, 2.0: 160.0},
+    "оцинкована сталь": {0.5: 450.0, 0.7: 580.0, 1.0: 750.0, 1.2: 850.0, 1.5: 950.0, 2.0: 1200.0},
+    "нержавіюча сталь": {0.5: 950.0, 0.7: 1100.0, 1.0: 1200.0, 1.2: 1400.0, 1.5: 1600.0, 2.0: 2000.0},
+    "алюміній": {0.5: 320.0, 0.7: 380.0, 1.0: 450.0, 1.2: 500.0, 1.5: 600.0, 2.0: 750.0},
     "пластик ПВХ": {2.0: 35.0, 3.0: 32.0, 4.0: 30.0},
     "ізоляція (базальтова вата)": {50: 25.0, 100: 22.0},
 }
 
 
 class MetalPricesManager:
-    def __init__(self, parent, filepath: str = PRICING_SETTINGS_FILE):
+    def __init__(self, filepath: str = PRICING_SETTINGS_FILE):
         self.filepath = filepath
         self.prices: dict[str, dict[float, float]] = {}
+        self.densities = DENSITIES
         self.load()
-        self._build_ui(parent)
 
     def load(self):
         if os.path.exists(self.filepath):
@@ -77,21 +79,26 @@ class MetalPricesManager:
         with open(self.filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def get_price_per_kg(self, material: str, thickness: float) -> float | None:
+    def get_price_per_m2(self, material: str, thickness: float) -> float | None:
+        """Основна ціна — за м² (грн/м²)."""
         return self.prices.get(material, {}).get(thickness)
 
-    def get_price_per_m2(self, material: str, thickness: float) -> float | None:
-        price_kg = self.get_price_per_kg(material, thickness)
-        if price_kg is None:
+    def get_price_per_kg(self, material: str, thickness: float) -> float | None:
+        """Довідкова ціна за кг, обчислюється з грн/м²."""
+        price_m2 = self.get_price_per_m2(material, thickness)
+        if price_m2 is None:
             return None
         density = DENSITIES.get(material, 7850)
         weight_per_m2 = (thickness / 1000) * density
-        return price_kg * weight_per_m2
+        if weight_per_m2 <= 0:
+            return None
+        return price_m2 / weight_per_m2
 
-    def set_price(self, material: str, thickness: float, price_per_kg: float):
+    def set_price(self, material: str, thickness: float, price_per_m2: float):
+        """Зберегти ціну за м²."""
         if material not in self.prices:
             self.prices[material] = {}
-        self.prices[material][thickness] = price_per_kg
+        self.prices[material][thickness] = price_per_m2
         self.save()
 
     def delete_price(self, material: str, thickness: float) -> bool:
@@ -112,19 +119,19 @@ class MetalPricesManager:
     def get_all_entries(self) -> list[dict]:
         entries = []
         for material, thicknesses in self.prices.items():
-            for thickness, price_kg in thicknesses.items():
-                price_m2 = self.get_price_per_m2(material, thickness)
+            for thickness, price_m2 in thicknesses.items():
+                price_kg = self.get_price_per_kg(material, thickness)
                 density = DENSITIES.get(material, 7850)
                 entries.append({
                     "material": material,
                     "thickness": thickness,
-                    "price_per_kg": price_kg,
                     "price_per_m2": price_m2,
+                    "price_per_kg": price_kg,
                     "density": density,
                 })
         return sorted(entries, key=lambda x: (x["material"], x["thickness"]))
 
-    def get_manager(self) -> MetalPricesManager:
+    def get_manager(self) -> "MetalPricesManager":
         return self
 
 
@@ -142,7 +149,7 @@ class MetalPricesTab:
     def _fg(self, key="fg"):
         return self.theme.color(key)
 
-    def _build_ui(self, parent):
+    def _build_ui(self):
         top = ttk.Frame(self.frame, padding=5)
         top.pack(fill=tk.X)
 
@@ -171,19 +178,19 @@ class MetalPricesTab:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        columns = ("material", "thickness", "price_kg", "price_m2", "density")
+        columns = ("material", "thickness", "price_m2", "price_kg", "density")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
 
         self.tree.heading("material", text="Матеріал")
         self.tree.heading("thickness", text="Товщина (мм)")
-        self.tree.heading("price_kg", text="Ціна за кг (грн)")
         self.tree.heading("price_m2", text="Ціна за м² (грн)")
+        self.tree.heading("price_kg", text="Ціна за кг (грн)")
         self.tree.heading("density", text="Щільність (кг/м³)")
 
         self.tree.column("material", width=200, anchor=tk.W)
         self.tree.column("thickness", width=100, anchor=tk.CENTER)
-        self.tree.column("price_kg", width=120, anchor=tk.CENTER)
         self.tree.column("price_m2", width=120, anchor=tk.CENTER)
+        self.tree.column("price_kg", width=120, anchor=tk.CENTER)
         self.tree.column("density", width=120, anchor=tk.CENTER)
 
         vsb = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -203,8 +210,8 @@ class MetalPricesTab:
 
         note = ttk.Label(
             self.frame,
-            text="💡 Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. "
-                 "Ціна за м² обчислюється автоматично: ціна_за_кг × (товщина/1000) × щільність",
+            text="💡 Основна одиниця — грн/м². Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. "
+                 "Ціна за кг обчислюється автоматично для довідки: ціна_за_м² / ((товщина/1000) × щільність)",
             font=("Arial", 9), foreground=self._fg("blue"), wraplength=800, justify=tk.LEFT
         )
         note.pack(fill=tk.X, padx=5, pady=(0, 5))
@@ -217,11 +224,12 @@ class MetalPricesTab:
         if material_filter != "всі":
             entries = [e for e in entries if e["material"] == material_filter]
         for entry in entries:
+            price_kg_str = f"{entry['price_per_kg']:.2f}" if entry['price_per_kg'] is not None else ""
             self.tree.insert("", tk.END, values=(
                 entry["material"],
                 entry["thickness"],
-                f"{entry['price_per_kg']:.2f}",
                 f"{entry['price_per_m2']:.2f}",
+                price_kg_str,
                 entry["density"],
             ), tags=(f"{entry['material']}|{entry['thickness']}",))
 
@@ -252,11 +260,11 @@ class MetalPricesTab:
             messagebox.showwarning("Увага", "Оберіть запис для редагування")
             return
         material, thickness = selected
-        price_kg = self.manager.get_price_per_kg(material, thickness)
-        if price_kg is not None:
-            self._open_dialog(material, thickness, price_kg)
+        price_m2 = self.manager.get_price_per_m2(material, thickness)
+        if price_m2 is not None:
+            self._open_dialog(material, thickness, price_m2)
 
-    def _open_dialog(self, material: str = "", thickness: float = 0.0, price_kg: float = 0.0):
+    def _open_dialog(self, material: str = "", thickness: float = 0.0, price_m2: float = 0.0):
         dialog = tk.Toplevel(self.frame)
         dialog.title("Редагувати ціну" if material else "Додати ціну на метал")
         dialog.geometry("420x300")
@@ -267,7 +275,7 @@ class MetalPricesTab:
         is_edit = bool(material)
         mat_var = tk.StringVar(value=material)
         thick_var = tk.StringVar(value=str(thickness) if thickness else "")
-        kg_var = tk.StringVar(value=str(price_kg) if price_kg else "")
+        m2_var = tk.StringVar(value=str(price_m2) if price_m2 else "")
 
         row = 0
         ttk.Label(dialog, text="Матеріал:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
@@ -288,12 +296,12 @@ class MetalPricesTab:
             ttk.Entry(dialog, textvariable=thick_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
         row += 1
 
-        ttk.Label(dialog, text="Ціна за кг (грн):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
-        ttk.Entry(dialog, textvariable=kg_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(dialog, text="Ціна за м² (грн):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
+        ttk.Entry(dialog, textvariable=m2_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
         row += 1
 
         if not is_edit:
-            ttk.Label(dialog, text="Ціна за м² буде обчислена автоматично", foreground=self._fg("fg_muted")).grid(row=row, column=0, columnspan=2, padx=10, pady=2)
+            ttk.Label(dialog, text="Ціна за кг обчислюється автоматично для довідки", foreground=self._fg("fg_muted")).grid(row=row, column=0, columnspan=2, padx=10, pady=2)
             row += 1
 
         btn_frame = ttk.Frame(dialog)
@@ -303,11 +311,11 @@ class MetalPricesTab:
             try:
                 mat = mat_var.get().strip()
                 thick = float(thick_var.get())
-                kg = float(kg_var.get())
-                if not mat or thick <= 0 or kg < 0:
+                m2 = float(m2_var.get())
+                if not mat or thick <= 0 or m2 < 0:
                     messagebox.showwarning("Увага", "Перевірте введені дані")
                     return
-                self.manager.set_price(mat, thick, kg)
+                self.manager.set_price(mat, thick, m2)
                 self._refresh_tree()
                 dialog.destroy()
             except ValueError:
@@ -331,8 +339,6 @@ class MetalPricesTab:
 
     def _import_prices(self):
         """Імпортувати ціни з Excel/CSV файлу."""
-        from tkinter import filedialog
-
         filepath = filedialog.askopenfilename(
             title="Виберіть файл з цінами",
             filetypes=[
@@ -352,10 +358,8 @@ class MetalPricesTab:
             else:
                 updated, skipped, errors = importer.import_from_csv(filepath)
 
-            # Оновити таблицю
-            self._refresh_table()
+            self._refresh_tree()
 
-            # Показати підсумок
             summary = importer.get_import_summary()
             if errors:
                 messagebox.showwarning("Імпорт завершено з попередженнями", summary)
@@ -367,8 +371,6 @@ class MetalPricesTab:
 
     def _export_template(self):
         """Експортувати шаблон CSV для заповнення."""
-        from tkinter import filedialog
-
         filepath = filedialog.asksaveasfilename(
             title="Зберегти шаблон",
             defaultextension=".csv",
@@ -378,13 +380,11 @@ class MetalPricesTab:
         if not filepath:
             return
 
-        import csv
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            writer.writerow(["Матеріал", "Товщина", "Ціна за кг", "Ціна за м²", "Дата"])
-            writer.writerow(["оцинкована сталь", "0.7", "380", "", "2026-08-17"])
-            writer.writerow(["нержавіюча сталь", "1.0", "1200", "", "2026-08-17"])
-            writer.writerow(["алюміній", "0.5", "320", "", "2026-08-17"])
+            writer.writerow(["Матеріал", "Товщина", "Ціна за м²", "Ціна за кг", "Дата"])
+            writer.writerow(["оцинкована сталь", "0.7", "580", "", "2026-08-19"])
+            writer.writerow(["нержавіюча сталь", "1.0", "1200", "", "2026-08-19"])
+            writer.writerow(["алюміній", "0.5", "320", "", "2026-08-19"])
 
         messagebox.showinfo("Шаблон", f"Шаблон збережено:\n{filepath}")
-

@@ -38,7 +38,8 @@ def _init_db_tables():
         )
         if result.returncode == 0:
             logger.info("[DB] Міграції Alembic застосовано")
-            return
+        else:
+            logger.warning("[DB] Alembic не вдалося застосувати: %s", result.stderr)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         logger.warning("Alembic не знайдено або таймаут, використовуємо create_all()")
 
@@ -51,6 +52,13 @@ def _init_db_tables():
         logger.info("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
     except Exception as e:
         logger.error("[DB] Помилка SQLAlchemy: %s", e)
+
+    # Авто-оновлення: додати відсутні колонки до існуючих таблиць
+    try:
+        from ventilation_company.database.auto_migrate import auto_add_missing_columns
+        auto_add_missing_columns()
+    except Exception as e:
+        logger.warning("[DB] Авто-оновлення колонок не вдалося: %s", e)
 
 
 def run_gui():

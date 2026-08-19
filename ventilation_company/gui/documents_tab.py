@@ -59,6 +59,7 @@ class DocumentsTab:
             ("address", "Адреса", 40),
             ("phone", "Телефон", 20),
             ("director", "ПІБ директора", 30),
+            ("bank_account", "Р/р", 40),
         ]
         for i, (key, label, width) in enumerate(fields):
             row = i // 2

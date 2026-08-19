@@ -5,6 +5,7 @@
 """
 
 import os
+import platform
 import sqlite3
 import tempfile
 import webbrowser

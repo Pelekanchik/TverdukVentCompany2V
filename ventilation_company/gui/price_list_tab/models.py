@@ -109,12 +109,27 @@ class PriceItem:
         return money_round((self.unit_price - base) * Decimal(str(self.quantity)))
 
     def to_dict(self) -> dict:
+        data = asdict(self)
+        # Конвертуємо Decimal в float для JSON-серіалізації
+        for key, value in data.items():
+            if isinstance(value, Decimal):
+                data[key] = float(value)
+        return data
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "PriceItem":
         valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_keys}
+        # Конвертуємо Decimal-поля назад у Decimal (JSON зберігає як float)
+        decimal_fields = {"cost_price", "labor_cost", "material_cost",
+                          "overhead_cost", "supplier_price", "unit_price", "total_price"}
+        for key in decimal_fields:
+            if key in filtered and not isinstance(filtered[key], Decimal):
+                try:
+                    filtered[key] = Decimal(str(filtered[key]))
+                except Exception:
+                    filtered[key] = Decimal("0")
         return cls(**filtered)
 
 
@@ -182,7 +197,14 @@ class PriceListManager:
         return list(self.items)
 
     def get_customer_view(self) -> list[PriceItem]:
-        return [item for item in self.items if item.unit_price > 0]
+        result = []
+        for item in self.items:
+            try:
+                if float(item.unit_price) > 0:
+                    result.append(item)
+            except (TypeError, ValueError):
+                pass
+        return result
 
     def get_total_internal(self) -> dict:
         total_cost = sum(i.cost_price * i.quantity for i in self.items)

@@ -11,7 +11,8 @@ ARCHIVE_DIR = os.path.join(DATA_DIR, "archive")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
-DB_PATH = os.path.join(DATA_DIR, "company.db")
+# Виправлено: DB_PATH вказує на кореневу data/company.db (не ventilation_company/data/company.db)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "company.db")
 
 MARKUP_PERCENTAGE = 30
 VAT_RATE = 20

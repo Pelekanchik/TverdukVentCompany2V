@@ -40,8 +40,6 @@
     "welding_percent": 3.0,
     "plasma_percent": 6.0
   },
-<<<<<<< HEAD
-=======
   "markup_percent": 30.0,
   "markup_matrix": {
     "цинк": {
@@ -411,7 +409,6 @@
       }
     }
   },
->>>>>>> aeb324406f38b3b9bc6e0ea42022c044d8e5d871
   "products": [
     {
       "name": "Повітропровід прямокутний",
@@ -560,5 +557,11 @@
       "rate_per_m2": 120.0,
       "difficulty_percent": 0.0
     }
+  },
+  "category_waste_factors": {
+    "rect_duct": 0.0,
+    "rect_fitting": 0.0,
+    "round_duct": 0.0,
+    "round_fitting": 0.0
   }
 }

@@ -39,6 +39,20 @@ class CabinetTab(ttk.Frame):
 
         ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
 
+        # Редагування ПІБ
+        ttk.Label(left_frame, text="📝 Редагувати ПІБ",
+                  font=("Segoe UI", 10, "bold")).pack(anchor=tk.W, pady=(0, 5))
+
+        self.name_var = tk.StringVar(value=user.full_name if user else "")
+        ttk.Entry(left_frame, textvariable=self.name_var, width=25).pack(pady=2, fill=tk.X)
+        ttk.Button(left_frame, text="💾 Зберегти ПІБ",
+                   command=self._change_name).pack(pady=5, fill=tk.X)
+
+        self.name_status = ttk.Label(left_frame, text="", foreground="#84cc16")
+        self.name_status.pack(anchor=tk.W, pady=2)
+
+        ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+
         # Зміна пароля
         ttk.Label(left_frame, text="🔒 Зміна пароля",
                   font=("Segoe UI", 10, "bold")).pack(anchor=tk.W, pady=(0, 5))
@@ -72,21 +86,9 @@ class CabinetTab(ttk.Frame):
             right_frame = ttk.LabelFrame(self, text="⚙️ Керування доступом (Директор)", padding=10)
             right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-            cols = ("Логін", "ПІБ", "Посада", "Активний")
-            self.users_tree = ttk.Treeview(right_frame, columns=cols,
-                                           show="headings", height=12)
-            for col in cols:
-                self.users_tree.heading(col, text=col)
-                self.users_tree.column(col, width=100, anchor=tk.CENTER)
-            self.users_tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-
-            scrollbar = ttk.Scrollbar(right_frame, orient=tk.VERTICAL,
-                                      command=self.users_tree.yview)
-            self.users_tree.configure(yscrollcommand=scrollbar.set)
-            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
+            # Кнопки НАД таблицею
             btn_frame = ttk.Frame(right_frame)
-            btn_frame.pack(fill=tk.X, pady=5)
+            btn_frame.pack(fill=tk.X, pady=(0, 5))
             ttk.Button(btn_frame, text="➕ Додати",
                        command=self._add_user_dialog).pack(side=tk.LEFT, padx=2)
             ttk.Button(btn_frame, text="✏️ Редагувати",
@@ -95,6 +97,26 @@ class CabinetTab(ttk.Frame):
                        command=self._delete_user).pack(side=tk.LEFT, padx=2)
             ttk.Button(btn_frame, text="🔄 Оновити",
                        command=self._refresh_users).pack(side=tk.LEFT, padx=2)
+
+            # Таблиця зі скролбаром
+            table_container = ttk.Frame(right_frame)
+            table_container.pack(fill=tk.BOTH, expand=True)
+
+            cols = ("Логін", "ПІБ", "Посада", "Активний")
+            self.users_tree = ttk.Treeview(table_container, columns=cols,
+                                           show="headings", height=12)
+            for col in cols:
+                self.users_tree.heading(col, text=col)
+                self.users_tree.column(col, width=100, anchor=tk.CENTER)
+            self.users_tree.grid(row=0, column=0, sticky="nsew")
+
+            scrollbar = ttk.Scrollbar(table_container, orient=tk.VERTICAL,
+                                      command=self.users_tree.yview)
+            self.users_tree.configure(yscrollcommand=scrollbar.set)
+            scrollbar.grid(row=0, column=1, sticky="ns")
+
+            table_container.grid_rowconfigure(0, weight=1)
+            table_container.grid_columnconfigure(0, weight=1)
 
             self._refresh_users()
         else:
@@ -114,6 +136,22 @@ class CabinetTab(ttk.Frame):
     def _clear_placeholder(self, entry, placeholder):
         if entry.get() == placeholder:
             entry.delete(0, tk.END)
+
+    def _change_name(self):
+        """Зберегти нове ПІБ поточного користувача."""
+        new_name = self.name_var.get().strip()
+        if not new_name:
+            self.name_status.config(text="⚠️ Введіть ПІБ", foreground="#f59e0b")
+            return
+        user = auth.get_user_by_username(self.current_user)
+        if not user:
+            self.name_status.config(text="❌ Користувача не знайдено", foreground="#ef4444")
+            return
+        try:
+            auth.update_user(user.id, full_name=new_name)
+            self.name_status.config(text="✅ ПІБ оновлено", foreground="#84cc16")
+        except Exception as e:
+            self.name_status.config(text=f"❌ Помилка: {e}", foreground="#ef4444")
 
     def _refresh_users(self):
         for item in self.users_tree.get_children():
