@@ -27,6 +27,7 @@ class Detail:
     height: float  # мм (розгорнута довжина заготовки)
     quantity: int = 1
     product_type: str = ""
+    allow_rotation: bool = True  # дозволити поворот на 90°
 
     # Припуски
     bend_allowance: float = 3.0  # мм, припуск на згин з кожного боку
@@ -188,7 +189,8 @@ class Sheet:
         best_score = float("inf")
 
         for rx, ry, rw, rh in self.free_rectangles:
-            for rotated in [False, True]:
+            rotations = [False, True] if detail.allow_rotation else [False]
+            for rotated in rotations:
                 w = detail.total_height if rotated else detail.total_width
                 h = detail.total_width if rotated else detail.total_height
 
@@ -200,23 +202,6 @@ class Sheet:
                         # Bottom-Left: лівіше і нижче = краще
                         score = rx + ry * 2
 
-                    if score < best_score:
-                        best_score = score
-                        best = (rx, ry, rotated)
-
-        return best
-        """Знайти найкращу позицію для деталі (Bottom-Left heuristic)."""
-        best = None
-        best_score = float("inf")
-
-        for rx, ry, rw, rh in self.free_rectangles:
-            for rotated in [False, True]:
-                w = detail.total_height if rotated else detail.total_width
-                h = detail.total_width if rotated else detail.total_height
-
-                if w <= rw and h <= rh:
-                    # Score: лівіше і нижче = краще
-                    score = rx + ry * 2  # пріоритет нижнього розміщення
                     if score < best_score:
                         best_score = score
                         best = (rx, ry, rotated)
@@ -483,6 +468,7 @@ class MetalCutter:
                         product_type=d.product_type,
                         bend_allowance=d.bend_allowance,
                         cut_allowance=d.cut_allowance,
+                        allow_rotation=d.allow_rotation if allow_rotation else False,
                     )
                 )
 
@@ -516,7 +502,15 @@ class MetalCutter:
 
         return plan
 
-    def calculate_from_products(self, products: list[dict]) -> CuttingPlan:
+    def calculate_from_products(self, products: list[dict], allow_rotation: bool = True) -> CuttingPlan:
+        """Повний конвеєр: вироби (dict) → деталі → план розкрою."""
+        details = self.create_details_from_products(products)
+        return self.calculate_cutting(details, allow_rotation=allow_rotation)
+
+    def calculate_from_standard_products(self, products: list, allow_rotation: bool = True) -> CuttingPlan:
+        """Повний конвеєр: StandardProduct → деталі → план розкрою (Етап 4)."""
+        details = self.create_details_from_standard_products(products)
+        return self.calculate_cutting(details, allow_rotation=allow_rotation)
         """Повний конвеєр: вироби (dict) → деталі → план розкрою."""
         details = self.create_details_from_products(products)
         return self.calculate_cutting(details)

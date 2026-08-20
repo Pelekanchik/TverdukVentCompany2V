@@ -74,19 +74,26 @@ class CuttingTab:
             width=18,
         ).grid(row=2, column=1, pady=2)
 
+        self.no_rotation_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            left,
+            text="Заборонити поворот 90°",
+            variable=self.no_rotation_var,
+        ).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=2)
+
         ttk.Button(left, text="Розрахувати розкрій", command=self._calculate).grid(
-            row=3, column=0, columnspan=2, pady=15, sticky=tk.EW
+            row=4, column=0, columnspan=2, pady=15, sticky=tk.EW
         )
 
         # === НОВЕ: Кнопки експорту ===
         export_frame = ttk.LabelFrame(left, text="Експорт для ЧПУ", padding=5)
-        export_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, pady=5)
+        export_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=5)
         ttk.Button(export_frame, text="🔥 G-код (плазма)", command=self._export_gcode).pack(fill=tk.X, pady=2)
         ttk.Button(export_frame, text="📐 DXF (гільйотина)", command=self._export_dxf).pack(fill=tk.X, pady=2)
         # =============================
 
         self.results_frame = ttk.LabelFrame(left, text="Результати", padding=10)
-        self.results_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=5)
+        self.results_frame.grid(row=6, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
         self.result_labels = {}
         result_fields = [
@@ -156,6 +163,15 @@ class CuttingTab:
             )
 
             # Етап 4: використовуємо точні розміри заготовки з StandardProduct
+            allow_rotation = not self.no_rotation_var.get()
+            if self.get_standard_products:
+                standard_products = self.get_standard_products()
+                if standard_products:
+                    self.current_plan = cutter.calculate_from_standard_products(standard_products, allow_rotation=allow_rotation)
+                else:
+                    self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
+            else:
+                self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
             if self.get_standard_products:
                 standard_products = self.get_standard_products()
                 if standard_products:

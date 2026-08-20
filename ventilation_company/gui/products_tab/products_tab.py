@@ -28,7 +28,9 @@ from ventilation_company.standard_products import (
     make_round_duct,
 )
 
+from ventilation_company.gui.preset_dialog import choose_preset
 from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
+from ventilation_company.gui.settings_tab import PricingSettings
 from ventilation_company.gui.settings_tab import PricingSettings
 
 
@@ -301,14 +303,29 @@ class ProductsTab:
 
 
         ttk.Button(left_frame, text="➕ Додати виріб", command=self._add_product).grid(
-            row=13, column=0, columnspan=2, pady=10, sticky=tk.EW
+            row=13, column=0, columnspan=2, pady=5, sticky=tk.EW
+        )
+        tk.Button(
+            left_frame,
+            text="📚 Додати з бібліотеки",
+            command=self._add_from_preset,
+            bg="#4CAF50",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            relief=tk.RAISED,
+            cursor="hand2",
+        ).grid(
+            row=14, column=0, columnspan=2, pady=5, sticky=tk.EW
         )
 
         self.help_label = ttk.Label(
             left_frame, text=self.HELP_TEXTS["rect_duct"],
             foreground="#2E7D32", wraplength=300, justify=tk.LEFT, font=("Consolas", 9)
         )
-        self.help_label.grid(row=14, column=0, columnspan=2, pady=5, sticky=tk.W)
+        self.help_label.grid(row=15, column=0, columnspan=2, pady=5, sticky=tk.W)
+
+        self.preview_frame = ttk.LabelFrame(left_frame, text="🔍 Попередній перегляд розрахунку", padding=8)
+        self.preview_frame.grid(row=16, column=0, columnspan=2, pady=8, sticky=tk.EW)
 
         self.preview_frame = ttk.LabelFrame(left_frame, text="🔍 Попередній перегляд розрахунку", padding=8)
         self.preview_frame.grid(row=15, column=0, columnspan=2, pady=8, sticky=tk.EW)
@@ -1239,6 +1256,17 @@ class ProductsTab:
                 self.on_products_changed()
         else:
             messagebox.showerror("Помилка", f"Тип виробу '{ptype}' ще не реалізовано.")
+
+    def _add_from_preset(self):
+        """Додати виріб з бібліотеки типових розмірів."""
+        from ventilation_company.gui.preset_dialog import choose_preset
+        product = choose_preset(self.frame)
+        if product:
+            self.library.add(product)
+            self._refresh_tree()
+            self._update_summary()
+            if self.on_products_changed:
+                self.on_products_changed()
 
     def _refresh_tree(self):
         for item in self.tree.get_children():
