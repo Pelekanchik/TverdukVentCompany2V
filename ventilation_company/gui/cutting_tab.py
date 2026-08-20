@@ -326,6 +326,8 @@ class CuttingTab:
         x = event.x_root + 12
         y = event.y_root + 12
         self._tooltip_win.geometry(f"+{x}+{y}")
+        _tooltip_win.minsize(400, 300)
+        _tooltip_win.resizable(True, True)
 
     def _cancel_tooltip(self):
         if self._tooltip_after:

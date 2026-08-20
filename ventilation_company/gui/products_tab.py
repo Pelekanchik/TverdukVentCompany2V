@@ -1313,6 +1313,8 @@ class ProductsTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title(f"Редагування: {product.name}")
         dialog.geometry("400x350")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 

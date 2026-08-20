@@ -7,6 +7,7 @@ from tkinter import messagebox, ttk
 from ventilation_company.product_presets_manager import PresetsManager
 from ventilation_company.gui.preview_3d import ProductPreview3D
 from ventilation_company.standard_products import StandardProduct
+from ventilation_company.gui.dialog_utils import setup_dialog
 
 
 class PresetDialog:
@@ -18,8 +19,7 @@ class PresetDialog:
         self.manager = PresetsManager()
 
         self.top = tk.Toplevel(parent)
-        self.top.title(title)
-        self.top.geometry("950x600")
+        setup_dialog(self.top, title=title, min_w=900, min_h=600)
         self.top.transient(parent)
         self.top.grab_set()
         self.top.configure(bg="#f5f5f5")
@@ -56,7 +56,7 @@ class PresetDialog:
 
         # === ОСНОВНИЙ КОНТЕНТ ===
         content = ttk.Frame(self.top)
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        content.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # --- Ліва частина: список ---
         left = ttk.Frame(content)
@@ -127,7 +127,7 @@ class PresetDialog:
 
         # === НИЖНЯ ПАНЕЛЬ ===
         bottom = ttk.Frame(self.top)
-        bottom.pack(fill=tk.X, padx=10, pady=10)
+        bottom.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 
         # Кількість
         qty_frame = ttk.Frame(bottom)
@@ -314,6 +314,8 @@ class _PresetEditorDialog:
         self.top = tk.Toplevel(parent)
         self.top.title("Редактор пресету")
         self.top.geometry("350x450")
+        top.minsize(400, 300)
+        top.resizable(True, True)
         self.top.transient(parent)
         self.top.grab_set()
 
