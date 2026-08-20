@@ -210,6 +210,7 @@ def _show_first_run_dialog(parent):
     dialog = tk.Toplevel(parent)
     dialog.title("🔐 Перший запуск — облікові дані адміністратора")
     dialog.geometry("480x280")
+    dialog.minsize(400, 300)
     dialog.configure(bg="#18181b")
     dialog.transient(parent)
     dialog.grab_set()
@@ -220,6 +221,8 @@ def _show_first_run_dialog(parent):
     x = parent.winfo_x() + (parent.winfo_width() // 2) - (480 // 2)
     y = parent.winfo_y() + (parent.winfo_height() // 2) - (280 // 2)
     dialog.geometry(f"+{x}+{y}")
+    dialog.minsize(400, 300)
+    dialog.resizable(True, True)
 
     tk.Label(dialog, text="🏭 VentCompany", font=("Segoe UI", 18, "bold"),
              bg="#18181b", fg="#f97316").pack(pady=(15, 5))

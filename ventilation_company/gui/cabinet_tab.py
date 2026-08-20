@@ -195,6 +195,8 @@ class CabinetTab(ttk.Frame):
         win = tk.Toplevel(self)
         win.title("Новий користувач")
         win.geometry("380x420")
+        win.minsize(400, 300)
+        win.resizable(True, True)
         win.transient(self)
         win.grab_set()
 
@@ -273,6 +275,8 @@ class CabinetTab(ttk.Frame):
         dlg = tk.Toplevel(self)
         dlg.title(f"Редагування: {username}")
         dlg.geometry("400x400")
+        dlg.minsize(400, 300)
+        dlg.resizable(True, True)
         dlg.transient(self)
         dlg.grab_set()
 

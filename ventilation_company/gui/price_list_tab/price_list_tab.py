@@ -302,6 +302,8 @@ class PriceListTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("Редагувати позицію" if item else "Додати позицію в прайс")
         dialog.geometry("500x650")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -509,6 +511,8 @@ class PriceListTab:
                 dialog = tk.Toplevel(self.frame)
                 dialog.title("Виберіть проєкт")
                 dialog.geometry("400x300")
+                dialog.minsize(400, 300)
+                dialog.resizable(True, True)
                 dialog.transient(self.frame)
                 dialog.grab_set()
                 listbox = tk.Listbox(dialog, font=("Arial", 11))

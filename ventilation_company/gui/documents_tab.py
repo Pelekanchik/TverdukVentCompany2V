@@ -117,6 +117,8 @@ class DocumentsTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("Додати позицію")
         dialog.geometry("350x200")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 

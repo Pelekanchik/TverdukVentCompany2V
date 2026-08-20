@@ -146,6 +146,8 @@ class MaterialOrderTab:
         dlg = tk.Toplevel(self.frame)
         dlg.title(title)
         dlg.geometry("450x380")
+        dlg.minsize(400, 300)
+        dlg.resizable(True, True)
         dlg.transient(self.frame)
         dlg.grab_set()
 

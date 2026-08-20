@@ -298,6 +298,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("➕ Новий клієнт")
         dialog.geometry("400x400")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -352,6 +354,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("✏️ Редагувати клієнта")
         dialog.geometry("400x400")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -413,6 +417,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("📞 Нова взаємодія")
         dialog.geometry("400x350")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -468,6 +474,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("💰 Новий платіж")
         dialog.geometry("350x300")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -520,6 +528,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("📋 Новий проєкт")
         dialog.geometry("400x350")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
 
@@ -577,6 +587,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("🔄 Змінити статус")
         dialog.geometry("250x150")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
         dialog.grab_set()
         ttk.Label(dialog, text="Новий статус:").pack(pady=5)
@@ -603,6 +615,8 @@ class CRMTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title("🔔 Нагадування про гарантію")
         dialog.geometry("600x400")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
 
         cols = ("date", "client", "project", "description")

@@ -364,6 +364,8 @@ class Project3DTab:
         dialog = tk.Toplevel(self.frame)
         dialog.title(f"⚠️ Зіткнення ({len(collisions)})")
         dialog.geometry("600x500")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.frame)
 
         text = tk.Text(dialog, wrap=tk.WORD, font=("Consolas", 10))

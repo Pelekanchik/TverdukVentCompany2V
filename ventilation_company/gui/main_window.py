@@ -41,6 +41,7 @@ class MainWindow:
             f"({get_role_label(self.current_user.role)})"
         )
         self.root.geometry("1400x900")
+        self.root.resizable(True, True)
         self.root.minsize(1200, 700)
 
         self.db = ProjectDatabase("data/company.db")
@@ -113,6 +114,8 @@ class MainWindow:
         dialog = tk.Toplevel(self.root)
         dialog.title("📜 Історія версій")
         dialog.geometry("600x450")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.root)
         ttk.Label(dialog, text=f"Проєкт: {self.spec_tab.project_name_var.get()}",
                   font=("Segoe UI", 11, "bold")).pack(pady=5)
@@ -488,6 +491,8 @@ class MainWindow:
         dialog = tk.Toplevel(self.root)
         dialog.title("Відкрити проєкт")
         dialog.geometry("500x400")
+        dialog.minsize(400, 300)
+        dialog.resizable(True, True)
         dialog.transient(self.root)
         dialog.grab_set()
         ttk.Label(dialog, text="Оберіть проєкт:").pack(pady=5)

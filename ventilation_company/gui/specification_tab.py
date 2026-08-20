@@ -33,6 +33,7 @@ class ArchiveProjectDialog(tk.Toplevel):
         self.result = False
         self.title("📁 Новий проєкт" if project is None else "✏️ Редагувати проєкт")
         self.geometry("480x480")
+        self.minsize(400, 300)
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
