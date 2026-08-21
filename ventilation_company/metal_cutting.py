@@ -511,14 +511,6 @@ class MetalCutter:
         """Повний конвеєр: StandardProduct → деталі → план розкрою (Етап 4)."""
         details = self.create_details_from_standard_products(products)
         return self.calculate_cutting(details, allow_rotation=allow_rotation)
-        """Повний конвеєр: вироби (dict) → деталі → план розкрою."""
-        details = self.create_details_from_products(products)
-        return self.calculate_cutting(details)
-
-    def calculate_from_standard_products(self, products: list) -> CuttingPlan:
-        """Повний конвеєр: StandardProduct → деталі → план розкрою (Етап 4)."""
-        details = self.create_details_from_standard_products(products)
-        return self.calculate_cutting(details)
 
     def get_metal_summary(self, products: list[dict]) -> dict:
         """Отримати зведену інформацію про потребу в металі (з dict)."""

@@ -226,8 +226,20 @@ class ProjectPDFReport(FPDF):
         self._cell_right(90, 7, _clean_text(value))
         self.ln()
 
+    @staticmethod
+    def _abbr_material(material: str) -> str:
+        mapping = {
+            "оцинкована сталь": "оцин.",
+            "нержавіюча сталь": "нерж.",
+            "алюміній": "ал.",
+        }
+        for full, short in mapping.items():
+            if full in material.lower():
+                return short
+        return material[:10]
+
     def _draw_products_table(self, products: List[dict]):
-        col_widths = [8, 50, 28, 12, 10, 22, 22, 26, 26]
+        col_widths = [8, 50, 18, 11, 9, 18, 18, 22, 22]
         headers = ["№", "Найменування", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Ціна за шт", "Ціна за позицію"]
         aligns = ["C", "L", "L", "C", "C", "R", "R", "R", "R"]
         row_h = 6
@@ -273,7 +285,7 @@ class ProjectPDFReport(FPDF):
             values = [
                 str(i),
                 f"{p.get('name', '')[:18]} ({dims})",
-                p.get("material", "")[:16],
+                self._abbr_material(p.get("material", "")),
                 f"{p.get('thickness', 0):.1f}",
                 str(qty),
                 f"{weight * qty:.2f}",

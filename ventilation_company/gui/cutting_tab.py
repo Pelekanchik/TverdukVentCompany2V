@@ -172,14 +172,6 @@ class CuttingTab:
                     self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
             else:
                 self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
-            if self.get_standard_products:
-                standard_products = self.get_standard_products()
-                if standard_products:
-                    self.current_plan = cutter.calculate_from_standard_products(standard_products)
-                else:
-                    self.current_plan = cutter.calculate_from_products(products)
-            else:
-                self.current_plan = cutter.calculate_from_products(products)
             self._update_results()
             self._draw_sheets()
 
@@ -326,8 +318,7 @@ class CuttingTab:
         x = event.x_root + 12
         y = event.y_root + 12
         self._tooltip_win.geometry(f"+{x}+{y}")
-        _tooltip_win.minsize(400, 300)
-        _tooltip_win.resizable(True, True)
+        # Не додаємо minsize/resizable для tooltip — він має бути маленьким
 
     def _cancel_tooltip(self):
         if self._tooltip_after:

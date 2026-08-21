@@ -658,6 +658,22 @@ class ProductLibrary:
         self.products.clear()
 
     def get_total_surface_area(self) -> float:
+        return sum(float(p.surface_area) * p.quantity for p in self.products)
+
+    def get_total_blank_area(self) -> float:
+        return sum(float(p.blank_area) * p.quantity for p in self.products)
+
+    def get_total_material_area(self) -> float:
+        return sum(float(p.material_area) * p.quantity for p in self.products)
+
+    def get_total_metal_area(self) -> float:
+        return self.get_total_surface_area()
+
+    def get_total_weight(self) -> float:
+        return sum(float(p.weight) * p.quantity for p in self.products)
+
+    def get_total_price(self) -> float:
+        return sum(float(p.total_price) for p in self.products)
         return sum(p.surface_area * p.quantity for p in self.products)
 
     def get_total_blank_area(self) -> float:
@@ -673,6 +689,7 @@ class ProductLibrary:
         return sum(p.weight * p.quantity for p in self.products)
 
     def get_total_price(self) -> float:
+        return sum(float(p.total_price) for p in self.products)
         return sum(p.total_price for p in self.products)
 
     def get_specification(self) -> list[dict]:

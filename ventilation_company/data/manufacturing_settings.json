@@ -1,0 +1,173 @@
+{
+  "categories": {
+    "rect_duct": {
+      "kim": 0.85,
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_duct": {
+      "kim": 0.85,
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "rect_elbow": {
+      "kim": 0.80,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_elbow": {
+      "kim": 0.80,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "rect_flange": {
+      "kim": 0.90,
+      "seam_allowance_mm": 15.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_flange": {
+      "kim": 0.90,
+      "seam_allowance_mm": 15.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "rect_tee": {
+      "kim": 0.78,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_tee": {
+      "kim": 0.78,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "rect_transition": {
+      "kim": 0.78,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_transition": {
+      "kim": 0.78,
+      "seam_allowance_mm": 25.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "rect_cap": {
+      "kim": 0.85,
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "round_cap": {
+      "kim": 0.85,
+      "seam_allowance_mm": 20.0,
+      "cut_allowance_mm": 5.0,
+      "bend_allowance_mm": 3.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    },
+    "flexible": {
+      "kim": 1.0,
+      "seam_allowance_mm": 0.0,
+      "cut_allowance_mm": 0.0,
+      "bend_allowance_mm": 0.0,
+      "helix_angle_deg": 0.0,
+      "stiffener_rule": {
+        "enabled": false,
+        "threshold_mm": 0.0,
+        "count_per_side": 0,
+        "profile_mm": 0.0
+      }
+    }
+  }
+}

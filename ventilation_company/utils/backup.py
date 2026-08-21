@@ -37,6 +37,8 @@ def create_backup(db_path: str = "data/company.db") -> str | None:
 def list_backups(db_path: str = "data/company.db") -> list[str]:
     """Отримати список усіх бекапів БД."""
     db_dir = os.path.dirname(db_path) or "."
+    if not os.path.isdir(db_dir):
+        return []
     db_name = os.path.basename(db_path)
     backups = []
     for f in os.listdir(db_dir):

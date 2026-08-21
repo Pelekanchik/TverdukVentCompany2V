@@ -1272,13 +1272,24 @@ class ProductsTab:
         for item in self.tree.get_children():
             self.tree.delete(item)
         for p in self.library.products:
+            print(f"[DEBUG _refresh_tree] product_type={p.product_type}, material={p.material!r}, thickness={p.thickness!r}, area={p.surface_area}")
+            mat_str = p._material_str() if hasattr(p, "_material_str") else str(p.material)
+            thick_str = p._thickness_float() if hasattr(p, "_thickness_float") else float(p.thickness)
+            try:
+                unit_price = float(p.unit_price)
+            except Exception:
+                unit_price = 0.0
+            try:
+                total_price = float(p.total_price)
+            except Exception:
+                total_price = 0.0
             self.tree.insert(
                 "", tk.END,
                 values=(
                     p.product_type,
                     f"{p.width:.0f}×{p.height:.0f}×{p.length:.0f}",
-                    p.material.value,
-                    p.thickness.value,
+                    mat_str,
+                    f"{thick_str:.1f}",
                     p.quantity,
                     f"{p.surface_area:.3f}",
                     f"{p.surface_area * p.quantity:.3f}",
@@ -1286,10 +1297,13 @@ class ProductsTab:
                     f"{p.blank_area * p.quantity:.3f}",
                     f"{p.material_area:.3f}",
                     f"{p.material_area * p.quantity:.3f}",
-                    f"{p.unit_price:.2f}",
-                    f"{p.total_price:.2f}",
+                    f"{unit_price:.2f}",
+                    f"{total_price:.2f}",
                 ),
             )
+        print(f"[DEBUG] Tree children after insert: {self.tree.get_children()}")
+        for child in self.tree.get_children():
+            print(f"[DEBUG] Tree item values: {self.tree.item(child, 'values')}")
 
     def _update_summary(self):
         total = len(self.library)

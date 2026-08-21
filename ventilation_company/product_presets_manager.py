@@ -35,6 +35,23 @@ PRODUCT_CLASSES = {
 
 DEFAULT_PRESETS_PATH = Path(__file__).parent.parent / "data" / "product_presets.json"
 
+# Зворотна сумісність: українські назви → англійські ключі
+_UA_TO_EN = {
+    "повітропровід_прямокутний": "rect_duct",
+    "повітропровід_круглий": "round_duct",
+    "відвід_прямокутний": "rect_elbow",
+    "відвід_круглий": "round_elbow",
+    "фланець_прямокутний": "rect_flange",
+    "фланець_круглий": "round_flange",
+    "трійник_прямокутний": "rect_tee",
+    "трійник_круглий": "round_tee",
+    "перехід_прямокутний": "rect_transition",
+    "перехід_круглий": "round_transition",
+    "заглушка_прямокутна": "rect_cap",
+    "заглушка_кругла": "round_cap",
+    "гнучка_вставка": "flexible",
+}
+
 
 def _product_to_dict(product: StandardProduct) -> dict:
     """Серіалізувати продукт у dict (JSON-safe)."""
@@ -44,11 +61,7 @@ def _product_to_dict(product: StandardProduct) -> dict:
     for key in list(data.keys()):
         if isinstance(data[key], Decimal):
             data[key] = float(data[key])
-    data["_preset_type"] = product.product_type.replace(" ", "_")
-    return data
-    """Серіалізувати продукт у dict."""
-    data = product.to_dict()
-    data["_preset_type"] = product.product_type.replace(" ", "_")
+    data["_preset_type"] = product._category.value
     return data
 
 
@@ -56,6 +69,8 @@ def _dict_to_product(data: dict) -> StandardProduct:
     """Десеріалізувати dict у продукт."""
     ptype = data.get("_preset_type", data.get("product_type", "").replace(" ", "_"))
     cls = PRODUCT_CLASSES.get(ptype)
+    if cls is None:
+        cls = PRODUCT_CLASSES.get(_UA_TO_EN.get(ptype))
     if cls is None:
         # fallback
         cls = StandardProduct
