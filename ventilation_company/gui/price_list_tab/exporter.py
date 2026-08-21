@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import csv
+import pathlib
 import io
 import json
 import os
@@ -32,12 +33,32 @@ except ImportError:
 
 # Спробуємо імпортувати reportlab для PDF
 HAVE_REPORTLAB = False
+_PDF_FONT_NAME = "Helvetica"
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # Реєструємо системний шрифт з підтримкою кирилиці
+    for _fp in [
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\calibri.ttf",
+        r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\tahoma.ttf",
+    ]:
+        if pathlib.Path(_fp).exists():
+            try:
+                _fname = pathlib.Path(_fp).stem.capitalize()
+                pdfmetrics.registerFont(TTFont(_fname, _fp))
+                pdfmetrics.registerFont(TTFont(_fname + "-Bold", _fp))
+                _PDF_FONT_NAME = _fname
+                break
+            except Exception:
+                continue
 
     HAVE_REPORTLAB = True
 except ImportError:
@@ -169,12 +190,16 @@ class PriceListExporter:
         story = []
         title_style = ParagraphStyle(
             "CustomTitle", parent=styles["Heading1"], fontSize=16,
-            alignment=1, spaceAfter=12, textColor=colors.HexColor("#1565C0")
+            alignment=1, spaceAfter=12, textColor=colors.HexColor("#1565C0"),
+            fontName=_PDF_FONT_NAME
+        )
+        normal_style = ParagraphStyle(
+            "CustomNormal", parent=styles["Normal"], fontName=_PDF_FONT_NAME
         )
         story.append(Paragraph(f"<b>{title}</b>", title_style))
         story.append(Paragraph(
             f"Дата формування: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-            styles["Normal"]
+            normal_style
         ))
         story.append(Spacer(1, 10))
         if internal:
@@ -203,7 +228,8 @@ class PriceListExporter:
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("ALIGN", (1, 1), (1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 0), (-1, 0), _PDF_FONT_NAME + "-Bold" if _PDF_FONT_NAME != "Helvetica" else "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), _PDF_FONT_NAME),
             ("FONTSIZE", (0, 0), (-1, 0), 9),
             ("FONTSIZE", (0, 1), (-1, -1), 8),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
@@ -214,7 +240,8 @@ class PriceListExporter:
         story.append(table)
         story.append(Spacer(1, 10))
         total = sum(i.total_price for i in items)
-        story.append(Paragraph(f"<b>Всього: {total:,.2f} грн</b>", styles["Heading3"]))
+        total_style = ParagraphStyle("TotalStyle", parent=styles["Heading3"], fontName=_PDF_FONT_NAME)
+        story.append(Paragraph(f"<b>Всього: {total:,.2f} грн</b>", total_style))
         doc.build(story)
 
     @staticmethod

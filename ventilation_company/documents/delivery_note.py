@@ -25,8 +25,7 @@ class DeliveryNote(BaseDocument):
         self.ln(10)
 
     def build(self, items: list[dict], filepath: str) -> str:
-        self.add_page()
-        self.header()
+        self.add_page()  # header() викликається автоматично
 
         headers = ["№", "Найменування", "Од.", "К-ть", "Вага, кг", "Ціна", "Сума"]
         widths = [10, 70, 15, 15, 20, 30, 35]
@@ -39,7 +38,7 @@ class DeliveryNote(BaseDocument):
 
         for i, item in enumerate(items, 1):
             qty = item.get("qty", 1)
-            weight = item.get("weight_kg", 0)
+            weight = item.get("weight_kg", 0) or 0
             total = item.get("total", 0)
 
             cells = [
@@ -47,7 +46,7 @@ class DeliveryNote(BaseDocument):
                 item.get("name", ""),
                 item.get("unit", "шт"),
                 str(qty),
-                f"{weight:.2f}" if weight else "—",
+                f"{weight:.2f}",
                 f"{item.get('price', 0):,.2f}",
                 f"{total:,.2f}",
             ]

@@ -23,6 +23,7 @@ from ventilation_company.gui.price_list_tab.models import PriceItem, PriceListMa
 from ventilation_company.gui.price_list_tab.exporter import PriceListExporter
 
 from datetime import datetime
+from decimal import Decimal
 from tkinter import filedialog, messagebox, ttk
 
 # Спробуємо імпортувати openpyxl для Excel
@@ -407,12 +408,12 @@ class PriceListTab:
                         thickness=thickness,
                         unit=vars_dict["unit"].get(),
                         quantity=qty,
-                        cost_price=cost,
-                        labor_cost=labor,
-                        overhead_cost=overhead,
+                        cost_price=Decimal(str(cost)),
+                        labor_cost=Decimal(str(labor)),
+                        overhead_cost=Decimal(str(overhead)),
                         markup_percent=markup,
                         supplier=vars_dict["supplier"].get(),
-                        supplier_price=supplier_price,
+                        supplier_price=Decimal(str(supplier_price)),
                         notes_internal=vars_dict["notes_internal"].get(),
                         notes_public=vars_dict["notes_public"].get(),
                     )
@@ -426,16 +427,19 @@ class PriceListTab:
                         thickness=thickness,
                         unit=vars_dict["unit"].get(),
                         quantity=qty,
-                        cost_price=cost,
-                        labor_cost=labor,
-                        overhead_cost=overhead,
+                        cost_price=Decimal(str(cost)),
+                        labor_cost=Decimal(str(labor)),
+                        overhead_cost=Decimal(str(overhead)),
                         markup_percent=markup,
                         supplier=vars_dict["supplier"].get(),
-                        supplier_price=supplier_price,
+                        supplier_price=Decimal(str(supplier_price)),
                         notes_internal=vars_dict["notes_internal"].get(),
                         notes_public=vars_dict["notes_public"].get(),
                     )
                     self.manager.add(new_item)
+
+                self._refresh_tree()
+                dialog.destroy()
 
                 self._refresh_tree()
                 dialog.destroy()

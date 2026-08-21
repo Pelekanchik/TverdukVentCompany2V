@@ -28,7 +28,9 @@ from ventilation_company.standard_products import (
     make_round_duct,
 )
 
+from ventilation_company.gui.preset_dialog import choose_preset
 from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
+from ventilation_company.gui.settings_tab import PricingSettings
 from ventilation_company.gui.settings_tab import PricingSettings
 
 
@@ -169,17 +171,13 @@ class ProductsTab:
     def _load_dynamic_types(self, event=None):
         try:
             settings = PricingSettings.get_instance()
-            new_dynamic = {}
+            self._dynamic_types = {}
             for p in settings.products:
                 name = p.get("name", "").strip()
                 if name and name not in self.PRODUCT_TYPES:
-                    new_dynamic[name] = f"custom_{name}"
-            all_types = list(self.PRODUCT_TYPES.keys()) + list(new_dynamic.keys())
-            # Оновлюємо тільки якщо змінився список (захист від миготіння)
-            current_values = list(self.type_combo["values"] or [])
-            if all_types != current_values:
-                self._dynamic_types = new_dynamic
-                self.type_combo["values"] = all_types
+                    self._dynamic_types[name] = f"custom_{name}"
+            all_types = list(self.PRODUCT_TYPES.keys()) + list(self._dynamic_types.keys())
+            self.type_combo["values"] = all_types
         except Exception as e:
             print(f"[DEBUG] _load_dynamic_types error: {e}")
 
@@ -229,6 +227,8 @@ class ProductsTab:
             side=tk.LEFT, padx=(2, 0)
         )
         self.type_combo.bind("<<ComboboxSelected>>", self._on_type_changed)
+        self.type_combo.bind("<FocusIn>", self._load_dynamic_types)
+        self.type_combo.bind("<Button-1>", self._load_dynamic_types)
         self.frame.bind("<Visibility>", self._load_dynamic_types)
 
         self.width_label = ttk.Label(left_frame, text="Ширина (мм):")
@@ -303,14 +303,29 @@ class ProductsTab:
 
 
         ttk.Button(left_frame, text="➕ Додати виріб", command=self._add_product).grid(
-            row=13, column=0, columnspan=2, pady=10, sticky=tk.EW
+            row=13, column=0, columnspan=2, pady=5, sticky=tk.EW
+        )
+        tk.Button(
+            left_frame,
+            text="📚 Додати з бібліотеки",
+            command=self._add_from_preset,
+            bg="#4CAF50",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            relief=tk.RAISED,
+            cursor="hand2",
+        ).grid(
+            row=14, column=0, columnspan=2, pady=5, sticky=tk.EW
         )
 
         self.help_label = ttk.Label(
             left_frame, text=self.HELP_TEXTS["rect_duct"],
             foreground="#2E7D32", wraplength=300, justify=tk.LEFT, font=("Consolas", 9)
         )
-        self.help_label.grid(row=14, column=0, columnspan=2, pady=5, sticky=tk.W)
+        self.help_label.grid(row=15, column=0, columnspan=2, pady=5, sticky=tk.W)
+
+        self.preview_frame = ttk.LabelFrame(left_frame, text="🔍 Попередній перегляд розрахунку", padding=8)
+        self.preview_frame.grid(row=16, column=0, columnspan=2, pady=8, sticky=tk.EW)
 
         self.preview_frame = ttk.LabelFrame(left_frame, text="🔍 Попередній перегляд розрахунку", padding=8)
         self.preview_frame.grid(row=15, column=0, columnspan=2, pady=8, sticky=tk.EW)
@@ -1242,17 +1257,38 @@ class ProductsTab:
         else:
             messagebox.showerror("Помилка", f"Тип виробу '{ptype}' ще не реалізовано.")
 
+    def _add_from_preset(self):
+        """Додати виріб з бібліотеки типових розмірів."""
+        from ventilation_company.gui.preset_dialog import choose_preset
+        product = choose_preset(self.frame)
+        if product:
+            self.library.add(product)
+            self._refresh_tree()
+            self._update_summary()
+            if self.on_products_changed:
+                self.on_products_changed()
+
     def _refresh_tree(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
         for p in self.library.products:
+            mat_str = p._material_str() if hasattr(p, "_material_str") else str(p.material)
+            thick_str = p._thickness_float() if hasattr(p, "_thickness_float") else float(p.thickness)
+            try:
+                unit_price = float(p.unit_price)
+            except Exception:
+                unit_price = 0.0
+            try:
+                total_price = float(p.total_price)
+            except Exception:
+                total_price = 0.0
             self.tree.insert(
                 "", tk.END,
                 values=(
                     p.product_type,
                     f"{p.width:.0f}×{p.height:.0f}×{p.length:.0f}",
-                    p.material.value,
-                    p.thickness.value,
+                    mat_str,
+                    f"{thick_str:.1f}",
                     p.quantity,
                     f"{p.surface_area:.3f}",
                     f"{p.surface_area * p.quantity:.3f}",
@@ -1260,8 +1296,8 @@ class ProductsTab:
                     f"{p.blank_area * p.quantity:.3f}",
                     f"{p.material_area:.3f}",
                     f"{p.material_area * p.quantity:.3f}",
-                    f"{p.unit_price:.2f}",
-                    f"{p.total_price:.2f}",
+                    f"{unit_price:.2f}",
+                    f"{total_price:.2f}",
                 ),
             )
 

@@ -198,6 +198,7 @@ class DocumentsTab:
                 "qty": float(vals[2]),
                 "price": float(vals[3]),
                 "total": float(vals[4]),
+                "weight_kg": 0.0,  # TODO: отримувати з виробу при синхронізації
             })
 
         if not items:

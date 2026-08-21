@@ -171,74 +171,22 @@ class MainWindow:
     # КОМПАКТНИЙ ЗАГОЛОВОК (все в один рядок)
     # ═══════════════════════════════════════════════════════════
     def _build_compact_header(self):
-        """Один компактний рядок: користувач + проєкт + кнопки."""
+        """Мінімальний рядок: користувач + проєкт (без кнопок)."""
         theme = self.theme_mgr.get()
-        hdr = tk.Frame(self.root, bg=theme["bg"], padx=8, pady=4)
+        hdr = tk.Frame(self.root, bg=theme["bg"], padx=8, pady=2, height=28)
         hdr.pack(fill=tk.X)
-
-        # Ліва частина — користувач + проєкт
-        left = tk.Frame(hdr, bg=theme["bg"])
-        left.pack(side=tk.LEFT, fill=tk.Y)
+        hdr.pack_propagate(False)
 
         role_label = get_role_label(self.current_user.role)
-        role_color = theme["accent"] if self.current_user.role == "director" else                      theme["accent2"] if self.current_user.role == "engineer" else                      theme["accent3"] if self.current_user.role == "accountant" else                      theme["warning"]
+        role_color = theme["accent"] if self.current_user.role == "director" else theme["accent2"] if self.current_user.role == "engineer" else theme["accent3"] if self.current_user.role == "accountant" else theme["warning"]
 
-        # Один рядок: 🏭 Ім'я | Посада | 📁 Проєкт
-        info_line = tk.Frame(left, bg=theme["bg"])
-        info_line.pack(anchor="w")
-
-        tk.Label(info_line, text="🏭", font=("Segoe UI", 11), bg=theme["bg"], fg=theme["accent"]).pack(side=tk.LEFT)
-        tk.Label(info_line, text=self.current_user.full_name,
-                 font=("Segoe UI", 10, "bold"), bg=theme["bg"], fg=theme["fg"]).pack(side=tk.LEFT, padx=(2, 0))
-        tk.Label(info_line, text=f"• {role_label}",
-                 font=("Segoe UI", 9), bg=theme["bg"], fg=role_color).pack(side=tk.LEFT, padx=(4, 0))
-
-        tk.Label(info_line, text="|", font=("Segoe UI", 9),
+        tk.Label(hdr, text=f"🏭 {self.current_user.full_name} • {role_label}",
+                 font=("Segoe UI", 9), bg=theme["bg"], fg=theme["fg"]).pack(side=tk.LEFT)
+        tk.Label(hdr, text="|", font=("Segoe UI", 9),
                  bg=theme["bg"], fg=theme["border"]).pack(side=tk.LEFT, padx=6)
-
-        tk.Label(info_line, text="📁", font=("Segoe UI", 9),
-                 bg=theme["bg"], fg=theme["fg_muted"]).pack(side=tk.LEFT)
-        self.project_label = tk.Label(info_line, text="Новий проєкт",
+        self.project_label = tk.Label(hdr, text="📁 Новий проєкт",
                                       font=("Segoe UI", 9), bg=theme["bg"], fg=theme["fg_muted"])
-        self.project_label.pack(side=tk.LEFT, padx=(2, 0))
-
-        # Права частина — кнопки (компактні)
-        right = tk.Frame(hdr, bg=theme["bg"])
-        right.pack(side=tk.RIGHT)
-
-        tk.Button(right, text="💾 Зберегти", command=self._save_project,
-                  bg=theme["accent"], fg=theme["button_active_fg"],
-                  activebackground=theme["accent_soft"],
-                  activeforeground=theme["button_active_fg"],
-                  relief="flat", cursor="hand2",
-                  font=("Segoe UI", 8, "bold"), padx=10, pady=3).pack(side=tk.LEFT, padx=2)
-
-        tk.Button(right, text="📜", command=self._show_version_history,
-                  bg=theme["button_bg"], fg=theme["button_fg"],
-                  activebackground=theme["button_hover"],
-                  activeforeground=theme["button_fg"],
-                  relief="flat", cursor="hand2",
-                  font=("Segoe UI", 8), padx=6, pady=3).pack(side=tk.LEFT, padx=1)
-
-        tk.Button(right, text="🏗️", command=self._export_3d_project,
-                  bg=theme["button_bg"], fg=theme["button_fg"],
-                  activebackground=theme["button_hover"],
-                  activeforeground=theme["button_fg"],
-                  relief="flat", cursor="hand2",
-                  font=("Segoe UI", 8), padx=6, pady=3).pack(side=tk.LEFT, padx=1)
-
-        tk.Button(right, text="🌙", command=self._toggle_theme,
-                  bg=theme["button_bg"], fg=theme["button_fg"],
-                  activebackground=theme["button_hover"],
-                  activeforeground=theme["button_fg"],
-                  relief="flat", cursor="hand2",
-                  font=("Segoe UI", 8), padx=6, pady=3).pack(side=tk.LEFT, padx=1)
-
-        tk.Button(right, text="🚪", command=self._logout,
-                  bg=theme["danger"], fg="#ffffff",
-                  activebackground="#b91c1c", activeforeground="#ffffff",
-                  relief="flat", cursor="hand2",
-                  font=("Segoe UI", 8, "bold"), padx=6, pady=3).pack(side=tk.LEFT, padx=2)
+        self.project_label.pack(side=tk.LEFT)
 
     def _logout(self):
         if messagebox.askyesno("Вихід", "Вийти з системи?"):
@@ -266,51 +214,67 @@ class MainWindow:
     def _build_ui(self):
         theme = self.theme_mgr.get()
 
-        # ── Вкладки ──
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 8))
+        # ── Головний контейнер: сайдбар + контент ──
+        main_frame = tk.Frame(self.root, bg=theme["bg"])
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # ═══════════════════════════════════════════════════════
-        # 5 ГОЛОВНИХ ВКЛАДОК (згруповано з 13)
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 8))
+        # ── Сайдбар ──
+        self.sidebar = tk.Frame(main_frame, bg=theme["sidebar_bg"], width=220)
+        self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
+        self.sidebar.pack_propagate(False)
 
-        self.spec_tab = SpecificationTab(
-            self.notebook,
-            get_products_callback=self._get_products,
-            on_cutting_request=self._open_cutting_for_project,
-        )
-        self.cutting_tab = CuttingTab(self.notebook, get_products_callback=self._get_products, get_standard_products_callback=self._get_standard_products)
-        self.project_3d_tab = Project3DTab(self.notebook, self)
-        self.settings_tab = SettingsTab(self.notebook)
-        self.production_tab = ProductionTab(
-            self.notebook,
-            get_products_callback=self._get_products,
-            get_project_info_callback=self._get_project_info,
-        )
-        self.material_order_tab = MaterialOrderTab(
-            self.notebook,
-            get_products_callback=self._get_products,
-            get_project_info_callback=self._get_project_info,
-        )
-        # ═══════════════════════════════════════════════════════
-        # 5 ГОЛОВНИХ ВКЛАДОК (згруповано з 13)
-        # ═══════════════════════════════════════════════════════
+        # Логотип / заголовок сайдбару
+        tk.Label(self.sidebar, text="🏭 VentCompany", font=("Segoe UI", 13, "bold"),
+                 bg=theme["sidebar_bg"], fg=theme["accent"]).pack(pady=(10, 5), padx=10, anchor="w")
 
-        # ── 1. 📋 ПРОЄКТ (Вироби + Специфікація + Розкрій + 3D) ───
-        self.project_frame = ttk.Frame(self.notebook)
-        self.project_nb = ttk.Notebook(self.project_frame)
+        # Роздільник
+        tk.Frame(self.sidebar, bg=theme["border"], height=1).pack(fill=tk.X, padx=10, pady=5)
+
+        # Структура меню: (категорія, [(emoji, назва, notebook, tab_index or widget), ...])
+        self._sidebar_items = []
+        self._active_sub_btn = None
+
+        def _cat(text, items):
+            """Додати розділ-категорію з підпунктами."""
+            cat_btn = tk.Button(
+                self.sidebar, text=text, font=("Segoe UI", 10, "bold"),
+                bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
+                activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
+                relief="flat", anchor="w", padx=10, pady=5, cursor="hand2"
+            )
+            cat_btn.pack(fill=tk.X, padx=5, pady=(5, 0))
+            sub_frame = tk.Frame(self.sidebar, bg=theme["sidebar_bg"])
+            sub_frame.pack(fill=tk.X, padx=5)
+            for emoji, label, target_nb, target_idx in items:
+                sub = tk.Button(
+                    sub_frame, text=f"  {emoji} {label}", font=("Segoe UI", 9),
+                    bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
+                    activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
+                    relief="flat", anchor="w", padx=25, pady=3, cursor="hand2",
+                    command=lambda nb=target_nb, idx=target_idx, btn=None: self._show_tab(nb, idx, btn)
+                )
+                sub.pack(fill=tk.X)
+                self._sidebar_items.append((sub, target_nb, target_idx))
+            return sub_frame
+
+        # ── КОНТЕНТ-ФРЕЙМИ ──
+        self.content_frame = tk.Frame(main_frame, bg=theme["bg"])
+        self.content_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 1. ПРОЄКТ
+        self.project_frame = ttk.Frame(self.content_frame)
+        # Приховуємо вкладки під-ноутбуків — навігація тільки через сайдбар
+        style = ttk.Style()
+        style.layout("HiddenTab.TNotebook.Tab", [])
+        style.configure("HiddenTab.TNotebook", tabmargins=0)
+
+        self.project_nb = ttk.Notebook(self.project_frame, style="HiddenTab.TNotebook")
         self.project_nb.pack(fill=tk.BOTH, expand=True)
 
-        self.products_tab = ProductsTab(
-            self.project_nb, on_products_changed=self._on_products_changed
-        )
+        self.products_tab = ProductsTab(self.project_nb, on_products_changed=self._on_products_changed)
         self.project_nb.add(self.products_tab.frame, text="🔧 Вироби")
 
-        self.spec_tab = SpecificationTab(
-            self.project_nb,
-            get_products_callback=self._get_products,
-        )
+        self.spec_tab = SpecificationTab(self.project_nb, get_products_callback=self._get_products)
         self.project_nb.add(self.spec_tab.frame, text="📋 Специфікація")
 
         self.cutting_tab = CuttingTab(self.project_nb, get_products_callback=self._get_products, get_standard_products_callback=self._get_standard_products)
@@ -319,11 +283,9 @@ class MainWindow:
         self.project_3d_tab = Project3DTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
         self.project_nb.add(self.project_3d_tab.frame, text="🧊 3D")
 
-        self.notebook.add(self.project_frame, text="📋 Проєкт")
-
-        # ── 2. 💰 ФІНАНСИ (Ціноутворення + Прайс + Документи) ────
-        self.finance_frame = ttk.Frame(self.notebook)
-        self.finance_nb = ttk.Notebook(self.finance_frame)
+        # 2. ФІНАНСИ
+        self.finance_frame = ttk.Frame(self.content_frame)
+        self.finance_nb = ttk.Notebook(self.finance_frame, style="HiddenTab.TNotebook")
         self.finance_nb.pack(fill=tk.BOTH, expand=True)
 
         self.settings_tab = SettingsTab(self.finance_nb)
@@ -335,30 +297,23 @@ class MainWindow:
         self.documents_tab = DocumentsTab(self.finance_nb)
         self.finance_nb.add(self.documents_tab.frame, text="📄 Документи")
 
-        self.notebook.add(self.finance_frame, text="💰 Фінанси")
-
-        # ── 3. 🏭 ВИРОБНИЦТВО (Виробництво + Матеріали + Аеро) ────
-        self.prod_frame = ttk.Frame(self.notebook)
-        self.prod_nb = ttk.Notebook(self.prod_frame)
+        # 3. ВИРОБНИЦТВО
+        self.prod_frame = ttk.Frame(self.content_frame)
+        self.prod_nb = ttk.Notebook(self.prod_frame, style="HiddenTab.TNotebook")
         self.prod_nb.pack(fill=tk.BOTH, expand=True)
 
         self.production_tab = ProductionTab(self.prod_nb, get_products_callback=self.products_tab.get_products_data)
         self.prod_nb.add(self.production_tab.frame, text="🏭 Виробництво")
 
-        self.material_order_tab = MaterialOrderTab(
-            self.prod_nb,
-            get_products_callback=self.products_tab.get_products_data,
-        )
+        self.material_order_tab = MaterialOrderTab(self.prod_nb, get_products_callback=self.products_tab.get_products_data)
         self.prod_nb.add(self.material_order_tab.frame, text="📦 Матеріали")
 
         self.aerodynamics_tab = AerodynamicsTab(self.prod_nb)
         self.prod_nb.add(self.aerodynamics_tab.frame, text="💨 Аеродинаміка")
 
-        self.notebook.add(self.prod_frame, text="🏭 Виробництво")
-
-        # ── 4. 📊 АНАЛІТИКА (Дашборд + CRM) ──────────────────────
-        self.analytics_frame = ttk.Frame(self.notebook)
-        self.analytics_nb = ttk.Notebook(self.analytics_frame)
+        # 4. АНАЛІТИКА
+        self.analytics_frame = ttk.Frame(self.content_frame)
+        self.analytics_nb = ttk.Notebook(self.analytics_frame, style="HiddenTab.TNotebook")
         self.analytics_nb.pack(fill=tk.BOTH, expand=True)
 
         self.dashboard_tab = DashboardTab(self.analytics_nb)
@@ -367,36 +322,111 @@ class MainWindow:
         self.crm_tab = CRMTab(self.analytics_nb)
         self.analytics_nb.add(self.crm_tab.frame, text="👥 CRM")
 
-        self.notebook.add(self.analytics_frame, text="📊 Аналітика")
-
-        # ── 5. 👤 КАБІНЕТ ───────────────────────────────────────
+        # 5. КАБІНЕТ
+        self.cabinet_frame = ttk.Frame(self.content_frame)
         self.cabinet_tab = CabinetTab(
-            self.notebook,
+            self.cabinet_frame,
             current_user=self.current_user.username,
             is_director=self.is_director,
         )
-        self.notebook.add(self.cabinet_tab, text="👤 Кабінет")
+        self.cabinet_tab.pack(fill=tk.BOTH, expand=True)
 
-        self.price_list_tab._current_project_id = self.current_project_id
+        # Зберігаємо всі верхні фрейми для перемикання
+        self._main_frames = {
+            "project": self.project_frame,
+            "finance": self.finance_frame,
+            "prod": self.prod_frame,
+            "analytics": self.analytics_frame,
+            "cabinet": self.cabinet_frame,
+        }
+
+        # ── Будуємо сайдбар (після створення фреймів, щоб lambda працювали) ──
+        self._project_subs = _cat("📋 Проєкт", [
+            ("🔧", "Вироби", self.project_nb, 0),
+            ("📋", "Специфікація", self.project_nb, 1),
+            ("✂️", "Розкрій", self.project_nb, 2),
+            ("🧊", "3D", self.project_nb, 3),
+        ])
+        self._finance_subs = _cat("💰 Фінанси", [
+            ("💰", "Ціноутворення", self.finance_nb, 0),
+            ("🏷️", "Прайс-лист", self.finance_nb, 1),
+            ("📄", "Документи", self.finance_nb, 2),
+        ])
+        self._prod_subs = _cat("🏭 Виробництво", [
+            ("🏭", "Виробництво", self.prod_nb, 0),
+            ("📦", "Матеріали", self.prod_nb, 1),
+            ("💨", "Аеродинаміка", self.prod_nb, 2),
+        ])
+        self._analytics_subs = _cat("📊 Аналітика", [
+            ("📊", "Дашборд", self.analytics_nb, 0),
+            ("👥", "CRM", self.analytics_nb, 1),
+        ])
+
+        # Кабінет — без підпунктів
+        cabinet_btn = tk.Button(
+            self.sidebar, text="👤 Кабінет", font=("Segoe UI", 10, "bold"),
+            bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
+            activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
+            relief="flat", anchor="w", padx=10, pady=5, cursor="hand2",
+            command=lambda: self._show_main_frame("cabinet", None, None)
+        )
+        cabinet_btn.pack(fill=tk.X, padx=5, pady=(5, 0))
 
         # ── Статус-бар ──
         self.status_bar = tk.Label(
             self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W,
             bg=theme["status_bg"], fg=theme["status_fg"],
-            font=("Segoe UI", 9), padx=10, pady=3,
+            font=("Segoe UI", 9), padx=10, pady=2,
         )
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
-        self.notebook.select(0)
+        # Показуємо перший пункт за замовчуванням
+        self._show_tab(self.project_nb, 0, None)
+
+    def _show_main_frame(self, frame_key, notebook, tab_idx):
+        """Показати головний фрейм і приховати інші."""
+        for key, frm in self._main_frames.items():
+            if key == frame_key:
+                frm.pack(fill=tk.BOTH, expand=True)
+            else:
+                frm.pack_forget()
+        if notebook is not None and tab_idx is not None:
+            notebook.select(tab_idx)
+        # Оновлюємо підсвічування сайдбару
+        theme = self.theme_mgr.get()
+        for btn, nb, idx in self._sidebar_items:
+            if nb is notebook and idx == tab_idx:
+                btn.config(bg=theme["sidebar_active"], fg=theme["sidebar_active_fg"])
+            else:
+                btn.config(bg=theme["sidebar_bg"], fg=theme["sidebar_fg"])
+
+    def _show_tab(self, notebook, tab_idx, btn):
+        """Визначити який головний фрейм відкривати і показати вкладку."""
+        if notebook is self.project_nb:
+            self._show_main_frame("project", notebook, tab_idx)
+        elif notebook is self.finance_nb:
+            self._show_main_frame("finance", notebook, tab_idx)
+        elif notebook is self.prod_nb:
+            self._show_main_frame("prod", notebook, tab_idx)
+        elif notebook is self.analytics_nb:
+            self._show_main_frame("analytics", notebook, tab_idx)
+        else:
+            self._show_main_frame("cabinet", notebook, tab_idx)
 
     def _apply_permissions(self):
         for tab_text, required_perms in TAB_PERMISSIONS.items():
             has_access = any(auth.can(p) for p in required_perms)
             if not has_access:
-                for idx in range(self.notebook.index("end")):
-                    if self.notebook.tab(idx, "text") == tab_text:
-                        self.notebook.hide(idx)
-                        break
+                # Ховаємо відповідні пункти сайдбару
+                _map = {
+                    "📋 Проєкт": [self._project_subs],
+                    "💰 Фінанси": [self._finance_subs],
+                    "🏭 Виробництво": [self._prod_subs],
+                    "📊 Аналітика": [self._analytics_subs],
+                    "👤 Кабінет": [],
+                }
+                for widget in _map.get(tab_text, []):
+                    widget.pack_forget()
 
     def _toggle_theme(self):
         self.theme_mgr.toggle()
@@ -537,11 +567,11 @@ class MainWindow:
 
     def _open_cutting_for_project(self, project_id: int):
         products = self.db.get_project_products(project_id)
-        self.notebook.select(self.cutting_tab.frame)
+        self._show_tab(self.project_nb, 2, None)
         self.cutting_tab.run_cutting_for_products(products)
 
     def _export_3d_project(self):
-        self.notebook.select(self.project_3d_tab.frame)
+        self._show_tab(self.project_nb, 3, None)
 
     def _show_about(self):
         messagebox.showinfo(

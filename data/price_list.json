@@ -1,3 +1,56 @@
 {
-  "items": []
+  "items": [
+    {
+      "id": "PRICE-20260821164059-e004",
+      "name": "Повітропровід 400×200×1000",
+      "category": "власне виробництво",
+      "product_type": "повітропровід прямокутний",
+      "dimensions": "400.0×200.0×1000.0",
+      "material": "оцинкована сталь",
+      "thickness": 0.7,
+      "unit": "шт",
+      "quantity": 1,
+      "cost_price": 1082.2692307692307,
+      "markup_percent": 30.0,
+      "labor_cost": 0.0,
+      "material_cost": 0.0,
+      "overhead_cost": 0.0,
+      "supplier": "",
+      "supplier_price": 0.0,
+      "notes_internal": "З проєкту: Новий проєкт",
+      "unit_price": 1406.95,
+      "total_price": 1406.95,
+      "notes_public": "",
+      "created_at": "2026-08-21 16:40",
+      "updated_at": "2026-08-21 16:40",
+      "source": "archive",
+      "project_id": "1"
+    },
+    {
+      "id": "PRICE-20260821164059-088a",
+      "name": "Повітропровід 150×80×500",
+      "category": "власне виробництво",
+      "product_type": "повітропровід прямокутний",
+      "dimensions": "150.0×80.0×500.0",
+      "material": "оцинкована сталь",
+      "thickness": 0.7,
+      "unit": "шт",
+      "quantity": 1,
+      "cost_price": 215.73734399999995,
+      "markup_percent": 30.0,
+      "labor_cost": 0.0,
+      "material_cost": 0.0,
+      "overhead_cost": 0.0,
+      "supplier": "",
+      "supplier_price": 0.0,
+      "notes_internal": "З проєкту: Новий проєкт",
+      "unit_price": 280.46,
+      "total_price": 280.46,
+      "notes_public": "",
+      "created_at": "2026-08-21 16:40",
+      "updated_at": "2026-08-21 16:40",
+      "source": "archive",
+      "project_id": "1"
+    }
+  ]
 }

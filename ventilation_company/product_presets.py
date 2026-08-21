@@ -11,19 +11,11 @@ from ventilation_company.standard_products import (
 )
 
 
-def _make_preset(name, factory, **kwargs):
-    """Хелпер для створення пресету."""
-    p = factory(**kwargs)
-    p.name = name
-    return p
-
-
 # ═══════════════════════════════════════════════════════════
 # ПРЯМОКУТНІ ПОВІТРОПРОВОДИ (Ш×В×Довжина)
 # ═══════════════════════════════════════════════════════════
 
 RECT_DUCT_PRESETS = [
-    # (назва, ширина, висота, довжина)
     ("Повітропровід 100×50×500",   100,  50,  500),
     ("Повітропровід 100×50×1000",  100,  50, 1000),
     ("Повітропровід 100×50×1250",  100,  50, 1250),
@@ -113,13 +105,11 @@ ROUND_DUCT_PRESETS = [
     ("Повітропровід Ø630×1500", 630, 1500),
 ]
 
-
 # ═══════════════════════════════════════════════════════════
 # КОЛІНА / ВІДВОДИ (прямокутні та круглі)
 # ═══════════════════════════════════════════════════════════
 
 RECT_ELBOW_PRESETS = [
-    # (назва, ширина, висота, кут, радіус)
     ("Відвід прямокутний 100×50 90°",   100,  50,  90,  150),
     ("Відвід прямокутний 125×65 90°",   125,  65,  90,  150),
     ("Відвід прямокутний 150×80 90°",   150,  80,  90,  200),
@@ -128,14 +118,19 @@ RECT_ELBOW_PRESETS = [
     ("Відвід прямокутний 300×150 90°",  300, 150,  90,  300),
     ("Відвід прямокутний 400×200 90°",  400, 200,  90,  300),
     ("Відвід прямокутний 500×250 90°",  500, 250,  90,  400),
+    ("Відвід прямокутний 600×300 90°",  600, 300,  90,  500),
     ("Відвід прямокутний 100×50 45°",   100,  50,  45,  150),
+    ("Відвід прямокутний 150×80 45°",   150,  80,  45,  200),
     ("Відвід прямокутний 200×100 45°",  200, 100,  45,  200),
     ("Відвід прямокутний 300×150 45°",  300, 150,  45,  300),
     ("Відвід прямокутний 400×200 45°",  400, 200,  45,  300),
+    ("Відвід прямокутний 500×250 45°",  500, 250,  45,  400),
+    ("Відвід прямокутний 200×100 60°",  200, 100,  60,  200),
+    ("Відвід прямокутний 300×150 60°",  300, 150,  60,  300),
+    ("Відвід прямокутний 400×200 60°",  400, 200,  60,  300),
 ]
 
 ROUND_ELBOW_PRESETS = [
-    # (назва, діаметр, кут, радіус)
     ("Відвід круглий Ø100 90°",  100,  90, 150),
     ("Відвід круглий Ø125 90°",  125,  90, 150),
     ("Відвід круглий Ø150 90°",  150,  90, 200),
@@ -144,10 +139,16 @@ ROUND_ELBOW_PRESETS = [
     ("Відвід круглий Ø315 90°",  315,  90, 300),
     ("Відвід круглий Ø400 90°",  400,  90, 300),
     ("Відвід круглий Ø500 90°",  500,  90, 400),
+    ("Відвід круглий Ø630 90°",  630,  90, 500),
     ("Відвід круглий Ø100 45°",  100,  45, 150),
+    ("Відвід круглий Ø150 45°",  150,  45, 200),
     ("Відвід круглий Ø200 45°",  200,  45, 200),
     ("Відвід круглий Ø315 45°",  315,  45, 300),
     ("Відвід круглий Ø400 45°",  400,  45, 300),
+    ("Відвід круглий Ø500 45°",  500,  45, 400),
+    ("Відвід круглий Ø200 60°",  200,  60, 200),
+    ("Відвід круглий Ø315 60°",  315,  60, 300),
+    ("Відвід круглий Ø400 60°",  400,  60, 300),
 ]
 
 # ═══════════════════════════════════════════════════════════
@@ -155,7 +156,6 @@ ROUND_ELBOW_PRESETS = [
 # ═══════════════════════════════════════════════════════════
 
 RECT_TRANSITION_PRESETS = [
-    # (назва, ширина1, висота1, ширина2, висота2, довжина)
     ("Перехід прямокутний 100×50→150×80×300",   100,  50, 150,  80, 300),
     ("Перехід прямокутний 150×80→200×100×300",  150,  80, 200, 100, 300),
     ("Перехід прямокутний 200×100→250×125×400", 200, 100, 250, 125, 400),
@@ -163,10 +163,12 @@ RECT_TRANSITION_PRESETS = [
     ("Перехід прямокутний 300×150→400×200×500", 300, 150, 400, 200, 500),
     ("Перехід прямокутний 400×200→500×250×500", 400, 200, 500, 250, 500),
     ("Перехід прямокутний 500×250→600×300×600", 500, 250, 600, 300, 600),
+    ("Перехід прямокутний 600×300→800×400×800", 600, 300, 800, 400, 800),
+    ("Перехід прямокутний 200×100→300×150×400", 200, 100, 300, 150, 400),
+    ("Перехід прямокутний 300×150→500×250×600", 300, 150, 500, 250, 600),
 ]
 
 ROUND_TRANSITION_PRESETS = [
-    # (назва, діаметр1, діаметр2, довжина)
     ("Перехід круглий Ø100→Ø125×300",  100, 125, 300),
     ("Перехід круглий Ø125→Ø150×300",  125, 150, 300),
     ("Перехід круглий Ø150→Ø200×400",  150, 200, 400),
@@ -174,6 +176,9 @@ ROUND_TRANSITION_PRESETS = [
     ("Перехід круглий Ø250→Ø315×500",  250, 315, 500),
     ("Перехід круглий Ø315→Ø400×500",  315, 400, 500),
     ("Перехід круглий Ø400→Ø500×600",  400, 500, 600),
+    ("Перехід круглий Ø500→Ø630×700",  500, 630, 700),
+    ("Перехід круглий Ø200→Ø315×500",  200, 315, 500),
+    ("Перехід круглий Ø315→Ø500×600",  315, 500, 600),
 ]
 
 # ═══════════════════════════════════════════════════════════
@@ -181,23 +186,29 @@ ROUND_TRANSITION_PRESETS = [
 # ═══════════════════════════════════════════════════════════
 
 RECT_TEE_PRESETS = [
-    # (назва, ширина, висота, довжина, ширина_гілки, висота_гілки, довжина_гілки)
     ("Трійник прямокутний 100×50/100×50×400",   100,  50, 400, 100,  50, 250),
     ("Трійник прямокутний 150×80/150×80×500",   150,  80, 500, 150,  80, 300),
     ("Трійник прямокутний 200×100/200×100×600", 200, 100, 600, 200, 100, 350),
     ("Трійник прямокутний 250×125/250×125×700", 250, 125, 700, 250, 125, 400),
+    ("Трійник прямокутний 300×150/300×150×800", 300, 150, 800, 300, 150, 450),
+    ("Трійник прямокутний 400×200/400×200×900", 400, 200, 900, 400, 200, 500),
     ("Трійник прямокутний 300×150/200×100×700", 300, 150, 700, 200, 100, 400),
     ("Трійник прямокутний 400×200/200×100×800", 400, 200, 800, 200, 100, 400),
+    ("Трійник прямокутний 500×250/300×150×900", 500, 250, 900, 300, 150, 500),
+    ("Трійник прямокутний 200×100/150×80×500",  200, 100, 500, 150,  80, 300),
 ]
 
 ROUND_TEE_PRESETS = [
-    # (назва, діаметр, довжина, діаметр_гілки, довжина_гілки)
     ("Трійник круглий Ø100/Ø100×400",  100, 400, 100, 250),
     ("Трійник круглий Ø150/Ø150×500",  150, 500, 150, 300),
     ("Трійник круглий Ø200/Ø200×600",  200, 600, 200, 350),
     ("Трійник круглий Ø250/Ø250×700",  250, 700, 250, 400),
+    ("Трійник круглий Ø315/Ø315×800",  315, 800, 315, 450),
+    ("Трійник круглий Ø400/Ø400×900",  400, 900, 400, 500),
     ("Трійник круглий Ø315/Ø200×700",  315, 700, 200, 400),
     ("Трійник круглий Ø400/Ø200×800",  400, 800, 200, 400),
+    ("Трійник круглий Ø500/Ø315×900",  500, 900, 315, 500),
+    ("Трійник круглий Ø200/Ø150×600",  200, 600, 150, 350),
 ]
 
 # ═══════════════════════════════════════════════════════════
@@ -205,7 +216,6 @@ ROUND_TEE_PRESETS = [
 # ═══════════════════════════════════════════════════════════
 
 RECT_FLANGE_PRESETS = [
-    # (назва, ширина, висота, профіль)
     ("Фланець прямокутний 100×50 П20",   100,  50, 20),
     ("Фланець прямокутний 150×80 П20",   150,  80, 20),
     ("Фланець прямокутний 200×100 П30",  200, 100, 30),
@@ -217,7 +227,6 @@ RECT_FLANGE_PRESETS = [
 ]
 
 ROUND_FLANGE_PRESETS = [
-    # (назва, діаметр, профіль)
     ("Фланець круглий Ø100 П20",  100, 20),
     ("Фланець круглий Ø150 П20",  150, 20),
     ("Фланець круглий Ø200 П30",  200, 30),
@@ -233,7 +242,6 @@ ROUND_FLANGE_PRESETS = [
 # ═══════════════════════════════════════════════════════════
 
 RECT_CAP_PRESETS = [
-    # (назва, ширина, висота, профіль)
     ("Заглушка прямокутна 100×50 П25",   100,  50, 25),
     ("Заглушка прямокутна 150×80 П25",   150,  80, 25),
     ("Заглушка прямокутна 200×100 П25",  200, 100, 25),
@@ -243,7 +251,6 @@ RECT_CAP_PRESETS = [
 ]
 
 ROUND_CAP_PRESETS = [
-    # (назва, діаметр, глибина)
     ("Заглушка кругла Ø100",  100, 30),
     ("Заглушка кругла Ø150",  150, 30),
     ("Заглушка кругла Ø200",  200, 30),
@@ -258,7 +265,6 @@ ROUND_CAP_PRESETS = [
 # ═══════════════════════════════════════════════════════════
 
 FLEXIBLE_PRESETS = [
-    # (назва, ширина, висота, довжина, тип_тканини)
     ("Гнучка вставка 100×50×200 поліестер",  100,  50, 200, "поліестер"),
     ("Гнучка вставка 150×80×200 поліестер",  150,  80, 200, "поліестер"),
     ("Гнучка вставка 200×100×250 поліестер", 200, 100, 250, "поліестер"),
@@ -272,21 +278,18 @@ FLEXIBLE_PRESETS = [
 def get_all_presets() -> list:
     """Повернути всі пресети як список StandardProduct."""
     presets = []
-    # Повітропроводи прямокутні
     for name, w, h, l in RECT_DUCT_PRESETS:
         presets.append(RectDuct(
             name=name, product_type="повітропровід прямокутний",
             width=w, height=h, length=l,
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
         ))
-    # Повітропроводи круглі
     for name, d, l in ROUND_DUCT_PRESETS:
         presets.append(RoundDuct(
             name=name, product_type="повітропровід круглий",
             width=d, height=d, length=l,
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
         ))
-    # Коліна прямокутні
     for name, w, h, angle, radius in RECT_ELBOW_PRESETS:
         presets.append(RectElbow(
             name=name, product_type="відвід прямокутний",
@@ -294,7 +297,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             angle=angle, radius=radius,
         ))
-    # Коліна круглі
     for name, d, angle, radius in ROUND_ELBOW_PRESETS:
         presets.append(RoundElbow(
             name=name, product_type="відвід круглий",
@@ -302,7 +304,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             angle=angle, radius=radius,
         ))
-    # Переходи прямокутні
     for name, w, h, ew, eh, l in RECT_TRANSITION_PRESETS:
         presets.append(RectTransition(
             name=name, product_type="перехід прямокутний",
@@ -310,7 +311,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             end_width=ew, end_height=eh,
         ))
-    # Переходи круглі
     for name, d1, d2, l in ROUND_TRANSITION_PRESETS:
         presets.append(RoundTransition(
             name=name, product_type="перехід круглий",
@@ -318,7 +318,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             end_diameter=d2,
         ))
-    # Трійники прямокутні
     for name, w, h, l, bw, bh, bl in RECT_TEE_PRESETS:
         presets.append(RectTee(
             name=name, product_type="трійник прямокутний",
@@ -326,7 +325,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             branch_width=bw, branch_height=bh, branch_length=bl,
         ))
-    # Трійники круглі
     for name, d, l, bd, bl in ROUND_TEE_PRESETS:
         presets.append(RoundTee(
             name=name, product_type="трійник круглий",
@@ -334,7 +332,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             branch_diameter=bd, branch_length=bl,
         ))
-    # Фланці прямокутні
     for name, w, h, profile in RECT_FLANGE_PRESETS:
         presets.append(RectFlange(
             name=name, product_type="фланець прямокутний",
@@ -342,7 +339,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             profile=profile,
         ))
-    # Фланці круглі
     for name, d, profile in ROUND_FLANGE_PRESETS:
         presets.append(RoundFlange(
             name=name, product_type="фланець круглий",
@@ -350,7 +346,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             profile=profile,
         ))
-    # Заглушки прямокутні
     for name, w, h, profile in RECT_CAP_PRESETS:
         presets.append(RectCap(
             name=name, product_type="заглушка прямокутна",
@@ -358,7 +353,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             profile=profile,
         ))
-    # Заглушки круглі
     for name, d, depth in ROUND_CAP_PRESETS:
         presets.append(RoundCap(
             name=name, product_type="заглушка кругла",
@@ -366,7 +360,6 @@ def get_all_presets() -> list:
             thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
             depth=depth,
         ))
-    # Гнучкі вставки
     for name, w, h, l, fabric in FLEXIBLE_PRESETS:
         presets.append(FlexibleConnector(
             name=name, product_type="гнучка вставка",
@@ -408,42 +401,4 @@ def get_preset_categories() -> dict[str, list]:
             categories["Заглушки"].append(p)
         elif "гнучк" in ptype or "вставк" in ptype:
             categories["Гнучкі вставки"].append(p)
-    # Видаляємо порожні категорії
     return {k: v for k, v in categories.items() if v}
-    """Повернути всі пресети як список StandardProduct."""
-    presets = []
-    for name, w, h, l in RECT_DUCT_PRESETS:
-        presets.append(RectDuct(
-            name=name, product_type="повітропровід прямокутний",
-            width=w, height=h, length=l,
-            thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
-        ))
-    for name, d, l in ROUND_DUCT_PRESETS:
-        presets.append(RoundDuct(
-            name=name, product_type="повітропровід круглий",
-            width=d, height=d, length=l,
-            thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
-        ))
-    return presets
-
-
-def get_preset_categories() -> dict[str, list]:
-    """Повернути пресети згруповані за категоріями."""
-    rect = []
-    for name, w, h, l in RECT_DUCT_PRESETS:
-        rect.append(RectDuct(
-            name=name, product_type="повітропровід прямокутний",
-            width=w, height=h, length=l,
-            thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
-        ))
-    rnd = []
-    for name, d, l in ROUND_DUCT_PRESETS:
-        rnd.append(RoundDuct(
-            name=name, product_type="повітропровід круглий",
-            width=d, height=d, length=l,
-            thickness=Thickness.T0_7, material=MaterialType.GALVANIZED,
-        ))
-    return {
-        "Прямокутні повітропроводи": rect,
-        "Круглі повітропроводи": rnd,
-    }

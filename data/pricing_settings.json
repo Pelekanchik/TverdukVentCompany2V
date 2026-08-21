@@ -460,13 +460,13 @@
     },
     {
       "name": "Відвід прямокутний",
-      "formula": "metal_area * material_price * 1.60",
+      "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*math.pi/180/1000) * material_price * 1.60",
       "labor_hours": 1.0,
       "description": "Сегментне коліно"
     },
     {
       "name": "Відвід круглий",
-      "formula": "metal_area * material_price * 1.65",
+      "formula": "(math.pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*math.pi/180/1000) * material_price * 1.65",
       "labor_hours": 1.1,
       "description": "Гнуте коліно"
     },
@@ -487,12 +487,6 @@
       "formula": "metal_area * 35.0 + 25.0",
       "labor_hours": 0.1,
       "description": "Тканина + обжим"
-    },
-    {
-      "name": "івапр",
-      "formula": "metal_area * thickness * material_price * 1.15",
-      "labor_hours": 0.15,
-      "description": ""
     }
   ],
   "custom_params": {
@@ -551,10 +545,6 @@
     },
     "гнучка вставка": {
       "rate_per_m2": 80.0,
-      "difficulty_percent": 0.0
-    },
-    "івапр": {
-      "rate_per_m2": 120.0,
       "difficulty_percent": 0.0
     }
   },

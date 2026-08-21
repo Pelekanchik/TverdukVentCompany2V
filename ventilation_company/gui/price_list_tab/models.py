@@ -305,10 +305,39 @@ class PriceListManager:
                 coef = type_coef.get(p.get("product_type", ""), 1.3)
                 unit_price = metal_area * price_per_m2 * coef
                 cost_price = unit_price / 1.3
+                # Розподіляємо собівартість: ~75% матеріали, 10% робота, 15% накладні
+                labor = cost_price * 0.10
+                overhead_total = cost_price * 0.15
+                cost_price = unit_price / 1.3
             
             total_price = unit_price * p.get("quantity", 1)
             
+            # Конвертуємо в Decimal для безпечної роботи
+            unit_price = Decimal(str(unit_price))
+            cost_price = Decimal(str(cost_price))
+            labor = Decimal(str(labor))
+            overhead_total = Decimal(str(overhead_total))
+            total_price = Decimal(str(total_price))
+            
             # Шукаємо існуючий виріб
+            existing = None
+            for i in self.items:
+                if i.name == name and i.source == "products" and i.project_id == str(project_id):
+                    existing = i
+                    break
+            
+            if existing:
+                existing.unit_price = unit_price
+                existing.total_price = total_price
+                existing.cost_price = cost_price
+                existing.labor_cost = labor
+                existing.overhead_cost = overhead_total
+                existing.quantity = p.get("quantity", 1)
+                existing.dimensions = p.get("dimensions", "")
+                existing.material = p.get("material", "")
+                existing.thickness = p.get("thickness", 0)
+                existing.recalculate()
+                updated += 1
             existing = None
             for i in self.items:
                 if i.name == name and i.source == "products" and i.project_id == str(project_id):
@@ -394,7 +423,7 @@ class PriceListManager:
                         price_per_m2 = material_prices.get(mat, 120.0)
                         unit_price = area * (price_per_m2 + 50)
                     total_price = unit_price * qty
-                    cost = unit_price / 1.3 if unit_price > 0 else 0
+                    cost = Decimal(str(unit_price)) / Decimal("1.3") if unit_price > 0 else Decimal("0")
                     item = PriceItem(
                         name=item_name,
                         category="власне виробництво",
@@ -404,15 +433,16 @@ class PriceListManager:
                         thickness=p["thickness"] or 0,
                         unit="шт",
                         quantity=qty,
-                        cost_price=cost,
-                        labor_cost=0,
-                        overhead_cost=0,
-                        unit_price=unit_price,
-                        total_price=total_price,
+                        cost_price=Decimal(str(cost)),
+                        labor_cost=Decimal("0"),
+                        overhead_cost=Decimal("0"),
+                        unit_price=Decimal(str(unit_price)),
+                        total_price=Decimal(str(total_price)),
                         source="archive",
                         project_id=str(project_id_db),
                         notes_internal=f"З проєкту: {project_name}",
                     )
+
                     self.items.append(item)
                     imported += 1
                 conn.close()
@@ -458,13 +488,12 @@ class PriceListManager:
                                 thickness=p.get("thickness", 0),
                                 unit="шт",
                                 quantity=p.get("quantity", 1),
-                                cost_price=p.get("cost_price", 0),
-                                unit_price=p.get("unit_price", 0),
-                                total_price=p.get("total_price", 0),
+                                cost_price=Decimal(str(p.get("cost_price", 0))),
+                                unit_price=Decimal(str(p.get("unit_price", 0))),
+                                total_price=Decimal(str(p.get("total_price", 0))),
                                 source="archive",
                                 notes_internal=f"З архіву: {filename}",
                             )
-                            self.items.append(item)
                             imported += 1
             except Exception as e:
                 _logger.error("Помилка читання архіву %s: %s", filename, e)
