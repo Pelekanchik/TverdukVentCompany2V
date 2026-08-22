@@ -37,8 +37,7 @@ class Invoice(BaseDocument):
 
         items: [{name, unit, qty, price, total}]
         """
-        self.add_page()
-        self.header()
+        self.add_page()  # header() викликається автоматично
 
         # Таблиця
         headers = ["№", "Найменування", "Од.", "К-ть", "Ціна без ПДВ", "Сума без ПДВ"]

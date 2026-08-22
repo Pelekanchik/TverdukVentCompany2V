@@ -282,9 +282,9 @@ class PriceListManager:
                 except Exception:
                     pass  # використаємо fallback
             
-            # Fallback, якщо PricingSettings не спрацював
-            if unit_price == 0 and p.get("metal_area_m2", 0) > 0:
-                metal_area = p.get("metal_area_m2", 0)
+            # Fallback: розрахунок ціни з матеріалу (якщо PricingSettings не спрацював)
+            metal_area = p.get("metal_area_m2", 0)
+            if metal_area > 0:
                 material = p.get("material", "оцинкована сталь")
                 thickness = p.get("thickness", 0.5)
                 material_prices = {
@@ -303,11 +303,19 @@ class PriceListManager:
                     "flexible": 1.0,
                 }
                 coef = type_coef.get(p.get("product_type", ""), 1.3)
-                unit_price = metal_area * price_per_m2 * coef
-                cost_price = unit_price / 1.3
+                calc_unit_price = metal_area * price_per_m2 * coef
+                calc_cost_price = calc_unit_price / 1.3
                 # Розподіляємо собівартість: ~75% матеріали, 10% робота, 15% накладні
-                labor = cost_price * 0.10
-                overhead_total = cost_price * 0.15
+                calc_labor = calc_cost_price * 0.10
+                calc_overhead = calc_cost_price * 0.15
+                # Використовуємо розрахунок тільки якщо немає кращих даних
+                if unit_price == 0:
+                    unit_price = calc_unit_price
+                    cost_price = calc_cost_price
+                if labor == 0:
+                    labor = calc_labor
+                if overhead_total == 0:
+                    overhead_total = calc_overhead
                 cost_price = unit_price / 1.3
             
             total_price = unit_price * p.get("quantity", 1)
