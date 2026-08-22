@@ -30,8 +30,7 @@ class WorkAct(BaseDocument):
         self.ln(10)
 
     def build(self, items: list[dict], filepath: str) -> str:
-        self.add_page()
-        self.header()
+        self.add_page()  # header() викликається автоматично
 
         headers = ["№", "Найменування робіт (послуг)", "Од.", "К-ть", "Ціна", "Сума"]
         widths = [10, 90, 15, 15, 30, 35]
