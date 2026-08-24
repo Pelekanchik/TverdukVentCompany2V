@@ -1,4 +1,4 @@
-"""Вкладка "Виробництво" — планування з Gantt-діаграмою."""
+"""Вкладка "Виробництво" — планування з Gantt-діаграмою + розрахунок зарплат."""
 
 import os
 import tkinter as tk
@@ -13,10 +13,11 @@ from ventilation_company.production_models import (
 )
 from ventilation_company.production_scheduler import ProductionScheduler
 from ventilation_company.production_gantt import GanttChart, EquipmentLoadChart
+from ventilation_company.gui.settings_tab import PricingSettings
 
 
 class ProductionTab:
-    """Вкладка планування виробництва."""
+    """Вкладка планування виробництва з розрахунком зарплат."""
 
     def __init__(self, parent: ttk.Notebook, get_products_callback, get_project_info_callback=None):
         self.frame = ttk.Frame(parent)
@@ -67,7 +68,7 @@ class ProductionTab:
             lbl.grid(row=0, column=i*2+1, padx=5)
             self.status_labels[key] = lbl
 
-        # ── Notebook з діаграмами ──
+        # ── Notebook з діаграмами та зарплатою ──
         self.notebook = ttk.Notebook(self.frame)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -87,6 +88,11 @@ class ProductionTab:
         self.table_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.table_tab, text="📋 Таблиця операцій")
         self._build_table_tab()
+
+        # Вкладка 4: Зарплата
+        self.salary_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.salary_tab, text="💰 Зарплата")
+        self._build_salary_tab()
 
         # ── Підказка ──
         hint = ttk.Label(
@@ -115,6 +121,106 @@ class ProductionTab:
         hsb.grid(row=1, column=0, sticky="ew")
         self.table_tab.grid_rowconfigure(0, weight=1)
         self.table_tab.grid_columnconfigure(0, weight=1)
+
+    def _build_salary_tab(self):
+        """Вкладка розрахунку зарплат по виробах.
+
+        Структура:
+        - Зверху: заголовок + кнопка перерахувати
+        - Під ним: формула (зліва) + загальна сума (справа)
+        - Таблиця займає ВЕСЬ доступний простір знизу
+        """
+        # ── Заголовок + кнопка ──
+        top = ttk.Frame(self.salary_tab, padding=5)
+        top.pack(fill=tk.X)
+        ttk.Label(top, text="💰 Розрахунок зарплати робітників (від виробітку)",
+                  font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Button(top, text="🔄 Перерахувати", command=self._calculate_salary
+                   ).pack(side=tk.RIGHT, padx=5)
+
+        # ── Інфо-панель: формула + підсумок ──
+        info = ttk.Frame(self.salary_tab, padding=5)
+        info.pack(fill=tk.X)
+
+        formula_text = (
+            "Формула: Зарплата = площа_металу × ставка_грн/м² × (1 + важкість_%)  |  "
+            "Ставки беруться з вкладки 'Ціноутворення → Зарплата'"
+        )
+        ttk.Label(info, text=formula_text, foreground="#555", font=("Arial", 9)).pack(side=tk.LEFT)
+
+        self.salary_total_label = ttk.Label(
+            info, text="Загальна зарплата: 0.00 грн",
+            font=("Arial", 11, "bold"), foreground="#0066cc"
+        )
+        self.salary_total_label.pack(side=tk.RIGHT, padx=10)
+
+        # ── Таблиця на весь екран ──
+        cols = ("product", "type", "area", "rate", "difficulty", "salary", "total")
+        self.salary_tree = ttk.Treeview(self.salary_tab, columns=cols, show="headings")
+        self.salary_tree.heading("product", text="Виріб")
+        self.salary_tree.heading("type", text="Тип")
+        self.salary_tree.heading("area", text="Площа, м²")
+        self.salary_tree.heading("rate", text="Ставка, грн/м²")
+        self.salary_tree.heading("difficulty", text="Важкість, %")
+        self.salary_tree.heading("salary", text="Зарплата за шт, грн")
+        self.salary_tree.heading("total", text="Разом, грн")
+
+        self.salary_tree.column("product", width=250, anchor=tk.W)
+        self.salary_tree.column("type", width=180, anchor=tk.W)
+        self.salary_tree.column("area", width=90, anchor=tk.CENTER)
+        self.salary_tree.column("rate", width=100, anchor=tk.CENTER)
+        self.salary_tree.column("difficulty", width=80, anchor=tk.CENTER)
+        self.salary_tree.column("salary", width=110, anchor=tk.CENTER)
+        self.salary_tree.column("total", width=100, anchor=tk.CENTER)
+
+        vsb = ttk.Scrollbar(self.salary_tab, orient=tk.VERTICAL, command=self.salary_tree.yview)
+        self.salary_tree.configure(yscrollcommand=vsb.set)
+
+        # pack з expand=True — таблиця займе ВЕСЬ доступний простір
+        self.salary_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
+
+    def _calculate_salary(self):
+        """Розрахувати зарплату по всіх виробах проєкту."""
+        products = self.get_products()
+        if not products:
+            messagebox.showwarning("Увага", "У проєкті немає виробів.")
+            return
+
+        settings = PricingSettings.get_instance()
+        total_salary = 0.0
+
+        # Очистити таблицю
+        for item in self.salary_tree.get_children():
+            self.salary_tree.delete(item)
+
+        for product in products:
+            name = product.get("name", "—")
+            ptype = product.get("product_type", product.get("type", ""))
+            area = float(product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0))))
+            qty = int(product.get("quantity", 1))
+
+            # Отримати ставку та важкість
+            labor = settings.get_labor_rate(ptype)
+            rate = labor.get("rate_per_m2", 120.0)
+            difficulty = labor.get("difficulty_percent", 0.0)
+
+            # Розрахунок
+            salary_per_unit = area * rate * (1 + difficulty / 100)
+            salary_total = salary_per_unit * qty
+            total_salary += salary_total
+
+            self.salary_tree.insert("", tk.END, values=(
+                name,
+                ptype,
+                f"{area:.4f}",
+                f"{rate:.2f}",
+                f"{difficulty:.1f}",
+                f"{salary_per_unit:.2f}",
+                f"{salary_total:.2f}",
+            ))
+
+        self.salary_total_label.config(text=f"Загальна зарплата: {total_salary:,.2f} грн")
 
     def _parse_datetime(self, text: str) -> datetime | None:
         """Розпарсити дату з рядка."""
@@ -186,6 +292,9 @@ class ProductionTab:
 
         # Таблиця
         self._update_table()
+
+        # Автоматично перерахувати зарплату
+        self._calculate_salary()
 
     def _draw_gantt(self):
         """Намалювати Gantt-діаграму."""
