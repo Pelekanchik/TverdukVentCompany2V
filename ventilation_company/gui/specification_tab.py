@@ -481,7 +481,10 @@ class SpecificationTab:
     # ═══════════════════════════════════════════════════════
 
     def _calc_project_finance(self, products: list[dict]) -> dict:
-        """Розрахувати фінансові показники проєкту по всім виробам."""
+        """Розрахувати фінансові показники проєкту по всім виробам.
+
+        Зарплата (роботи) = 10% від собівартості (як в прайс-листі).
+        """
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
             pricing = PricingSettings()
@@ -494,43 +497,54 @@ class SpecificationTab:
 
             for p in products:
                 qty = p.get("quantity", 1)
-                data = {
-                    "type": p.get("product_type", ""),
-                    "material": p.get("material", "оцинкована сталь"),
-                    "thickness": p.get("thickness", 0.7),
-                    "metal_area_m2": p.get("metal_area_m2", 0),
-                    "weight_kg": p.get("weight_kg", 0),
-                    "quantity": qty,
-                    "width": p.get("width", 0),
-                    "height": p.get("height", 0),
-                    "length": p.get("length", 0),
-                    "profile": p.get("profile", 30.0),
-                    "angle": p.get("angle", 90),
-                    "radius": p.get("radius", 50),
-                    "top_extension": p.get("top_extension", 100),
-                    "bottom_extension": p.get("bottom_extension", 100),
-                }
+                unit_price = float(p.get("unit_price", 0))
 
-                result = pricing.calculate_product_price_detailed(data)
-                steps = result["steps"]
+                # Якщо ціна відома — розбиваємо як в прайс-листі
+                if unit_price > 0:
+                    full_cost = unit_price / 1.3
+                    material = full_cost * 0.75
+                    labor = full_cost * 0.10
 
-                if len(steps) >= 7:
-                    after_waste = steps[1]["value"]
-                    labor = steps[2]["value"]
-                    after_labor = steps[3]["value"]
-                    after_depr = steps[4]["value"]
-                    elec = steps[5]["value"]
-                    final_price = steps[6]["value"]
-
-                    total_material += after_waste * qty
+                    total_material += material * qty
                     total_labor += labor * qty
-                    total_depreciation += (after_depr - after_labor) * qty
-                    total_electricity += elec * qty
-                    total_customer_price += final_price * qty
+                    total_customer_price += unit_price * qty
+                else:
+                    # Ціна невідома — використовуємо PricingSettings
+                    data = {
+                        "type": p.get("product_type", ""),
+                        "material": p.get("material", "оцинкована сталь"),
+                        "thickness": p.get("thickness", 0.7),
+                        "metal_area_m2": p.get("metal_area_m2", 0),
+                        "weight_kg": p.get("weight_kg", 0),
+                        "quantity": qty,
+                        "width": p.get("width", 0),
+                        "height": p.get("height", 0),
+                        "length": p.get("length", 0),
+                        "profile": p.get("profile", 30.0),
+                        "angle": p.get("angle", 90),
+                        "radius": p.get("radius", 50),
+                        "top_extension": p.get("top_extension", 100),
+                        "bottom_extension": p.get("bottom_extension", 100),
+                    }
 
-            cost_price = (
-                total_material + total_labor + total_depreciation + total_electricity
-            )
+                    result = pricing.calculate_product_price_detailed(data)
+                    steps = result["steps"]
+
+                    if len(steps) >= 7:
+                        after_waste = steps[1]["value"]
+                        labor = steps[2]["value"]
+                        after_labor = steps[3]["value"]
+                        after_depr = steps[4]["value"]
+                        elec = steps[5]["value"]
+                        final_price = steps[6]["value"]
+
+                        total_material += after_waste * qty
+                        total_labor += labor * qty
+                        total_depreciation += (after_depr - after_labor) * qty
+                        total_electricity += elec * qty
+                        total_customer_price += final_price * qty
+
+            cost_price = total_material + total_labor + total_depreciation + total_electricity
             customer_price = total_customer_price
             profit = customer_price - cost_price
 
@@ -548,7 +562,7 @@ class SpecificationTab:
                 "cost_price": 0,
                 "salary_total": 0,
                 "profit": 0,
-                "markup": pricing.markup_percent if 'pricing' in dir() else 30,
+                "markup": 30,
             }
 
     def _auto_save_to_archive(self, products: list[dict]):

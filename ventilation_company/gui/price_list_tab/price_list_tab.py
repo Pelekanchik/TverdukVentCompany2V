@@ -149,17 +149,18 @@ class PriceListTab:
             "total": 80, "profit": 70, "supplier": 90, "notes": 100
         }
 
+        # === ЗАМОВНИК: без колонки "Тип", назва = product_type (без розмірів) ===
         self.customer_columns = (
-            "num", "name", "type", "dimensions", "material", "thickness",
+            "num", "name", "dimensions", "material", "thickness",
             "unit", "qty", "unit_price", "total", "notes"
         )
         self.customer_headings = {
-            "num": "№", "name": "Назва", "type": "Тип", "dimensions": "Розміри",
+            "num": "№", "name": "Назва", "dimensions": "Розміри",
             "material": "Матеріал", "thickness": "Товщ.", "unit": "Од.",
             "qty": "К-ть", "unit_price": "Ціна за од.", "total": "Загальна", "notes": "Примітки"
         }
         self.customer_widths = {
-            "num": 35, "name": 200, "type": 120, "dimensions": 120,
+            "num": 35, "name": 200, "dimensions": 120,
             "material": 100, "thickness": 50, "unit": 45, "qty": 50,
             "unit_price": 90, "total": 90, "notes": 150
         }
@@ -249,8 +250,9 @@ class PriceListTab:
                     f"{item.profit:.2f}", item.supplier, item.notes_internal,
                 )
             else:
+                # === ЗАМОВНИК: назва = display_name (product_type без розмірів), без колонки "Тип" ===
                 values = (
-                    i, item.name, item.product_type, item.dimensions,
+                    i, item.display_name, item.dimensions,
                     item.material, item.thickness, item.unit, item.quantity,
                     f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
                     item.notes_public,
@@ -437,9 +439,6 @@ class PriceListTab:
                         notes_public=vars_dict["notes_public"].get(),
                     )
                     self.manager.add(new_item)
-
-                self._refresh_tree()
-                dialog.destroy()
 
                 self._refresh_tree()
                 dialog.destroy()
