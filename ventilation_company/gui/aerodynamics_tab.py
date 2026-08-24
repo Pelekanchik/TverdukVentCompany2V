@@ -28,21 +28,27 @@ class AerodynamicsTab:
         self._build_ui()
 
     def _build_ui(self):
+        # ── Налаштування grid для головного фрейму ──
+        self.frame.columnconfigure(1, weight=1)  # середня панель розтягується
+        self.frame.rowconfigure(0, weight=1)
+
+        # ═══════════════════════════════════════════
         # ── Ліва панель: параметри траси ──
+        # ═══════════════════════════════════════════
         left = ttk.LabelFrame(self.frame, text="Параметри траси", padding=10)
-        left.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        left.grid(row=0, column=0, sticky="ns", padx=5, pady=5)
 
         # Назва траси
         ttk.Label(left, text="Назва траси:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.route_name_var = tk.StringVar(value="Траса 1")
-        ttk.Entry(left, textvariable=self.route_name_var, width=25).grid(row=0, column=1, pady=2)
+        ttk.Entry(left, textvariable=self.route_name_var, width=22).grid(row=0, column=1, pady=2)
 
         # Тип системи
         ttk.Label(left, text="Тип системи:").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.system_type_var = tk.StringVar(value="припливна")
         ttk.Combobox(left, textvariable=self.system_type_var,
                      values=["припливна", "витяжна", "димовидалення"],
-                     state="readonly", width=22).grid(row=1, column=1, pady=2)
+                     state="readonly", width=19).grid(row=1, column=1, pady=2)
 
         # Повітряний потік
         ttk.Label(left, text="Повітряний потік (м³/год):").grid(row=2, column=0, sticky=tk.W, pady=2)
@@ -54,7 +60,7 @@ class AerodynamicsTab:
         self.shape_var = tk.StringVar(value="прямокутний")
         ttk.Combobox(left, textvariable=self.shape_var,
                      values=["прямокутний", "круглий"],
-                     state="readonly", width=22).grid(row=3, column=1, pady=2)
+                     state="readonly", width=19).grid(row=3, column=1, pady=2)
 
         # Розміри
         ttk.Label(left, text="Ширина / D (мм):").grid(row=4, column=0, sticky=tk.W, pady=2)
@@ -77,58 +83,77 @@ class AerodynamicsTab:
         ttk.Button(left, text="📊 Розрахувати", command=self._calculate).grid(row=9, column=0, columnspan=2, pady=5, sticky=tk.EW)
         ttk.Button(left, text="🔄 Очистити", command=self._clear).grid(row=10, column=0, columnspan=2, pady=3, sticky=tk.EW)
 
+        # ═══════════════════════════════════════════
         # ── Середня панель: ділянки та фітинги ──
+        # ═══════════════════════════════════════════
         mid = ttk.Frame(self.frame)
-        mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        mid.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        mid.columnconfigure(0, weight=1)
+        mid.rowconfigure(0, weight=1)
+        mid.rowconfigure(1, weight=1)
 
         # Таблиця ділянок
         sec_frame = ttk.LabelFrame(mid, text="Ділянки повітропроводу", padding=5)
-        sec_frame.pack(fill=tk.X, pady=2)
+        sec_frame.grid(row=0, column=0, sticky="nsew", pady=2)
+        sec_frame.columnconfigure(0, weight=1)
+        sec_frame.rowconfigure(0, weight=1)
 
         sec_cols = ("№", "Назва", "L (м)", "Шир (мм)", "Вис (мм)", "Форма", "Q (м³/год)", "V (м/с)", "Δp (Па)")
-        self.sec_tree = ttk.Treeview(sec_frame, columns=sec_cols, show="headings", height=6)
+        self.sec_tree = ttk.Treeview(sec_frame, columns=sec_cols, show="headings", height=5)
         for c in sec_cols:
             self.sec_tree.heading(c, text=c)
-            self.sec_tree.column(c, width=70, anchor=tk.CENTER)
-        self.sec_tree.column("Назва", width=100)
-        self.sec_tree.pack(fill=tk.X)
+            self.sec_tree.column(c, width=55, anchor=tk.CENTER, minwidth=45)
+        self.sec_tree.column("Назва", width=80, minwidth=60)
+        self.sec_tree.column("Q (м³/год)", width=75, minwidth=60)
+        self.sec_tree.grid(row=0, column=0, sticky="nsew")
+        sec_scroll = ttk.Scrollbar(sec_frame, orient=tk.VERTICAL, command=self.sec_tree.yview)
+        sec_scroll.grid(row=0, column=1, sticky="ns")
+        self.sec_tree.configure(yscrollcommand=sec_scroll.set)
 
         # Додавання фітингів
         fit_frame = ttk.LabelFrame(mid, text="Місцеві опори (фітинги)", padding=5)
-        fit_frame.pack(fill=tk.X, pady=5)
+        fit_frame.grid(row=1, column=0, sticky="nsew", pady=5)
+        fit_frame.columnconfigure(0, weight=1)
+        fit_frame.rowconfigure(1, weight=1)
 
         fit_input = ttk.Frame(fit_frame)
-        fit_input.pack(fill=tk.X)
+        fit_input.grid(row=0, column=0, sticky="ew")
 
         ttk.Label(fit_input, text="Тип:").pack(side=tk.LEFT, padx=2)
         self.fit_type_var = tk.StringVar(value="відвід 90°")
         ttk.Combobox(fit_input, textvariable=self.fit_type_var,
-                     values=get_fitting_types(), state="readonly", width=18).pack(side=tk.LEFT, padx=2)
+                     values=get_fitting_types(), state="readonly", width=16).pack(side=tk.LEFT, padx=2)
 
-        ttk.Label(fit_input, text="К-ть:").pack(side=tk.LEFT, padx=(10, 2))
+        ttk.Label(fit_input, text="К-ть:").pack(side=tk.LEFT, padx=(8, 2))
         self.fit_qty_var = tk.IntVar(value=1)
-        ttk.Spinbox(fit_input, from_=1, to=50, textvariable=self.fit_qty_var, width=6).pack(side=tk.LEFT, padx=2)
+        ttk.Spinbox(fit_input, from_=1, to=50, textvariable=self.fit_qty_var, width=5).pack(side=tk.LEFT, padx=2)
 
-        ttk.Label(fit_input, text="Ділянка:").pack(side=tk.LEFT, padx=(10, 2))
+        ttk.Label(fit_input, text="Ділянка:").pack(side=tk.LEFT, padx=(8, 2))
         self.fit_section_var = tk.StringVar(value="1")
         self.fit_section_combo = ttk.Combobox(fit_input, textvariable=self.fit_section_var,
-                                               values=["1"], state="readonly", width=6)
+                                               values=["1"], state="readonly", width=5)
         self.fit_section_combo.pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(fit_input, text="➕ Додати", command=self._add_fitting).pack(side=tk.LEFT, padx=(10, 2))
+        ttk.Button(fit_input, text="➕ Додати", command=self._add_fitting).pack(side=tk.LEFT, padx=(8, 2))
 
         # Таблиця фітингів
         fit_cols = ("№", "Тип", "ζ", "К-ть", "Ділянка", "Δp (Па)")
-        self.fit_tree = ttk.Treeview(fit_frame, columns=fit_cols, show="headings", height=6)
+        self.fit_tree = ttk.Treeview(fit_frame, columns=fit_cols, show="headings", height=5)
         for c in fit_cols:
             self.fit_tree.heading(c, text=c)
-            self.fit_tree.column(c, width=80, anchor=tk.CENTER)
-        self.fit_tree.column("Тип", width=150)
-        self.fit_tree.pack(fill=tk.X)
+            self.fit_tree.column(c, width=55, anchor=tk.CENTER, minwidth=45)
+        self.fit_tree.column("Тип", width=110, minwidth=80)
+        self.fit_tree.column("Ділянка", width=70, minwidth=50)
+        self.fit_tree.grid(row=1, column=0, sticky="nsew")
+        fit_scroll = ttk.Scrollbar(fit_frame, orient=tk.VERTICAL, command=self.fit_tree.yview)
+        fit_scroll.grid(row=1, column=1, sticky="ns")
+        self.fit_tree.configure(yscrollcommand=fit_scroll.set)
 
+        # ═══════════════════════════════════════════
         # ── Права панель: результати ──
-        right = ttk.LabelFrame(self.frame, text="Результати розрахунку", padding=10)
-        right.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        # ═══════════════════════════════════════════
+        right = ttk.LabelFrame(self.frame, text="Результати розрахунку", padding=8)
+        right.grid(row=0, column=2, sticky="ns", padx=5, pady=5)
 
         self.result_labels = {}
         result_fields = [
@@ -141,41 +166,43 @@ class AerodynamicsTab:
             ("total_loss_mm", "Втрати тиску:", "мм вод.ст."),
         ]
         for i, (key, text, unit) in enumerate(result_fields):
-            ttk.Label(right, text=text, font=("Arial", 9)).grid(row=i, column=0, sticky=tk.W, pady=3)
+            ttk.Label(right, text=text, font=("Arial", 9)).grid(row=i, column=0, sticky=tk.W, pady=2)
             lbl = ttk.Label(right, text="—", font=("Arial", 10, "bold"))
-            lbl.grid(row=i, column=1, sticky=tk.W, pady=3, padx=5)
-            ttk.Label(right, text=unit, font=("Arial", 8), foreground="#666").grid(row=i, column=2, sticky=tk.W, pady=3)
+            lbl.grid(row=i, column=1, sticky=tk.W, pady=2, padx=3)
+            ttk.Label(right, text=unit, font=("Arial", 8), foreground="#666").grid(row=i, column=2, sticky=tk.W, pady=2)
             self.result_labels[key] = lbl
 
-        ttk.Separator(right, orient=tk.HORIZONTAL).grid(row=len(result_fields), column=0, columnspan=3, sticky=tk.EW, pady=10)
+        ttk.Separator(right, orient=tk.HORIZONTAL).grid(row=len(result_fields), column=0, columnspan=3, sticky=tk.EW, pady=8)
 
         # ── Підбір вентилятора ──
         fan_frame = ttk.LabelFrame(right, text="Підбір вентилятора", padding=5)
         fan_frame.grid(row=len(result_fields)+1, column=0, columnspan=3, sticky=tk.EW, pady=5)
 
-        ttk.Label(fan_frame, text="Тип:").grid(row=0, column=0, sticky=tk.W, padx=2)
-        self.fan_type_var = tk.StringVar(value="будь-який")
-        ttk.Combobox(fan_frame, textvariable=self.fan_type_var,
-                     values=["будь-який"] + get_all_fan_types(), state="readonly", width=15).grid(row=0, column=1, padx=2)
+        fan_input = ttk.Frame(fan_frame)
+        fan_input.grid(row=0, column=0, columnspan=3, sticky="ew")
 
-        ttk.Button(fan_frame, text="🔍 Підібрати", command=self._select_fan).grid(row=0, column=2, padx=5)
+        ttk.Label(fan_input, text="Тип:").pack(side=tk.LEFT, padx=2)
+        self.fan_type_var = tk.StringVar(value="будь-який")
+        ttk.Combobox(fan_input, textvariable=self.fan_type_var,
+                     values=["будь-який"] + get_all_fan_types(), state="readonly", width=12).pack(side=tk.LEFT, padx=2)
+        ttk.Button(fan_input, text="🔍 Підібрати", command=self._select_fan).pack(side=tk.LEFT, padx=5)
 
         self.fan_result_var = tk.StringVar(value="Вентилятор не підібрано")
         ttk.Label(fan_frame, textvariable=self.fan_result_var, font=("Arial", 9, "bold"),
-                  foreground="#0066cc", wraplength=250).grid(row=1, column=0, columnspan=3, pady=5)
+                  foreground="#0066cc", wraplength=180).grid(row=1, column=0, columnspan=3, pady=3, sticky="ew")
 
         self.fan_details_var = tk.StringVar(value="")
         ttk.Label(fan_frame, textvariable=self.fan_details_var, font=("Arial", 8),
-                  foreground="#666", wraplength=250).grid(row=2, column=0, columnspan=3)
+                  foreground="#666", wraplength=180).grid(row=2, column=0, columnspan=3, sticky="ew")
 
         # ── Підказка ──
         hint = ttk.Label(
             self.frame,
             text="💡 Введіть параметри траси → додайте ділянки → додайте фітинги → натисніть «Розрахувати». "
                  "Потім підберіть вентилятор. ζ — коефіцієнт місцевого опору.",
-            foreground="#666", font=("Arial", 8)
+            foreground="#666", font=("Arial", 8), wraplength=900
         )
-        hint.pack(anchor=tk.W, padx=5, pady=2)
+        hint.grid(row=1, column=0, columnspan=3, sticky="w", padx=5, pady=2)
 
         # ── Внутрішні списки ──
         self.sections: list[DuctSection] = []
