@@ -1,7 +1,10 @@
 """Головне вікно додатку VentCompany — Compact Header Edition."""
 
+import json
 import os
+import sys
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from ventilation_company.gui.cabinet_tab import CabinetTab
@@ -192,7 +195,6 @@ class MainWindow:
         if messagebox.askyesno("Вихід", "Вийти з системи?"):
             auth.logout()
             self.root.destroy()
-            import sys
             os.execl(sys.executable, sys.executable, *sys.argv)
 
     def _build_menu(self):
@@ -453,9 +455,6 @@ class MainWindow:
         return self.products_tab.get_standard_products()
 
     def _set_products(self, products):
-        return self.products_tab.get_products_dict()
-
-    def _set_products(self, products):
         self.products_tab.load_products_from_dict(products)
 
     def _get_project_info(self):
@@ -506,7 +505,7 @@ class MainWindow:
             )
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
             self.price_list_tab._current_project_id = self.current_project_id
-            
+
             # === ЕТАП 7: Оновлюємо 3D-вкладку ===
             self.project_3d_tab.set_project({
                 "products": products,
@@ -537,7 +536,7 @@ class MainWindow:
                 idx = sel[0]
                 project_id = projects[idx]["id"]
                 self._load_project_data(project_id)
-                
+
                 # === ЕТАП 7: Оновлюємо 3D-вкладку ===
                 try:
                     products = self._get_products()

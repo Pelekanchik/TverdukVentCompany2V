@@ -53,7 +53,6 @@ ARCHIVE_DIR = "data/archive"
 
 
 @dataclass
-
 class PriceItem:
     """Одна позиція прайсу."""
 
@@ -96,7 +95,12 @@ class PriceItem:
             base = self.supplier_price
         else:
             base = self.cost_price + self.labor_cost + self.overhead_cost
-        self.unit_price = money_round(base * Decimal(str(1 + self.markup_percent / 100)))
+        # Для виробів з вкладки "Вироби" зберігаємо оригінальну ціну,
+        # якщо вона вже задана і більше 0
+        if self.source == "products" and self.unit_price > 0:
+            pass  # не змінюємо unit_price
+        else:
+            self.unit_price = money_round(base * Decimal(str(1 + self.markup_percent / 100)))
         self.total_price = money_round(self.unit_price * Decimal(str(self.quantity)))
 
     @property
@@ -108,6 +112,13 @@ class PriceItem:
             base = self.cost_price + self.labor_cost + self.overhead_cost
         return money_round((self.unit_price - base) * Decimal(str(self.quantity)))
 
+    @property
+    def display_name(self) -> str:
+        """Назва для замовника — тип виробу без розмірів."""
+        if self.product_type:
+            return self.product_type
+        return self.name
+
     def to_dict(self) -> dict:
         data = asdict(self)
         # Конвертуємо Decimal в float для JSON-серіалізації
@@ -115,7 +126,6 @@ class PriceItem:
             if isinstance(value, Decimal):
                 data[key] = float(value)
         return data
-        return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "PriceItem":
@@ -226,164 +236,121 @@ class PriceListManager:
         """Імпортувати вироби з вкладки 'Вироби' для конкретного проєкту."""
         imported = 0
         updated = 0
-        
-        try:
-            from ventilation_company.gui.settings_tab import PricingSettings
-            pricing = PricingSettings()
-        except Exception:
-            pricing = None
-        
+
         for p in products:
             name = p.get("name", "Виріб")
-            
-            # Розрахунок складових ціни через PricingSettings
-            unit_price = p.get("unit_price", 0)
-            labor = 0
-            overhead_total = 0
-            cost_price = 0
-            
-            if pricing and p.get("metal_area_m2", 0) > 0:
-                try:
-                    data = {
-                        "type": p.get("product_type", p.get("type", "")),
-                        "material": p.get("material", "оцинкована сталь"),
-                        "thickness": p.get("thickness", 0.5),
-                        "metal_area_m2": p.get("metal_area_m2", 0),
-                        "weight_kg": p.get("weight_kg", 0),
-                        "quantity": p.get("quantity", 1),
-                        "width": p.get("width", 0),
-                        "height": p.get("height", 0),
-                        "length": p.get("length", 0),
-                        "profile": p.get("profile", 30.0),
-                        "angle": p.get("angle", 90),
-                        "radius": p.get("radius", 50),
-                        "top_extension": p.get("top_extension", 100),
-                        "bottom_extension": p.get("bottom_extension", 100),
+
+            def _to_float(val, default=0.0):
+                if val is None: return default
+                if isinstance(val, (int, float)): return float(val)
+                if hasattr(val, "__float__"): return float(val)
+                try: return float(str(val).replace(",", "."))
+                except: return default
+
+            def _to_str(val):
+                if val is None: return ""
+                if isinstance(val, str): return val
+                if hasattr(val, "value"): return str(val.value)
+                return str(val)
+
+            unit_price = _to_float(p.get("unit_price"), 0)
+            quantity = int(_to_float(p.get("quantity"), 1))
+            thickness = _to_float(p.get("thickness"), 0)
+            metal_area = _to_float(p.get("metal_area_m2"), 0)
+            width = _to_float(p.get("width"), 0)
+            height = _to_float(p.get("height"), 0)
+            length = _to_float(p.get("length"), 0)
+            material = _to_str(p.get("material", "оцинкована сталь"))
+            product_type = _to_str(p.get("product_type", p.get("type", "")))
+
+            # === ЯКЩО ЦІНА ВІДОМА З ВИРОБУ — РОЗБИВАЄМО НА СКЛАДОВІ БЕЗ PricingSettings ===
+            if unit_price > 0:
+                # Ціна з виробу вже включає націнку 30%
+                # Розбиваємо собівартість (ціна/1.3) на складові:
+                #   75% — матеріал (cost_price)
+                #   10% — робота
+                #   15% — накладні
+                full_cost = unit_price / 1.3
+                cost_price = Decimal(str(full_cost * 0.75))   # тільки матеріал
+                labor = float(full_cost) * 0.10               # робота
+                overhead_total = float(full_cost) * 0.15      # накладні
+            else:
+                # Ціна невідома — розраховуємо fallback
+                cost_price = Decimal("0")
+                labor = 0.0
+                overhead_total = 0.0
+                if metal_area > 0:
+                    material_prices = {
+                        "оцинкована сталь": {0.5: 260, 0.7: 380, 0.9: 520, 1.0: 750, 1.2: 900},
+                        "нержавіюча сталь": {0.5: 350, 0.7: 500, 0.9: 700, 1.0: 1000, 1.2: 1200},
+                        "алюміній": {0.5: 200, 0.7: 300, 0.9: 400, 1.0: 550, 1.2: 700},
                     }
-                    result = pricing.calculate_product_price_detailed(data)
-                    steps = result["steps"]
-                    
-                    if len(steps) >= 7:
-                        after_waste = steps[1][1]
-                        after_labor = steps[3][1]
-                        after_depr = steps[4][1]
-                        after_elec = steps[5][1]
-                        after_overhead = steps[6][1]
-                        final_price = steps[7][1] if len(steps) > 7 else after_overhead
-                        
-                        labor = after_labor - after_waste          # чиста робота
-                        depreciation = after_depr - after_labor    # амортизація
-                        electricity = after_elec - after_depr      # електроенергія
-                        overhead = after_overhead - after_elec     # накладні
-                        
-                        unit_price = final_price
-                        cost_price = after_overhead
-                        overhead_total = depreciation + electricity + overhead
-                except Exception:
-                    pass  # використаємо fallback
-            
-            # Fallback: розрахунок ціни з матеріалу (якщо PricingSettings не спрацював)
-            metal_area = p.get("metal_area_m2", 0)
-            if metal_area > 0:
-                material = p.get("material", "оцинкована сталь")
-                thickness = p.get("thickness", 0.5)
-                material_prices = {
-                    "оцинкована сталь": {0.5: 260, 0.7: 380, 0.9: 520, 1.0: 750, 1.2: 900},
-                    "нержавіюча сталь": {0.5: 350, 0.7: 500, 0.9: 700, 1.0: 1000, 1.2: 1200},
-                    "алюміній": {0.5: 200, 0.7: 300, 0.9: 400, 1.0: 550, 1.2: 700},
-                }
-                price_per_m2 = material_prices.get(material, {}).get(thickness, 260)
-                type_coef = {
-                    "rect_duct": 1.15, "round_duct": 1.20,
-                    "rect_flange": 1.30, "round_flange": 1.30,
-                    "rect_tee": 1.50, "round_tee": 1.55,
-                    "rect_transition": 1.40, "round_transition": 1.45,
-                    "rect_elbow": 1.60, "round_elbow": 1.65,
-                    "rect_cap": 1.25, "round_cap": 1.25,
-                    "flexible": 1.0,
-                }
-                coef = type_coef.get(p.get("product_type", ""), 1.3)
-                calc_unit_price = metal_area * price_per_m2 * coef
-                calc_cost_price = calc_unit_price / 1.3
-                # Розподіляємо собівартість: ~75% матеріали, 10% робота, 15% накладні
-                calc_labor = calc_cost_price * 0.10
-                calc_overhead = calc_cost_price * 0.15
-                # Використовуємо розрахунок тільки якщо немає кращих даних
-                if unit_price == 0:
-                    unit_price = calc_unit_price
-                    cost_price = calc_cost_price
-                if labor == 0:
-                    labor = calc_labor
-                if overhead_total == 0:
-                    overhead_total = calc_overhead
-                cost_price = unit_price / 1.3
-            
-            total_price = unit_price * p.get("quantity", 1)
-            
-            # Конвертуємо в Decimal для безпечної роботи
-            unit_price = Decimal(str(unit_price))
-            cost_price = Decimal(str(cost_price))
-            labor = Decimal(str(labor))
-            overhead_total = Decimal(str(overhead_total))
-            total_price = Decimal(str(total_price))
-            
-            # Шукаємо існуючий виріб
+                    price_per_m2 = material_prices.get(material, {}).get(thickness, 260)
+                    type_coef = {
+                        "rect_duct": 1.15, "round_duct": 1.20,
+                        "rect_flange": 1.30, "round_flange": 1.30,
+                        "rect_tee": 1.50, "round_tee": 1.55,
+                        "rect_transition": 1.40, "round_transition": 1.45,
+                        "rect_elbow": 1.60, "round_elbow": 1.65,
+                        "rect_cap": 1.25, "round_cap": 1.25,
+                        "flexible": 1.0,
+                    }
+                    coef = type_coef.get(product_type, 1.3)
+                    unit_price = metal_area * price_per_m2 * coef
+                    full_cost = unit_price / 1.3
+                    cost_price = Decimal(str(full_cost * 0.75))
+                    labor = float(full_cost) * 0.10
+                    overhead_total = float(full_cost) * 0.15
+
+            total_price = unit_price * quantity
+
+            dims = f"{width}×{height}×{length}" if length else f"{width}×{height}"
+
+            unit_price_d = Decimal(str(unit_price))
+            cost_price_d = Decimal(str(cost_price))
+            labor_d = Decimal(str(labor))
+            overhead_d = Decimal(str(overhead_total))
+            total_price_d = Decimal(str(total_price))
+
             existing = None
             for i in self.items:
                 if i.name == name and i.source == "products" and i.project_id == str(project_id):
                     existing = i
                     break
-            
+
             if existing:
-                existing.unit_price = unit_price
-                existing.total_price = total_price
-                existing.cost_price = cost_price
-                existing.labor_cost = labor
-                existing.overhead_cost = overhead_total
-                existing.quantity = p.get("quantity", 1)
-                existing.dimensions = p.get("dimensions", "")
-                existing.material = p.get("material", "")
-                existing.thickness = p.get("thickness", 0)
+                existing.unit_price = unit_price_d
+                existing.total_price = total_price_d
+                existing.cost_price = cost_price_d
+                existing.labor_cost = labor_d
+                existing.overhead_cost = overhead_d
+                existing.quantity = quantity
+                existing.dimensions = dims
+                existing.material = material
+                existing.thickness = thickness
                 existing.recalculate()
-                updated += 1
-            existing = None
-            for i in self.items:
-                if i.name == name and i.source == "products" and i.project_id == str(project_id):
-                    existing = i
-                    break
-            
-            if existing:
-                existing.unit_price = unit_price
-                existing.total_price = total_price
-                existing.cost_price = cost_price
-                existing.labor_cost = labor
-                existing.overhead_cost = overhead_total
-                existing.quantity = p.get("quantity", 1)
-                existing.dimensions = p.get("dimensions", "")
-                existing.material = p.get("material", "")
-                existing.thickness = p.get("thickness", 0)
                 updated += 1
             else:
                 item = PriceItem(
                     name=name,
                     category="власне виробництво",
-                    product_type=p.get("product_type", p.get("type", "")),
-                    dimensions=p.get("dimensions", ""),
-                    material=p.get("material", ""),
-                    thickness=p.get("thickness", 0),
+                    product_type=product_type,
+                    dimensions=dims,
+                    material=material,
+                    thickness=thickness,
                     unit="шт",
-                    quantity=p.get("quantity", 1),
-                    cost_price=cost_price,
-                    labor_cost=labor,
-                    overhead_cost=overhead_total,
-                    unit_price=unit_price,
-                    total_price=total_price,
+                    quantity=quantity,
+                    cost_price=cost_price_d,
+                    labor_cost=labor_d,
+                    overhead_cost=overhead_d,
+                    unit_price=unit_price_d,
+                    total_price=total_price_d,
                     source="products",
                     project_id=str(project_id),
                 )
                 self.items.append(item)
                 imported += 1
-        
+
         if imported > 0 or updated > 0:
             self.save()
         return imported

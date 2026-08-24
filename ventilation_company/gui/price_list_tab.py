@@ -100,6 +100,13 @@ class PriceItem:
             base = self.cost_price + self.labor_cost + self.overhead_cost
         return (self.unit_price - base) * self.quantity
 
+    @property
+    def display_name(self) -> str:
+        """Назва для замовника — без розмірів."""
+        if self.product_type:
+            return self.product_type.capitalize()
+        return self.name
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -196,67 +203,96 @@ class PriceListManager:
         """Імпортувати вироби з вкладки 'Вироби' для конкретного проєкту."""
         imported = 0
         updated = 0
-        
+
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
             pricing = PricingSettings()
         except Exception:
             pricing = None
-        
+
         for p in products:
             name = p.get("name", "Виріб")
-            
-            # Розрахунок складових ціни через PricingSettings
-            unit_price = p.get("unit_price", 0)
-            labor = 0
-            overhead_total = 0
-            cost_price = 0
-            
+
+            # === КОНВЕРТАЦІЯ ТИПІВ (Decimal/Enum → float/str) ===
+            def _to_float(val, default=0.0):
+                if val is None:
+                    return default
+                if isinstance(val, (int, float)):
+                    return float(val)
+                if hasattr(val, "__float__"):  # Decimal
+                    return float(val)
+                try:
+                    return float(str(val).replace(",", "."))
+                except (ValueError, TypeError):
+                    return default
+
+            def _to_str(val):
+                if val is None:
+                    return ""
+                if isinstance(val, str):
+                    return val
+                # Enum → .value
+                if hasattr(val, "value"):
+                    return str(val.value)
+                return str(val)
+
+            unit_price = _to_float(p.get("unit_price"), 0)
+            quantity = int(_to_float(p.get("quantity"), 1))
+            thickness = _to_float(p.get("thickness"), 0)
+            metal_area = _to_float(p.get("metal_area_m2"), 0)
+            weight = _to_float(p.get("weight_kg"), 0)
+            width = _to_float(p.get("width"), 0)
+            height = _to_float(p.get("height"), 0)
+            length = _to_float(p.get("length"), 0)
+            material = _to_str(p.get("material", "оцинкована сталь"))
+            product_type = _to_str(p.get("product_type", p.get("type", "")))
+
+            labor = 0.0
+            overhead_total = 0.0
+            cost_price = 0.0
+
             if pricing and p.get("metal_area_m2", 0) > 0:
                 try:
                     data = {
-                        "type": p.get("product_type", p.get("type", "")),
-                        "material": p.get("material", "оцинкована сталь"),
-                        "thickness": p.get("thickness", 0.5),
-                        "metal_area_m2": p.get("metal_area_m2", 0),
-                        "weight_kg": p.get("weight_kg", 0),
-                        "quantity": p.get("quantity", 1),
-                        "width": p.get("width", 0),
-                        "height": p.get("height", 0),
-                        "length": p.get("length", 0),
-                        "profile": p.get("profile", 30.0),
-                        "angle": p.get("angle", 90),
-                        "radius": p.get("radius", 50),
-                        "top_extension": p.get("top_extension", 100),
-                        "bottom_extension": p.get("bottom_extension", 100),
+                        "type": product_type,
+                        "material": material,
+                        "thickness": thickness,
+                        "metal_area_m2": metal_area,
+                        "weight_kg": weight,
+                        "quantity": quantity,
+                        "width": width,
+                        "height": height,
+                        "length": length,
+                        "profile": _to_float(p.get("profile"), 30.0),
+                        "angle": _to_float(p.get("angle"), 90),
+                        "radius": _to_float(p.get("radius"), 50),
+                        "top_extension": _to_float(p.get("top_extension"), 100),
+                        "bottom_extension": _to_float(p.get("bottom_extension"), 100),
                     }
                     result = pricing.calculate_product_price_detailed(data)
-                    steps = result["steps"]
-                    
+                    steps = result["steps"]  # list of dicts: {"name": ..., "calc": ..., "value": ...}
+
                     if len(steps) >= 7:
-                        after_waste = steps[1][1]
-                        after_labor = steps[3][1]
-                        after_depr = steps[4][1]
-                        after_elec = steps[5][1]
-                        after_overhead = steps[6][1]
-                        final_price = steps[7][1] if len(steps) > 7 else after_overhead
-                        
+                        after_waste = steps[1]["value"]
+                        after_labor = steps[3]["value"]
+                        after_depr = steps[4]["value"]
+                        after_elec = steps[5]["value"]
+                        after_overhead = steps[6]["value"]
+                        final_price = steps[7]["value"] if len(steps) > 7 else after_overhead
+
                         labor = after_labor - after_waste          # чиста робота
-                        depreciation = after_depr - after_labor    # амортизація
-                        electricity = after_elec - after_depr      # електроенергія
-                        overhead = after_overhead - after_elec     # накладні
-                        
+                        depreciation = after_depr - after_labor      # амортизація
+                        electricity = after_elec - after_depr        # електроенергія
+                        overhead = after_overhead - after_elec       # накладні
+
                         unit_price = final_price
                         cost_price = after_overhead
                         overhead_total = depreciation + electricity + overhead
-                except Exception:
-                    pass  # використаємо fallback
-            
+                except Exception as e:
+                    print(f"[PriceList] PricingSettings failed: {e}, using fallback")
+
             # Fallback, якщо PricingSettings не спрацював
-            if unit_price == 0 and p.get("metal_area_m2", 0) > 0:
-                metal_area = p.get("metal_area_m2", 0)
-                material = p.get("material", "оцинкована сталь")
-                thickness = p.get("thickness", 0.5)
+            if unit_price == 0 and metal_area > 0:
                 material_prices = {
                     "оцинкована сталь": {0.5: 260, 0.7: 380, 0.9: 520, 1.0: 750, 1.2: 900},
                     "нержавіюча сталь": {0.5: 350, 0.7: 500, 0.9: 700, 1.0: 1000, 1.2: 1200},
@@ -272,40 +308,46 @@ class PriceListManager:
                     "rect_cap": 1.25, "round_cap": 1.25,
                     "flexible": 1.0,
                 }
-                coef = type_coef.get(p.get("product_type", ""), 1.3)
+                coef = type_coef.get(product_type, 1.3)
                 unit_price = metal_area * price_per_m2 * coef
-                cost_price = unit_price / 1.3
-            
-            total_price = unit_price * p.get("quantity", 1)
-            
+                # Розбиваємо fallback на складові
+                labor = unit_price * 0.15
+                overhead_total = unit_price * 0.10
+                cost_price = unit_price - labor - overhead_total
+
+            total_price = unit_price * quantity
+
+            # Формуємо розміри з width/height/length
+            dims = f"{width}×{height}×{length}" if length else f"{width}×{height}"
+
             # Шукаємо існуючий виріб
             existing = None
             for i in self.items:
                 if i.name == name and i.source == "products" and i.project_id == str(project_id):
                     existing = i
                     break
-            
+
             if existing:
                 existing.unit_price = unit_price
                 existing.total_price = total_price
                 existing.cost_price = cost_price
                 existing.labor_cost = labor
                 existing.overhead_cost = overhead_total
-                existing.quantity = p.get("quantity", 1)
-                existing.dimensions = p.get("dimensions", "")
-                existing.material = p.get("material", "")
-                existing.thickness = p.get("thickness", 0)
+                existing.quantity = quantity
+                existing.dimensions = dims
+                existing.material = material
+                existing.thickness = thickness
                 updated += 1
             else:
                 item = PriceItem(
                     name=name,
                     category="власне виробництво",
-                    product_type=p.get("product_type", p.get("type", "")),
-                    dimensions=p.get("dimensions", ""),
-                    material=p.get("material", ""),
-                    thickness=p.get("thickness", 0),
+                    product_type=product_type,
+                    dimensions=dims,
+                    material=material,
+                    thickness=thickness,
                     unit="шт",
-                    quantity=p.get("quantity", 1),
+                    quantity=quantity,
                     cost_price=cost_price,
                     labor_cost=labor,
                     overhead_cost=overhead_total,
@@ -316,7 +358,7 @@ class PriceListManager:
                 )
                 self.items.append(item)
                 imported += 1
-        
+
         if imported > 0 or updated > 0:
             self.save()
         return imported
@@ -442,6 +484,7 @@ class PriceListManager:
             self.save()
         return imported
 
+
 class PriceListExporter:
     """Експорт прайс-листа у різні формати."""
 
@@ -466,12 +509,12 @@ class PriceListExporter:
                 ])
         else:
             writer.writerow([
-                "№", "Назва", "Тип", "Розміри", "Матеріал", "Товщ.",
+                "№", "Назва", "Розміри", "Матеріал", "Товщ.",
                 "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
             ])
             for i, item in enumerate(items, 1):
                 writer.writerow([
-                    i, item.name, item.product_type, item.dimensions,
+                    i, item.display_name, item.dimensions,
                     item.material, item.thickness, item.unit, item.quantity,
                     f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
                     item.notes_public,
@@ -500,7 +543,7 @@ class PriceListExporter:
             ]
         else:
             headers = [
-                "№", "Назва", "Тип", "Розміри", "Матеріал", "Товщ. (мм)",
+                "№", "Назва", "Розміри", "Матеріал", "Товщ. (мм)",
                 "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
             ]
         for col, header in enumerate(headers, 1):
@@ -520,7 +563,7 @@ class PriceListExporter:
                 ]
             else:
                 values = [
-                    row - 1, item.name, item.product_type, item.dimensions,
+                    row - 1, item.display_name, item.dimensions,
                     item.material, item.thickness, item.unit, item.quantity,
                     item.unit_price, item.total_price, item.notes_public,
                 ]
@@ -545,7 +588,7 @@ class PriceListExporter:
             ws.cell(row=total_row, column=15, value=sum(i.total_price for i in items)).font = Font(bold=True)
             ws.cell(row=total_row, column=16, value=sum(i.profit for i in items)).font = Font(bold=True)
         else:
-            ws.cell(row=total_row, column=10, value=sum(i.total_price for i in items)).font = Font(bold=True)
+            ws.cell(row=total_row, column=9, value=sum(i.total_price for i in items)).font = Font(bold=True)
         wb.save(filepath)
 
     @staticmethod
@@ -553,7 +596,7 @@ class PriceListExporter:
         if not HAVE_REPORTLAB:
             raise ImportError("Встановіть reportlab: pip install reportlab")
         doc = SimpleDocTemplate(
-            filepath, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
+            filepath, pagesize=A4, rightMargin=10 * mm, leftMargin=10 * mm,
             topMargin=15 * mm, bottomMargin=15 * mm
         )
         styles = getSampleStyleSheet()
@@ -569,25 +612,29 @@ class PriceListExporter:
         ))
         story.append(Spacer(1, 10))
         if internal:
-            headers = ["№", "Назва", "Кат.", "Тип", "Розміри", "Мат.", "Товщ.", "К-ть", "Ціна", "Сума"]
+            headers = ["№", "Назва", "Кат.", "Тип", "Розміри", "Мат.", "Товщ.", "К-ть",
+                       "Собіварт.", "Роботи", "Накладні", "Націнка%", "Ціна", "Сума", "Прибуток", "Постач."]
             data = [headers]
             for i, item in enumerate(items, 1):
                 data.append([
-                    str(i), item.name[:25], item.category[:8], item.product_type[:12],
-                    item.dimensions[:15], item.material[:10], str(item.thickness),
-                    str(item.quantity), f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
+                    str(i), item.name[:22], item.category[:8], item.product_type[:10],
+                    item.dimensions[:12], item.material[:8], str(item.thickness),
+                    str(item.quantity), f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
+                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}%",
+                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
+                    f"{item.profit:.2f}", item.supplier[:8] or "—",
                 ])
-            col_widths = [20, 90, 40, 60, 60, 50, 30, 30, 50, 50]
+            col_widths = [18, 75, 35, 45, 45, 38, 28, 25, 40, 35, 35, 32, 38, 38, 38, 38]
         else:
-            headers = ["№", "Назва", "Тип", "Розміри", "Матеріал", "Товщ.", "К-ть", "Ціна", "Сума"]
+            headers = ["№", "Назва", "Розміри", "Матеріал", "Товщ.", "К-ть", "Ціна", "Сума"]
             data = [headers]
             for i, item in enumerate(items, 1):
                 data.append([
-                    str(i), item.name[:30], item.product_type[:15], item.dimensions[:20],
+                    str(i), item.display_name[:30], item.dimensions[:18],
                     item.material[:12], str(item.thickness), str(item.quantity),
                     f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
                 ])
-            col_widths = [25, 110, 70, 80, 60, 35, 35, 55, 55]
+            col_widths = [22, 110, 70, 60, 35, 35, 55, 55]
         table = Table(data, colWidths=col_widths, repeatRows=1)
         table_style = TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1565C0")),
@@ -595,8 +642,8 @@ class PriceListExporter:
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("ALIGN", (1, 1), (1, -1), "LEFT"),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 9),
-            ("FONTSIZE", (0, 1), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, 0), 8),
+            ("FONTSIZE", (0, 1), (-1, -1), 7),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -633,14 +680,14 @@ class PriceListExporter:
             for i, item in enumerate(items, 1):
                 rows += f"""
                 <tr>
-                    <td>{i}</td><td>{item.name}</td><td>{item.product_type}</td>
+                    <td>{i}</td><td>{item.display_name}</td>
                     <td>{item.dimensions}</td><td>{item.material}</td><td>{item.thickness}</td>
                     <td>{item.unit}</td><td>{item.quantity}</td>
                     <td>{item.unit_price:.2f}</td><td>{item.total_price:.2f}</td>
                     <td>{item.notes_public}</td>
                 </tr>"""
             headers = """
-                <th>№</th><th>Назва</th><th>Тип</th><th>Розміри</th>
+                <th>№</th><th>Назва</th><th>Розміри</th>
                 <th>Матеріал</th><th>Товщ.</th><th>Од.</th><th>К-ть</th>
                 <th>Ціна од.</th><th>Сума</th><th>Примітки</th>
             """
@@ -774,17 +821,18 @@ class PriceListTab:
             "total": 80, "profit": 70, "supplier": 90, "notes": 100
         }
 
+        # === ЗАМОВНИК: без колонки "Тип" ===
         self.customer_columns = (
-            "num", "name", "type", "dimensions", "material", "thickness",
+            "num", "name", "dimensions", "material", "thickness",
             "unit", "qty", "unit_price", "total", "notes"
         )
         self.customer_headings = {
-            "num": "№", "name": "Назва", "type": "Тип", "dimensions": "Розміри",
+            "num": "№", "name": "Назва", "dimensions": "Розміри",
             "material": "Матеріал", "thickness": "Товщ.", "unit": "Од.",
             "qty": "К-ть", "unit_price": "Ціна за од.", "total": "Загальна", "notes": "Примітки"
         }
         self.customer_widths = {
-            "num": 35, "name": 200, "type": 120, "dimensions": 120,
+            "num": 35, "name": 200, "dimensions": 120,
             "material": 100, "thickness": 50, "unit": 45, "qty": 50,
             "unit_price": 90, "total": 90, "notes": 150
         }
@@ -874,8 +922,9 @@ class PriceListTab:
                     f"{item.profit:.2f}", item.supplier, item.notes_internal,
                 )
             else:
+                # === ЗАМОВНИК: назва без розмірів (product_type), без колонки "Тип" ===
                 values = (
-                    i, item.name, item.product_type, item.dimensions,
+                    i, item.display_name, item.dimensions,
                     item.material, item.thickness, item.unit, item.quantity,
                     f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
                     item.notes_public,

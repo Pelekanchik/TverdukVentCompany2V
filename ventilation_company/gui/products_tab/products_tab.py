@@ -134,6 +134,12 @@ class ProductsTab:
         "2.0 мм": Thickness.T2_0,
     }
 
+    MATERIAL_SHORT = {
+        "оцинкована сталь": "оцинк. сталь",
+        "нержавіюча сталь": "нерж. сталь",
+        "алюміній": "алюм.",
+    }
+
     PROFILE_RECT = {"П20": 20.0, "П30": 30.0}
     PROFILE_ROUND = {"30": 30.0, "40": 40.0}
 
@@ -397,8 +403,7 @@ class ProductsTab:
         self.summary_label.pack(fill=tk.X, pady=(0, 5))
 
         columns = ("type", "dimensions", "material", "thickness", "qty",
-                   "area_unit", "area_total", "blank_unit", "blank_total",
-                   "mat_unit", "mat_total", "price_unit", "price_total")
+                   "area_total", "blank_total", "mat_total", "price_total")
         self.tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=20)
 
         self.tree.heading("type", text="Тип")
@@ -406,28 +411,20 @@ class ProductsTab:
         self.tree.heading("material", text="Матеріал")
         self.tree.heading("thickness", text="Товщ.")
         self.tree.heading("qty", text="К-ть")
-        self.tree.heading("area_unit", text="Поверхня 1шт")
-        self.tree.heading("area_total", text="Поверхня заг.")
-        self.tree.heading("blank_unit", text="Заготівля 1шт")
-        self.tree.heading("blank_total", text="Заготівля заг.")
-        self.tree.heading("mat_unit", text="Матеріал 1шт")
-        self.tree.heading("mat_total", text="Матеріал заг.")
-        self.tree.heading("price_unit", text="Ціна 1шт")
-        self.tree.heading("price_total", text="Ціна заг.")
+        self.tree.heading("area_total", text="Поверхня")
+        self.tree.heading("blank_total", text="Заготівля")
+        self.tree.heading("mat_total", text="Матеріал")
+        self.tree.heading("price_total", text="Ціна")
 
         self.tree.column("type", width=140)
         self.tree.column("dimensions", width=90)
-        self.tree.column("material", width=110)
+        self.tree.column("material", width=100)
         self.tree.column("thickness", width=45, anchor=tk.CENTER)
         self.tree.column("qty", width=45, anchor=tk.CENTER)
-        self.tree.column("area_unit", width=70, anchor=tk.CENTER)
-        self.tree.column("area_total", width=70, anchor=tk.CENTER)
-        self.tree.column("blank_unit", width=70, anchor=tk.CENTER)
-        self.tree.column("blank_total", width=70, anchor=tk.CENTER)
-        self.tree.column("mat_unit", width=70, anchor=tk.CENTER)
-        self.tree.column("mat_total", width=70, anchor=tk.CENTER)
-        self.tree.column("price_unit", width=80, anchor=tk.CENTER)
-        self.tree.column("price_total", width=80, anchor=tk.CENTER)
+        self.tree.column("area_total", width=75, anchor=tk.CENTER)
+        self.tree.column("blank_total", width=75, anchor=tk.CENTER)
+        self.tree.column("mat_total", width=75, anchor=tk.CENTER)
+        self.tree.column("price_total", width=85, anchor=tk.CENTER)
 
         scrollbar = ttk.Scrollbar(right_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -1272,13 +1269,14 @@ class ProductsTab:
         for item in self.tree.get_children():
             self.tree.delete(item)
         for p in self.library.products:
-            print(f"[DEBUG _refresh_tree] product_type={p.product_type}, material={p.material!r}, thickness={p.thickness!r}, area={p.surface_area}")
             mat_str = p._material_str() if hasattr(p, "_material_str") else str(p.material)
+            # Скорочуємо назву матеріалу
+            mat_lower = mat_str.lower()
+            for full, short in self.MATERIAL_SHORT.items():
+                if full in mat_lower:
+                    mat_str = short
+                    break
             thick_str = p._thickness_float() if hasattr(p, "_thickness_float") else float(p.thickness)
-            try:
-                unit_price = float(p.unit_price)
-            except Exception:
-                unit_price = 0.0
             try:
                 total_price = float(p.total_price)
             except Exception:
@@ -1291,19 +1289,12 @@ class ProductsTab:
                     mat_str,
                     f"{thick_str:.1f}",
                     p.quantity,
-                    f"{p.surface_area:.3f}",
                     f"{p.surface_area * p.quantity:.3f}",
-                    f"{p.blank_area:.3f}",
                     f"{p.blank_area * p.quantity:.3f}",
-                    f"{p.material_area:.3f}",
                     f"{p.material_area * p.quantity:.3f}",
-                    f"{unit_price:.2f}",
                     f"{total_price:.2f}",
                 ),
             )
-        print(f"[DEBUG] Tree children after insert: {self.tree.get_children()}")
-        for child in self.tree.get_children():
-            print(f"[DEBUG] Tree item values: {self.tree.item(child, 'values')}")
 
     def _update_summary(self):
         total = len(self.library)
