@@ -1,382 +1,899 @@
-"""2D-перегляд креслень проєкту через matplotlib.
+"""Професійний 2D CAD-редактор на tkinter Canvas.
 
-ПАТЧ:
-    • Повністю прибрано ромби/кружечки/точки фасонок
-    • Прибрано круги/прямокутники профілів на кінцях сегментів
-    • Додано виноски Δh для сегментів з різницею висот
-    • Виправлено import math
-
-ВСТАНОВЛЕННЯ:
-    Замініть ventilation_company/project3d/preview_2d.py
+Вигляд як у CAMduct / AutoCAD — без matplotlib.
 """
 
 import math
 import os
 import tempfile
 import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Optional
+from tkinter import filedialog, messagebox, simpledialog, ttk
+from typing import Optional, Callable, Tuple, List, Dict, Any
+from dataclasses import dataclass
+from enum import Enum
 
-import matplotlib
-matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle, Circle, FancyBboxPatch, Polygon
-from matplotlib.lines import Line2D
-import matplotlib.patheffects as pe
 import numpy as np
+from PIL import Image
+
+try:
+    import fitz
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
 
 from ventilation_company.project3d.project_model import VentProject
-from ventilation_company.project3d.vent_system import DuctShape
+from ventilation_company.project3d.vent_system import DuctSegment, Point3D, DuctShape, DuctType
+from ventilation_company.project3d.arch_context import Wall, Opening, Floor, WallMaterial
+
+
+class DrawingTool(Enum):
+    SELECT = "select"
+    WALL = "wall"
+    OPENING = "opening"
+    DUCT = "duct"
+    RECTANGLE = "rectangle"
+    MEASURE = "measure"
+
+
+@dataclass
+class BackgroundImage:
+    filepath: str
+    pil_image: Any  # PIL Image
+    offset_x: float = 0.0
+    offset_y: float = 0.0
+    scale: float = 1.0
+    opacity: float = 0.45
+    visible: bool = True
+
+
+class CADCanvas(tk.Canvas):
+    """Професійний CAD-Canvas з навігацією та рендерингом."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, bg="#f5f5f5", highlightthickness=0, **kwargs)
+        self._scale = 1.0  # пікселів на мм
+        self._offset_x = 0.0
+        self._offset_y = 0.0
+        self._dragging = False
+        self._drag_start = None
+
+        self.bind("<ButtonPress-1>", self._on_press)
+        self.bind("<B1-Motion>", self._on_drag)
+        self.bind("<ButtonRelease-1>", self._on_release)
+        self.bind("<MouseWheel>", self._on_wheel)
+        self.bind("<Button-4>", self._on_wheel)
+        self.bind("<Button-5>", self._on_wheel)
+        self.bind("<Motion>", self._on_move)
+
+    def world_to_screen(self, x: float, y: float) -> Tuple[float, float]:
+        """Перетворення світових координат (мм) в екранні (пікселі)."""
+        sx = (x - self._offset_x) * self._scale + self.winfo_width() / 2
+        sy = self.winfo_height() / 2 - (y - self._offset_y) * self._scale
+        return (sx, sy)
+
+    def screen_to_world(self, sx: float, sy: float) -> Tuple[float, float]:
+        """Перетворення екранних координат в світові (мм)."""
+        x = (sx - self.winfo_width() / 2) / self._scale + self._offset_x
+        y = (self.winfo_height() / 2 - sy) / self._scale + self._offset_y
+        return (x, y)
+
+    def _on_press(self, event):
+        self._dragging = True
+        self._drag_start = (event.x, event.y)
+
+    def _on_drag(self, event):
+        if self._dragging and self._drag_start:
+            dx = event.x - self._drag_start[0]
+            dy = event.y - self._drag_start[1]
+            self._offset_x -= dx / self._scale
+            self._offset_y += dy / self._scale
+            self._drag_start = (event.x, event.y)
+            self.event_generate("<<CanvasPan>>")
+
+    def _on_release(self, event):
+        self._dragging = False
+        self._drag_start = None
+
+    def _on_wheel(self, event):
+        factor = 1.15 if event.delta > 0 else 0.85
+        if event.num == 4:
+            factor = 1.15
+        elif event.num == 5:
+            factor = 0.85
+
+        mx, my = event.x, event.y
+        wx, wy = self.screen_to_world(mx, my)
+
+        self._scale *= factor
+        self._scale = max(0.001, min(10.0, self._scale))
+
+        # Зберегти позицію миші
+        self._offset_x = wx - (mx - self.winfo_width()/2) / self._scale
+        self._offset_y = wy - (self.winfo_height()/2 - my) / self._scale
+
+        self.event_generate("<<CanvasZoom>>")
+
+    def _on_move(self, event):
+        wx, wy = self.screen_to_world(event.x, event.y)
+        self.event_generate("<<CanvasMove>>", x=wx, y=wy)
 
 
 class Project2DPreview:
-    """2D-перегляд плану поверху з вентиляцією (тільки перегляд)."""
+    """Професійний 2D CAD-редактор."""
 
     COLORS = {
-        "wall": "#555555",
-        "wall_partition": "#888888",
-        "opening": "#ff4444",
-        "duct_supply": "#0066cc",
-        "duct_exhaust": "#009900",
-        "duct_smoke": "#cc6600",
-        "equipment": "#cc9900",
-        "grid": "#dddddd",
-        "text": "#333333",
-        "bg": "#fafafa",
+        "wall_fill": "#b8b8b8",
+        "wall_edge": "#3a3a3a",
+        "wall_selected": "#ff4444",
+        "opening": "#c0392b",
+        "opening_fill": "#f5b7b1",
+        "duct_supply": "#2980b9",
+        "duct_exhaust": "#27ae60",
+        "duct_smoke": "#e67e22",
+        "duct_selected": "#f39c12",
+        "equipment": "#8e44ad",
+        "grid_major": "#d0d0d0",
+        "grid_minor": "#e8e8e8",
+        "axis": "#e74c3c",
+        "temp_line": "#7f8c8d",
+        "snap_point": "#2ecc71",
+        "measure": "#9b59b6",
+        "text": "#2c3e50",
+        "bg": "#f5f5f5",
     }
 
-    def __init__(self, parent: tk.Widget):
+    def __init__(self, parent: tk.Widget, on_select_callback: Optional[Callable] = None):
         self.parent = parent
+        self.on_select_callback = on_select_callback
         self.project: Optional[VentProject] = None
-        self.current_floor: Optional[str] = None
-        self._zoom_level = 1.0
+        self.current_floor: Optional[Floor] = None
+
+        self.current_tool = DrawingTool.SELECT
+        self.drawing_state = None
+        self.p1: Optional[Tuple[float, float]] = None
+
+        self.selected_object = None
+        self.selected_type = None
+
+        self.snap_grid = 50.0
+        self.ortho_mode = False
+
+        self.background: Optional[BackgroundImage] = None
+        self.bg_photo = None
+
+        self.layers = {
+            "background": tk.BooleanVar(value=True),
+            "walls": tk.BooleanVar(value=True),
+            "openings": tk.BooleanVar(value=True),
+            "ducts": tk.BooleanVar(value=True),
+            "grid": tk.BooleanVar(value=True),
+            "dimensions": tk.BooleanVar(value=True),
+        }
+
         self._build_ui()
-        self._connect_events()
 
     def _build_ui(self):
-        ctrl = ttk.Frame(self.parent)
-        ctrl.pack(fill=tk.X, padx=5, pady=2)
-        ttk.Label(ctrl, text="Поверх:").pack(side=tk.LEFT)
-        self.floor_var = tk.StringVar(value="Поверх 1")
-        self.floor_combo = ttk.Combobox(ctrl, textvariable=self.floor_var,
-                                        values=["Поверх 1"], state="readonly", width=16)
-        self.floor_combo.pack(side=tk.LEFT, padx=2)
-        self.floor_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
-        ttk.Separator(ctrl, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        self.wall_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(ctrl, text="Стіни", variable=self.wall_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
-        self.duct_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(ctrl, text="Повітропроводи", variable=self.duct_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
-        self.eq_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(ctrl, text="Обладнання", variable=self.eq_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
-        self.dim_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(ctrl, text="Розміри", variable=self.dim_var, command=self.refresh).pack(side=tk.LEFT, padx=2)
-        ttk.Separator(ctrl, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        ttk.Button(ctrl, text="🔍 +", command=self._zoom_in).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="🔍 -", command=self._zoom_out).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="🔄 Центрувати", command=self._center_view).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=2)
-        self.figure = Figure(figsize=(16, 12), dpi=100, facecolor=self.COLORS["bg"])
-        self.ax = self.figure.add_subplot(111)
-        self.ax.set_facecolor(self.COLORS["bg"])
-        self.canvas = FigureCanvasTkAgg(self.figure, master=self.parent)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        toolbar = NavigationToolbar2Tk(self.canvas, self.parent)
-        toolbar.update()
-        hint = ttk.Label(self.parent,
-                         text="💡 Колесо миші — масштаб | Перетягування — панорама | 🖨️ Друк",
-                         foreground="#666", font=("Arial", 8))
-        hint.pack(anchor=tk.W, padx=5)
+        # Тулбар
+        toolbar = ttk.Frame(self.parent, padding=2)
+        toolbar.pack(fill=tk.X)
 
-    def _connect_events(self):
-        self.canvas.mpl_connect("scroll_event", self._on_scroll)
-        self.canvas.mpl_connect("button_press_event", self._on_press)
-        self.canvas.mpl_connect("button_release_event", self._on_release)
-        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
-        self._pan_start = None
-        self._pan_xlim = None
-        self._pan_ylim = None
+        # Інструменти
+        tf = ttk.LabelFrame(toolbar, text="Інструменти", padding=2)
+        tf.pack(side=tk.LEFT, padx=2)
+        self.tool_btns = {}
+        tools = [
+            ("select", "🖱️ Вибір", DrawingTool.SELECT),
+            ("wall", "━━ Стіна", DrawingTool.WALL),
+            ("opening", "☐ Отвір", DrawingTool.OPENING),
+            ("duct", "══ Повітр.", DrawingTool.DUCT),
+            ("rectangle", "⬛ Прямок.", DrawingTool.RECTANGLE),
+            ("measure", "📏 Вимір.", DrawingTool.MEASURE),
+        ]
+        for key, label, tool in tools:
+            btn = tk.Button(tf, text=label, width=10, relief=tk.RAISED, font=("Arial", 9),
+                          command=lambda t=tool, k=key: self._set_tool(t, k))
+            btn.pack(side=tk.LEFT, padx=1)
+            self.tool_btns[key] = btn
+        self._hl_tool("select")
 
-    def _on_scroll(self, event):
-        if event.inaxes != self.ax:
-            return
-        scale = 0.85 if event.button == "up" else 1.15
-        xlim = self.ax.get_xlim()
-        ylim = self.ax.get_ylim()
-        xdata, ydata = event.xdata, event.ydata
-        if xdata is None or ydata is None:
-            return
-        new_xlim = (xdata - (xdata - xlim[0]) * scale, xdata + (xlim[1] - xdata) * scale)
-        new_ylim = (ydata - (ydata - ylim[0]) * scale, ydata + (ylim[1] - ydata) * scale)
-        self.ax.set_xlim(new_xlim)
-        self.ax.set_ylim(new_ylim)
-        self.canvas.draw_idle()
+        # Налаштування
+        sf = ttk.LabelFrame(toolbar, text="Налаштування", padding=2)
+        sf.pack(side=tk.LEFT, padx=(8,2))
+        tk.Label(sf, text="Snap:", font=("Arial", 9)).pack(side=tk.LEFT)
+        self.snap_var = tk.DoubleVar(value=50)
+        ttk.Combobox(sf, textvariable=self.snap_var, values=[10,25,50,100,250,500], 
+                    state="readonly", width=5).pack(side=tk.LEFT, padx=2)
+        self.snap_var.trace_add("write", lambda *a: setattr(self, "snap_grid", self.snap_var.get()))
+        self.ortho_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(sf, text="Ortho", variable=self.ortho_var, font=("Arial", 9),
+                      command=lambda: setattr(self, "ortho_mode", self.ortho_var.get())).pack(side=tk.LEFT, padx=5)
+        tk.Button(sf, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=5)
+        tk.Button(sf, text="↩️ Скасувати", command=self._undo).pack(side=tk.LEFT, padx=2)
 
-    def _on_press(self, event):
-        if event.inaxes != self.ax:
-            return
-        if event.button == 2 or (event.button == 1 and event.key == "control"):
-            self._pan_start = (event.xdata, event.ydata)
-            self._pan_xlim = self.ax.get_xlim()
-            self._pan_ylim = self.ax.get_ylim()
+        # Фон
+        bf = ttk.LabelFrame(toolbar, text="Фон", padding=2)
+        bf.pack(side=tk.LEFT, padx=(8,2))
+        tk.Button(bf, text="📁 Завантажити", command=self._load_bg).pack(side=tk.LEFT, padx=1)
+        tk.Button(bf, text="📐 Калібрувати", command=self._calibrate).pack(side=tk.LEFT, padx=1)
+        tk.Button(bf, text="❌ Прибрати", command=self._remove_bg).pack(side=tk.LEFT, padx=1)
 
-    def _on_release(self, event):
-        self._pan_start = None
-        self._pan_xlim = None
-        self._pan_ylim = None
+        # Шари
+        lf = ttk.LabelFrame(toolbar, text="Шари", padding=2)
+        lf.pack(side=tk.LEFT, padx=(8,2))
+        for key, label in [("walls","Стіни"),("openings","Отвори"),("ducts","Повітр."),
+                           ("grid","Сітка"),("dimensions","Розміри")]:
+            tk.Checkbutton(lf, text=label, variable=self.layers[key], font=("Arial", 8),
+                          command=self.refresh).pack(side=tk.LEFT, padx=2)
 
-    def _on_motion(self, event):
-        if self._pan_start is None or event.inaxes != self.ax:
+        # Навігація
+        nf = ttk.Frame(toolbar)
+        nf.pack(side=tk.RIGHT, padx=5)
+        tk.Button(nf, text="🔍+", command=self._zoom_in, width=4).pack(side=tk.LEFT, padx=1)
+        tk.Button(nf, text="🔍-", command=self._zoom_out, width=4).pack(side=tk.LEFT, padx=1)
+        tk.Button(nf, text="🎯 Центр", command=self._center).pack(side=tk.LEFT, padx=1)
+        tk.Button(nf, text="🖨️ Друк", command=self._print).pack(side=tk.LEFT, padx=1)
+
+        # Координати
+        self.coord_lbl = tk.Label(toolbar, text="X: 0  Y: 0", font=("Consolas", 9), fg="#666")
+        self.coord_lbl.pack(side=tk.RIGHT, padx=10)
+
+        # Canvas
+        self.canvas = CADCanvas(self.parent, width=1200, height=800)
+        self.canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        self.canvas.bind("<<CanvasPan>>", lambda e: self.refresh())
+        self.canvas.bind("<<CanvasZoom>>", lambda e: self.refresh())
+        self.canvas.bind("<<CanvasMove>>", self._on_canvas_move)
+        self.canvas.bind("<Button-1>", self._on_click, add="+")
+        self.canvas.bind("<Motion>", self._on_hover, add="+")
+
+        # Підказка
+        self.hint = tk.Label(self.parent, text="🖱️ Вибір: клік — вибрати | ━━ Стіна: 2 кліки | Колесо — масштаб | ЛКМ+drag — панорама",
+                            fg="#666", font=("Arial", 8), anchor=tk.W)
+        self.hint.pack(fill=tk.X, padx=5)
+
+        # Масштаб за замовчуванням
+        self.canvas._scale = 0.1  # 0.1 px/mm = 1:10 при 96 DPI
+
+    def _set_tool(self, tool, key):
+        self.current_tool = tool
+        self.drawing_state = None
+        self.p1 = None
+        self._hl_tool(key)
+        hints = {
+            "select": "🖱️ Вибір: клік — вибрати об'єкт",
+            "wall": "━━ Стіна: клік 1 — початок, клік 2 — кінець",
+            "opening": "☐ Отвір: клік — центр",
+            "duct": "══ Повітр.: клік 1 — початок, клік 2 — кінець",
+            "rectangle": "⬛ Прямок.: клік 1 — кут, клік 2 — протилежний",
+            "measure": "📏 Вимір.: клік 1 — початок, клік 2 — кінець",
+        }
+        self.hint.config(text=hints.get(key, ""))
+
+    def _hl_tool(self, active_key):
+        for key, btn in self.tool_btns.items():
+            if key == active_key:
+                btn.config(relief=tk.SUNKEN, bg="#d0e8ff")
+            else:
+                btn.config(relief=tk.RAISED, bg="SystemButtonFace")
+
+    def _snap(self, x, y):
+        g = self.snap_grid
+        return (round(x/g)*g, round(y/g)*g)
+
+    def _ortho(self, x1, y1, x2, y2):
+        if not self.ortho_mode:
+            return (x2, y2)
+        dx, dy = abs(x2-x1), abs(y2-y1)
+        return (x2, y1) if dx > dy else (x1, y2)
+
+    def _on_canvas_move(self, event):
+        self.coord_lbl.config(text=f"X: {event.x:.0f}  Y: {event.y:.0f}")
+
+    def _on_click(self, event):
+        wx, wy = self.canvas.screen_to_world(event.x, event.y)
+        wx, wy = self._snap(wx, wy)
+
+        if self.current_tool == DrawingTool.SELECT:
+            self._do_select(wx, wy)
+        elif self.current_tool == DrawingTool.WALL:
+            self._do_wall(wx, wy)
+        elif self.current_tool == DrawingTool.OPENING:
+            self._do_opening(wx, wy)
+        elif self.current_tool == DrawingTool.DUCT:
+            self._do_duct(wx, wy)
+        elif self.current_tool == DrawingTool.RECTANGLE:
+            self._do_rect(wx, wy)
+        elif self.current_tool == DrawingTool.MEASURE:
+            self._do_measure(wx, wy)
+
+    def _on_hover(self, event):
+        if self.drawing_state == "p1" and self.p1:
+            wx, wy = self.canvas.screen_to_world(event.x, event.y)
+            wx, wy = self._snap(wx, wy)
+            x2, y2 = self._ortho(self.p1[0], self.p1[1], wx, wy)
+            self.refresh()
+            self._draw_temp(self.p1[0], self.p1[1], x2, y2)
+
+    def _draw_temp(self, x1, y1, x2, y2):
+        c = self.COLORS["temp_line"]
+        if self.current_tool == DrawingTool.WALL:
+            c = self.COLORS["wall_edge"]
+        elif self.current_tool == DrawingTool.DUCT:
+            c = self.COLORS["duct_supply"]
+        sx1, sy1 = self.canvas.world_to_screen(x1, y1)
+        sx2, sy2 = self.canvas.world_to_screen(x2, y2)
+        self.canvas.create_line(sx1, sy1, sx2, sy2, fill=c, width=2, dash=(8,4), tags="temp")
+        self.canvas.create_oval(sx2-4, sy2-4, sx2+4, sy2+4, fill=self.COLORS["snap_point"], outline="", tags="temp")
+        dist = math.hypot(x2-x1, y2-y1)
+        self.canvas.create_text((sx1+sx2)/2, (sy1+sy2)/2-15, text=f"{dist:.0f} мм", 
+                               fill=c, font=("Arial", 8), tags="temp")
+
+    def _do_select(self, x, y):
+        obj, otype = self._find_nearest(x, y)
+        self.selected_object = obj
+        self.selected_type = otype
+        if obj and self.on_select_callback:
+            self._show_props(obj, otype)
+        elif self.on_select_callback:
+            self.on_select_callback(None, "", "")
+        self.refresh()
+
+    def _do_wall(self, x, y):
+        if self.drawing_state is None:
+            self.p1 = (x, y)
+            self.drawing_state = "p1"
+        else:
+            x2, y2 = self._ortho(self.p1[0], self.p1[1], x, y)
+            self._make_wall(self.p1[0], self.p1[1], x2, y2)
+            self.drawing_state = None
+            self.p1 = None
+            self.refresh()
+
+    def _do_opening(self, x, y):
+        self._make_opening(x, y)
+
+    def _do_duct(self, x, y):
+        if self.drawing_state is None:
+            self.p1 = (x, y)
+            self.drawing_state = "p1"
+        else:
+            x2, y2 = self._ortho(self.p1[0], self.p1[1], x, y)
+            self._make_duct(self.p1[0], self.p1[1], x2, y2)
+            self.drawing_state = None
+            self.p1 = None
+            self.refresh()
+
+    def _do_rect(self, x, y):
+        if self.drawing_state is None:
+            self.p1 = (x, y)
+            self.drawing_state = "p1"
+        else:
+            self._make_rect(self.p1[0], self.p1[1], x, y)
+            self.drawing_state = None
+            self.p1 = None
+            self.refresh()
+
+    def _do_measure(self, x, y):
+        if self.drawing_state is None:
+            self.p1 = (x, y)
+            self.drawing_state = "p1"
+        else:
+            dist = math.hypot(x-self.p1[0], y-self.p1[1])
+            messagebox.showinfo("Вимірювання", f"Відстань: {dist:.1f} мм = {dist/1000:.2f} м")
+            self.drawing_state = None
+            self.p1 = None
+            self.refresh()
+
+    def _get_floor(self):
+        if not self.project or not self.project.arch_context:
+            return None
+        name = self.current_floor.name if self.current_floor else "Поверх 1"
+        for f in self.project.arch_context.floors:
+            if f.name == name:
+                return f
+        if not self.project.arch_context.floors:
+            f = Floor(name="Поверх 1", level=3000, height=3000)
+            self.project.arch_context.floors.append(f)
+            return f
+        return self.project.arch_context.floors[0]
+
+    def _make_wall(self, x1, y1, x2, y2):
+        floor = self._get_floor()
+        if not floor:
             return
-        if event.xdata is None or event.ydata is None:
+        t = simpledialog.askinteger("Товщина", "Товщина стіни (мм):", initialvalue=200, minvalue=50, maxvalue=1000)
+        if t is None:
             return
-        dx = self._pan_start[0] - event.xdata
-        dy = self._pan_start[1] - event.ydata
-        self.ax.set_xlim(self._pan_xlim[0] + dx, self._pan_xlim[1] + dx)
-        self.ax.set_ylim(self._pan_ylim[0] + dy, self._pan_ylim[1] + dy)
-        self.canvas.draw_idle()
+        h = simpledialog.askinteger("Висота", "Висота стіни (мм):", initialvalue=int(floor.height), minvalue=1000, maxvalue=10000)
+        if h is None:
+            h = floor.height
+        floor.walls.append(Wall(
+            name=f"Стіна {len(floor.walls)+1}",
+            start=Point3D(x1, y1, floor.floor_z),
+            end=Point3D(x2, y2, floor.floor_z),
+            height=float(h), thickness=float(t)
+        ))
+        self.refresh()
+        self._push_undo()
+
+    def _make_opening(self, x, y):
+        floor = self._get_floor()
+        if not floor:
+            return
+        w = simpledialog.askinteger("Ширина", "Ширина отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000)
+        if w is None:
+            return
+        h = simpledialog.askinteger("Висота", "Висота отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000)
+        if h is None:
+            return
+        floor.openings.append(Opening(
+            name=f"Отвір {len(floor.openings)+1}",
+            position=Point3D(x, y, floor.floor_z+1000),
+            width=float(w), height=float(h)
+        ))
+        self.refresh()
+        self._push_undo()
+
+    def _make_duct(self, x1, y1, x2, y2):
+        if not self.project:
+            return
+        w = simpledialog.askinteger("Ширина", "Ширина каналу (мм):", initialvalue=300, minvalue=50, maxvalue=2000)
+        if w is None:
+            return
+        h = simpledialog.askinteger("Висота", "Висота каналу (мм):", initialvalue=200, minvalue=50, maxvalue=2000)
+        if h is None:
+            return
+
+        if not self.project.ventilation_systems:
+            from ventilation_company.project3d.vent_system import VentilationSystem
+            s = VentilationSystem(name="Система 1", system_type="припливно-витяжна")
+            self.project.ventilation_systems.append(s)
+        else:
+            s = self.project.ventilation_systems[0]
+
+        if not s.trunks:
+            from ventilation_company.project3d.vent_system import VentilationTrunk
+            t = VentilationTrunk(name="Траса 1")
+            s.trunks.append(t)
+        else:
+            t = s.trunks[0]
+
+        floor = self._get_floor()
+        z = floor.floor_z + 2500 if floor else 2500
+
+        t.segments.append(DuctSegment(
+            start=Point3D(x1, y1, z), end=Point3D(x2, y2, z),
+            width=float(w), height=float(h),
+            shape=DuctShape.RECT, duct_type=DuctType.SUPPLY
+        ))
+        self.refresh()
+        self._push_undo()
+
+    def _make_rect(self, x1, y1, x2, y2):
+        floor = self._get_floor()
+        if not floor:
+            return
+        t = simpledialog.askinteger("Товщина", "Товщина стін (мм):", initialvalue=200, minvalue=50, maxvalue=1000)
+        if t is None:
+            return
+        h = floor.height
+        for wx1, wy1, wx2, wy2 in [(x1,y1,x2,y1),(x2,y1,x2,y2),(x2,y2,x1,y2),(x1,y2,x1,y1)]:
+            floor.walls.append(Wall(
+                name=f"Стіна {len(floor.walls)+1}",
+                start=Point3D(wx1, wy1, floor.floor_z),
+                end=Point3D(wx2, wy2, floor.floor_z),
+                height=h, thickness=float(t)
+            ))
+        self.refresh()
+        self._push_undo()
+
+    def _find_nearest(self, x, y, thr=300):
+        floor = self._get_floor()
+        if not floor:
+            return None, None
+        bd, bo, bt = thr, None, None
+        if self.layers["walls"].get():
+            for w in floor.walls:
+                d = self._seg_dist(x, y, w.start.x, w.start.y, w.end.x, w.end.y)
+                if d < bd:
+                    bd, bo, bt = d, w, "wall"
+        if self.layers["openings"].get():
+            for o in floor.openings:
+                d = math.hypot(x-o.position.x, y-o.position.y)
+                if d < bd:
+                    bd, bo, bt = d, o, "opening"
+        if self.layers["ducts"].get():
+            for s in (self.project.ventilation_systems if self.project else []):
+                for t in s.trunks:
+                    for seg in t.segments:
+                        d = self._seg_dist(x, y, seg.start.x, seg.start.y, seg.end.x, seg.end.y)
+                        if d < bd:
+                            bd, bo, bt = d, seg, "segment"
+        return bo, bt
+
+    def _seg_dist(self, px, py, x1, y1, x2, y2):
+        dx, dy = x2-x1, y2-y1
+        l2 = dx*dx + dy*dy
+        if l2 == 0:
+            return math.hypot(px-x1, py-y1)
+        t = max(0, min(1, ((px-x1)*dx + (py-y1)*dy) / l2))
+        return math.hypot(px - (x1+t*dx), py - (y1+t*dy))
+
+    def _show_props(self, obj, otype):
+        lines = []
+        if otype == "wall":
+            lines = [f"Тип: Стіна", f"Назва: {obj.name}", f"Довжина: {obj.length:.1f} мм",
+                    f"Товщина: {obj.thickness:.0f} мм", f"Висота: {obj.height:.0f} мм",
+                    f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})", f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})"]
+        elif otype == "opening":
+            lines = [f"Тип: Отвір", f"Назва: {obj.name}", f"Ширина: {obj.width:.0f} мм",
+                    f"Висота: {obj.height:.0f} мм", f"Позиція: ({obj.position.x:.0f}, {obj.position.y:.0f})"]
+        elif otype == "segment":
+            lines = [f"Тип: Сегмент", f"Ширина: {obj.width:.0f} мм", f"Висота: {obj.height:.0f} мм",
+                    f"Довжина: {obj.length:.0f} мм", f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})",
+                    f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})"]
+        if self.on_select_callback:
+            self.on_select_callback(obj, otype, "\n".join(lines))
+
+    def _delete_selected(self):
+        if not self.selected_object or not self.selected_type:
+            messagebox.showwarning("Увага", "Спочатку виберіть об'єкт")
+            return
+        floor = self._get_floor()
+        if not floor:
+            return
+        if self.selected_type == "wall" and self.selected_object in floor.walls:
+            floor.walls.remove(self.selected_object)
+        elif self.selected_type == "opening" and self.selected_object in floor.openings:
+            floor.openings.remove(self.selected_object)
+        elif self.selected_type == "segment":
+            for s in (self.project.ventilation_systems if self.project else []):
+                for t in s.trunks:
+                    if self.selected_object in t.segments:
+                        t.segments.remove(self.selected_object)
+                        break
+        self.selected_object = None
+        self.selected_type = None
+        if self.on_select_callback:
+            self.on_select_callback(None, "", "")
+        self.refresh()
+        self._push_undo()
+
+    def _push_undo(self):
+        if not self.project:
+            return
+        if not hasattr(self, "_undo_stack"):
+            self._undo_stack = []
+        import json
+        try:
+            state = json.dumps(self.project.to_dict())
+            self._undo_stack.append(state)
+            if len(self._undo_stack) > 20:
+                self._undo_stack.pop(0)
+        except Exception:
+            pass
+
+    def _undo(self):
+        if not hasattr(self, "_undo_stack") or not self._undo_stack:
+            messagebox.showinfo("Скасувати", "Немає дій для скасування")
+            return
+        import json
+        try:
+            state = self._undo_stack.pop()
+            data = json.loads(state)
+            self.project = VentProject.from_dict(data)
+            self.refresh()
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося скасувати: {e}")
+
+    def _load_bg(self):
+        filetypes = [("Зображення", "*.png *.jpg *.jpeg *.bmp *.tiff"), ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"),
+                     ("PDF", "*.pdf"), ("Всі файли", "*.*")]
+        fp = filedialog.askopenfilename(title="Архітектурний план", filetypes=filetypes)
+        if not fp:
+            return
+        try:
+            ext = os.path.splitext(fp)[1].lower()
+            if ext == ".pdf":
+                if not HAS_PYMUPDF:
+                    messagebox.showwarning("PyMuPDF", "pip install PyMuPDF")
+                    return
+                doc = fitz.open(fp)
+                pix = doc[0].get_pixmap(dpi=150)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                doc.close()
+            else:
+                img = Image.open(fp).convert("RGB")
+            mx = 3000
+            if max(img.size) > mx:
+                r = mx / max(img.size)
+                img = img.resize((int(img.width*r), int(img.height*r)), Image.LANCZOS)
+            self.background = BackgroundImage(filepath=fp, pil_image=img, scale=1.0, opacity=0.45, visible=True)
+            self.layers["background"].set(True)
+            self.refresh()
+            messagebox.showinfo("Успіх", f"Фон завантажено:\n{os.path.basename(fp)}")
+        except Exception as e:
+            messagebox.showerror("Помилка", str(e))
+
+    def _remove_bg(self):
+        self.background = None
+        self.bg_photo = None
+        self.refresh()
+
+    def _calibrate(self):
+        if not self.background:
+            messagebox.showwarning("Увага", "Спочатку завантажте фон")
+            return
+        d = tk.Toplevel(self.parent)
+        d.title("Калібрування")
+        d.geometry("380x200")
+        d.transient(self.parent)
+        d.grab_set()
+        tk.Label(d, text="Відома відстань (мм):", font=("Arial", 10)).pack(pady=5)
+        dv = tk.DoubleVar(value=6000)
+        tk.Spinbox(d, from_=100, to=50000, textvariable=dv, width=12).pack()
+        tk.Label(d, text="Кількість пікселів:").pack(pady=5)
+        pv = tk.DoubleVar(value=1000)
+        tk.Spinbox(d, from_=1, to=10000, textvariable=pv, width=12).pack()
+        def apply():
+            self.background.scale = dv.get() / pv.get()
+            d.destroy()
+            self.refresh()
+        tk.Button(d, text="✅ Застосувати", command=apply).pack(pady=10)
+
+    def refresh(self):
+        self.canvas.delete("all")
+        floor = self._get_floor()
+
+        # Фон
+        if self.background and self.background.visible and self.layers["background"].get():
+            self._draw_bg()
+
+        # Сітка
+        if self.layers["grid"].get():
+            self._draw_grid()
+
+        # Стіни
+        if self.layers["walls"].get() and floor:
+            for w in floor.walls:
+                sel = (self.selected_object == w and self.selected_type == "wall")
+                self._draw_wall(w, sel)
+
+        # Отвори
+        if self.layers["openings"].get() and floor:
+            for o in floor.openings:
+                sel = (self.selected_object == o and self.selected_type == "opening")
+                self._draw_opening(o, sel)
+
+        # Повітропроводи
+        if self.layers["ducts"].get() and self.project:
+            for sys in self.project.ventilation_systems:
+                c = self._sys_color(sys.system_type)
+                for t in sys.trunks:
+                    for seg in t.segments:
+                        sel = (self.selected_object == seg and self.selected_type == "segment")
+                        self._draw_duct(seg, c, sel)
+
+        # Масштабна лінійка
+        self._draw_scalebar()
+
+    def _draw_bg(self):
+        bg = self.background
+        w, h = bg.pil_image.size
+        wmm, hmm = w * bg.scale, h * bg.scale
+        sx1, sy1 = self.canvas.world_to_screen(bg.offset_x, bg.offset_y + hmm)
+        sx2, sy2 = self.canvas.world_to_screen(bg.offset_x + wmm, bg.offset_y)
+        # Конвертуємо PIL в PhotoImage
+        from PIL import ImageTk
+        # Масштабуємо під екран
+        sw, sh = int(abs(sx2-sx1)), int(abs(sy2-sy1))
+        if sw > 1 and sh > 1:
+            resized = bg.pil_image.resize((sw, sh), Image.LANCZOS)
+            self.bg_photo = ImageTk.PhotoImage(resized)
+            self.canvas.create_image(min(sx1,sx2), min(sy1,sy2), anchor=tk.NW, image=self.bg_photo, tags="bg")
+
+    def _draw_grid(self):
+        w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
+        if w < 10 or h < 10:
+            return
+        x1, y1 = self.canvas.screen_to_world(0, 0)
+        x2, y2 = self.canvas.screen_to_world(w, h)
+
+        # Дрібна сітка
+        step = 100
+        start_x = math.floor(min(x1,x2) / step) * step
+        end_x = math.ceil(max(x1,x2) / step) * step
+        start_y = math.floor(min(y1,y2) / step) * step
+        end_y = math.ceil(max(y1,y2) / step) * step
+
+        for x in range(int(start_x), int(end_x)+1, step):
+            sx, _ = self.canvas.world_to_screen(x, 0)
+            self.canvas.create_line(sx, 0, sx, h, fill=self.COLORS["grid_minor"], width=0.5, tags="grid")
+        for y in range(int(start_y), int(end_y)+1, step):
+            _, sy = self.canvas.world_to_screen(0, y)
+            self.canvas.create_line(0, sy, w, sy, fill=self.COLORS["grid_minor"], width=0.5, tags="grid")
+
+        # Основна сітка + підписи
+        major = 1000
+        start_x = math.floor(min(x1,x2) / major) * major
+        end_x = math.ceil(max(x1,x2) / major) * major
+        start_y = math.floor(min(y1,y2) / major) * major
+        end_y = math.ceil(max(y1,y2) / major) * major
+
+        for x in range(int(start_x), int(end_x)+1, major):
+            sx, _ = self.canvas.world_to_screen(x, 0)
+            self.canvas.create_line(sx, 0, sx, h, fill=self.COLORS["grid_major"], width=1, tags="grid")
+            self.canvas.create_text(sx+3, h-10, text=f"{x:.0f}", anchor=tk.W, font=("Arial", 7), fill="#999", tags="grid")
+        for y in range(int(start_y), int(end_y)+1, major):
+            _, sy = self.canvas.world_to_screen(0, y)
+            self.canvas.create_line(0, sy, w, sy, fill=self.COLORS["grid_major"], width=1, tags="grid")
+            self.canvas.create_text(5, sy-3, text=f"{y:.0f}", anchor=tk.SW, font=("Arial", 7), fill="#999", tags="grid")
+
+    def _draw_wall(self, wall, selected=False):
+        dx = wall.end.x - wall.start.x
+        dy = wall.end.y - wall.start.y
+        L = math.sqrt(dx*dx + dy*dy)
+        if L == 0:
+            return
+        nx, ny = dx/L, dy/L
+        px, py = -ny, nx
+        hw = wall.thickness / 2
+
+        pts = [
+            (wall.start.x + px*hw, wall.start.y + py*hw),
+            (wall.start.x - px*hw, wall.start.y - py*hw),
+            (wall.end.x - px*hw, wall.end.y - py*hw),
+            (wall.end.x + px*hw, wall.end.y + py*hw),
+        ]
+
+        scr = [self.canvas.world_to_screen(p[0], p[1]) for p in pts]
+        flat = [c for p in scr for c in p]
+
+        if selected:
+            self.canvas.create_polygon(flat, fill=self.COLORS["wall_selected"], outline="#cc0000", width=2, tags="wall")
+            self.canvas.create_oval(scr[0][0]-5, scr[0][1]-5, scr[0][0]+5, scr[0][1]+5, fill="green", tags="wall")
+            self.canvas.create_oval(scr[2][0]-5, scr[2][1]-5, scr[2][0]+5, scr[2][1]+5, fill="red", tags="wall")
+        else:
+            fc = self.COLORS["wall_fill"] if wall.is_load_bearing else "#d0d0d0"
+            self.canvas.create_polygon(flat, fill=fc, outline=self.COLORS["wall_edge"], width=1.5, tags="wall")
+
+    def _draw_opening(self, op, selected=False):
+        cx, cy = op.position.x, op.position.y
+        w, h = op.width/2, op.height/2
+        pts = [(cx-w, cy-h), (cx+w, cy-h), (cx+w, cy+h), (cx-w, cy+h)]
+        scr = [self.canvas.world_to_screen(p[0], p[1]) for p in pts]
+        flat = [c for p in scr for c in p]
+        c = self.COLORS["wall_selected"] if selected else self.COLORS["opening"]
+        self.canvas.create_polygon(flat, fill=self.COLORS["opening_fill"], outline=c, width=2, tags="opening")
+        # Діагоналі
+        self.canvas.create_line(scr[0][0], scr[0][1], scr[2][0], scr[2][1], fill=c, width=1, dash=(4,2), tags="opening")
+        self.canvas.create_line(scr[1][0], scr[1][1], scr[3][0], scr[3][1], fill=c, width=1, dash=(4,2), tags="opening")
+        self.canvas.create_text((scr[0][0]+scr[2][0])/2, scr[0][1]-10, text=op.name, 
+                               fill=c, font=("Arial", 7, "bold"), tags="opening")
+
+    def _draw_duct(self, seg, color, selected=False):
+        x1, y1 = seg.start.x, seg.start.y
+        x2, y2 = seg.end.x, seg.end.y
+        dx, dy = x2-x1, y2-y1
+        L = math.hypot(dx, dy)
+        if L < 0.1:
+            return
+        nx, ny = -dy/L, dx/L
+        hh = seg.height / 2
+
+        # 4 точки контуру каналу
+        ox, oy = nx*hh, ny*hh
+        p1 = (x1+ox, y1+oy)
+        p2 = (x2+ox, y2+oy)
+        p3 = (x2-ox, y2-oy)
+        p4 = (x1-ox, y1-oy)
+
+        s1 = self.canvas.world_to_screen(*p1)
+        s2 = self.canvas.world_to_screen(*p2)
+        s3 = self.canvas.world_to_screen(*p3)
+        s4 = self.canvas.world_to_screen(*p4)
+
+        lw = 3.5 if selected else 2.0
+        c = self.COLORS["duct_selected"] if selected else color
+
+        # Контур
+        self.canvas.create_line(s1[0], s1[1], s2[0], s2[1], fill=c, width=lw, tags="duct")
+        self.canvas.create_line(s4[0], s4[1], s3[0], s3[1], fill=c, width=lw, tags="duct")
+        self.canvas.create_line(s1[0], s1[1], s4[0], s4[1], fill=c, width=lw, tags="duct")
+        self.canvas.create_line(s2[0], s2[1], s3[0], s3[1], fill=c, width=lw, tags="duct")
+
+        # Заливка
+        if not selected:
+            self.canvas.create_polygon(s1[0], s1[1], s2[0], s2[1], s3[0], s3[1], s4[0], s4[1],
+                                      fill=c, stipple="gray50", tags="duct")
+
+        if selected:
+            self.canvas.create_oval(s1[0]-5, s1[1]-5, s1[0]+5, s1[1]+5, fill="green", tags="duct")
+            self.canvas.create_oval(s2[0]-5, s2[1]-5, s2[0]+5, s2[1]+5, fill="red", tags="duct")
+
+        # Виноска
+        if self.layers["dimensions"].get() and seg.length > 500 and not selected:
+            cx, cy = (x1+x2)/2, (y1+y2)/2
+            off_x, off_y = nx*(hh+120), ny*(hh+120)
+            sc = self.canvas.world_to_screen(cx+off_x, cy+off_y)
+            self.canvas.create_text(sc[0], sc[1], text=f"{seg.width:.0f}×{seg.height:.0f}",
+                                   fill=color, font=("Arial", 8, "bold"), tags="duct")
+
+    def _draw_scalebar(self):
+        w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
+        x = w * 0.02
+        y = h * 0.97
+        bar_px = 100
+        self.canvas.create_line(x, y, x+bar_px, y, fill="#333", width=3)
+        self.canvas.create_line(x, y-3, x, y+3, fill="#333", width=2)
+        self.canvas.create_line(x+bar_px, y-3, x+bar_px, y+3, fill="#333", width=2)
+        mm = bar_px / self.canvas._scale
+        label = f"{mm:.0f} мм" if mm < 1000 else f"{mm/1000:.1f} м"
+        self.canvas.create_text(x+bar_px/2, y-10, text=label, fill="#333", font=("Arial", 8, "bold"))
+
+    def _sys_color(self, st):
+        s = st.lower()
+        if "витяж" in s or "exhaust" in s:
+            return self.COLORS["duct_exhaust"]
+        if "дим" in s or "smoke" in s:
+            return self.COLORS["duct_smoke"]
+        return self.COLORS["duct_supply"]
+
+    def set_project(self, project):
+        self.project = project
+        self.current_floor = project.arch_context.floors[0] if project and project.arch_context.floors else None
+        self.refresh()
+
+    def set_floor(self, name):
+        if self.project and self.project.arch_context:
+            for f in self.project.arch_context.floors:
+                if f.name == name:
+                    self.current_floor = f
+                    self.refresh()
+                    return
 
     def _zoom_in(self):
-        self._zoom_level *= 1.2
+        self.canvas._scale *= 1.2
         self.refresh()
 
     def _zoom_out(self):
-        self._zoom_level /= 1.2
+        self.canvas._scale /= 1.2
         self.refresh()
 
-    def _center_view(self):
-        self._zoom_level = 1.0
+    def _center(self):
+        floor = self._get_floor()
+        if floor and floor.walls:
+            xs = [p for w in floor.walls for p in [w.start.x, w.end.x]]
+            ys = [p for w in floor.walls for p in [w.start.y, w.end.y]]
+            self.canvas._offset_x = (min(xs) + max(xs)) / 2
+            self.canvas._offset_y = (min(ys) + max(ys)) / 2
+        else:
+            self.canvas._offset_x = 5000
+            self.canvas._offset_y = 5000
         self.refresh()
 
     def _print(self):
         try:
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                tmp_path = tmp.name
-                self.figure.savefig(tmp_path, dpi=300, bbox_inches="tight", facecolor=self.figure.get_facecolor())
-                if os.name == "nt":
-                    os.startfile(tmp_path)
-                else:
-                    import subprocess
-                    subprocess.Popen(["xdg-open", tmp_path])
-                messagebox.showinfo("Друк", "PDF підготовлено.\nФайл відкрито у переглядачі. Натисніть Ctrl+P для друку.")
+            from PIL import ImageGrab
+            x = self.canvas.winfo_rootx()
+            y = self.canvas.winfo_rooty()
+            w = self.canvas.winfo_width()
+            h = self.canvas.winfo_height()
+            img = ImageGrab.grab(bbox=(x, y, x+w, y+h))
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                img.save(tmp.name, dpi=(300,300))
+                os.startfile(tmp.name)
+            messagebox.showinfo("Друк", "Зображення збережено та відкрито.")
         except Exception as e:
-            messagebox.showerror("Помилка друку", str(e))
+            messagebox.showerror("Помилка", str(e))
 
-    def set_project(self, project: VentProject):
-        self.project = project
-        floors = []
-        if project and project.arch_context:
-            for f in project.arch_context.floors:
-                floors.append(f.name)
-        if not floors:
-            floors = ["Поверх 1"]
-        self.floor_combo["values"] = floors
-        self.floor_var.set(floors[0])
-        self.refresh()
-
-    def _get_system_color(self, system_type: str) -> str:
-        st = system_type.lower()
-        if "витяж" in st or "exhaust" in st:
-            return self.COLORS["duct_exhaust"]
-        if "дим" in st or "smoke" in st:
-            return self.COLORS["duct_smoke"]
-        return self.COLORS["duct_supply"]
-
-    def refresh(self):
-        self.ax.clear()
-        self.ax.set_facecolor(self.COLORS["bg"])
-        if not self.project:
-            self.ax.text(0.5, 0.5, "Немає проєкту", transform=self.ax.transAxes, fontsize=14, ha="center", color="#999")
-            self.ax.set_xlim(0, 1)
-            self.ax.set_ylim(0, 1)
-            self.ax.set_aspect("equal")
-            self.canvas.draw()
-            return
-        floor_name = self.floor_var.get()
-        floor = None
-        for f in self.project.arch_context.floors:
-            if f.name == floor_name:
-                floor = f
-                break
-        if not floor:
-            self.ax.text(0.5, 0.5, f"Поверх '{floor_name}' не знайдено", transform=self.ax.transAxes, fontsize=14, ha="center", color="#999")
-            self.ax.set_xlim(0, 1)
-            self.ax.set_ylim(0, 1)
-            self.canvas.draw()
-            return
-        show_walls = self.wall_var.get()
-        show_ducts = self.duct_var.get()
-        show_eq = self.eq_var.get()
-        show_dims = self.dim_var.get()
-        all_x, all_y = [], []
-        self.ax.grid(True, color=self.COLORS["grid"], linestyle="-", linewidth=0.5, alpha=0.5)
-        self.ax.set_axisbelow(True)
-
-        for op in floor.openings:
-            self._draw_opening_2d(op)
-            all_x.extend([op.position.x - op.width/2, op.position.x + op.width/2])
-            all_y.extend([op.position.y - op.height/2, op.position.y + op.height/2])
-
-        if show_walls:
-            for wall in floor.walls:
-                self._draw_wall_2d(wall)
-                all_x.extend([wall.start.x, wall.end.x])
-                all_y.extend([wall.start.y, wall.end.y])
-
-        if show_ducts:
-            for system in self.project.ventilation_systems:
-                color = self._get_system_color(system.system_type)
-                for trunk in system.trunks:
-                    trunk_floor = str(trunk.floor) if hasattr(trunk, "floor") else ""
-                    if trunk_floor not in floor_name and trunk.name != floor_name:
-                        z_min = min(s.start.z for s in trunk.segments) if trunk.segments else 0
-                        z_max = max(s.end.z for s in trunk.segments) if trunk.segments else 0
-                        floor_z = floor.floor_z
-                        level = floor.level
-                        if not (floor_z <= z_min <= level or floor_z <= z_max <= level):
-                            continue
-                    for seg in trunk.segments:
-                        self._draw_duct_segment_2d(seg, color, show_dims)
-                        all_x.extend([seg.start.x, seg.end.x])
-                        all_y.extend([seg.start.y, seg.end.y])
-                    # ══ ФАСОНКИ ПОВНІСТЮ ПРИБРАНО ══
-
-        if show_eq:
-            for system in self.project.ventilation_systems:
-                for trunk in system.trunks:
-                    for eq in trunk.equipment:
-                        self._draw_equipment_2d(eq)
-                        all_x.extend([eq.position.x - eq.width/2, eq.position.x + eq.width/2])
-                        all_y.extend([eq.position.y - eq.height/2, eq.position.y + eq.height/2])
-
-        if all_x and all_y:
-            margin = max(max(all_x) - min(all_x), max(all_y) - min(all_y)) * 0.1 + 500
-            margin = margin / self._zoom_level
-            xlim = (min(all_x) - margin, max(all_x) + margin)
-            ylim = (min(all_y) - margin, max(all_y) + margin)
-        else:
-            xlim, ylim = (-5000, 15000), (-5000, 15000)
-        self.ax.set_xlim(xlim)
-        self.ax.set_ylim(ylim)
-        self.ax.set_aspect("equal")
-        self.ax.set_xlabel("X, мм")
-        self.ax.set_ylabel("Y, мм")
-        self.ax.set_title(f"{self.project.name} — План: {floor_name}", fontsize=12)
-
-        legend_elements = [
-            Line2D([0], [0], color=self.COLORS["wall"], lw=4, label="Стіна"),
-            Line2D([0], [0], color=self.COLORS["duct_supply"], lw=3, label="Приплив"),
-            Line2D([0], [0], color=self.COLORS["duct_exhaust"], lw=3, label="Витяжка"),
-            Line2D([0], [0], marker="s", color="w", markerfacecolor=self.COLORS["equipment"], markersize=10, label="Обладнання"),
-            Line2D([0], [0], marker="s", color="w", markerfacecolor=self.COLORS["opening"], markersize=8, label="Отвір"),
-        ]
-        self.ax.legend(handles=legend_elements, loc="upper right", fontsize=8, framealpha=0.9)
-        self.canvas.draw()
-
-    def _draw_wall_2d(self, wall):
-        dx = wall.end.x - wall.start.x
-        dy = wall.end.y - wall.start.y
-        length = math.sqrt(dx**2 + dy**2)
-        if length == 0:
-            return
-        nx, ny = dx / length, dy / length
-        perp_x, perp_y = -ny, nx
-        hw = wall.thickness / 2
-        x1 = wall.start.x + perp_x * hw
-        y1 = wall.start.y + perp_y * hw
-        x2 = wall.start.x - perp_x * hw
-        y2 = wall.start.y - perp_y * hw
-        x3 = wall.end.x - perp_x * hw
-        y3 = wall.end.y - perp_y * hw
-        x4 = wall.end.x + perp_x * hw
-        y4 = wall.end.y + perp_y * hw
-        color = self.COLORS["wall"] if wall.is_load_bearing else self.COLORS["wall_partition"]
-        polygon = Polygon([(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
-                          closed=True, facecolor=color, edgecolor="black", linewidth=0.5, alpha=0.9)
-        self.ax.add_patch(polygon)
-
-    def _draw_opening_2d(self, op):
-        cx, cy = op.position.x, op.position.y
-        w, h = op.width, op.height
-        rect = Rectangle((cx - w/2, cy - h/2), w, h,
-                         facecolor="none", edgecolor=self.COLORS["opening"],
-                         linewidth=2, linestyle="--", alpha=0.9)
-        self.ax.add_patch(rect)
-        self.ax.text(cx, cy, op.name, fontsize=6, color=self.COLORS["opening"],
-                     ha="center", va="center", fontweight="bold",
-                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7, edgecolor="none"))
-
-    def _draw_duct_segment_2d(self, seg, color, show_dims):
-        x1, y1 = seg.start.x, seg.start.y
-        x2, y2 = seg.end.x, seg.end.y
-        self.ax.plot([x1, x2], [y1, y2], color=color, linewidth=3, solid_capstyle="round")
-
-        # Виноска Δh для зміни висоти
-        dz = seg.end.z - seg.start.z
-        if abs(dz) > 1.0:
-            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-            seg_len = math.hypot(x2 - x1, y2 - y1)
-            if seg_len > 1:
-                nx = -(y2 - y1) / seg_len
-                ny =  (x2 - x1) / seg_len
-                offset = 60
-                tx = mx + nx * offset
-                ty = my + ny * offset
-                arrow_color = "#2563eb" if dz > 0 else "#dc2626"
-                self.ax.annotate(
-                    f"Δh={abs(dz):.0f}",
-                    xy=(mx, my), xytext=(tx, ty),
-                    fontsize=7, color=arrow_color, fontweight="bold",
-                    arrowprops=dict(arrowstyle="->", color=arrow_color, lw=0.8,
-                                    connectionstyle="arc3,rad=0.15"),
-                    bbox=dict(boxstyle="round,pad=0.25", facecolor="#eff6ff",
-                              edgecolor=arrow_color, alpha=0.85)
-                )
-
-        if show_dims and seg.length > 1000:
-            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
-            angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-            offset = max(seg.width, seg.height) / 2 + 150
-            perp_angle = np.radians(angle + 90)
-            ox = offset * np.cos(perp_angle)
-            oy = offset * np.sin(perp_angle)
-            label = f"{seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f}"
-            self.ax.annotate(label, xy=(cx, cy), xytext=(cx + ox, cy + oy), fontsize=7, color=color, fontweight="bold",
-                             ha="center", va="center", bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"),
-                             arrowprops=dict(arrowstyle="->", color=color, lw=0.8))
-
-    def _draw_equipment_2d(self, eq):
-        cx, cy = eq.position.x, eq.position.y
-        w, h = eq.width, eq.height
-        rect = FancyBboxPatch((cx - w/2, cy - h/2), w, h, boxstyle="round,pad=50",
-                              facecolor=self.COLORS["equipment"], edgecolor="#996600", linewidth=2, alpha=0.8)
-        self.ax.add_patch(rect)
-        self.ax.text(cx, cy, eq.name, fontsize=7, color="white", ha="center", va="center", fontweight="bold",
-                     path_effects=[pe.withStroke(linewidth=2, foreground="black")])
-
-    def export_image(self, filepath: str):
-        if self.figure:
-            self.figure.savefig(filepath, dpi=200, bbox_inches="tight", facecolor=self.figure.get_facecolor())
-
-    def _draw_background(self, floor):
-        if not floor or not floor.background:
-            return
-        bg = floor.background
-        scale = bg.get("scale", 1.0)
-        off_x = bg.get("offset_x", 0.0)
-        off_y = bg.get("offset_y", 0.0)
-        rotation = np.radians(bg.get("rotation", 0.0))
-        lines = bg.get("lines", [])
-        cos_r, sin_r = np.cos(rotation), np.sin(rotation)
-        for x1, y1, x2, y2 in lines:
-            x1s, y1s = x1 * scale, y1 * scale
-            x2s, y2s = x2 * scale, y2 * scale
-            x1r = x1s * cos_r - y1s * sin_r
-            y1r = x1s * sin_r + y1s * cos_r
-            x2r = x2s * cos_r - y2s * sin_r
-            y2r = x2s * sin_r + y2s * cos_r
-            x1f, y1f = x1r + off_x, y1r + off_y
-            x2f, y2f = x2r + off_x, y2r + off_y
-            self.ax.plot([x1f, x2f], [y1f, y2f], color="#aaaaaa", linewidth=0.6, alpha=0.5, zorder=0)
+    def export_image(self, filepath):
+        try:
+            from PIL import ImageGrab
+            x = self.canvas.winfo_rootx()
+            y = self.canvas.winfo_rooty()
+            w = self.canvas.winfo_width()
+            h = self.canvas.winfo_height()
+            ImageGrab.grab(bbox=(x, y, x+w, y+h)).save(filepath)
+        except Exception as e:
+            messagebox.showerror("Помилка", str(e))

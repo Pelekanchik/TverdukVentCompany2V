@@ -1,11 +1,12 @@
-"""Вкладка "Проєкти 3D / Креслення".
+"""Вкладка "Проєкти 3D / Креслення" з окремим вікном CAD-редактора.
 
-ПАТЧ:
-    • Ціни у КП через PricingEngine (не 0.00)
-    • Пост-обробка прев'ю через after()
-
-ВСТАНОВЛЕННЯ:
-    Замініть ventilation_company/gui/project_3d_tab.py
+ОСОБЛИВОСТІ:
+    • CAD-редактор відкривається в окремому вікні на весь екран
+    • Професійні інструменти: стіни, отвори, повітропроводи
+    • Завантаження архітектурного плану як фону
+    • Прив'язка до сітки (Snap) та ортогональний режим (Ortho)
+    • 3D-перегляд у вкладці
+    • Імпорт/експорт IFC, DXF, STEP
 """
 
 import math
@@ -16,10 +17,11 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from ventilation_company.project3d import (
     VentProject, ProjectConverter,
-    Project3DPreview, Project2DPreview,
+    Project3DPreview,
     VentilationSystem, VentilationTrunk, DuctSegment, Fitting, Equipment, Point3D,
     Wall,
 )
+from ventilation_company.project3d.preview_2d import Project2DPreview
 
 
 class Project3DTab:
@@ -32,6 +34,7 @@ class Project3DTab:
         self.project: VentProject = VentProject()
         self._current_file: str = ""
         self._modified = False
+        self._cad_window: Optional[tk.Toplevel] = None
         self._build_ui()
 
     def set_project(self, project_data: dict):
@@ -39,6 +42,9 @@ class Project3DTab:
         pass
 
     def _build_ui(self):
+        # ═══════════════════════════════════════════
+        #  ВЕРХНІЙ ТУЛБАР
+        # ═══════════════════════════════════════════
         toolbar_wrap = ttk.Frame(self.frame, padding=5)
         toolbar_wrap.pack(fill=tk.X)
 
@@ -51,6 +57,14 @@ class Project3DTab:
         ttk.Button(tbar1, text="📂 Новий", command=self._new_project).pack(side=tk.LEFT, padx=2)
         ttk.Button(tbar1, text="💾 Зберегти", command=self._save_project).pack(side=tk.LEFT, padx=2)
         ttk.Button(tbar1, text="📁 Відкрити", command=self._load_project).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+
+        # === КНОПКА ВІДКРИТТЯ CAD В ОКРЕМОМУ ВІКНІ ===
+        cad_btn = ttk.Button(tbar1, text="📐 Відкрити план 2D", command=self._open_cad_window)
+        cad_btn.pack(side=tk.LEFT, padx=2)
+        # Стиль для виділення кнопки
+        cad_btn.configure(style="Accent.TButton")
 
         ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
@@ -75,8 +89,9 @@ class Project3DTab:
         export_menu.add_separator()
         export_menu.add_command(label="📋 У VentProject", command=lambda: self._export_file("ventproj"))
         export_menu.add_separator()
-        export_menu.add_command(label="🖼️ Зберегти 2D", command=self._export_image_2d)
-        export_menu.add_command(label="🖼️ Зберегти 3D", command=self._export_image_3d)
+        export_menu.add_command(label="🖼️ Зберегти 3D (PNG)", command=self._export_image_3d)
+        export_menu.add_separator()
+        export_menu.add_command(label="📄 Експорт КП (PDF)", command=self._generate_proposal)
         self.export_btn["menu"] = export_menu
 
         ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
@@ -88,16 +103,20 @@ class Project3DTab:
         ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
         ttk.Button(tbar2, text="📄 КП (PDF)", command=self._generate_proposal).pack(side=tk.LEFT, padx=2)
 
+        # ═══════════════════════════════════════════
+        #  ГОЛОВНИЙ PANED WINDOW
+        # ═══════════════════════════════════════════
         paned = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
+        # ── ЛІВА ПАНЕЛЬ ──
         left = ttk.Frame(paned)
-        paned.add(left, weight=1)
+        paned.add(left, weight=2)
 
         tree_frame = ttk.LabelFrame(left, text="Структура проєкту", padding=5)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        self.tree = ttk.Treeview(tree_frame, show="tree", height=20)
+        self.tree = ttk.Treeview(tree_frame, show="tree", height=15)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=tree_scroll.set)
@@ -107,32 +126,149 @@ class Project3DTab:
         self.tree.bind("<Double-1>", self._on_tree_double_click)
         self.tree.bind("<Button-3>", self._on_tree_right_click)
 
-        props_frame = ttk.LabelFrame(left, text="Властивості", padding=5)
-        props_frame.pack(fill=tk.X, padx=5, pady=5)
+        # Властивості
+        props_frame = ttk.LabelFrame(left, text="Властивості об'єкта", padding=5)
+        props_frame.pack(fill=tk.BOTH, expand=False, padx=5, pady=5)
 
-        self.props_text = tk.Text(props_frame, height=10, wrap=tk.WORD, font=("Consolas", 9))
+        self.props_text = tk.Text(props_frame, height=12, wrap=tk.WORD, font=("Consolas", 10))
         self.props_text.pack(fill=tk.BOTH, expand=True)
-        self.props_text.config(state=tk.DISABLED)
+        self.props_text.config(state=tk.DISABLED, bg="#f8f8f8")
 
-        info_frame = ttk.LabelFrame(left, text="Інформація", padding=5)
+        props_scroll = ttk.Scrollbar(props_frame, orient=tk.VERTICAL, command=self.props_text.yview)
+        self.props_text.configure(yscrollcommand=props_scroll.set)
+        props_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Інформація
+        info_frame = ttk.LabelFrame(left, text="Інформація про проєкт", padding=5)
         info_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        self.info_label = ttk.Label(info_frame, text="Новий проєкт", foreground="#666", wraplength=280)
+        self.info_label = ttk.Label(info_frame, text="Новий проєкт", foreground="#666", wraplength=280, justify=tk.LEFT)
         self.info_label.pack(anchor=tk.W)
 
+        # ── ПРАВА ПАНЕЛЬ — тільки 3D ──
         right = ttk.Notebook(paned)
-        paned.add(right, weight=3)
-
-        self.plan_frame = ttk.Frame(right)
-        right.add(self.plan_frame, text="📐 План 2D")
-        self.preview_2d = Project2DPreview(self.plan_frame)
+        paned.add(right, weight=5)
 
         self.view3d_frame = ttk.Frame(right)
         right.add(self.view3d_frame, text="🏗️ 3D Вигляд")
         self.preview_3d = Project3DPreview(self.view3d_frame)
 
-        self.status = ttk.Label(self.frame, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
+        # Статус
+        self.status = ttk.Label(self.frame, text="Готово | Натисніть «📐 Відкрити план 2D» для креслення", 
+                               relief=tk.SUNKEN, anchor=tk.W)
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
+
+    # ═════════════════════════════════════════════════════════════════
+    #  ОКРЕМЕ ВІКНО CAD-РЕДАКТОРА
+    # ═════════════════════════════════════════════════════════════════
+
+    def _open_cad_window(self):
+        """Відкрити CAD-редактор в окремому вікні на весь екран."""
+        if self._cad_window and self._cad_window.winfo_exists():
+            self._cad_window.lift()
+            self._cad_window.focus_force()
+            return
+
+        self._cad_window = tk.Toplevel(self.frame)
+        self._cad_window.title(f"📐 План 2D — {self.project.name}")
+        self._cad_window.geometry("1400x900")
+
+        # На весь екран (Windows)
+        try:
+            self._cad_window.state("zoomed")
+        except tk.TclError:
+            pass
+
+        # PanedWindow: ліворуч властивості, праворуч креслення
+        paned = ttk.PanedWindow(self._cad_window, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # Ліва панель властивостей у вікні CAD
+        left_frame = ttk.Frame(paned, width=280)
+        paned.add(left_frame, weight=0)
+        left_frame.pack_propagate(False)
+
+        ttk.Label(left_frame, text="📋 Властивості", font=("Arial", 11, "bold")).pack(anchor=tk.W, padx=5, pady=5)
+
+        self.cad_props_text = tk.Text(left_frame, height=20, wrap=tk.WORD, font=("Consolas", 10))
+        self.cad_props_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.cad_props_text.config(state=tk.DISABLED, bg="#f8f8f8")
+
+        ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Label(left_frame, text="🎨 Кольори:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
+        colors_info = (
+            "🧱 Стіни — темно-сірий\n"
+            "🕳️ Отвори — червоний (штрих)\n"
+            "💨 Приплив — синій\n"
+            "💨 Витяжка — зелений\n"
+            "🔥 Димовидалення — оранжевий\n"
+            "⭐ Вибраний — червоний + точки"
+        )
+        ttk.Label(left_frame, text=colors_info, foreground="#555", justify=tk.LEFT).pack(anchor=tk.W, padx=5, pady=2)
+
+        ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Label(left_frame, text="⌨️ Гарячі клавіші:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
+        hotkeys = (
+            "Delete — видалити вибране\n"
+            "Ctrl+Z — скасувати\n"
+            "Колесо — масштаб\n"
+            "Shift+ЛКМ — панорама\n"
+            "Ortho — тільки 90°"
+        )
+        ttk.Label(left_frame, text=hotkeys, foreground="#555", justify=tk.LEFT).pack(anchor=tk.W, padx=5, pady=2)
+
+        # Кнопка закриття
+        ttk.Button(left_frame, text="❌ Закрити вікно", command=self._cad_window.destroy).pack(fill=tk.X, padx=5, pady=10)
+
+        # Права панель — CAD-редактор
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=1)
+
+        self.cad_preview = Project2DPreview(
+            right_frame,
+            on_select_callback=self._on_cad_object_selected
+        )
+        self.cad_preview.set_project(self.project)
+
+        # При закритті вікна оновлюємо дерево
+        self._cad_window.protocol("WM_DELETE_WINDOW", self._on_cad_window_close)
+
+        self.status.config(text="📐 Відкрито вікно CAD-редактора")
+
+    def _on_cad_object_selected(self, obj, obj_type: str, text: str):
+        """Callback при виборі об'єкта в CAD-вікні."""
+        self.cad_props_text.config(state=tk.NORMAL)
+        self.cad_props_text.delete("1.0", tk.END)
+        if text:
+            self.cad_props_text.insert(tk.END, text)
+        else:
+            self.cad_props_text.insert(tk.END, "Виберіть об'єкт на плані інструментом 🖱️ Вибір\n\n"
+                "АБО почніть малювати:\n"
+                "• ━━ Стіна — 2 кліки (початок → кінець)\n"
+                "• ☐ Отвір — 1 клік (центр)\n"
+                "• ══ Повітр. — 2 кліки + профіль\n"
+                "• ⬛ Прямок. — 2 кліки (кути)\n"
+                "• 📏 Вимір. — 2 кліки (відстань)")
+        self.cad_props_text.config(state=tk.DISABLED)
+
+        # Оновити дерево в головному вікні
+        self._refresh_tree()
+
+    def _on_cad_window_close(self):
+        """При закритті CAD-вікна оновити дерево та 3D."""
+        self._refresh_tree()
+        self.preview_3d.set_project(self.project)
+        self._modified = True
+        if self._cad_window:
+            self._cad_window.destroy()
+            self._cad_window = None
+        self.status.config(text="CAD-редактор закрито | Дані збережено в проєкті")
+
+    # ═════════════════════════════════════════════════════════════════
+    #  РЕШТА МЕТОДІВ
+    # ═════════════════════════════════════════════════════════════════
 
     def _refresh_tree(self):
         collision_ids = set()
@@ -251,12 +387,21 @@ class Project3DTab:
                     if w.id == obj_id:
                         return f"""Стіна: {w.name}
 Довжина: {w.length:.0f} мм
-Висота: {w.height:.0f} мм
 Товщина: {w.thickness:.0f} мм
+Висота: {w.height:.0f} мм
 Матеріал: {w.material.value}
 Несуча: {'Так' if w.is_load_bearing else 'Ні'}
 Початок: ({w.start.x:.0f}, {w.start.y:.0f}, {w.start.z:.0f})
 Кінець: ({w.end.x:.0f}, {w.end.y:.0f}, {w.end.z:.0f})"""
+        elif obj_type == "opening":
+            for fl in self.project.arch_context.floors:
+                for o in fl.openings:
+                    if o.id == obj_id:
+                        return f"""Отвір: {o.name}
+Ширина: {o.width:.0f} мм
+Висота: {o.height:.0f} мм
+Форма: {o.shape}
+Позиція: ({o.position.x:.0f}, {o.position.y:.0f}, {o.position.z:.0f})"""
         elif obj_type == "system":
             for s in self.project.ventilation_systems:
                 if s.id == obj_id:
@@ -324,8 +469,8 @@ class Project3DTab:
         pass
 
     def _check_collisions(self):
-        """Перевірка зіткнень — ВЕРСІЯ 2 (AABB + точна відстань)."""
         try:
+            from ventilation_company.project3d.collision_detection import CollisionDetector
             detector = CollisionDetector(self.project)
             collisions = detector.check_all()
         except Exception as e:
@@ -336,10 +481,9 @@ class Project3DTab:
             messagebox.showinfo("Перевірка зіткнень", "✅ Зіткнень не виявлено!")
             self.status.config(text="Зіткнень не виявлено")
             self._refresh_tree()
-            self._refresh_previews()
+            self.preview_3d.set_project(self.project)
             return
 
-        # Групуємо за типом
         seg_collisions = [c for c in collisions if c.object_a_type == "segment" or c.object_b_type == "segment"]
         fit_collisions = [c for c in collisions if c.object_a_type == "fitting" or c.object_b_type == "fitting"]
         eq_collisions = [c for c in collisions if c.object_a_type == "equipment" or c.object_b_type == "equipment"]
@@ -376,48 +520,36 @@ class Project3DTab:
         ttk.Button(dialog, text="OK", command=dialog.destroy).pack(pady=5)
 
         self._refresh_tree()
-        self._refresh_previews()
+        self.preview_3d.set_project(self.project)
         self.status.config(text=f"⚠️ Виявлено {len(collisions)} зіткнень")
 
-    # ═════════════════════════════════════════════════════════════════
-    #  НОВЕ: Розрахунок ціни для КП
-    # ═════════════════════════════════════════════════════════════════
-    def _calc_duct_price(self, seg: DuctSegment) -> float:
-        """Розрахувати ціну сегмента повітропроводу (грн/м.п.).
-
-        Формула: площа розгортки (м²) * ціна за м² металу + націнка
-        """
+    def _calc_duct_price(self, seg) -> float:
         from ventilation_company.calculations.pricing import PricingEngine
-        # Площа розгортки прямокутного повітропроводу (м²/м.п.)
         perimeter_mm = 2 * (seg.width + seg.height)
-        area_per_meter = perimeter_mm / 1000.0  # м² на 1 м.п.
+        area_per_meter = perimeter_mm / 1000.0
         length_m = seg.length / 1000.0
         total_area = area_per_meter * length_m
-        # Базова вартість металу ~850 грн/м² + робота ~400 грн/м²
         base_cost = total_area * 1250.0
         engine = PricingEngine(base_cost=base_cost, markup_percent=25.0)
         result = engine.cost_plus_pricing()
         return result["price_without_vat"] / length_m if length_m > 0 else 0.0
 
-    def _calc_fitting_price(self, fit: Fitting) -> float:
-        """Розрахувати ціну фасонного виробу (грн/шт)."""
-        # Площа розгортки фасонки (приблизно)
+    def _calc_fitting_price(self, fit) -> float:
         area_m2 = (fit.width_in * fit.height_in) / 1_000_000.0 * 1.5
         base_cost = area_m2 * 1500.0
+        from ventilation_company.calculations.pricing import PricingEngine
         engine = PricingEngine(base_cost=base_cost, markup_percent=30.0)
         result = engine.cost_plus_pricing()
         return result["price_without_vat"]
 
-    def _calc_equipment_price(self, eq: Equipment) -> float:
-        """Розрахувати ціну обладнання (грн/шт)."""
-        # Обладнання дорожче — базова вартість залежить від потужності
+    def _calc_equipment_price(self, eq) -> float:
         base_cost = max(eq.power * 5000.0, 3000.0) if eq.power else 5000.0
+        from ventilation_company.calculations.pricing import PricingEngine
         engine = PricingEngine(base_cost=base_cost, markup_percent=20.0)
         result = engine.cost_plus_pricing()
         return result["price_without_vat"]
 
     def _generate_proposal(self):
-        """Згенерувати Комерційну Пропозицію (КП) у PDF з цінами."""
         from ventilation_company.proposal_generator import generate_proposal
 
         project_data = {
@@ -425,7 +557,7 @@ class Project3DTab:
             "project_number": getattr(self.project, "project_number", ""),
             "client": self.project.client,
             "address": getattr(self.project, "address", ""),
-            "proposal_number": f"KP-{datetime.now().strftime("%Y%m%d")}-001",
+            "proposal_number": f"KP-{datetime.now().strftime('%Y%m%d')}-001",
             "delivery_days": 14,
             "installation_days": 7,
             "warranty_months": 24,
@@ -484,9 +616,12 @@ class Project3DTab:
         self.project = VentProject()
         self._current_file = ""
         self._modified = False
+        self.preview_3d.set_project(self.project)
         self._refresh_tree()
-        self._refresh_previews()
-        self.status.config(text="Створено новий проєкт")
+        self.props_text.config(state=tk.NORMAL)
+        self.props_text.delete("1.0", tk.END)
+        self.props_text.config(state=tk.DISABLED)
+        self.status.config(text="Створено новий проєкт | Натисніть «📐 Відкрити план 2D»")
 
     def _save_project(self):
         if not self._current_file:
@@ -513,8 +648,8 @@ class Project3DTab:
             self.project = VentProject.load(filepath)
             self._current_file = filepath
             self._modified = False
+            self.preview_3d.set_project(self.project)
             self._refresh_tree()
-            self._refresh_previews()
             self.status.config(text=f"Відкрито: {filepath}")
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося відкрити проєкт:\n{e}")
@@ -539,8 +674,8 @@ class Project3DTab:
                 if imported.notes:
                     self.project.notes += "\n" + imported.notes
             self._modified = True
+            self.preview_3d.set_project(self.project)
             self._refresh_tree()
-            self._refresh_previews()
             self.status.config(text=f"Імпортовано: {os.path.basename(filepath)}")
         except Exception as e:
             messagebox.showerror("Помилка імпорту", str(e))
@@ -564,13 +699,6 @@ class Project3DTab:
         except Exception as e:
             messagebox.showerror("Помилка експорту", str(e))
 
-    def _export_image_2d(self):
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти план 2D")
-        if filepath:
-            self.preview_2d.export_image(filepath)
-            self.status.config(text=f"Зображення 2D: {filepath}")
-
     def _export_image_3d(self):
         filepath = filedialog.asksaveasfilename(
             defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти 3D-вигляд")
@@ -579,5 +707,4 @@ class Project3DTab:
             self.status.config(text=f"Зображення 3D: {filepath}")
 
     def _refresh_previews(self):
-        self.preview_2d.set_project(self.project)
         self.preview_3d.set_project(self.project)

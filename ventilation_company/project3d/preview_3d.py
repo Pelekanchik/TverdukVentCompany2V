@@ -1,13 +1,4 @@
-"""Покращений 3D-перегляд проєкту через matplotlib.
-
-ПАТЧ:
-    • Повністю прибрано ромби/точки фасонок
-    • Прибрано круги/квадрати на кінцях сегментів
-    • Зменшено кількість підписів (тільки для сегментів >2500 мм)
-
-ВСТАНОВЛЕННЯ:
-    Замініть ventilation_company/project3d/preview_3d.py
-"""
+"""Покращений 3D-перегляд проєкту через matplotlib."""
 
 import os
 import tempfile
@@ -55,6 +46,7 @@ class Project3DPreview:
         self._view_angle = (25, -60)
         self._show_collisions = True
         self._collision_ids = set()
+        self.ax = None  # === ВИПРАВЛЕННЯ: ініціалізуємо ax ===
         self._build_ui()
         self._connect_events()
 
@@ -105,7 +97,8 @@ class Project3DPreview:
         self._orbit_elev = None
 
     def _on_press(self, event):
-        if event.inaxes != getattr(self, "ax", None):
+        # === ВИПРАВЛЕННЯ: перевіряємо чи ax існує ===
+        if self.ax is None or event.inaxes != self.ax:
             return
         if event.button == 1:
             self._orbit_start = (event.x, event.y)
@@ -118,7 +111,8 @@ class Project3DPreview:
         self._orbit_elev = None
 
     def _on_motion(self, event):
-        if self._orbit_start is None or event.inaxes != self.ax:
+        # === ВИПРАВЛЕННЯ: перевіряємо чи ax існує ===
+        if self._orbit_start is None or self.ax is None or event.inaxes != self.ax:
             return
         dx = event.x - self._orbit_start[0]
         dy = event.y - self._orbit_start[1]
@@ -127,7 +121,8 @@ class Project3DPreview:
         self.canvas.draw_idle()
 
     def _on_scroll(self, event):
-        if event.inaxes != getattr(self, "ax", None):
+        # === ВИПРАВЛЕННЯ: перевіряємо чи ax існує ===
+        if self.ax is None or event.inaxes != self.ax:
             return
         scale = 0.9 if event.button == "up" else 1.1
         if hasattr(self.ax, "dist") and self.ax.dist is not None:
@@ -214,7 +209,6 @@ class Project3DPreview:
                         all_x.extend([seg.start.x, seg.end.x])
                         all_y.extend([seg.start.y, seg.end.y])
                         all_z.extend([seg.start.z, seg.end.z])
-                    # ══ ФАСОНКИ ПОВНІСТЮ ПРИБРАНО ══
         if show_eq:
             for system in self.project.ventilation_systems:
                 for trunk in system.trunks:
