@@ -19,6 +19,8 @@ import tkinter as tk
 from dataclasses import dataclass, field
 from tkinter import messagebox, ttk
 
+from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_engine_cache
+
 from ventilation_company.gui.markup_matrix_tab import (
     MarkupMatrixTab,
     PRODUCT_TYPE_LABELS,
@@ -673,6 +675,7 @@ class SettingsTab:
 
     def _save_labor_rates(self):
         self.settings.save()
+        clear_cost_engine_cache()
         messagebox.showinfo("Успіх", "Ставки зарплати збережено!")
 
     def _build_catalog_tab(self):
@@ -976,6 +979,7 @@ class SettingsTab:
             with contextlib.suppress(ValueError):
                 self.settings.depreciation[key] = float(var.get())
         self.settings.save()
+        clear_cost_engine_cache()
         messagebox.showinfo("Успіх", "Налаштування збережено!")
 
     def _build_waste_tab(self):

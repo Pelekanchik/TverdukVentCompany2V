@@ -204,6 +204,7 @@ class MainWindow:
         menubar.add_cascade(label="Проєкт", menu=project_menu)
         project_menu.add_command(label="💾 Зберегти в БД", command=self._save_project)
         project_menu.add_command(label="📂 Відкрити проєкт", command=self._load_project)
+        project_menu.add_command(label="🔄 Перерахувати ціни", command=self._recalculate_current_project)
         project_menu.add_separator()
         project_menu.add_command(label="🚪 Вихід", command=self.root.quit)
         export_menu = tk.Menu(menubar, tearoff=0)
@@ -558,11 +559,57 @@ class MainWindow:
         self.spec_tab.project_name_var.set(project["name"])
         self.project_label.config(text=f"{project['name']} (ID: {project_id})")
         products = self.db.get_project_products(project_id)
+        
+        # === ПЕРЕРАХУНОК ЦІН ТА ЗАРПЛАТИ при завантаженні ===
+        from ventilation_company.gui.settings_tab import PricingSettings
+        from ventilation_company.calculations.cost_engine import CostEngine
+        settings = PricingSettings.get_instance()
+        engine = CostEngine(settings)
+        
+        for p in products:
+            # Перераховуємо ціну з актуальними ставками
+            try:
+                price_data = engine.calculate_price_breakdown(p)
+                p["unit_price"] = price_data["price_with_vat"]
+                p["total_price"] = p["unit_price"] * p.get("quantity", 1)
+                p["cost_price"] = price_data["cost_price"]
+                p["salary_per_unit"] = price_data["salary"]
+                p["salary_total"] = p["salary_per_unit"] * p.get("quantity", 1)
+            except Exception:
+                pass  # якщо не вдалося перерахувати — залишаємо старі значення
+        # =====================================================
+        
         self.products_tab.load_products_from_dict(products)
         self.current_project_id = project_id
         self.price_list_tab._current_project_id = self.current_project_id
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
+
+    def _recalculate_current_project(self):
+        """Перерахувати ціни поточного проєкту з актуальними ставками."""
+        products = self._get_products()
+        if not products:
+            messagebox.showwarning("Увага", "Немає виробів для перерахунку.")
+            return
+        
+        from ventilation_company.gui.settings_tab import PricingSettings
+        from ventilation_company.calculations.cost_engine import CostEngine
+        settings = PricingSettings.get_instance()
+        engine = CostEngine(settings)
+        
+        updated = 0
+        for p in products:
+            try:
+                price_data = engine.calculate_price_breakdown(p)
+                p["unit_price"] = price_data["price_with_vat"]
+                p["total_price"] = p["unit_price"] * p.get("quantity", 1)
+                updated += 1
+            except Exception:
+                pass
+        
+        self._set_products(products)
+        self.status_bar.config(text=f"🔄 Перераховано {updated} виробів")
+        messagebox.showinfo("Готово", f"Перераховано {updated} виробів з актуальними ставками.")
 
     def _open_cutting_for_project(self, project_id: int):
         products = self.db.get_project_products(project_id)

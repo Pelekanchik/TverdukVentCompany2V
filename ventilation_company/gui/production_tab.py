@@ -14,6 +14,7 @@ from ventilation_company.production_models import (
 from ventilation_company.production_scheduler import ProductionScheduler
 from ventilation_company.production_gantt import GanttChart, EquipmentLoadChart
 from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_engine_cache
 
 
 class ProductionTab:
@@ -123,14 +124,7 @@ class ProductionTab:
         self.table_tab.grid_columnconfigure(0, weight=1)
 
     def _build_salary_tab(self):
-        """Вкладка розрахунку зарплат по виробах.
-
-        Структура:
-        - Зверху: заголовок + кнопка перерахувати
-        - Під ним: формула (зліва) + загальна сума (справа)
-        - Таблиця займає ВЕСЬ доступний простір знизу
-        """
-        # ── Заголовок + кнопка ──
+        """Вкладка розрахунку зарплат по виробах."""
         top = ttk.Frame(self.salary_tab, padding=5)
         top.pack(fill=tk.X)
         ttk.Label(top, text="💰 Розрахунок зарплати робітників (від виробітку)",
@@ -138,25 +132,9 @@ class ProductionTab:
         ttk.Button(top, text="🔄 Перерахувати", command=self._calculate_salary
                    ).pack(side=tk.RIGHT, padx=5)
 
-        # ── Інфо-панель: формула + підсумок ──
-        info = ttk.Frame(self.salary_tab, padding=5)
-        info.pack(fill=tk.X)
-
-        formula_text = (
-            "Формула: Зарплата = площа_металу × ставка_грн/м² × (1 + важкість_%)  |  "
-            "Ставки беруться з вкладки 'Ціноутворення → Зарплата'"
-        )
-        ttk.Label(info, text=formula_text, foreground="#555", font=("Arial", 9)).pack(side=tk.LEFT)
-
-        self.salary_total_label = ttk.Label(
-            info, text="Загальна зарплата: 0.00 грн",
-            font=("Arial", 11, "bold"), foreground="#0066cc"
-        )
-        self.salary_total_label.pack(side=tk.RIGHT, padx=10)
-
-        # ── Таблиця на весь екран ──
+        # Таблиця
         cols = ("product", "type", "area", "rate", "difficulty", "salary", "total")
-        self.salary_tree = ttk.Treeview(self.salary_tab, columns=cols, show="headings")
+        self.salary_tree = ttk.Treeview(self.salary_tab, columns=cols, show="headings", height=18)
         self.salary_tree.heading("product", text="Виріб")
         self.salary_tree.heading("type", text="Тип")
         self.salary_tree.heading("area", text="Площа, м²")
@@ -176,9 +154,23 @@ class ProductionTab:
         vsb = ttk.Scrollbar(self.salary_tab, orient=tk.VERTICAL, command=self.salary_tree.yview)
         self.salary_tree.configure(yscrollcommand=vsb.set)
 
-        # pack з expand=True — таблиця займе ВЕСЬ доступний простір
         self.salary_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         vsb.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
+
+        # Підсумок
+        self.salary_total_frame = ttk.LabelFrame(self.salary_tab, text="Підсумок по проєкту", padding=10)
+        self.salary_total_frame.pack(fill=tk.X, padx=5, pady=5, side=tk.BOTTOM)
+        self.salary_total_label = ttk.Label(self.salary_total_frame, text="Загальна зарплата: 0.00 грн",
+                                             font=("Arial", 11, "bold"))
+        self.salary_total_label.pack(anchor=tk.W)
+
+        # Підказка
+        hint = ttk.Label(
+            self.salary_tab,
+            text="💡 Формула: Зарплата = площа_металу × ставка_грн/м² × (1 + важкість_%) | Ставки беруться з вкладки 'Ціноутворення → Зарплата'",
+            foreground="#666", font=("Arial", 8)
+        )
+        hint.pack(anchor=tk.W, padx=5, pady=2)
 
     def _calculate_salary(self):
         """Розрахувати зарплату по всіх виробах проєкту."""
@@ -186,6 +178,9 @@ class ProductionTab:
         if not products:
             messagebox.showwarning("Увага", "У проєкті немає виробів.")
             return
+
+        # === ВИПРАВЛЕННЯ 1: очищуємо кеш CostEngine, щоб бачити актуальні дані ===
+        clear_cost_engine_cache()
 
         settings = PricingSettings.get_instance()
         total_salary = 0.0
@@ -196,7 +191,9 @@ class ProductionTab:
 
         for product in products:
             name = product.get("name", "—")
-            ptype = product.get("product_type", product.get("type", ""))
+            # === ВИПРАВЛЕННЯ 2: використовуємо name (українську назву) для пошуку ставки ===
+            # бо product_type = "rectangular_duct", а labor_rates має ключ "повітропровід прямокутний"
+            ptype = product.get("name", product.get("product_type", product.get("type", "")))
             area = float(product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0))))
             qty = int(product.get("quantity", 1))
 
@@ -212,7 +209,7 @@ class ProductionTab:
 
             self.salary_tree.insert("", tk.END, values=(
                 name,
-                ptype,
+                product.get("product_type", ""),
                 f"{area:.4f}",
                 f"{rate:.2f}",
                 f"{difficulty:.1f}",
