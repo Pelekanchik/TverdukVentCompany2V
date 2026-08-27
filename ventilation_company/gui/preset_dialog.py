@@ -307,52 +307,116 @@ def choose_preset(parent: tk.Widget) -> object | None:
 
 
 class _PresetEditorDialog:
-    """Внутрішній діалог для редагування/додавання пресету."""
+    """Внутрішній діалог для редагування/додавання пресету (ВИПРАВЛЕНО)."""
 
     def __init__(self, parent, base: StandardProduct):
         self.result = None
+        self.base = base  # Зберігаємо оригінал для копіювання
+
         self.top = tk.Toplevel(parent)
         self.top.title("Редактор пресету")
-        self.top.geometry("350x450")
-        top.minsize(400, 300)
-        top.resizable(True, True)
+        self.top.geometry("350x480")
+        self.top.minsize(350, 480)  # ВИПРАВЛЕНО: self.top замість top
+        self.top.resizable(True, True)  # ВИПРАВЛЕНО: self.top замість top
         self.top.transient(parent)
         self.top.grab_set()
 
+        # Назва
         ttk.Label(self.top, text="Назва:").pack(pady=(10, 0))
         self.name_var = tk.StringVar(value=base.name)
         ttk.Entry(self.top, textvariable=self.name_var, width=35).pack()
 
+        # Ширина
         ttk.Label(self.top, text="Ширина (мм):").pack(pady=(10, 0))
         self.w_var = tk.StringVar(value=str(base.width))
         ttk.Entry(self.top, textvariable=self.w_var, width=15).pack()
 
+        # Висота
         ttk.Label(self.top, text="Висота (мм):").pack(pady=(10, 0))
         self.h_var = tk.StringVar(value=str(base.height))
         ttk.Entry(self.top, textvariable=self.h_var, width=15).pack()
 
+        # Довжина
         ttk.Label(self.top, text="Довжина (мм):").pack(pady=(10, 0))
         self.l_var = tk.StringVar(value=str(base.length))
         ttk.Entry(self.top, textvariable=self.l_var, width=15).pack()
 
+        # Тип
         ttk.Label(self.top, text="Тип виробу:").pack(pady=(10, 0))
         self.type_var = tk.StringVar(value=base.product_type)
         ttk.Entry(self.top, textvariable=self.type_var, width=35).pack()
 
+        # Матеріал
         ttk.Label(self.top, text="Матеріал:").pack(pady=(10, 0))
         self.mat_var = tk.StringVar(value=base._material_str() if hasattr(base, "_material_str") else str(base.material))
-        ttk.Combobox(self.top, textvariable=self.mat_var, values=["оцинкована сталь", "нержавіюча сталь", "алюміній"], state="readonly", width=25).pack()
+        ttk.Combobox(self.top, textvariable=self.mat_var,
+                     values=["оцинкована сталь", "нержавіюча сталь", "алюміній"],
+                     state="readonly", width=25).pack()
 
-        ttk.Label(self.top, text="Товщина:").pack(pady=(10, 0))
+        # Товщина
+        ttk.Label(self.top, text="Товщина (мм):").pack(pady=(10, 0))
         self.thick_var = tk.StringVar(value=str(base._thickness_float() if hasattr(base, "_thickness_float") else float(base.thickness)))
-        ttk.Combobox(self.top, textvariable=self.thick_var, values=["0.5", "0.7", "1.0", "1.2", "1.5", "2.0"], state="readonly", width=10).pack()
+        ttk.Combobox(self.top, textvariable=self.thick_var,
+                     values=["0.5", "0.55", "0.6", "0.7", "0.8", "1.0", "1.2", "1.5", "2.0"],
+                     state="readonly", width=10).pack()
 
+        # Кнопки
         btn_frame = ttk.Frame(self.top)
         btn_frame.pack(pady=20)
-        ttk.Button(btn_frame, text="Зберегти", command=self._on_save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Скасувати", command=self.top.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="💾 Зберегти", command=self._on_save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ Скасувати", command=self.top.destroy).pack(side=tk.LEFT, padx=5)
+
+        # Автооновлення назви при зміні розмірів
+        for var in (self.w_var, self.h_var, self.l_var):
+            var.trace_add("write", lambda *a: self._auto_update_name())
+        self._auto_update_name()
 
         self.top.wait_window(self.top)
+
+    def _auto_update_name(self):
+        """Автоматично формує назву з розмірів."""
+        try:
+            w = float(self.w_var.get())
+            h = float(self.h_var.get())
+            l = float(self.l_var.get())
+            ptype = self.type_var.get().lower()
+
+            if "кругл" in ptype or h == 0:
+                if "повітропровід" in ptype:
+                    name = f"Повітропровід Ø{w:.0f}×{l:.0f}"
+                elif "фланець" in ptype:
+                    name = f"Фланець Ø{w:.0f}"
+                elif "трійник" in ptype:
+                    name = f"Трійник Ø{w:.0f}"
+                elif "перехід" in ptype:
+                    name = f"Перехід Ø{w:.0f}"
+                elif "відвід" in ptype or "коліно" in ptype:
+                    name = f"Відвід Ø{w:.0f}"
+                elif "заглушка" in ptype:
+                    name = f"Заглушка Ø{w:.0f}"
+                else:
+                    name = f"Ø{w:.0f}"
+            else:
+                if "повітропровід" in ptype:
+                    name = f"Повітропровід {w:.0f}×{h:.0f}×{l:.0f}"
+                elif "фланець" in ptype:
+                    name = f"Фланець {w:.0f}×{h:.0f}"
+                elif "трійник" in ptype:
+                    name = f"Трійник {w:.0f}×{h:.0f}"
+                elif "перехід" in ptype:
+                    name = f"Перехід {w:.0f}×{h:.0f}"
+                elif "відвід" in ptype or "коліно" in ptype:
+                    name = f"Відвід {w:.0f}×{h:.0f}"
+                elif "заглушка" in ptype:
+                    name = f"Заглушка {w:.0f}×{h:.0f}"
+                elif "гнучк" in ptype or "вставк" in ptype:
+                    name = f"Гнучка вставка {w:.0f}×{h:.0f}×{l:.0f}"
+                else:
+                    name = f"{w:.0f}×{h:.0f}×{l:.0f}"
+
+            self.name_var.set(name)
+        except Exception:
+            pass
 
     def _on_save(self):
         from ventilation_company.standard_products import MaterialType, Thickness
@@ -360,17 +424,20 @@ class _PresetEditorDialog:
             w = float(self.w_var.get())
             h = float(self.h_var.get())
             l = float(self.l_var.get())
-            qty = 1
             name = self.name_var.get().strip()
             if not name:
                 raise ValueError("Назва не може бути порожньою")
             ptype = self.type_var.get()
+
+            # Матеріал
             mat_str = self.mat_var.get()
             mat = MaterialType.GALVANIZED
             for m in MaterialType:
                 if m.value == mat_str:
                     mat = m
                     break
+
+            # Товщина
             thick_val = float(self.thick_var.get())
             thick = Thickness.T0_7
             for t in Thickness:
@@ -378,12 +445,20 @@ class _PresetEditorDialog:
                     thick = t
                     break
 
-            # Створюємо базовий продукт (спрощено — RectDuct, можна розширити)
-            from ventilation_company.standard_products import RectDuct, RoundDuct
-            if "кругл" in ptype.lower():
-                p = RoundDuct(name=name, product_type=ptype, width=w, height=w, length=l, thickness=thick, material=mat, quantity=qty)
-            else:
-                p = RectDuct(name=name, product_type=ptype, width=w, height=h, length=l, thickness=thick, material=mat, quantity=qty)
+            # Копіюємо оригінал і оновлюємо поля — зберігаємо ВСЕ (angle, radius, branch_width...)
+            p = copy.deepcopy(self.base)
+            p.name = name
+            p.width = w
+            p.height = h
+            p.length = l
+            p.thickness = thick
+            p.material = mat
+            p.product_type = ptype
+
+            # Перераховуємо площі, вагу, ціну
+            if hasattr(p, '__post_init__'):
+                p.__post_init__()
+
             self.result = p
             self.top.destroy()
         except Exception as e:

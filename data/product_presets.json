@@ -10,7 +10,7 @@
     "quantity": 1,
     "surface_area_m2": 0.15,
     "blank_area_m2": 0.1632,
-    "material_area_m2": 0.1632,
+    "material_area_m2": 0.192,
     "metal_area_m2": 0.15,
     "weight_kg": 0.8968,
     "has_flanges": false,
@@ -20,7 +20,7 @@
     "unit_price": "186.9723648",
     "total_price": "186.9723648",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 100×50×1000",
@@ -33,7 +33,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3,
     "blank_area_m2": 0.3232,
-    "material_area_m2": 0.3232,
+    "material_area_m2": 0.3802,
     "metal_area_m2": 0.3,
     "weight_kg": 1.776,
     "has_flanges": false,
@@ -43,30 +43,30 @@
     "unit_price": "370.2786048",
     "total_price": "370.2786048",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 100×50×1250",
     "product_type": "повітропровід прямокутний",
-    "width": 100,
-    "height": 50,
-    "length": 1250,
-    "thickness": 0.7,
+    "width": 100.0,
+    "height": 300.0,
+    "length": 1250.0,
+    "thickness": 0.5,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.375,
-    "blank_area_m2": 0.4032,
-    "material_area_m2": 0.4032,
-    "metal_area_m2": 0.375,
-    "weight_kg": 2.2156,
+    "surface_area_m2": 1.0,
+    "blank_area_m2": 1.0332,
+    "material_area_m2": 1.2155,
+    "metal_area_m2": 1.0,
+    "weight_kg": 4.0553,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
     "profile": 30.0,
-    "unit_price": "461.9317247999999",
-    "total_price": "461.9317247999999",
+    "unit_price": "1318.8630256941176",
+    "total_price": "1318.8630256941176",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 100×50×1500",
@@ -79,7 +79,7 @@
     "quantity": 1,
     "surface_area_m2": 0.45,
     "blank_area_m2": 0.4832,
-    "material_area_m2": 0.4832,
+    "material_area_m2": 0.5685,
     "metal_area_m2": 0.45,
     "weight_kg": 2.6552,
     "has_flanges": false,
@@ -89,7 +89,7 @@
     "unit_price": "553.5848448000002",
     "total_price": "553.5848448000002",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 125×65×500",
@@ -102,7 +102,7 @@
     "quantity": 1,
     "surface_area_m2": 0.19,
     "blank_area_m2": 0.204,
-    "material_area_m2": 0.204,
+    "material_area_m2": 0.24,
     "metal_area_m2": 0.19,
     "weight_kg": 1.121,
     "has_flanges": false,
@@ -112,7 +112,7 @@
     "unit_price": "233.715456",
     "total_price": "233.715456",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 125×65×1000",
@@ -125,7 +125,7 @@
     "quantity": 1,
     "surface_area_m2": 0.38,
     "blank_area_m2": 0.404,
-    "material_area_m2": 0.404,
+    "material_area_m2": 0.4753,
     "metal_area_m2": 0.38,
     "weight_kg": 2.22,
     "has_flanges": false,
@@ -135,7 +135,7 @@
     "unit_price": "462.848256",
     "total_price": "462.848256",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 125×65×1250",
@@ -148,7 +148,7 @@
     "quantity": 1,
     "surface_area_m2": 0.475,
     "blank_area_m2": 0.504,
-    "material_area_m2": 0.504,
+    "material_area_m2": 0.5929,
     "metal_area_m2": 0.475,
     "weight_kg": 2.7695,
     "has_flanges": false,
@@ -158,7 +158,7 @@
     "unit_price": "577.4146559999999",
     "total_price": "577.4146559999999",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 125×65×1500",
@@ -171,7 +171,7 @@
     "quantity": 1,
     "surface_area_m2": 0.57,
     "blank_area_m2": 0.604,
-    "material_area_m2": 0.604,
+    "material_area_m2": 0.7106,
     "metal_area_m2": 0.57,
     "weight_kg": 3.319,
     "has_flanges": false,
@@ -181,7 +181,7 @@
     "unit_price": "691.9810559999999",
     "total_price": "691.9810559999999",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 150×80×500",
@@ -194,7 +194,7 @@
     "quantity": 1,
     "surface_area_m2": 0.23,
     "blank_area_m2": 0.2448,
-    "material_area_m2": 0.2448,
+    "material_area_m2": 0.288,
     "metal_area_m2": 0.23,
     "weight_kg": 1.3452,
     "has_flanges": false,
@@ -204,7 +204,7 @@
     "unit_price": "280.45854719999994",
     "total_price": "280.45854719999994",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 150×80×1000",
@@ -217,7 +217,7 @@
     "quantity": 1,
     "surface_area_m2": 0.46,
     "blank_area_m2": 0.4848,
-    "material_area_m2": 0.4848,
+    "material_area_m2": 0.5704,
     "metal_area_m2": 0.46,
     "weight_kg": 2.664,
     "has_flanges": false,
@@ -227,7 +227,7 @@
     "unit_price": "555.4179072000002",
     "total_price": "555.4179072000002",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 150×80×1250",
@@ -240,7 +240,7 @@
     "quantity": 1,
     "surface_area_m2": 0.575,
     "blank_area_m2": 0.6048,
-    "material_area_m2": 0.6048,
+    "material_area_m2": 0.7115,
     "metal_area_m2": 0.575,
     "weight_kg": 3.3234,
     "has_flanges": false,
@@ -250,7 +250,7 @@
     "unit_price": "692.8975872000001",
     "total_price": "692.8975872000001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 150×80×1500",
@@ -263,7 +263,7 @@
     "quantity": 1,
     "surface_area_m2": 0.69,
     "blank_area_m2": 0.7248,
-    "material_area_m2": 0.7248,
+    "material_area_m2": 0.8527,
     "metal_area_m2": 0.69,
     "weight_kg": 3.9828,
     "has_flanges": false,
@@ -273,7 +273,7 @@
     "unit_price": "830.3772672000001",
     "total_price": "830.3772672000001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 200×100×500",
@@ -286,7 +286,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3,
     "blank_area_m2": 0.3162,
-    "material_area_m2": 0.3162,
+    "material_area_m2": 0.372,
     "metal_area_m2": 0.3,
     "weight_kg": 1.7375,
     "has_flanges": false,
@@ -296,7 +296,7 @@
     "unit_price": "362.25895679999996",
     "total_price": "362.25895679999996",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 200×100×1000",
@@ -309,7 +309,7 @@
     "quantity": 1,
     "surface_area_m2": 0.6,
     "blank_area_m2": 0.6262,
-    "material_area_m2": 0.6262,
+    "material_area_m2": 0.7367,
     "metal_area_m2": 0.6,
     "weight_kg": 3.441,
     "has_flanges": false,
@@ -319,7 +319,7 @@
     "unit_price": "717.4147968",
     "total_price": "717.4147968",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 200×100×1250",
@@ -332,7 +332,7 @@
     "quantity": 1,
     "surface_area_m2": 0.75,
     "blank_area_m2": 0.7812,
-    "material_area_m2": 0.7812,
+    "material_area_m2": 0.9191,
     "metal_area_m2": 0.75,
     "weight_kg": 4.2927,
     "has_flanges": false,
@@ -342,7 +342,7 @@
     "unit_price": "894.9927168",
     "total_price": "894.9927168",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 200×100×1500",
@@ -355,7 +355,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9,
     "blank_area_m2": 0.9362,
-    "material_area_m2": 0.9362,
+    "material_area_m2": 1.1014,
     "metal_area_m2": 0.9,
     "weight_kg": 5.1444,
     "has_flanges": false,
@@ -365,7 +365,7 @@
     "unit_price": "1072.5706367999999",
     "total_price": "1072.5706367999999",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 250×125×500",
@@ -378,7 +378,7 @@
     "quantity": 1,
     "surface_area_m2": 0.375,
     "blank_area_m2": 0.3927,
-    "material_area_m2": 0.3927,
+    "material_area_m2": 0.462,
     "metal_area_m2": 0.375,
     "weight_kg": 2.1579,
     "has_flanges": false,
@@ -388,7 +388,7 @@
     "unit_price": "449.9022528",
     "total_price": "449.9022528",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 250×125×1000",
@@ -401,7 +401,7 @@
     "quantity": 1,
     "surface_area_m2": 0.75,
     "blank_area_m2": 0.7777,
-    "material_area_m2": 0.7777,
+    "material_area_m2": 0.9149,
     "metal_area_m2": 0.75,
     "weight_kg": 4.2735,
     "has_flanges": false,
@@ -411,7 +411,7 @@
     "unit_price": "890.9828928000001",
     "total_price": "890.9828928000001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 250×125×1250",
@@ -424,7 +424,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9375,
     "blank_area_m2": 0.9702,
-    "material_area_m2": 0.9702,
+    "material_area_m2": 1.1414,
     "metal_area_m2": 0.9375,
     "weight_kg": 5.3312,
     "has_flanges": false,
@@ -434,7 +434,7 @@
     "unit_price": "1111.5232128",
     "total_price": "1111.5232128",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 250×125×1500",
@@ -447,7 +447,7 @@
     "quantity": 1,
     "surface_area_m2": 1.125,
     "blank_area_m2": 1.1627,
-    "material_area_m2": 1.1627,
+    "material_area_m2": 1.3679,
     "metal_area_m2": 1.125,
     "weight_kg": 6.389,
     "has_flanges": false,
@@ -457,7 +457,7 @@
     "unit_price": "1332.0635328",
     "total_price": "1332.0635328",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 300×150×500",
@@ -470,7 +470,7 @@
     "quantity": 1,
     "surface_area_m2": 0.45,
     "blank_area_m2": 0.4692,
-    "material_area_m2": 0.4692,
+    "material_area_m2": 0.552,
     "metal_area_m2": 0.45,
     "weight_kg": 2.5783,
     "has_flanges": false,
@@ -480,7 +480,7 @@
     "unit_price": "537.5455488",
     "total_price": "537.5455488",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 300×150×1000",
@@ -493,7 +493,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9,
     "blank_area_m2": 0.9292,
-    "material_area_m2": 0.9292,
+    "material_area_m2": 1.0932,
     "metal_area_m2": 0.9,
     "weight_kg": 5.106,
     "has_flanges": false,
@@ -503,7 +503,7 @@
     "unit_price": "1064.5509888000001",
     "total_price": "1064.5509888000001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 300×150×1250",
@@ -516,7 +516,7 @@
     "quantity": 1,
     "surface_area_m2": 1.125,
     "blank_area_m2": 1.1592,
-    "material_area_m2": 1.1592,
+    "material_area_m2": 1.3638,
     "metal_area_m2": 1.125,
     "weight_kg": 6.3698,
     "has_flanges": false,
@@ -526,7 +526,7 @@
     "unit_price": "1328.0537088",
     "total_price": "1328.0537088",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 300×150×1500",
@@ -539,7 +539,7 @@
     "quantity": 1,
     "surface_area_m2": 1.35,
     "blank_area_m2": 1.3892,
-    "material_area_m2": 1.3892,
+    "material_area_m2": 1.6344,
     "metal_area_m2": 1.35,
     "weight_kg": 7.6337,
     "has_flanges": false,
@@ -549,7 +549,7 @@
     "unit_price": "1591.5564288",
     "total_price": "1591.5564288",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 400×200×500",
@@ -562,7 +562,7 @@
     "quantity": 1,
     "surface_area_m2": 0.6,
     "blank_area_m2": 0.6222,
-    "material_area_m2": 0.6222,
+    "material_area_m2": 0.732,
     "metal_area_m2": 0.6,
     "weight_kg": 3.419,
     "has_flanges": false,
@@ -572,7 +572,7 @@
     "unit_price": "712.8321407999999",
     "total_price": "712.8321407999999",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 400×200×1000",
@@ -585,7 +585,7 @@
     "quantity": 1,
     "surface_area_m2": 1.2,
     "blank_area_m2": 1.2322,
-    "material_area_m2": 1.2322,
+    "material_area_m2": 1.4496,
     "metal_area_m2": 1.2,
     "weight_kg": 6.7709,
     "has_flanges": false,
@@ -595,7 +595,7 @@
     "unit_price": "1411.6871808",
     "total_price": "1411.6871808",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 400×200×1250",
@@ -608,7 +608,7 @@
     "quantity": 1,
     "surface_area_m2": 1.5,
     "blank_area_m2": 1.5372,
-    "material_area_m2": 1.5372,
+    "material_area_m2": 1.8085,
     "metal_area_m2": 1.5,
     "weight_kg": 8.4469,
     "has_flanges": false,
@@ -618,7 +618,7 @@
     "unit_price": "1761.1147007999996",
     "total_price": "1761.1147007999996",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 400×200×1500",
@@ -631,7 +631,7 @@
     "quantity": 1,
     "surface_area_m2": 1.8,
     "blank_area_m2": 1.8422,
-    "material_area_m2": 1.8422,
+    "material_area_m2": 2.1673,
     "metal_area_m2": 1.8,
     "weight_kg": 10.1229,
     "has_flanges": false,
@@ -641,7 +641,7 @@
     "unit_price": "2110.5422208000005",
     "total_price": "2110.5422208000005",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 500×250×500",
@@ -654,7 +654,7 @@
     "quantity": 1,
     "surface_area_m2": 0.75,
     "blank_area_m2": 0.7752,
-    "material_area_m2": 0.7752,
+    "material_area_m2": 0.912,
     "metal_area_m2": 0.75,
     "weight_kg": 4.2597,
     "has_flanges": false,
@@ -664,7 +664,7 @@
     "unit_price": "888.1187328",
     "total_price": "888.1187328",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 500×250×1000",
@@ -677,7 +677,7 @@
     "quantity": 1,
     "surface_area_m2": 1.5,
     "blank_area_m2": 1.5352,
-    "material_area_m2": 1.5352,
+    "material_area_m2": 1.8061,
     "metal_area_m2": 1.5,
     "weight_kg": 8.4359,
     "has_flanges": false,
@@ -687,7 +687,7 @@
     "unit_price": "1758.8233727999998",
     "total_price": "1758.8233727999998",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 500×250×1250",
@@ -700,7 +700,7 @@
     "quantity": 1,
     "surface_area_m2": 1.875,
     "blank_area_m2": 1.9152,
-    "material_area_m2": 1.9152,
+    "material_area_m2": 2.2532,
     "metal_area_m2": 1.875,
     "weight_kg": 10.524,
     "has_flanges": false,
@@ -710,7 +710,7 @@
     "unit_price": "2194.1756928",
     "total_price": "2194.1756928",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 500×250×1500",
@@ -723,7 +723,7 @@
     "quantity": 1,
     "surface_area_m2": 2.25,
     "blank_area_m2": 2.2952,
-    "material_area_m2": 2.2952,
+    "material_area_m2": 2.7002,
     "metal_area_m2": 2.25,
     "weight_kg": 12.6121,
     "has_flanges": false,
@@ -733,7 +733,7 @@
     "unit_price": "2629.5280127999995",
     "total_price": "2629.5280127999995",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 600×300×500",
@@ -746,7 +746,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9,
     "blank_area_m2": 0.9282,
-    "material_area_m2": 0.9282,
+    "material_area_m2": 1.092,
     "metal_area_m2": 0.9,
     "weight_kg": 5.1005,
     "has_flanges": false,
@@ -756,7 +756,7 @@
     "unit_price": "1063.4053248000002",
     "total_price": "1063.4053248000002",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 600×300×1000",
@@ -769,7 +769,7 @@
     "quantity": 1,
     "surface_area_m2": 1.8,
     "blank_area_m2": 1.8382,
-    "material_area_m2": 1.8382,
+    "material_area_m2": 2.1626,
     "metal_area_m2": 1.8,
     "weight_kg": 10.1009,
     "has_flanges": false,
@@ -779,7 +779,7 @@
     "unit_price": "2105.9595648",
     "total_price": "2105.9595648",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 600×300×1250",
@@ -792,7 +792,7 @@
     "quantity": 1,
     "surface_area_m2": 2.25,
     "blank_area_m2": 2.2932,
-    "material_area_m2": 2.2932,
+    "material_area_m2": 2.6979,
     "metal_area_m2": 2.25,
     "weight_kg": 12.6011,
     "has_flanges": false,
@@ -802,7 +802,7 @@
     "unit_price": "2627.2366847999997",
     "total_price": "2627.2366847999997",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 600×300×1500",
@@ -815,7 +815,7 @@
     "quantity": 1,
     "surface_area_m2": 2.7,
     "blank_area_m2": 2.7482,
-    "material_area_m2": 2.7482,
+    "material_area_m2": 3.2332,
     "metal_area_m2": 2.7,
     "weight_kg": 15.1014,
     "has_flanges": false,
@@ -825,7 +825,7 @@
     "unit_price": "3148.5138048",
     "total_price": "3148.5138048",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 800×400×500",
@@ -838,7 +838,7 @@
     "quantity": 1,
     "surface_area_m2": 1.2,
     "blank_area_m2": 1.2342,
-    "material_area_m2": 1.2342,
+    "material_area_m2": 1.452,
     "metal_area_m2": 1.2,
     "weight_kg": 6.7819,
     "has_flanges": false,
@@ -848,7 +848,7 @@
     "unit_price": "1413.9785087999999",
     "total_price": "1413.9785087999999",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 800×400×1000",
@@ -861,7 +861,7 @@
     "quantity": 1,
     "surface_area_m2": 2.4,
     "blank_area_m2": 2.4442,
-    "material_area_m2": 2.4442,
+    "material_area_m2": 2.8755,
     "metal_area_m2": 2.4,
     "weight_kg": 13.4309,
     "has_flanges": false,
@@ -871,7 +871,7 @@
     "unit_price": "2800.2319488000003",
     "total_price": "2800.2319488000003",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 800×400×1250",
@@ -884,7 +884,7 @@
     "quantity": 1,
     "surface_area_m2": 3.0,
     "blank_area_m2": 3.0492,
-    "material_area_m2": 3.0492,
+    "material_area_m2": 3.5873,
     "metal_area_m2": 3.0,
     "weight_kg": 16.7554,
     "has_flanges": false,
@@ -894,7 +894,7 @@
     "unit_price": "3493.3586688",
     "total_price": "3493.3586688",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 800×400×1500",
@@ -907,7 +907,7 @@
     "quantity": 1,
     "surface_area_m2": 3.6,
     "blank_area_m2": 3.6542,
-    "material_area_m2": 3.6542,
+    "material_area_m2": 4.2991,
     "metal_area_m2": 3.6,
     "weight_kg": 20.0798,
     "has_flanges": false,
@@ -917,7 +917,7 @@
     "unit_price": "4186.485388800001",
     "total_price": "4186.485388800001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 1000×500×500",
@@ -930,7 +930,7 @@
     "quantity": 1,
     "surface_area_m2": 1.5,
     "blank_area_m2": 1.5402,
-    "material_area_m2": 1.5402,
+    "material_area_m2": 1.812,
     "metal_area_m2": 1.5,
     "weight_kg": 8.4634,
     "has_flanges": false,
@@ -940,7 +940,7 @@
     "unit_price": "1764.5516927999997",
     "total_price": "1764.5516927999997",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 1000×500×1000",
@@ -953,7 +953,7 @@
     "quantity": 1,
     "surface_area_m2": 3.0,
     "blank_area_m2": 3.0502,
-    "material_area_m2": 3.0502,
+    "material_area_m2": 3.5885,
     "metal_area_m2": 3.0,
     "weight_kg": 16.7608,
     "has_flanges": false,
@@ -963,7 +963,7 @@
     "unit_price": "3494.5043327999997",
     "total_price": "3494.5043327999997",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 1000×500×1250",
@@ -976,7 +976,7 @@
     "quantity": 1,
     "surface_area_m2": 3.75,
     "blank_area_m2": 3.8052,
-    "material_area_m2": 3.8052,
+    "material_area_m2": 4.4767,
     "metal_area_m2": 3.75,
     "weight_kg": 20.9096,
     "has_flanges": false,
@@ -986,7 +986,7 @@
     "unit_price": "4359.4806528",
     "total_price": "4359.4806528",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід 1000×500×1500",
@@ -999,7 +999,7 @@
     "quantity": 1,
     "surface_area_m2": 4.5,
     "blank_area_m2": 4.5602,
-    "material_area_m2": 4.5602,
+    "material_area_m2": 5.3649,
     "metal_area_m2": 4.5,
     "weight_kg": 25.0583,
     "has_flanges": false,
@@ -1009,7 +1009,7 @@
     "unit_price": "5224.456972800001",
     "total_price": "5224.456972800001",
     "notes": "",
-    "_preset_type": "повітропровід_прямокутний"
+    "_preset_type": "rect_duct"
   },
   {
     "name": "Повітропровід Ø100×500",
@@ -1022,7 +1022,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1571,
     "blank_area_m2": 0.1704,
-    "material_area_m2": 0.1704,
+    "material_area_m2": 0.2005,
     "metal_area_m2": 0.1571,
     "weight_kg": 0.9365,
     "has_flanges": false,
@@ -1032,7 +1032,7 @@
     "unit_price": "195.24546269999715",
     "total_price": "195.24546269999715",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø100×1000",
@@ -1045,7 +1045,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3142,
     "blank_area_m2": 0.3375,
-    "material_area_m2": 0.3375,
+    "material_area_m2": 0.3971,
     "metal_area_m2": 0.3142,
     "weight_kg": 1.8546,
     "has_flanges": false,
@@ -1055,7 +1055,7 @@
     "unit_price": "386.662582994112",
     "total_price": "386.662582994112",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø100×1250",
@@ -1068,7 +1068,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3927,
     "blank_area_m2": 0.421,
-    "material_area_m2": 0.421,
+    "material_area_m2": 0.4953,
     "metal_area_m2": 0.3927,
     "weight_kg": 2.3136,
     "has_flanges": false,
@@ -1078,7 +1078,7 @@
     "unit_price": "482.3711431411694",
     "total_price": "482.3711431411694",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø100×1500",
@@ -1091,7 +1091,7 @@
     "quantity": 1,
     "surface_area_m2": 0.4712,
     "blank_area_m2": 0.5046,
-    "material_area_m2": 0.5046,
+    "material_area_m2": 0.5936,
     "metal_area_m2": 0.4712,
     "weight_kg": 2.7727,
     "has_flanges": false,
@@ -1101,7 +1101,7 @@
     "unit_price": "578.0797032882267",
     "total_price": "578.0797032882267",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø125×500",
@@ -1114,7 +1114,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1963,
     "blank_area_m2": 0.2105,
-    "material_area_m2": 0.2105,
+    "material_area_m2": 0.2476,
     "metal_area_m2": 0.1963,
     "weight_kg": 1.1566,
     "has_flanges": false,
@@ -1124,7 +1124,7 @@
     "unit_price": "241.13538517499637",
     "total_price": "241.13538517499637",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø125×1000",
@@ -1137,7 +1137,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3927,
     "blank_area_m2": 0.4168,
-    "material_area_m2": 0.4168,
+    "material_area_m2": 0.4904,
     "metal_area_m2": 0.3927,
     "weight_kg": 2.2905,
     "has_flanges": false,
@@ -1147,7 +1147,7 @@
     "unit_price": "477.54262554264",
     "total_price": "477.54262554264",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø125×1250",
@@ -1160,7 +1160,7 @@
     "quantity": 1,
     "surface_area_m2": 0.4909,
     "blank_area_m2": 0.52,
-    "material_area_m2": 0.52,
+    "material_area_m2": 0.6118,
     "metal_area_m2": 0.4909,
     "weight_kg": 2.8574,
     "has_flanges": false,
@@ -1170,7 +1170,7 @@
     "unit_price": "595.7462457264618",
     "total_price": "595.7462457264618",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø125×1500",
@@ -1183,7 +1183,7 @@
     "quantity": 1,
     "surface_area_m2": 0.589,
     "blank_area_m2": 0.6232,
-    "material_area_m2": 0.6232,
+    "material_area_m2": 0.7331,
     "metal_area_m2": 0.589,
     "weight_kg": 3.4243,
     "has_flanges": false,
@@ -1193,7 +1193,7 @@
     "unit_price": "713.9498659102836",
     "total_price": "713.9498659102836",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø150×500",
@@ -1206,7 +1206,7 @@
     "quantity": 1,
     "surface_area_m2": 0.2356,
     "blank_area_m2": 0.2505,
-    "material_area_m2": 0.2505,
+    "material_area_m2": 0.2947,
     "metal_area_m2": 0.2356,
     "weight_kg": 1.3767,
     "has_flanges": false,
@@ -1216,7 +1216,7 @@
     "unit_price": "287.0253076499956",
     "total_price": "287.0253076499956",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø150×1000",
@@ -1229,7 +1229,7 @@
     "quantity": 1,
     "surface_area_m2": 0.4712,
     "blank_area_m2": 0.4962,
-    "material_area_m2": 0.4962,
+    "material_area_m2": 0.5837,
     "metal_area_m2": 0.4712,
     "weight_kg": 2.7264,
     "has_flanges": false,
@@ -1239,7 +1239,7 @@
     "unit_price": "568.4226680911679",
     "total_price": "568.4226680911679",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø150×1250",
@@ -1252,7 +1252,7 @@
     "quantity": 1,
     "surface_area_m2": 0.589,
     "blank_area_m2": 0.619,
-    "material_area_m2": 0.619,
+    "material_area_m2": 0.7282,
     "metal_area_m2": 0.589,
     "weight_kg": 3.4012,
     "has_flanges": false,
@@ -1262,7 +1262,7 @@
     "unit_price": "709.1213483117541",
     "total_price": "709.1213483117541",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø150×1500",
@@ -1275,7 +1275,7 @@
     "quantity": 1,
     "surface_area_m2": 0.7069,
     "blank_area_m2": 0.7418,
-    "material_area_m2": 0.7418,
+    "material_area_m2": 0.8727,
     "metal_area_m2": 0.7069,
     "weight_kg": 4.076,
     "has_flanges": false,
@@ -1285,7 +1285,7 @@
     "unit_price": "849.8200285323402",
     "total_price": "849.8200285323402",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø200×500",
@@ -1298,7 +1298,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3142,
     "blank_area_m2": 0.3306,
-    "material_area_m2": 0.3306,
+    "material_area_m2": 0.389,
     "metal_area_m2": 0.3142,
     "weight_kg": 1.8169,
     "has_flanges": false,
@@ -1308,7 +1308,7 @@
     "unit_price": "378.8051525999943",
     "total_price": "378.8051525999943",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø200×1000",
@@ -1321,7 +1321,7 @@
     "quantity": 1,
     "surface_area_m2": 0.6283,
     "blank_area_m2": 0.6548,
-    "material_area_m2": 0.6548,
+    "material_area_m2": 0.7704,
     "metal_area_m2": 0.6283,
     "weight_kg": 3.5981,
     "has_flanges": false,
@@ -1331,7 +1331,7 @@
     "unit_price": "750.182753188224",
     "total_price": "750.182753188224",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø200×1250",
@@ -1344,7 +1344,7 @@
     "quantity": 1,
     "surface_area_m2": 0.7854,
     "blank_area_m2": 0.8169,
-    "material_area_m2": 0.8169,
+    "material_area_m2": 0.961,
     "metal_area_m2": 0.7854,
     "weight_kg": 4.4888,
     "has_flanges": false,
@@ -1354,7 +1354,7 @@
     "unit_price": "935.8715534823391",
     "total_price": "935.8715534823391",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø200×1500",
@@ -1367,7 +1367,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9425,
     "blank_area_m2": 0.979,
-    "material_area_m2": 0.979,
+    "material_area_m2": 1.1517,
     "metal_area_m2": 0.9425,
     "weight_kg": 5.3794,
     "has_flanges": false,
@@ -1377,7 +1377,7 @@
     "unit_price": "1121.5603537764537",
     "total_price": "1121.5603537764537",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø250×500",
@@ -1390,7 +1390,7 @@
     "quantity": 1,
     "surface_area_m2": 0.3927,
     "blank_area_m2": 0.4108,
-    "material_area_m2": 0.4108,
+    "material_area_m2": 0.4832,
     "metal_area_m2": 0.3927,
     "weight_kg": 2.2571,
     "has_flanges": false,
@@ -1400,7 +1400,7 @@
     "unit_price": "470.58499754999286",
     "total_price": "470.58499754999286",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø250×1000",
@@ -1413,7 +1413,7 @@
     "quantity": 1,
     "surface_area_m2": 0.7854,
     "blank_area_m2": 0.8135,
-    "material_area_m2": 0.8135,
+    "material_area_m2": 0.957,
     "metal_area_m2": 0.7854,
     "weight_kg": 4.4699,
     "has_flanges": false,
@@ -1423,7 +1423,7 @@
     "unit_price": "931.94283828528",
     "total_price": "931.94283828528",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø250×1250",
@@ -1436,7 +1436,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9817,
     "blank_area_m2": 1.0148,
-    "material_area_m2": 1.0148,
+    "material_area_m2": 1.1939,
     "metal_area_m2": 0.9817,
     "weight_kg": 5.5763,
     "has_flanges": false,
@@ -1446,7 +1446,7 @@
     "unit_price": "1162.6217586529233",
     "total_price": "1162.6217586529233",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø250×1500",
@@ -1459,7 +1459,7 @@
     "quantity": 1,
     "surface_area_m2": 1.1781,
     "blank_area_m2": 1.2162,
-    "material_area_m2": 1.2162,
+    "material_area_m2": 1.4308,
     "metal_area_m2": 1.1781,
     "weight_kg": 6.6828,
     "has_flanges": false,
@@ -1469,7 +1469,7 @@
     "unit_price": "1393.3006790205668",
     "total_price": "1393.3006790205668",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø315×500",
@@ -1482,7 +1482,7 @@
     "quantity": 1,
     "surface_area_m2": 0.4948,
     "blank_area_m2": 0.5149,
-    "material_area_m2": 0.5149,
+    "material_area_m2": 0.6058,
     "metal_area_m2": 0.4948,
     "weight_kg": 2.8294,
     "has_flanges": false,
@@ -1492,7 +1492,7 @@
     "unit_price": "589.898795984991",
     "total_price": "589.898795984991",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø315×1000",
@@ -1505,7 +1505,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9896,
     "blank_area_m2": 1.0197,
-    "material_area_m2": 1.0197,
+    "material_area_m2": 1.1996,
     "metal_area_m2": 0.9896,
     "weight_kg": 5.6032,
     "has_flanges": false,
@@ -1515,7 +1515,7 @@
     "unit_price": "1168.230948911453",
     "total_price": "1168.230948911453",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø315×1250",
@@ -1528,7 +1528,7 @@
     "quantity": 1,
     "surface_area_m2": 1.237,
     "blank_area_m2": 1.2721,
-    "material_area_m2": 1.2721,
+    "material_area_m2": 1.4966,
     "metal_area_m2": 1.237,
     "weight_kg": 6.9902,
     "has_flanges": false,
@@ -1538,7 +1538,7 @@
     "unit_price": "1457.3970253746834",
     "total_price": "1457.3970253746834",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø315×1500",
@@ -1551,7 +1551,7 @@
     "quantity": 1,
     "surface_area_m2": 1.4844,
     "blank_area_m2": 1.5245,
-    "material_area_m2": 1.5245,
+    "material_area_m2": 1.7935,
     "metal_area_m2": 1.4844,
     "weight_kg": 8.3771,
     "has_flanges": false,
@@ -1561,7 +1561,7 @@
     "unit_price": "1746.563101837914",
     "total_price": "1746.563101837914",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø400×500",
@@ -1574,7 +1574,7 @@
     "quantity": 1,
     "surface_area_m2": 0.6283,
     "blank_area_m2": 0.6511,
-    "material_area_m2": 0.6511,
+    "material_area_m2": 0.766,
     "metal_area_m2": 0.6283,
     "weight_kg": 3.5777,
     "has_flanges": false,
@@ -1584,7 +1584,7 @@
     "unit_price": "745.9245323999886",
     "total_price": "745.9245323999886",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø400×1000",
@@ -1597,7 +1597,7 @@
     "quantity": 1,
     "surface_area_m2": 1.2566,
     "blank_area_m2": 1.2894,
-    "material_area_m2": 1.2894,
+    "material_area_m2": 1.5169,
     "metal_area_m2": 1.2566,
     "weight_kg": 7.0853,
     "has_flanges": false,
@@ -1607,7 +1607,7 @@
     "unit_price": "1477.223093576448",
     "total_price": "1477.223093576448",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø400×1250",
@@ -1620,7 +1620,7 @@
     "quantity": 1,
     "surface_area_m2": 1.5708,
     "blank_area_m2": 1.6086,
-    "material_area_m2": 1.6086,
+    "material_area_m2": 1.8924,
     "metal_area_m2": 1.5708,
     "weight_kg": 8.8391,
     "has_flanges": false,
@@ -1630,7 +1630,7 @@
     "unit_price": "1842.872374164678",
     "total_price": "1842.872374164678",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø400×1500",
@@ -1643,7 +1643,7 @@
     "quantity": 1,
     "surface_area_m2": 1.885,
     "blank_area_m2": 1.9277,
-    "material_area_m2": 1.9277,
+    "material_area_m2": 2.2679,
     "metal_area_m2": 1.885,
     "weight_kg": 10.5928,
     "has_flanges": false,
@@ -1653,7 +1653,7 @@
     "unit_price": "2208.521654752907",
     "total_price": "2208.521654752907",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø500×500",
@@ -1666,7 +1666,7 @@
     "quantity": 1,
     "surface_area_m2": 0.7854,
     "blank_area_m2": 0.8113,
-    "material_area_m2": 0.8113,
+    "material_area_m2": 0.9545,
     "metal_area_m2": 0.7854,
     "weight_kg": 4.4581,
     "has_flanges": false,
@@ -1676,7 +1676,7 @@
     "unit_price": "929.4842222999857",
     "total_price": "929.4842222999857",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø500×1000",
@@ -1689,7 +1689,7 @@
     "quantity": 1,
     "surface_area_m2": 1.5708,
     "blank_area_m2": 1.6067,
-    "material_area_m2": 1.6067,
+    "material_area_m2": 1.8902,
     "metal_area_m2": 1.5708,
     "weight_kg": 8.8288,
     "has_flanges": false,
@@ -1699,7 +1699,7 @@
     "unit_price": "1840.74326377056",
     "total_price": "1840.74326377056",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø500×1250",
@@ -1712,7 +1712,7 @@
     "quantity": 1,
     "surface_area_m2": 1.9635,
     "blank_area_m2": 2.0044,
-    "material_area_m2": 2.0044,
+    "material_area_m2": 2.3581,
     "metal_area_m2": 1.9635,
     "weight_kg": 11.0142,
     "has_flanges": false,
@@ -1722,7 +1722,7 @@
     "unit_price": "2296.3727845058465",
     "total_price": "2296.3727845058465",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø500×1500",
@@ -1735,7 +1735,7 @@
     "quantity": 1,
     "surface_area_m2": 2.3562,
     "blank_area_m2": 2.4021,
-    "material_area_m2": 2.4021,
+    "material_area_m2": 2.826,
     "metal_area_m2": 2.3562,
     "weight_kg": 13.1996,
     "has_flanges": false,
@@ -1745,7 +1745,7 @@
     "unit_price": "2752.002305241134",
     "total_price": "2752.002305241134",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø630×500",
@@ -1758,7 +1758,7 @@
     "quantity": 1,
     "surface_area_m2": 0.9896,
     "blank_area_m2": 1.0196,
-    "material_area_m2": 1.0196,
+    "material_area_m2": 1.1995,
     "metal_area_m2": 0.9896,
     "weight_kg": 5.6027,
     "has_flanges": false,
@@ -1768,7 +1768,7 @@
     "unit_price": "1168.111819169982",
     "total_price": "1168.111819169982",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø630×1000",
@@ -1781,7 +1781,7 @@
     "quantity": 1,
     "surface_area_m2": 1.9792,
     "blank_area_m2": 2.0192,
-    "material_area_m2": 2.0192,
+    "material_area_m2": 2.3755,
     "metal_area_m2": 1.9792,
     "weight_kg": 11.0955,
     "has_flanges": false,
@@ -1791,7 +1791,7 @@
     "unit_price": "2313.3194850229056",
     "total_price": "2313.3194850229056",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø630×1250",
@@ -1804,7 +1804,7 @@
     "quantity": 1,
     "surface_area_m2": 2.474,
     "blank_area_m2": 2.519,
-    "material_area_m2": 2.519,
+    "material_area_m2": 2.9635,
     "metal_area_m2": 2.474,
     "weight_kg": 13.8419,
     "has_flanges": false,
@@ -1814,7 +1814,7 @@
     "unit_price": "2885.923317949367",
     "total_price": "2885.923317949367",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Повітропровід Ø630×1500",
@@ -1827,7 +1827,7 @@
     "quantity": 1,
     "surface_area_m2": 2.9688,
     "blank_area_m2": 3.0188,
-    "material_area_m2": 3.0188,
+    "material_area_m2": 3.5515,
     "metal_area_m2": 2.9688,
     "weight_kg": 16.5883,
     "has_flanges": false,
@@ -1837,7 +1837,7 @@
     "unit_price": "3458.5271508758283",
     "total_price": "3458.5271508758283",
     "notes": "",
-    "_preset_type": "повітропровід_круглий"
+    "_preset_type": "round_duct"
   },
   {
     "name": "Відвід прямокутний 100×50 90°",
@@ -1848,11 +1848,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1425,
-    "blank_area_m2": 0.1561,
-    "material_area_m2": 0.1561,
-    "metal_area_m2": 0.1425,
-    "weight_kg": 0.8579,
+    "surface_area_m2": 0.0953,
+    "blank_area_m2": 0.1075,
+    "material_area_m2": 0.1344,
+    "metal_area_m2": 0.0953,
+    "weight_kg": 0.5908,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1861,10 +1861,10 @@
     "total_price": "178.86632720470428",
     "notes": "",
     "angle": 90,
-    "radius": 150,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 125×65 90°",
@@ -1875,11 +1875,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1849,
-    "blank_area_m2": 0.1999,
-    "material_area_m2": 0.1999,
-    "metal_area_m2": 0.1849,
-    "weight_kg": 1.0983,
+    "surface_area_m2": 0.1252,
+    "blank_area_m2": 0.1387,
+    "material_area_m2": 0.1734,
+    "metal_area_m2": 0.1252,
+    "weight_kg": 0.7624,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1888,10 +1888,10 @@
     "total_price": "228.98172341470388",
     "notes": "",
     "angle": 90,
-    "radius": 150,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 150×80 90°",
@@ -1902,11 +1902,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2654,
-    "blank_area_m2": 0.2832,
-    "material_area_m2": 0.2832,
-    "metal_area_m2": 0.2654,
-    "weight_kg": 1.5562,
+    "surface_area_m2": 0.157,
+    "blank_area_m2": 0.1719,
+    "material_area_m2": 0.2148,
+    "metal_area_m2": 0.157,
+    "weight_kg": 0.9444,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1915,10 +1915,10 @@
     "total_price": "324.4471606588203",
     "notes": "",
     "angle": 90,
-    "radius": 200,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 200×100 90°",
@@ -1929,11 +1929,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.3556,
-    "blank_area_m2": 0.3755,
-    "material_area_m2": 0.3755,
-    "metal_area_m2": 0.3556,
-    "weight_kg": 2.0636,
+    "surface_area_m2": 0.2142,
+    "blank_area_m2": 0.2313,
+    "material_area_m2": 0.2891,
+    "metal_area_m2": 0.2142,
+    "weight_kg": 1.271,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1942,10 +1942,10 @@
     "total_price": "430.235132295878",
     "notes": "",
     "angle": 90,
-    "radius": 200,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 250×125 90°",
@@ -1956,11 +1956,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5182,
-    "blank_area_m2": 0.542,
-    "material_area_m2": 0.542,
-    "metal_area_m2": 0.5182,
-    "weight_kg": 2.9782,
+    "surface_area_m2": 0.2825,
+    "blank_area_m2": 0.302,
+    "material_area_m2": 0.3775,
+    "metal_area_m2": 0.2825,
+    "weight_kg": 1.6596,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1969,10 +1969,10 @@
     "total_price": "620.9302583477139",
     "notes": "",
     "angle": 90,
-    "radius": 250,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 300×150 90°",
@@ -1983,11 +1983,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.7101,
-    "blank_area_m2": 0.7379,
-    "material_area_m2": 0.7379,
-    "metal_area_m2": 0.7101,
-    "weight_kg": 4.0547,
+    "surface_area_m2": 0.3567,
+    "blank_area_m2": 0.3786,
+    "material_area_m2": 0.4733,
+    "metal_area_m2": 0.3567,
+    "weight_kg": 2.0807,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -1996,10 +1996,10 @@
     "total_price": "845.3679744546961",
     "notes": "",
     "angle": 90,
-    "radius": 300,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 400×200 90°",
@@ -2010,11 +2010,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.994,
-    "blank_area_m2": 1.0264,
-    "material_area_m2": 1.0264,
-    "metal_area_m2": 0.994,
-    "weight_kg": 5.6401,
+    "surface_area_m2": 0.5227,
+    "blank_area_m2": 0.5496,
+    "material_area_m2": 0.6869,
+    "metal_area_m2": 0.5227,
+    "weight_kg": 3.0198,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2023,10 +2023,10 @@
     "total_price": "1175.9193908752804",
     "notes": "",
     "angle": 90,
-    "radius": 300,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 500×250 90°",
@@ -2037,11 +2037,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.537,
-    "blank_area_m2": 1.5773,
-    "material_area_m2": 1.5773,
-    "metal_area_m2": 1.537,
-    "weight_kg": 8.667,
+    "surface_area_m2": 0.7123,
+    "blank_area_m2": 0.744,
+    "material_area_m2": 0.93,
+    "metal_area_m2": 0.7123,
+    "weight_kg": 4.0885,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2050,10 +2050,10 @@
     "total_price": "1807.0048093870362",
     "notes": "",
     "angle": 90,
-    "radius": 400,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 600×300 90°",
@@ -2064,11 +2064,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 2.1978,
-    "blank_area_m2": 2.2459,
-    "material_area_m2": 2.2459,
-    "metal_area_m2": 2.1978,
-    "weight_kg": 12.3413,
+    "surface_area_m2": 0.9255,
+    "blank_area_m2": 0.9621,
+    "material_area_m2": 1.2026,
+    "metal_area_m2": 0.9255,
+    "weight_kg": 5.2866,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2077,10 +2077,10 @@
     "total_price": "2573.0605881193787",
     "notes": "",
     "angle": 90,
-    "radius": 500,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 100×50 45°",
@@ -2091,11 +2091,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1012,
-    "blank_area_m2": 0.1121,
-    "material_area_m2": 0.1121,
-    "metal_area_m2": 0.1012,
-    "weight_kg": 0.6162,
+    "surface_area_m2": 0.0953,
+    "blank_area_m2": 0.1075,
+    "material_area_m2": 0.1344,
+    "metal_area_m2": 0.0953,
+    "weight_kg": 0.5908,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2103,11 +2103,11 @@
     "unit_price": "128.47739272235214",
     "total_price": "128.47739272235214",
     "notes": "",
-    "angle": 45,
-    "radius": 150,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 150×80 45°",
@@ -2118,11 +2118,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1787,
-    "blank_area_m2": 0.1927,
-    "material_area_m2": 0.1927,
-    "metal_area_m2": 0.1787,
-    "weight_kg": 1.059,
+    "surface_area_m2": 0.157,
+    "blank_area_m2": 0.1719,
+    "material_area_m2": 0.2148,
+    "metal_area_m2": 0.157,
+    "weight_kg": 0.9444,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2130,11 +2130,11 @@
     "unit_price": "220.78992400941013",
     "total_price": "220.78992400941013",
     "notes": "",
-    "angle": 45,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 200×100 45°",
@@ -2145,11 +2145,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2378,
-    "blank_area_m2": 0.2538,
-    "material_area_m2": 0.2538,
-    "metal_area_m2": 0.2378,
-    "weight_kg": 1.3946,
+    "surface_area_m2": 0.2142,
+    "blank_area_m2": 0.2313,
+    "material_area_m2": 0.2891,
+    "metal_area_m2": 0.2142,
+    "weight_kg": 1.271,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2157,11 +2157,11 @@
     "unit_price": "290.76576006793897",
     "total_price": "290.76576006793897",
     "notes": "",
-    "angle": 45,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 300×150 45°",
@@ -2172,11 +2172,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.4451,
-    "blank_area_m2": 0.4669,
-    "material_area_m2": 0.4669,
-    "metal_area_m2": 0.4451,
-    "weight_kg": 2.5657,
+    "surface_area_m2": 0.3567,
+    "blank_area_m2": 0.3786,
+    "material_area_m2": 0.4733,
+    "metal_area_m2": 0.3567,
+    "weight_kg": 2.0807,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2184,11 +2184,11 @@
     "unit_price": "534.9361459473481",
     "total_price": "534.9361459473481",
     "notes": "",
-    "angle": 45,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 400×200 45°",
@@ -2199,11 +2199,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.617,
-    "blank_area_m2": 0.6431,
-    "material_area_m2": 0.6431,
-    "metal_area_m2": 0.617,
-    "weight_kg": 3.534,
+    "surface_area_m2": 0.5227,
+    "blank_area_m2": 0.5496,
+    "material_area_m2": 0.6869,
+    "metal_area_m2": 0.5227,
+    "weight_kg": 3.0198,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2211,11 +2211,11 @@
     "unit_price": "736.8158189576401",
     "total_price": "736.8158189576401",
     "notes": "",
-    "angle": 45,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 500×250 45°",
@@ -2226,11 +2226,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.9185,
-    "blank_area_m2": 0.9505,
-    "material_area_m2": 0.9505,
-    "metal_area_m2": 0.9185,
-    "weight_kg": 5.223,
+    "surface_area_m2": 0.7123,
+    "blank_area_m2": 0.744,
+    "material_area_m2": 0.93,
+    "metal_area_m2": 0.7123,
+    "weight_kg": 4.0885,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2238,11 +2238,11 @@
     "unit_price": "1088.962493013518",
     "total_price": "1088.962493013518",
     "notes": "",
-    "angle": 45,
-    "radius": 400,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 200×100 60°",
@@ -2253,11 +2253,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2771,
-    "blank_area_m2": 0.2944,
-    "material_area_m2": 0.2944,
-    "metal_area_m2": 0.2771,
-    "weight_kg": 1.6176,
+    "surface_area_m2": 0.2142,
+    "blank_area_m2": 0.2313,
+    "material_area_m2": 0.2891,
+    "metal_area_m2": 0.2142,
+    "weight_kg": 1.271,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2265,11 +2265,11 @@
     "unit_price": "337.25555081058536",
     "total_price": "337.25555081058536",
     "notes": "",
-    "angle": 60,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 300×150 60°",
@@ -2280,11 +2280,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5334,
-    "blank_area_m2": 0.5572,
-    "material_area_m2": 0.5572,
-    "metal_area_m2": 0.5334,
-    "weight_kg": 3.0621,
+    "surface_area_m2": 0.3567,
+    "blank_area_m2": 0.3786,
+    "material_area_m2": 0.4733,
+    "metal_area_m2": 0.3567,
+    "weight_kg": 2.0807,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2292,11 +2292,11 @@
     "unit_price": "638.4134221164641",
     "total_price": "638.4134221164641",
     "notes": "",
-    "angle": 60,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід прямокутний 400×200 60°",
@@ -2307,11 +2307,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.7427,
-    "blank_area_m2": 0.7709,
-    "material_area_m2": 0.7709,
-    "metal_area_m2": 0.7427,
-    "weight_kg": 4.2361,
+    "surface_area_m2": 0.5227,
+    "blank_area_m2": 0.5496,
+    "material_area_m2": 0.6869,
+    "metal_area_m2": 0.5227,
+    "weight_kg": 3.0198,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2319,11 +2319,11 @@
     "unit_price": "883.1836762635202",
     "total_price": "883.1836762635202",
     "notes": "",
-    "angle": 60,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_прямокутний"
+    "_preset_type": "rect_elbow"
   },
   {
     "name": "Відвід круглий Ø100 90°",
@@ -2334,11 +2334,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1615,
-    "blank_area_m2": 0.1656,
-    "material_area_m2": 0.1656,
-    "metal_area_m2": 0.1615,
-    "weight_kg": 0.91,
+    "surface_area_m2": 0.1122,
+    "blank_area_m2": 0.1163,
+    "material_area_m2": 0.1453,
+    "metal_area_m2": 0.1122,
+    "weight_kg": 0.6389,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2347,10 +2347,10 @@
     "total_price": "189.73566917098935",
     "notes": "",
     "angle": 90,
-    "radius": 150,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø125 90°",
@@ -2361,11 +2361,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2096,
-    "blank_area_m2": 0.2147,
-    "material_area_m2": 0.2147,
-    "metal_area_m2": 0.2096,
-    "weight_kg": 1.1799,
+    "surface_area_m2": 0.1479,
+    "blank_area_m2": 0.153,
+    "material_area_m2": 0.1913,
+    "metal_area_m2": 0.1479,
+    "weight_kg": 0.841,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2374,10 +2374,10 @@
     "total_price": "246.00337588293166",
     "notes": "",
     "angle": 90,
-    "radius": 150,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø150 90°",
@@ -2388,11 +2388,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2978,
-    "blank_area_m2": 0.3039,
-    "material_area_m2": 0.3039,
-    "metal_area_m2": 0.2978,
-    "weight_kg": 1.6701,
+    "surface_area_m2": 0.1868,
+    "blank_area_m2": 0.1929,
+    "material_area_m2": 0.2411,
+    "metal_area_m2": 0.1868,
+    "weight_kg": 1.06,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2401,10 +2401,10 @@
     "total_price": "348.2067875746881",
     "notes": "",
     "angle": 90,
-    "radius": 200,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø200 90°",
@@ -2415,11 +2415,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.4218,
-    "blank_area_m2": 0.4299,
-    "material_area_m2": 0.4299,
-    "metal_area_m2": 0.4218,
-    "weight_kg": 2.3624,
+    "surface_area_m2": 0.2737,
+    "blank_area_m2": 0.2819,
+    "material_area_m2": 0.3523,
+    "metal_area_m2": 0.2737,
+    "weight_kg": 1.5489,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2428,10 +2428,10 @@
     "total_price": "492.5438429076749",
     "notes": "",
     "angle": 90,
-    "radius": 200,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø250 90°",
@@ -2442,11 +2442,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.6197,
-    "blank_area_m2": 0.6299,
-    "material_area_m2": 0.6299,
-    "metal_area_m2": 0.6197,
-    "weight_kg": 3.4615,
+    "surface_area_m2": 0.373,
+    "blank_area_m2": 0.3832,
+    "material_area_m2": 0.479,
+    "metal_area_m2": 0.373,
+    "weight_kg": 2.1056,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2455,10 +2455,10 @@
     "total_price": "721.6852766649342",
     "notes": "",
     "angle": 90,
-    "radius": 250,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø315 90°",
@@ -2469,11 +2469,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.9091,
-    "blank_area_m2": 0.922,
-    "material_area_m2": 0.922,
-    "metal_area_m2": 0.9091,
-    "weight_kg": 5.0661,
+    "surface_area_m2": 0.5205,
+    "blank_area_m2": 0.5333,
+    "material_area_m2": 0.6667,
+    "metal_area_m2": 0.5205,
+    "weight_kg": 2.9307,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2482,10 +2482,10 @@
     "total_price": "1056.2470342178685",
     "notes": "",
     "angle": 90,
-    "radius": 300,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø400 90°",
@@ -2496,11 +2496,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.2383,
-    "blank_area_m2": 1.2546,
-    "material_area_m2": 1.2546,
-    "metal_area_m2": 1.2383,
-    "weight_kg": 6.8942,
+    "surface_area_m2": 0.7448,
+    "blank_area_m2": 0.7611,
+    "material_area_m2": 0.9514,
+    "metal_area_m2": 0.7448,
+    "weight_kg": 4.1825,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2509,10 +2509,10 @@
     "total_price": "1437.3777040781356",
     "notes": "",
     "angle": 90,
-    "radius": 300,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø500 90°",
@@ -2523,11 +2523,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.918,
-    "blank_area_m2": 1.9384,
-    "material_area_m2": 1.9384,
-    "metal_area_m2": 1.918,
-    "weight_kg": 10.6515,
+    "surface_area_m2": 1.0544,
+    "blank_area_m2": 1.0748,
+    "material_area_m2": 1.3435,
+    "metal_area_m2": 1.0544,
+    "weight_kg": 5.906,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2536,10 +2536,10 @@
     "total_price": "2220.7440222190303",
     "notes": "",
     "angle": 90,
-    "radius": 400,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø630 90°",
@@ -2550,11 +2550,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 2.9296,
-    "blank_area_m2": 2.9553,
-    "material_area_m2": 2.9553,
-    "metal_area_m2": 2.9296,
-    "weight_kg": 16.2396,
+    "surface_area_m2": 1.5306,
+    "blank_area_m2": 1.5563,
+    "material_area_m2": 1.9454,
+    "metal_area_m2": 1.5306,
+    "weight_kg": 8.552,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2563,10 +2563,10 @@
     "total_price": "3385.831810476186",
     "notes": "",
     "angle": 90,
-    "radius": 500,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø100 45°",
@@ -2579,7 +2579,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1122,
     "blank_area_m2": 0.1163,
-    "material_area_m2": 0.1163,
+    "material_area_m2": 0.1453,
     "metal_area_m2": 0.1122,
     "weight_kg": 0.6389,
     "has_flanges": false,
@@ -2589,11 +2589,11 @@
     "unit_price": "133.19941688814112",
     "total_price": "133.19941688814112",
     "notes": "",
-    "angle": 45,
-    "radius": 150,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø150 45°",
@@ -2604,11 +2604,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.196,
-    "blank_area_m2": 0.2022,
-    "material_area_m2": 0.2022,
-    "metal_area_m2": 0.196,
-    "weight_kg": 1.1108,
+    "surface_area_m2": 0.1868,
+    "blank_area_m2": 0.1929,
+    "material_area_m2": 0.2411,
+    "metal_area_m2": 0.1868,
+    "weight_kg": 1.06,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2616,11 +2616,11 @@
     "unit_price": "231.60076724131375",
     "total_price": "231.60076724131375",
     "notes": "",
-    "angle": 45,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø200 45°",
@@ -2633,7 +2633,7 @@
     "quantity": 1,
     "surface_area_m2": 0.2737,
     "blank_area_m2": 0.2819,
-    "material_area_m2": 0.2819,
+    "material_area_m2": 0.3523,
     "metal_area_m2": 0.2737,
     "weight_kg": 1.5489,
     "has_flanges": false,
@@ -2643,11 +2643,11 @@
     "unit_price": "322.9350860591304",
     "total_price": "322.9350860591304",
     "notes": "",
-    "angle": 45,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø315 45°",
@@ -2658,11 +2658,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5535,
-    "blank_area_m2": 0.5664,
-    "material_area_m2": 0.5664,
-    "metal_area_m2": 0.5535,
-    "weight_kg": 3.1122,
+    "surface_area_m2": 0.5205,
+    "blank_area_m2": 0.5333,
+    "material_area_m2": 0.6667,
+    "metal_area_m2": 0.5205,
+    "weight_kg": 2.9307,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2670,11 +2670,11 @@
     "unit_price": "648.8680013622708",
     "total_price": "648.8680013622708",
     "notes": "",
-    "angle": 45,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø400 45°",
@@ -2687,7 +2687,7 @@
     "quantity": 1,
     "surface_area_m2": 0.7448,
     "blank_area_m2": 0.7611,
-    "material_area_m2": 0.7611,
+    "material_area_m2": 0.9514,
     "metal_area_m2": 0.7448,
     "weight_kg": 4.1825,
     "has_flanges": false,
@@ -2697,11 +2697,11 @@
     "unit_price": "872.0151812496533",
     "total_price": "872.0151812496533",
     "notes": "",
-    "angle": 45,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø500 45°",
@@ -2712,11 +2712,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.1161,
-    "blank_area_m2": 1.1365,
-    "material_area_m2": 1.1365,
-    "metal_area_m2": 1.1161,
-    "weight_kg": 6.245,
+    "surface_area_m2": 1.0544,
+    "blank_area_m2": 1.0748,
+    "material_area_m2": 1.3435,
+    "metal_area_m2": 1.0544,
+    "weight_kg": 5.906,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2724,11 +2724,11 @@
     "unit_price": "1302.0299226227476",
     "total_price": "1302.0299226227476",
     "notes": "",
-    "angle": 45,
-    "radius": 400,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø200 60°",
@@ -2739,11 +2739,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.3231,
-    "blank_area_m2": 0.3312,
-    "material_area_m2": 0.3312,
-    "metal_area_m2": 0.3231,
-    "weight_kg": 1.8201,
+    "surface_area_m2": 0.2737,
+    "blank_area_m2": 0.2819,
+    "material_area_m2": 0.3523,
+    "metal_area_m2": 0.2737,
+    "weight_kg": 1.5489,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2751,11 +2751,11 @@
     "unit_price": "379.4713383419786",
     "total_price": "379.4713383419786",
     "notes": "",
-    "angle": 60,
-    "radius": 200,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø315 60°",
@@ -2766,11 +2766,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.672,
-    "blank_area_m2": 0.6849,
-    "material_area_m2": 0.6849,
-    "metal_area_m2": 0.672,
-    "weight_kg": 3.7635,
+    "surface_area_m2": 0.5205,
+    "blank_area_m2": 0.5333,
+    "material_area_m2": 0.6667,
+    "metal_area_m2": 0.5205,
+    "weight_kg": 2.9307,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2778,11 +2778,11 @@
     "unit_price": "784.6610123141365",
     "total_price": "784.6610123141365",
     "notes": "",
-    "angle": 60,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Відвід круглий Ø400 60°",
@@ -2793,11 +2793,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.9093,
-    "blank_area_m2": 0.9256,
-    "material_area_m2": 0.9256,
-    "metal_area_m2": 0.9093,
-    "weight_kg": 5.0864,
+    "surface_area_m2": 0.7448,
+    "blank_area_m2": 0.7611,
+    "material_area_m2": 0.9514,
+    "metal_area_m2": 0.7448,
+    "weight_kg": 4.1825,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2805,11 +2805,11 @@
     "unit_price": "1060.469355525814",
     "total_price": "1060.469355525814",
     "notes": "",
-    "angle": 60,
-    "radius": 300,
+    "angle": 90,
+    "radius": 50,
     "top_extension": 100,
     "bottom_extension": 100,
-    "_preset_type": "відвід_круглий"
+    "_preset_type": "round_elbow"
   },
   {
     "name": "Перехід прямокутний 100×50→150×80×300",
@@ -2820,11 +2820,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.114,
-    "blank_area_m2": 0.1389,
-    "material_area_m2": 0.1389,
-    "metal_area_m2": 0.114,
-    "weight_kg": 0.7633,
+    "surface_area_m2": 0.18,
+    "blank_area_m2": 0.2253,
+    "material_area_m2": 0.2888,
+    "metal_area_m2": 0.18,
+    "weight_kg": 1.238,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2832,9 +2832,9 @@
     "unit_price": "159.14866267549672",
     "total_price": "159.14866267549672",
     "notes": "",
-    "end_width": 150,
-    "end_height": 80,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 150×80→200×100×300",
@@ -2845,11 +2845,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.159,
-    "blank_area_m2": 0.1817,
-    "material_area_m2": 0.1817,
-    "metal_area_m2": 0.159,
-    "weight_kg": 0.9985,
+    "surface_area_m2": 0.204,
+    "blank_area_m2": 0.2376,
+    "material_area_m2": 0.3046,
+    "metal_area_m2": 0.204,
+    "weight_kg": 1.3054,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2857,9 +2857,9 @@
     "unit_price": "208.1835154285714",
     "total_price": "208.1835154285714",
     "notes": "",
-    "end_width": 200,
-    "end_height": 100,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 200×100→250×125×400",
@@ -2870,11 +2870,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.27,
-    "blank_area_m2": 0.2996,
-    "material_area_m2": 0.2996,
-    "metal_area_m2": 0.27,
-    "weight_kg": 1.6463,
+    "surface_area_m2": 0.3,
+    "blank_area_m2": 0.3379,
+    "material_area_m2": 0.4332,
+    "metal_area_m2": 0.3,
+    "weight_kg": 1.8566,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2882,9 +2882,9 @@
     "unit_price": "343.24245687707645",
     "total_price": "343.24245687707645",
     "notes": "",
-    "end_width": 250,
-    "end_height": 125,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 250×125→300×150×400",
@@ -2896,10 +2896,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.33,
-    "blank_area_m2": 0.359,
-    "material_area_m2": 0.359,
+    "blank_area_m2": 0.3634,
+    "material_area_m2": 0.4658,
     "metal_area_m2": 0.33,
-    "weight_kg": 1.9725,
+    "weight_kg": 1.9966,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2909,7 +2909,7 @@
     "notes": "",
     "end_width": 300,
     "end_height": 150,
-    "_preset_type": "перехід_прямокутний"
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 300×150→400×200×500",
@@ -2920,11 +2920,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.525,
-    "blank_area_m2": 0.5634,
-    "material_area_m2": 0.5634,
-    "metal_area_m2": 0.525,
-    "weight_kg": 3.096,
+    "surface_area_m2": 0.45,
+    "blank_area_m2": 0.4879,
+    "material_area_m2": 0.6255,
+    "metal_area_m2": 0.45,
+    "weight_kg": 2.6811,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2932,9 +2932,9 @@
     "unit_price": "645.483863414634",
     "total_price": "645.483863414634",
     "notes": "",
-    "end_width": 400,
-    "end_height": 200,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 400×200→500×250×500",
@@ -2945,11 +2945,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.675,
-    "blank_area_m2": 0.7121,
-    "material_area_m2": 0.7121,
-    "metal_area_m2": 0.675,
-    "weight_kg": 3.9128,
+    "surface_area_m2": 0.525,
+    "blank_area_m2": 0.5582,
+    "material_area_m2": 0.7156,
+    "metal_area_m2": 0.525,
+    "weight_kg": 3.0673,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2957,9 +2957,9 @@
     "unit_price": "815.7852059900167",
     "total_price": "815.7852059900167",
     "notes": "",
-    "end_width": 500,
-    "end_height": 250,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 500×250→600×300×600",
@@ -2970,11 +2970,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.99,
-    "blank_area_m2": 1.0335,
-    "material_area_m2": 1.0335,
-    "metal_area_m2": 0.99,
-    "weight_kg": 5.6791,
+    "surface_area_m2": 0.72,
+    "blank_area_m2": 0.7564,
+    "material_area_m2": 0.9698,
+    "metal_area_m2": 0.72,
+    "weight_kg": 4.1566,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -2982,9 +2982,9 @@
     "unit_price": "1184.0460322769638",
     "total_price": "1184.0460322769638",
     "notes": "",
-    "end_width": 600,
-    "end_height": 300,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 600×300→800×400×800",
@@ -2995,11 +2995,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.68,
-    "blank_area_m2": 1.7415,
-    "material_area_m2": 1.7415,
-    "metal_area_m2": 1.68,
-    "weight_kg": 9.5697,
+    "surface_area_m2": 1.08,
+    "blank_area_m2": 1.1255,
+    "material_area_m2": 1.443,
+    "metal_area_m2": 1.08,
+    "weight_kg": 6.1849,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3007,9 +3007,9 @@
     "unit_price": "1995.2100950943395",
     "total_price": "1995.2100950943395",
     "notes": "",
-    "end_width": 800,
-    "end_height": 400,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 200×100→300×150×400",
@@ -3021,10 +3021,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.3,
-    "blank_area_m2": 0.3329,
-    "material_area_m2": 0.3329,
+    "blank_area_m2": 0.3379,
+    "material_area_m2": 0.4332,
     "metal_area_m2": 0.3,
-    "weight_kg": 1.8292,
+    "weight_kg": 1.8566,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3034,7 +3034,7 @@
     "notes": "",
     "end_width": 300,
     "end_height": 150,
-    "_preset_type": "перехід_прямокутний"
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід прямокутний 300×150→500×250×600",
@@ -3045,11 +3045,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.72,
-    "blank_area_m2": 0.7727,
-    "material_area_m2": 0.7727,
-    "metal_area_m2": 0.72,
-    "weight_kg": 4.2459,
+    "surface_area_m2": 0.54,
+    "blank_area_m2": 0.5855,
+    "material_area_m2": 0.7506,
+    "metal_area_m2": 0.54,
+    "weight_kg": 3.2173,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3057,9 +3057,9 @@
     "unit_price": "885.2350126829269",
     "total_price": "885.2350126829269",
     "notes": "",
-    "end_width": 500,
-    "end_height": 250,
-    "_preset_type": "перехід_прямокутний"
+    "end_width": 300,
+    "end_height": 150,
+    "_preset_type": "rect_transition"
   },
   {
     "name": "Перехід круглий Ø100→Ø125×300",
@@ -3070,11 +3070,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.106,
-    "blank_area_m2": 0.1092,
-    "material_area_m2": 0.1092,
-    "metal_area_m2": 0.106,
-    "weight_kg": 0.6001,
+    "surface_area_m2": 0.1885,
+    "blank_area_m2": 0.1942,
+    "material_area_m2": 0.2489,
+    "metal_area_m2": 0.1885,
+    "weight_kg": 1.0669,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3082,8 +3082,8 @@
     "unit_price": "125.11752392448336",
     "total_price": "125.11752392448336",
     "notes": "",
-    "end_diameter": 125,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø125→Ø150×300",
@@ -3094,11 +3094,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.1296,
-    "blank_area_m2": 0.1335,
-    "material_area_m2": 0.1335,
-    "metal_area_m2": 0.1296,
-    "weight_kg": 0.7335,
+    "surface_area_m2": 0.2003,
+    "blank_area_m2": 0.2063,
+    "material_area_m2": 0.2645,
+    "metal_area_m2": 0.2003,
+    "weight_kg": 1.1335,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3106,8 +3106,8 @@
     "unit_price": "152.9214181299241",
     "total_price": "152.9214181299241",
     "notes": "",
-    "end_diameter": 150,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø150→Ø200×400",
@@ -3118,11 +3118,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2199,
-    "blank_area_m2": 0.2265,
-    "material_area_m2": 0.2265,
-    "metal_area_m2": 0.2199,
-    "weight_kg": 1.2447,
+    "surface_area_m2": 0.2827,
+    "blank_area_m2": 0.2912,
+    "material_area_m2": 0.3734,
+    "metal_area_m2": 0.2827,
+    "weight_kg": 1.6003,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3130,8 +3130,8 @@
     "unit_price": "259.5030125841136",
     "total_price": "259.5030125841136",
     "notes": "",
-    "end_diameter": 200,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø200→Ø250×400",
@@ -3142,11 +3142,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2827,
-    "blank_area_m2": 0.2912,
-    "material_area_m2": 0.2912,
-    "metal_area_m2": 0.2827,
-    "weight_kg": 1.6003,
+    "surface_area_m2": 0.3142,
+    "blank_area_m2": 0.3236,
+    "material_area_m2": 0.4149,
+    "metal_area_m2": 0.3142,
+    "weight_kg": 1.7781,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3154,8 +3154,8 @@
     "unit_price": "333.6467304652889",
     "total_price": "333.6467304652889",
     "notes": "",
-    "end_diameter": 250,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø250→Ø315×500",
@@ -3166,11 +3166,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.4437,
-    "blank_area_m2": 0.4571,
-    "material_area_m2": 0.4571,
-    "metal_area_m2": 0.4437,
-    "weight_kg": 2.5116,
+    "surface_area_m2": 0.432,
+    "blank_area_m2": 0.4449,
+    "material_area_m2": 0.5704,
+    "metal_area_m2": 0.432,
+    "weight_kg": 2.4449,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3178,8 +3178,8 @@
     "unit_price": "523.6400075358006",
     "total_price": "523.6400075358006",
     "notes": "",
-    "end_diameter": 315,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø315→Ø400×500",
@@ -3190,11 +3190,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5616,
-    "blank_area_m2": 0.5784,
-    "material_area_m2": 0.5784,
-    "metal_area_m2": 0.5616,
-    "weight_kg": 3.1783,
+    "surface_area_m2": 0.483,
+    "blank_area_m2": 0.4975,
+    "material_area_m2": 0.6378,
+    "metal_area_m2": 0.483,
+    "weight_kg": 2.7338,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3202,8 +3202,8 @@
     "unit_price": "662.6594785630045",
     "total_price": "662.6594785630045",
     "notes": "",
-    "end_diameter": 400,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø400→Ø500×600",
@@ -3214,11 +3214,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.8482,
-    "blank_area_m2": 0.8737,
-    "material_area_m2": 0.8737,
-    "metal_area_m2": 0.8482,
-    "weight_kg": 4.8009,
+    "surface_area_m2": 0.6597,
+    "blank_area_m2": 0.6795,
+    "material_area_m2": 0.8712,
+    "metal_area_m2": 0.6597,
+    "weight_kg": 3.734,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3226,8 +3226,8 @@
     "unit_price": "1000.9401913958669",
     "total_price": "1000.9401913958669",
     "notes": "",
-    "end_diameter": 500,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø500→Ø630×700",
@@ -3238,11 +3238,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.2425,
-    "blank_area_m2": 1.2798,
-    "material_area_m2": 1.2798,
-    "metal_area_m2": 1.2425,
-    "weight_kg": 7.0324,
+    "surface_area_m2": 0.8796,
+    "blank_area_m2": 0.906,
+    "material_area_m2": 1.1616,
+    "metal_area_m2": 0.8796,
+    "weight_kg": 4.9787,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3250,8 +3250,8 @@
     "unit_price": "1466.1920211002416",
     "total_price": "1466.1920211002416",
     "notes": "",
-    "end_diameter": 630,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø200→Ø315×500",
@@ -3262,11 +3262,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.4045,
-    "blank_area_m2": 0.4166,
-    "material_area_m2": 0.4166,
-    "metal_area_m2": 0.4045,
-    "weight_kg": 2.2893,
+    "surface_area_m2": 0.3927,
+    "blank_area_m2": 0.4045,
+    "material_area_m2": 0.5186,
+    "metal_area_m2": 0.3927,
+    "weight_kg": 2.2226,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3274,8 +3274,8 @@
     "unit_price": "477.3001838600661",
     "total_price": "477.3001838600661",
     "notes": "",
-    "end_diameter": 315,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Перехід круглий Ø315→Ø500×600",
@@ -3286,11 +3286,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.7681,
-    "blank_area_m2": 0.7912,
-    "material_area_m2": 0.7912,
-    "metal_area_m2": 0.7681,
-    "weight_kg": 4.3474,
+    "surface_area_m2": 0.5796,
+    "blank_area_m2": 0.597,
+    "material_area_m2": 0.7654,
+    "metal_area_m2": 0.5796,
+    "weight_kg": 3.2806,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3298,8 +3298,8 @@
     "unit_price": "906.406951097368",
     "total_price": "906.406951097368",
     "notes": "",
-    "end_diameter": 500,
-    "_preset_type": "перехід_круглий"
+    "end_diameter": 300,
+    "_preset_type": "round_transition"
   },
   {
     "name": "Трійник прямокутний 100×50/100×50×400",
@@ -3310,11 +3310,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.195,
-    "blank_area_m2": 0.2725,
-    "material_area_m2": 0.2725,
-    "metal_area_m2": 0.195,
-    "weight_kg": 1.4973,
+    "surface_area_m2": 0.44,
+    "blank_area_m2": 0.644,
+    "material_area_m2": 0.8256,
+    "metal_area_m2": 0.44,
+    "weight_kg": 3.5386,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3322,11 +3322,11 @@
     "unit_price": "312.1744720529802",
     "total_price": "312.1744720529802",
     "notes": "",
-    "branch_width": 100,
-    "branch_height": 50,
-    "branch_length": 250,
+    "branch_width": 200,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 150×80/150×80×500",
@@ -3337,11 +3337,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.368,
-    "blank_area_m2": 0.4636,
-    "material_area_m2": 0.4636,
-    "metal_area_m2": 0.368,
-    "weight_kg": 2.5474,
+    "surface_area_m2": 0.55,
+    "blank_area_m2": 0.7167,
+    "material_area_m2": 0.9188,
+    "metal_area_m2": 0.55,
+    "weight_kg": 3.9381,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3349,11 +3349,11 @@
     "unit_price": "531.1119758961039",
     "total_price": "531.1119758961039",
     "notes": "",
-    "branch_width": 150,
-    "branch_height": 80,
-    "branch_length": 300,
+    "branch_width": 200,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 200×100/200×100×600",
@@ -3364,11 +3364,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.57,
-    "blank_area_m2": 0.6836,
-    "material_area_m2": 0.6836,
-    "metal_area_m2": 0.57,
-    "weight_kg": 3.7565,
+    "surface_area_m2": 0.68,
+    "blank_area_m2": 0.8381,
+    "material_area_m2": 1.0745,
+    "metal_area_m2": 0.68,
+    "weight_kg": 4.6056,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3377,10 +3377,10 @@
     "total_price": "783.2002700332225",
     "notes": "",
     "branch_width": 200,
-    "branch_height": 100,
-    "branch_length": 350,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 250×125/250×125×700",
@@ -3391,11 +3391,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.825,
-    "blank_area_m2": 0.9566,
-    "material_area_m2": 0.9566,
-    "metal_area_m2": 0.825,
-    "weight_kg": 5.2568,
+    "surface_area_m2": 0.845,
+    "blank_area_m2": 1.0023,
+    "material_area_m2": 1.285,
+    "metal_area_m2": 0.845,
+    "weight_kg": 5.5077,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3403,11 +3403,11 @@
     "unit_price": "1095.9982468085102",
     "total_price": "1095.9982468085102",
     "notes": "",
-    "branch_width": 250,
-    "branch_height": 125,
+    "branch_width": 200,
+    "branch_height": 200,
     "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 300×150/300×150×800",
@@ -3418,11 +3418,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.125,
-    "blank_area_m2": 1.2747,
-    "material_area_m2": 1.2747,
-    "metal_area_m2": 1.125,
-    "weight_kg": 7.0043,
+    "surface_area_m2": 1.04,
+    "blank_area_m2": 1.2014,
+    "material_area_m2": 1.5403,
+    "metal_area_m2": 1.04,
+    "weight_kg": 6.6018,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3430,11 +3430,11 @@
     "unit_price": "1460.340558758315",
     "total_price": "1460.340558758315",
     "notes": "",
-    "branch_width": 300,
-    "branch_height": 150,
-    "branch_length": 450,
+    "branch_width": 200,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 400×200/400×200×900",
@@ -3445,11 +3445,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.68,
-    "blank_area_m2": 1.8477,
-    "material_area_m2": 1.8477,
-    "metal_area_m2": 1.68,
-    "weight_kg": 10.1532,
+    "surface_area_m2": 1.4,
+    "blank_area_m2": 1.5631,
+    "material_area_m2": 2.0039,
+    "metal_area_m2": 1.4,
+    "weight_kg": 8.589,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3457,11 +3457,11 @@
     "unit_price": "2116.866819833611",
     "total_price": "2116.866819833611",
     "notes": "",
-    "branch_width": 400,
+    "branch_width": 200,
     "branch_height": 200,
-    "branch_length": 500,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 300×150/200×100×700",
@@ -3472,11 +3472,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.87,
-    "blank_area_m2": 0.9857,
-    "material_area_m2": 0.9857,
-    "metal_area_m2": 0.87,
-    "weight_kg": 5.4167,
+    "surface_area_m2": 0.95,
+    "blank_area_m2": 1.0975,
+    "material_area_m2": 1.407,
+    "metal_area_m2": 0.95,
+    "weight_kg": 6.0305,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3485,10 +3485,10 @@
     "total_price": "1129.3300321064303",
     "notes": "",
     "branch_width": 200,
-    "branch_height": 100,
+    "branch_height": 200,
     "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 400×200/200×100×800",
@@ -3499,11 +3499,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.2,
-    "blank_area_m2": 1.3198,
-    "material_area_m2": 1.3198,
-    "metal_area_m2": 1.2,
-    "weight_kg": 7.2523,
+    "surface_area_m2": 1.28,
+    "blank_area_m2": 1.4291,
+    "material_area_m2": 1.8322,
+    "metal_area_m2": 1.28,
+    "weight_kg": 7.8528,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3512,10 +3512,10 @@
     "total_price": "1512.0477284525791",
     "notes": "",
     "branch_width": 200,
-    "branch_height": 100,
+    "branch_height": 200,
     "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 500×250/300×150×900",
@@ -3526,11 +3526,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.8,
-    "blank_area_m2": 1.9438,
-    "material_area_m2": 1.9438,
-    "metal_area_m2": 1.8,
-    "weight_kg": 10.6812,
+    "surface_area_m2": 1.67,
+    "blank_area_m2": 1.8257,
+    "material_area_m2": 2.3406,
+    "metal_area_m2": 1.67,
+    "weight_kg": 10.032,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3538,11 +3538,11 @@
     "unit_price": "2226.9511414114513",
     "total_price": "2226.9511414114513",
     "notes": "",
-    "branch_width": 300,
-    "branch_height": 150,
-    "branch_length": 500,
+    "branch_width": 200,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник прямокутний 200×100/150×80×500",
@@ -3553,11 +3553,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.438,
-    "blank_area_m2": 0.5253,
-    "material_area_m2": 0.5253,
-    "metal_area_m2": 0.438,
-    "weight_kg": 2.8866,
+    "surface_area_m2": 0.62,
+    "blank_area_m2": 0.7642,
+    "material_area_m2": 0.9797,
+    "metal_area_m2": 0.62,
+    "weight_kg": 4.1992,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3565,11 +3565,11 @@
     "unit_price": "601.8275759202659",
     "total_price": "601.8275759202659",
     "notes": "",
-    "branch_width": 150,
-    "branch_height": 80,
-    "branch_length": 300,
+    "branch_width": 200,
+    "branch_height": 200,
+    "branch_length": 400,
     "branch_offset": 300,
-    "_preset_type": "трійник_прямокутний"
+    "_preset_type": "rect_tee"
   },
   {
     "name": "Трійник круглий Ø100/Ø100×400",
@@ -3580,11 +3580,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.2042,
-    "blank_area_m2": 0.2144,
-    "material_area_m2": 0.2144,
-    "metal_area_m2": 0.2042,
-    "weight_kg": 1.1782,
+    "surface_area_m2": 0.377,
+    "blank_area_m2": 0.3958,
+    "material_area_m2": 0.5075,
+    "metal_area_m2": 0.377,
+    "weight_kg": 2.1751,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3592,10 +3592,10 @@
     "unit_price": "245.64605560146677",
     "total_price": "245.64605560146677",
     "notes": "",
-    "branch_length": 250,
-    "branch_diameter": 100,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø150/Ø150×500",
@@ -3606,11 +3606,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.377,
-    "blank_area_m2": 0.3958,
-    "material_area_m2": 0.3958,
-    "metal_area_m2": 0.377,
-    "weight_kg": 2.1751,
+    "surface_area_m2": 0.4869,
+    "blank_area_m2": 0.5113,
+    "material_area_m2": 0.6555,
+    "metal_area_m2": 0.4869,
+    "weight_kg": 2.8096,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3618,10 +3618,10 @@
     "unit_price": "453.5004103411693",
     "total_price": "453.5004103411693",
     "notes": "",
-    "branch_length": 300,
-    "branch_diameter": 150,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø200/Ø200×600",
@@ -3632,11 +3632,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5969,
-    "blank_area_m2": 0.6267,
-    "material_area_m2": 0.6267,
-    "metal_area_m2": 0.5969,
-    "weight_kg": 3.444,
+    "surface_area_m2": 0.6283,
+    "blank_area_m2": 0.6597,
+    "material_area_m2": 0.8458,
+    "metal_area_m2": 0.6283,
+    "weight_kg": 3.6252,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3644,10 +3644,10 @@
     "unit_price": "718.0423163735181",
     "total_price": "718.0423163735181",
     "notes": "",
-    "branch_length": 350,
+    "branch_length": 400,
     "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø250/Ø250×700",
@@ -3658,11 +3658,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.8639,
-    "blank_area_m2": 0.9071,
-    "material_area_m2": 0.9071,
-    "metal_area_m2": 0.8639,
-    "weight_kg": 4.9847,
+    "surface_area_m2": 0.8011,
+    "blank_area_m2": 0.8412,
+    "material_area_m2": 1.0784,
+    "metal_area_m2": 0.8011,
+    "weight_kg": 4.6222,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3671,9 +3671,9 @@
     "total_price": "1039.2717736985132",
     "notes": "",
     "branch_length": 400,
-    "branch_diameter": 250,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø315/Ø315×800",
@@ -3684,11 +3684,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.237,
-    "blank_area_m2": 1.2989,
-    "material_area_m2": 1.2989,
-    "metal_area_m2": 1.237,
-    "weight_kg": 7.1372,
+    "surface_area_m2": 1.043,
+    "blank_area_m2": 1.0952,
+    "material_area_m2": 1.4041,
+    "metal_area_m2": 1.043,
+    "weight_kg": 6.0179,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3696,10 +3696,10 @@
     "unit_price": "1488.0482214319622",
     "total_price": "1488.0482214319622",
     "notes": "",
-    "branch_length": 450,
-    "branch_diameter": 315,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø400/Ø400×900",
@@ -3710,11 +3710,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.7593,
-    "blank_area_m2": 1.8473,
-    "material_area_m2": 1.8473,
-    "metal_area_m2": 1.7593,
-    "weight_kg": 10.1507,
+    "surface_area_m2": 1.3823,
+    "blank_area_m2": 1.4514,
+    "material_area_m2": 1.8608,
+    "metal_area_m2": 1.3823,
+    "weight_kg": 7.9755,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3722,10 +3722,10 @@
     "unit_price": "2116.3352482587907",
     "total_price": "2116.3352482587907",
     "notes": "",
-    "branch_length": 500,
-    "branch_diameter": 400,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø315/Ø200×700",
@@ -3738,7 +3738,7 @@
     "quantity": 1,
     "surface_area_m2": 0.944,
     "blank_area_m2": 0.9913,
-    "material_area_m2": 0.9913,
+    "material_area_m2": 1.2708,
     "metal_area_m2": 0.944,
     "weight_kg": 5.4469,
     "has_flanges": false,
@@ -3751,7 +3751,7 @@
     "branch_length": 400,
     "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø400/Ø200×800",
@@ -3764,7 +3764,7 @@
     "quantity": 1,
     "surface_area_m2": 1.2566,
     "blank_area_m2": 1.3195,
-    "material_area_m2": 1.3195,
+    "material_area_m2": 1.6916,
     "metal_area_m2": 1.2566,
     "weight_kg": 7.2505,
     "has_flanges": false,
@@ -3777,7 +3777,7 @@
     "branch_length": 400,
     "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø500/Ø315×900",
@@ -3788,11 +3788,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 1.9085,
-    "blank_area_m2": 2.0039,
-    "material_area_m2": 2.0039,
-    "metal_area_m2": 1.9085,
-    "weight_kg": 11.0117,
+    "surface_area_m2": 1.665,
+    "blank_area_m2": 1.7483,
+    "material_area_m2": 2.2414,
+    "metal_area_m2": 1.665,
+    "weight_kg": 9.6069,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3800,10 +3800,10 @@
     "unit_price": "2295.84582735217",
     "total_price": "2295.84582735217",
     "notes": "",
-    "branch_length": 500,
-    "branch_diameter": 315,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Трійник круглий Ø200/Ø150×600",
@@ -3814,11 +3814,11 @@
     "thickness": 0.7,
     "material": "оцинкована сталь",
     "quantity": 1,
-    "surface_area_m2": 0.5419,
-    "blank_area_m2": 0.569,
-    "material_area_m2": 0.569,
-    "metal_area_m2": 0.5419,
-    "weight_kg": 3.1268,
+    "surface_area_m2": 0.6283,
+    "blank_area_m2": 0.6597,
+    "material_area_m2": 0.8458,
+    "metal_area_m2": 0.6283,
+    "weight_kg": 3.6252,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3826,10 +3826,10 @@
     "unit_price": "651.9068398654308",
     "total_price": "651.9068398654308",
     "notes": "",
-    "branch_length": 350,
-    "branch_diameter": 150,
+    "branch_length": 400,
+    "branch_diameter": 200,
     "branch_offset": 300,
-    "_preset_type": "трійник_круглий"
+    "_preset_type": "round_tee"
   },
   {
     "name": "Фланець прямокутний 100×50 П20",
@@ -3841,10 +3841,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0126,
-    "blank_area_m2": 0.0204,
-    "material_area_m2": 0.0204,
+    "blank_area_m2": 0.019,
+    "material_area_m2": 0.0211,
     "metal_area_m2": 0.0126,
-    "weight_kg": 0.1121,
+    "weight_kg": 0.1043,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3853,7 +3853,7 @@
     "total_price": "23.3715456",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 150×80 П20",
@@ -3865,10 +3865,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0228,
-    "blank_area_m2": 0.033,
-    "material_area_m2": 0.033,
+    "blank_area_m2": 0.0312,
+    "material_area_m2": 0.0346,
     "metal_area_m2": 0.0228,
-    "weight_kg": 0.1813,
+    "weight_kg": 0.1713,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3877,7 +3877,7 @@
     "total_price": "37.806912000000004",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 200×100 П30",
@@ -3889,10 +3889,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0416,
-    "blank_area_m2": 0.0551,
-    "material_area_m2": 0.0551,
+    "blank_area_m2": 0.0527,
+    "material_area_m2": 0.0586,
     "metal_area_m2": 0.0416,
-    "weight_kg": 0.3028,
+    "weight_kg": 0.2897,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3901,7 +3901,7 @@
     "total_price": "63.1260864",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 250×125 П30",
@@ -3913,10 +3913,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0573,
-    "blank_area_m2": 0.0731,
-    "material_area_m2": 0.0731,
+    "blank_area_m2": 0.0703,
+    "material_area_m2": 0.0782,
     "metal_area_m2": 0.0573,
-    "weight_kg": 0.4017,
+    "weight_kg": 0.3866,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3925,7 +3925,7 @@
     "total_price": "83.7480384",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 300×150 П30",
@@ -3937,10 +3937,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0756,
-    "blank_area_m2": 0.0936,
-    "material_area_m2": 0.0936,
+    "blank_area_m2": 0.0905,
+    "material_area_m2": 0.1005,
     "metal_area_m2": 0.0756,
-    "weight_kg": 0.5143,
+    "weight_kg": 0.4972,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3949,7 +3949,7 @@
     "total_price": "107.2341504",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 400×200 П30",
@@ -3961,10 +3961,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.1196,
-    "blank_area_m2": 0.1421,
-    "material_area_m2": 0.1421,
+    "blank_area_m2": 0.1382,
+    "material_area_m2": 0.1536,
     "metal_area_m2": 0.1196,
-    "weight_kg": 0.7808,
+    "weight_kg": 0.7595,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3973,7 +3973,7 @@
     "total_price": "162.7988544",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 500×250 П40",
@@ -3985,10 +3985,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.1914,
-    "blank_area_m2": 0.2196,
-    "material_area_m2": 0.2196,
+    "blank_area_m2": 0.2148,
+    "material_area_m2": 0.2386,
     "metal_area_m2": 0.1914,
-    "weight_kg": 1.2067,
+    "weight_kg": 1.1802,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -3997,7 +3997,7 @@
     "total_price": "251.58781439999998",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець прямокутний 600×300 П40",
@@ -4009,10 +4009,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.2584,
-    "blank_area_m2": 0.2911,
-    "material_area_m2": 0.2911,
+    "blank_area_m2": 0.2855,
+    "material_area_m2": 0.3172,
     "metal_area_m2": 0.2584,
-    "weight_kg": 1.5996,
+    "weight_kg": 1.569,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4021,7 +4021,7 @@
     "total_price": "333.5027904",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_прямокутний"
+    "_preset_type": "rect_flange"
   },
   {
     "name": "Фланець круглий Ø100 П20",
@@ -4033,10 +4033,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0154,
-    "blank_area_m2": 0.0227,
-    "material_area_m2": 0.0227,
+    "blank_area_m2": 0.0214,
+    "material_area_m2": 0.0238,
     "metal_area_m2": 0.0154,
-    "weight_kg": 0.1247,
+    "weight_kg": 0.1175,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4045,7 +4045,7 @@
     "total_price": "26.004289402499595",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø150 П20",
@@ -4057,10 +4057,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0284,
-    "blank_area_m2": 0.038,
-    "material_area_m2": 0.038,
+    "blank_area_m2": 0.0363,
+    "material_area_m2": 0.0403,
     "metal_area_m2": 0.0284,
-    "weight_kg": 0.2089,
+    "weight_kg": 0.1995,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4069,7 +4069,7 @@
     "total_price": "43.550436231175794",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø200 П30",
@@ -4081,10 +4081,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0531,
-    "blank_area_m2": 0.0661,
-    "material_area_m2": 0.0661,
+    "blank_area_m2": 0.0638,
+    "material_area_m2": 0.0709,
     "metal_area_m2": 0.0531,
-    "weight_kg": 0.363,
+    "weight_kg": 0.3505,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4093,7 +4093,7 @@
     "total_price": "75.67338196367527",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø250 П30",
@@ -4105,10 +4105,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.0755,
-    "blank_area_m2": 0.0908,
-    "material_area_m2": 0.0908,
+    "blank_area_m2": 0.0881,
+    "material_area_m2": 0.0979,
     "metal_area_m2": 0.0755,
-    "weight_kg": 0.4989,
+    "weight_kg": 0.4843,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4117,7 +4117,7 @@
     "total_price": "104.01715760999838",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø315 П30",
@@ -4129,10 +4129,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.1104,
-    "blank_area_m2": 0.1288,
-    "material_area_m2": 0.1288,
+    "blank_area_m2": 0.1257,
+    "material_area_m2": 0.1396,
     "metal_area_m2": 0.1104,
-    "weight_kg": 0.7079,
+    "weight_kg": 0.6905,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4141,7 +4141,7 @@
     "total_price": "147.59008890121092",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø400 П30",
@@ -4153,10 +4153,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.1662,
-    "blank_area_m2": 0.1886,
-    "material_area_m2": 0.1886,
+    "blank_area_m2": 0.1847,
+    "material_area_m2": 0.2053,
     "metal_area_m2": 0.1662,
-    "weight_kg": 1.0362,
+    "weight_kg": 1.0152,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4165,7 +4165,7 @@
     "total_price": "216.04255659308484",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø500 П40",
@@ -4177,10 +4177,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.2642,
-    "blank_area_m2": 0.2922,
-    "material_area_m2": 0.2922,
+    "blank_area_m2": 0.2875,
+    "material_area_m2": 0.3194,
     "metal_area_m2": 0.2642,
-    "weight_kg": 1.6059,
+    "weight_kg": 1.5797,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4189,7 +4189,7 @@
     "total_price": "334.8164735872006",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Фланець круглий Ø630 П40",
@@ -4201,10 +4201,10 @@
     "material": "оцинкована сталь",
     "quantity": 1,
     "surface_area_m2": 0.3959,
-    "blank_area_m2": 0.4301,
-    "material_area_m2": 0.4301,
+    "blank_area_m2": 0.4243,
+    "material_area_m2": 0.4714,
     "metal_area_m2": 0.3959,
-    "weight_kg": 2.3633,
+    "weight_kg": 2.3315,
     "has_flanges": false,
     "flange_count": 0,
     "flange_price": 0.0,
@@ -4213,7 +4213,7 @@
     "total_price": "492.7317950452865",
     "notes": "",
     "bolt_count": 0,
-    "_preset_type": "фланець_круглий"
+    "_preset_type": "round_flange"
   },
   {
     "name": "Заглушка прямокутна 100×50 П25",
@@ -4226,7 +4226,7 @@
     "quantity": 1,
     "surface_area_m2": 0.015,
     "blank_area_m2": 0.018,
-    "material_area_m2": 0.018,
+    "material_area_m2": 0.0212,
     "metal_area_m2": 0.015,
     "weight_kg": 0.0988,
     "has_flanges": false,
@@ -4236,7 +4236,7 @@
     "unit_price": "20.59919046357616",
     "total_price": "20.59919046357616",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка прямокутна 150×80 П25",
@@ -4249,7 +4249,7 @@
     "quantity": 1,
     "surface_area_m2": 0.026,
     "blank_area_m2": 0.0294,
-    "material_area_m2": 0.0294,
+    "material_area_m2": 0.0346,
     "metal_area_m2": 0.026,
     "weight_kg": 0.1614,
     "has_flanges": false,
@@ -4259,7 +4259,7 @@
     "unit_price": "33.655739844155846",
     "total_price": "33.655739844155846",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка прямокутна 200×100 П25",
@@ -4272,7 +4272,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0375,
     "blank_area_m2": 0.0412,
-    "material_area_m2": 0.0412,
+    "material_area_m2": 0.0485,
     "metal_area_m2": 0.0375,
     "weight_kg": 0.2266,
     "has_flanges": false,
@@ -4282,7 +4282,7 @@
     "unit_price": "47.24436677740864",
     "total_price": "47.24436677740864",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка прямокутна 250×125 П30",
@@ -4295,7 +4295,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0573,
     "blank_area_m2": 0.0619,
-    "material_area_m2": 0.0619,
+    "material_area_m2": 0.0729,
     "metal_area_m2": 0.0573,
     "weight_kg": 0.3403,
     "has_flanges": false,
@@ -4305,7 +4305,7 @@
     "unit_price": "70.94615729361702",
     "total_price": "70.94615729361702",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка прямокутна 300×150 П30",
@@ -4318,7 +4318,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0756,
     "blank_area_m2": 0.0806,
-    "material_area_m2": 0.0806,
+    "material_area_m2": 0.0949,
     "metal_area_m2": 0.0756,
     "weight_kg": 0.4431,
     "has_flanges": false,
@@ -4328,7 +4328,7 @@
     "unit_price": "92.37354197427936",
     "total_price": "92.37354197427936",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка прямокутна 400×200 П30",
@@ -4341,7 +4341,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1196,
     "blank_area_m2": 0.1256,
-    "material_area_m2": 0.1256,
+    "material_area_m2": 0.1477,
     "metal_area_m2": 0.1196,
     "weight_kg": 0.69,
     "has_flanges": false,
@@ -4351,7 +4351,7 @@
     "unit_price": "143.86108566788687",
     "total_price": "143.86108566788687",
     "notes": "",
-    "_preset_type": "заглушка_прямокутна"
+    "_preset_type": "rect_cap"
   },
   {
     "name": "Заглушка кругла Ø100",
@@ -4364,7 +4364,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0173,
     "blank_area_m2": 0.0176,
-    "material_area_m2": 0.0176,
+    "material_area_m2": 0.0207,
     "metal_area_m2": 0.0173,
     "weight_kg": 0.0968,
     "has_flanges": false,
@@ -4375,7 +4375,7 @@
     "total_price": "20.191565888999687",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø150",
@@ -4388,7 +4388,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0318,
     "blank_area_m2": 0.0324,
-    "material_area_m2": 0.0324,
+    "material_area_m2": 0.0382,
     "metal_area_m2": 0.0318,
     "weight_kg": 0.1783,
     "has_flanges": false,
@@ -4399,7 +4399,7 @@
     "total_price": "37.17083720474942",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø200",
@@ -4412,7 +4412,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0503,
     "blank_area_m2": 0.0513,
-    "material_area_m2": 0.0513,
+    "material_area_m2": 0.0603,
     "metal_area_m2": 0.0503,
     "weight_kg": 0.2817,
     "has_flanges": false,
@@ -4423,7 +4423,7 @@
     "total_price": "58.73910076799908",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø250",
@@ -4436,7 +4436,7 @@
     "quantity": 1,
     "surface_area_m2": 0.0726,
     "blank_area_m2": 0.0741,
-    "material_area_m2": 0.0741,
+    "material_area_m2": 0.0872,
     "metal_area_m2": 0.0726,
     "weight_kg": 0.4072,
     "has_flanges": false,
@@ -4447,7 +4447,7 @@
     "total_price": "84.89635657874868",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø315",
@@ -4460,7 +4460,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1076,
     "blank_area_m2": 0.1098,
-    "material_area_m2": 0.1098,
+    "material_area_m2": 0.1291,
     "metal_area_m2": 0.1076,
     "weight_kg": 0.6032,
     "has_flanges": false,
@@ -4471,7 +4471,7 @@
     "total_price": "125.76133254273556",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø400",
@@ -4484,7 +4484,7 @@
     "quantity": 1,
     "surface_area_m2": 0.1634,
     "blank_area_m2": 0.1666,
-    "material_area_m2": 0.1666,
+    "material_area_m2": 0.196,
     "metal_area_m2": 0.1634,
     "weight_kg": 0.9156,
     "has_flanges": false,
@@ -4495,7 +4495,7 @@
     "total_price": "190.902077495997",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Заглушка кругла Ø500",
@@ -4508,7 +4508,7 @@
     "quantity": 1,
     "surface_area_m2": 0.2435,
     "blank_area_m2": 0.2483,
-    "material_area_m2": 0.2483,
+    "material_area_m2": 0.2922,
     "metal_area_m2": 0.2435,
     "weight_kg": 1.3646,
     "has_flanges": false,
@@ -4519,7 +4519,7 @@
     "total_price": "284.51751934499555",
     "notes": "",
     "depth": 30,
-    "_preset_type": "заглушка_кругла"
+    "_preset_type": "round_cap"
   },
   {
     "name": "Гнучка вставка 100×50×200 поліестер",
@@ -4543,7 +4543,7 @@
     "total_price": "4.800000000000001",
     "notes": "",
     "fabric_type": "поліестер",
-    "_preset_type": "гнучка_вставка"
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 150×80×200 поліестер",
@@ -4567,7 +4567,7 @@
     "total_price": "7.359999999999999",
     "notes": "",
     "fabric_type": "поліестер",
-    "_preset_type": "гнучка_вставка"
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 200×100×250 поліестер",
@@ -4591,7 +4591,7 @@
     "total_price": "12.000000000000002",
     "notes": "",
     "fabric_type": "поліестер",
-    "_preset_type": "гнучка_вставка"
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 250×125×250 поліестер",
@@ -4615,7 +4615,7 @@
     "total_price": "15.0",
     "notes": "",
     "fabric_type": "поліестер",
-    "_preset_type": "гнучка_вставка"
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 300×150×300 поліестер",
@@ -4639,7 +4639,7 @@
     "total_price": "21.599999999999998",
     "notes": "",
     "fabric_type": "поліестер",
-    "_preset_type": "гнучка_вставка"
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 200×100×250 склотканина",
@@ -4662,8 +4662,8 @@
     "unit_price": "22.500000000000004",
     "total_price": "22.500000000000004",
     "notes": "",
-    "fabric_type": "склотканина",
-    "_preset_type": "гнучка_вставка"
+    "fabric_type": "поліестер",
+    "_preset_type": "flexible"
   },
   {
     "name": "Гнучка вставка 300×150×300 склотканина",
@@ -4686,7 +4686,7 @@
     "unit_price": "40.49999999999999",
     "total_price": "40.49999999999999",
     "notes": "",
-    "fabric_type": "склотканина",
-    "_preset_type": "гнучка_вставка"
+    "fabric_type": "поліестер",
+    "_preset_type": "flexible"
   }
 ]
