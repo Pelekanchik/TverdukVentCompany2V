@@ -286,13 +286,77 @@ class PricingSettings:
         return mat.get(str(thickness), 55.0)
 
     def get_labor_rate(self, product_type: str) -> dict:
+        """Отримати ставку зарплати та %% важкості для типу виробу.
+
+        ВИПРАВЛЕНО v2: працює з назвами ("Перехід 400×200→300×150"), 
+        типами ("rect_transition") та англійськими ключами.
+        """
         self.reload()
         ptype = product_type.lower().strip()
+
+        # === 1. Мапінг англійських product_type → українські ===
+        type_map = {
+            "rect_duct": "повітропровід прямокутний",
+            "round_duct": "повітропровід круглий",
+            "rect_flange": "фланець прямокутний",
+            "round_flange": "фланець круглий",
+            "rect_tee": "трійник прямокутний",
+            "round_tee": "трійник круглий",
+            "rect_transition": "перехід прямокутний",
+            "round_transition": "перехід круглий",
+            "rect_elbow": "відвід прямокутний",
+            "round_elbow": "відвід круглий",
+            "rect_cap": "заглушка прямокутна",
+            "round_cap": "заглушка кругла",
+            "flexible": "гнучка вставка",
+        }
+        if ptype in type_map:
+            ptype = type_map[ptype]
+            if ptype in self.labor_rates:
+                return self.labor_rates[ptype]
+
+        # === 2. Прямий пошук ===
         if ptype in self.labor_rates:
             return self.labor_rates[ptype]
+
+        # === 3. Fuzzy пошук (підрядок) ===
         for key, value in self.labor_rates.items():
             if key in ptype or ptype in key:
                 return value
+
+        # === 4. Розумний аналіз назви з розмірами ===
+        # Приклад: "перехід 400×200→300×150" → перше слово "перехід"
+        words = ptype.split()
+        if not words:
+            return {"rate_per_m2": 120.0, "difficulty_percent": 0.0}
+
+        first_word = words[0]  # "перехід", "відвід", "трійник"...
+
+        # Визначаємо форму за наявністю символів
+        has_rect = "прямокут" in ptype or "×" in ptype or "x" in ptype
+        has_round = "кругл" in ptype or "ø" in ptype or "Ø" in ptype
+
+        # Формуємо кандидатів
+        candidates = []
+        if has_rect and not has_round:
+            candidates.append(f"{first_word} прямокутний")
+        elif has_round and not has_rect:
+            candidates.append(f"{first_word} круглий")
+        else:
+            candidates.extend([f"{first_word} прямокутний", f"{first_word} круглий"])
+
+        for cand in candidates:
+            if cand in self.labor_rates:
+                return self.labor_rates[cand]
+            for key, value in self.labor_rates.items():
+                if cand in key or key in cand:
+                    return value
+
+        # === 5. Остання спроба — за першим словом ===
+        for key, value in self.labor_rates.items():
+            if first_word in key:
+                return value
+
         return {"rate_per_m2": 120.0, "difficulty_percent": 0.0}
 
     def get_category_waste_factor(self, product_type: str) -> float:

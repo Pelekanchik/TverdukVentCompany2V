@@ -193,7 +193,7 @@ class ProductionTab:
             name = product.get("name", "—")
             # === ВИПРАВЛЕННЯ 2: використовуємо name (українську назву) для пошуку ставки ===
             # бо product_type = "rectangular_duct", а labor_rates має ключ "повітропровід прямокутний"
-            ptype = product.get("name", product.get("product_type", product.get("type", "")))
+            ptype = product.get("product_type", product.get("type", product.get("name", "")))
             area = float(product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0))))
             qty = int(product.get("quantity", 1))
 
