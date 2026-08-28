@@ -330,15 +330,15 @@ class ProjectDatabase:
         # Автоматичний розрахунок зарплати
         from ventilation_company.gui.settings_tab import PricingSettings
         settings = PricingSettings.get_instance()
-        ptype = product_data.get('product_type', '')
-        metal_area = product_data.get('metal_area_m2', 0) or product_data.get('surface_area', 0)
+        ptype = product.get('product_type', '')
+        metal_area = product.get('metal_area_m2', 0) or product.get('surface_area', 0)
         if metal_area and ptype:
             labor = settings.get_labor_rate(ptype)
             rate = labor.get('rate_per_m2', 120.0)
             difficulty = labor.get('difficulty_percent', 0.0)
             salary = metal_area * rate * (1 + difficulty / 100)
-            product_data['salary_per_unit'] = round(salary, 2)
-            product_data['salary_total'] = round(salary * product_data.get('quantity', 1), 2)
+            product['salary_per_unit'] = round(salary, 2)
+            product['salary_total'] = round(salary * product.get('quantity', 1), 2)
 
         with self._session_scope() as session:
             product_id = self._add_product_to_project_in_conn(session, project_id, product)

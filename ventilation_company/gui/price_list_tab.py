@@ -85,12 +85,36 @@ class PriceItem:
         self.recalculate()
 
     def recalculate(self):
+        # FIX v2.1: оновлюємо labor_cost з актуальними ставками + важкість
+        from ventilation_company.gui.settings_tab import PricingSettings
+        settings = PricingSettings.get_instance()
+        if self.category == "власне виробництво":
+            labor = settings.get_labor_rate(self.product_type or self.name)
+            rate = labor.get("rate_per_m2", 120.0)
+            difficulty = labor.get("difficulty_percent", 0.0)
+            area = self._estimate_area()
+            self.labor_cost = round(area * rate * (1 + difficulty / 100), 2)
+        
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
             base = self.cost_price + self.labor_cost + self.overhead_cost
         self.unit_price = base * (1 + self.markup_percent / 100)
         self.total_price = self.unit_price * self.quantity
+
+    def _estimate_area(self) -> float:
+        """Оцінити площу виробу з розмірів (м²) — як у ProductionTab."""
+        try:
+            parts = self.dimensions.replace("×", "x").replace("X", "x").split("x")
+            if len(parts) >= 3:
+                w, h, l = float(parts[0]), float(parts[1]), float(parts[2])
+                return 2 * (w/1000 + h/1000) * (l/1000)
+            elif len(parts) == 2:
+                d, l = float(parts[0]), float(parts[1])
+                return 3.14159 * (d/1000) * (l/1000)
+        except (ValueError, IndexError):
+            pass
+        return 0.0
 
     @property
     def profit(self) -> float:
@@ -314,6 +338,26 @@ class PriceListManager:
                 labor = unit_price * 0.15
                 overhead_total = unit_price * 0.10
                 cost_price = unit_price - labor - overhead_total
+
+            # FIX v2.1: зарплата від surface_area (як у Виробництві), а не від material_area
+            # Розраховуємо площу ПОВЕРХНІ готового виробу
+            try:
+                parts = dimensions.replace("×", "x").replace("X", "x").split("x")
+                if len(parts) >= 3:
+                    w, h, l = float(parts[0]), float(parts[1]), float(parts[2])
+                    area = 2 * (w/1000 + h/1000) * (l/1000)
+                elif len(parts) == 2:
+                    d, l = float(parts[0]), float(parts[1])
+                    area = 3.14159 * (d/1000) * (l/1000)
+                else:
+                    area = 0
+            except (ValueError, IndexError):
+                area = 0
+
+            labor_info = pricing.get_labor_rate(product_type)
+            rate = labor_info.get("rate_per_m2", 120.0)
+            difficulty = labor_info.get("difficulty_percent", 0.0)
+            labor = area * rate * (1 + difficulty / 100)
 
             total_price = unit_price * quantity
 
@@ -1158,47 +1202,13 @@ class PriceListTab:
 
     def _recalculate_salaries(self):
         """Перерахувати зарплати для всіх позицій з актуальними ставками."""
-        from ventilation_company.gui.settings_tab import PricingSettings
-        settings = PricingSettings.get_instance()
         updated = 0
-
         for item in self.manager.items:
             if item.category != "власне виробництво":
                 continue
-
-            ptype = item.product_type or item.name
-            dims = item.dimensions
-
-            # Розпарсити розміри
-            try:
-                parts = dims.replace("×", "x").replace("X", "x").split("x")
-                if len(parts) >= 2:
-                    w = float(parts[0])
-                    h = float(parts[1]) if len(parts) > 1 else 0
-                    l = float(parts[2]) if len(parts) > 2 else 0
-                else:
-                    w = h = l = 0
-            except (ValueError, IndexError):
-                w = h = l = 0
-
-            # Приблизна площа
-            if "кругл" in ptype.lower():
-                area = 3.14159 * w * l / 1_000_000
-            else:
-                area = 2 * (w + h) * l / 1_000_000
-
-            if area <= 0:
-                continue
-
-            labor_info = settings.get_labor_rate(ptype)
-            rate = labor_info.get("rate_per_m2", 120.0)
-            difficulty = labor_info.get("difficulty_percent", 0.0)
-            new_labor = area * rate * (1 + difficulty / 100)
-
-            if abs(new_labor - item.labor_cost) > 0.01:
-                item.labor_cost = round(new_labor, 2)
-                item.recalculate()
-                updated += 1
+            # FIX: recalculate() тепер сама оновлює labor_cost + ціну
+            item.recalculate()
+            updated += 1
 
         if updated > 0:
             self.manager.save()

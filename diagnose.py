@@ -1,71 +1,70 @@
 #!/usr/bin/env python3
-"""Діагностика: чому немає кнопки 📚."""
-
+# -*- coding: utf-8 -*-
 import os
-import sys
-import py_compile
+import shutil
 
-ROOT = r"C:\Users\Admin\Desktop\TverdukVentCompany2V"
-os.chdir(ROOT)
-sys.path.insert(0, ROOT)
+BASE = os.path.dirname(os.path.abspath(__file__))
 
-print("=" * 60)
-print("🔍 ДІАГНОСТИКА products_tab.py")
-print("=" * 60)
+# 1. Чистимо кеш
+for root, dirs, files in os.walk(BASE):
+    for d in list(dirs):
+        if d == "__pycache__":
+            shutil.rmtree(os.path.join(root, d))
+            dirs.remove(d)
+print("🗑️  Кеш очищено\n")
 
-# 1. Який файл насправді завантажується?
-print("\n📁 1. Шлях до завантаженого модуля:")
-try:
-    import ventilation_company.gui.products_tab as pt
-    print(f"   {pt.__file__}")
-except Exception as e:
-    print(f"   ❌ Помилка імпорту: {e}")
-    sys.exit(1)
+# 2. Дивимося, що насправді у cost_engine.py
+path = os.path.join(BASE, "ventilation_company", "calculations", "cost_engine.py")
+with open(path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
 
-# 2. Перевірка синтаксису
-print("\n📝 2. Перевірка синтаксису:")
-filepath = pt.__file__
-try:
-    py_compile.compile(filepath, doraise=True)
-    print("   ✅ Синтаксис ОК")
-except py_compile.PyCompileError as e:
-    print(f"   ❌ СИНТАКСИЧНА ПОМИЛКА: {e}")
-    print("   → Віднови файл з .backup і повідом мене")
+print("📄 cost_engine.py — рядки з 'labor_cost':")
+for i, line in enumerate(lines, 1):
+    if "labor_cost" in line:
+        print(f"   Рядок {i}: {line.rstrip()}")
 
-# 3. Чи є новий метод?
-print("\n🔧 3. Перевірка методів:")
-has_method = hasattr(pt.ProductsTab, "_save_selected_to_library")
-print(f"   _save_selected_to_library: {'✅ Є' if has_method else '❌ НЕМАЄ'}")
+# 3. Виправляємо жорстко — шукаємо ТОЧНО цей рядок
+fixed = False
+for i, line in enumerate(lines):
+    if "result.labor_cost" in line and "blank_area_m2" in line:
+        old = line
+        new = line.replace("blank_area_m2", "surface_area_m2")
+        lines[i] = new
+        print(f"\n🔧 ЗАМІНЕНО:\n   БУЛО: {old.rstrip()}\n   СТАЛО: {new.rstrip()}")
+        fixed = True
+        break
 
-# 4. Чи є кнопка в коді?
-print("\n📚 4. Перевірка кнопки в файлі:")
-with open(filepath, "r", encoding="utf-8") as f:
-    code = f.read()
-has_button = "📚" in code and "_save_selected_to_library" in code
-print(f"   Кнопка 'В бібліотеку': {'✅ Є в коді' if has_button else '❌ НЕМАЄ в коді'}")
-
-# 5. Кеш
-print("\n💾 5. Кеш Python (__pycache__):")
-pycache = os.path.join(os.path.dirname(filepath), "__pycache__")
-if os.path.exists(pycache):
-    files = os.listdir(pycache)
-    print(f"   Знайдено {len(files)} файлів у {pycache}")
-    for f in files:
-        if "products_tab" in f:
-            print(f"   → {f}")
+if fixed:
+    with open(path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    print("✅ cost_engine.py виправлено")
 else:
-    print("   Кешу немає")
+    print("\n⚠️  Рядок з blank_area_m2 НЕ знайдено")
+    print("   Можливо, вже виправлено, або файл сильно відрізняється")
+
+# 4. Дивимося price_list_tab.py
+path = os.path.join(BASE, "ventilation_company", "gui", "price_list_tab.py")
+with open(path, "r", encoding="utf-8") as f:
+    txt = f.read()
+
+print("\n📄 price_list_tab.py:")
+if "_estimate_area" in txt:
+    print("   ✅ _estimate_area() — Є")
+else:
+    print("   ❌ _estimate_area() — НЕМАЄ (файл не виправлений)")
+
+if "item.recalculate()" in txt and "_recalculate_salaries" in txt:
+    print("   ✅ _recalculate_salaries() — спрощено")
+else:
+    print("   ❌ _recalculate_salaries() — НЕ спрощено")
+
+if "CostEngine(pricing)" in txt:
+    print("   ✅ CostEngine — додано у import_from_products")
+else:
+    print("   ❌ CostEngine — НЕ додано")
 
 print("\n" + "=" * 60)
-if not has_method:
-    print("❌ Проблема: метод не завантажується.")
-    print("   → Видали __pycache__ і перезапусти програму")
-elif not has_button:
-    print("❌ Проблема: патч не застосувався до файлу.")
-    print("   → Віднови з .backup і запусти patch_ventcompany.py знову")
-else:
-    print("✅ Код в порядку! Спробуй:")
-    print("   1. Закрити VentCompany повністю")
-    print("   2. Видалити папку __pycache__ в ventilation_company/gui/")
-    print("   3. Запустити python main.py знову")
+print("Тепер запустіть:  python main.py")
+print("Потім у Прайс-листі натисніть '🔄 Оновити прайс'")
 print("=" * 60)
+input("\nНатисніть Enter...")
