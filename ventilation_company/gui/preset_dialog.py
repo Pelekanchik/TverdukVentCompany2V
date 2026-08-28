@@ -1,5 +1,7 @@
 """Діалог вибору пресету з бібліотеки типових розмірів + 3D прев'ю."""
 
+from ventilation_company.freecad_models import FREECAD_AVAILABLE, build_product_model
+
 import copy
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -224,6 +226,12 @@ class PresetDialog:
         self.result = copy.deepcopy(preset)
         self.result.quantity = qty
         self.result.__post_init__()
+        # Створити 3D-модель у FreeCAD, якщо доступно
+        if FREECAD_AVAILABLE and self.result:
+            try:
+                build_product_model(self.result)
+            except Exception as e:
+                print(f"[VentCompany] Помилка створення 3D: {e}")
         self.top.destroy()
 
     def _on_cancel(self):

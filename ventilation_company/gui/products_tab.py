@@ -32,6 +32,7 @@ from ventilation_company.gui.preset_dialog import choose_preset
 from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
 from ventilation_company.gui.settings_tab import PricingSettings
 from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.db_integration import get_db
 
 
 # ── TOOLTIP КЛАС ────────────────────────────────────────────
@@ -355,6 +356,7 @@ class ProductsTab:
             ("📋", "Дублювати", "Дублювати обраний виріб", self._duplicate_selected, "#BBDEFB", "#90CAF9"),
             ("🧹", "Очистити", "Очистити всі вироби з таблиці", self._clear_all, "#FFE0B2", "#FFCC80"),
             ("🔄", "Перерахувати", "Перерахувати ціни всіх виробів", self._recalculate_all_prices, "#C8E6C9", "#A5D6A7"),
+            ("📚", "В бібліотеку", "Зберегти обраний виріб у стандартну бібліотеку", self._save_selected_to_library, "#E8F5E9", "#C8E6C9"),
         ]
         if FREECAD_AVAILABLE:
             btn_cfg.append(("🏗️", "FreeCAD", "Експорт обраного виробу у FreeCAD", self._export_selected_freecad, "#E1BEE7", "#CE93D8"))
@@ -1376,6 +1378,45 @@ class ProductsTab:
                 messagebox.showwarning("Увага", "Кількість та ціна мають бути числами.")
 
         ttk.Button(dialog, text="✅ Застосувати", command=save).grid(row=3, column=0, columnspan=2, pady=15)
+
+    def _save_selected_to_library(self):
+        """Зберегти обраний виріб у стандартну бібліотеку (standard_products_library)."""
+        idx = self._get_selected_index()
+        if idx < 0:
+            messagebox.showwarning("Увага", "Оберіть виріб у таблиці.")
+            return
+
+        product = self.library.products[idx]
+        data = product.to_dict()
+
+        # Збираємо додаткові параметри для бібліотеки
+        params = {}
+        for key in ["branch_width", "branch_height", "branch_length", "branch_diameter",
+                    "branch_offset", "end_width", "end_height", "end_diameter",
+                    "angle", "radius", "segments", "depth", "border", "profile",
+                    "bolt_count", "bolt_diameter", "bolt_spacing", "fabric_type"]:
+            if hasattr(product, key):
+                params[key] = getattr(product, key)
+
+        db = get_db("data/company.db")
+
+        try:
+            product_id = db.add_standard_product(
+                name=data.get("name", "Виріб"),
+                product_type=data.get("product_type", "custom"),
+                width=data.get("width", 0),
+                height=data.get("height", 0),
+                length=data.get("length", 0),
+                thickness=data.get("thickness", 0.7),
+                material=data.get("material", "оцинкована сталь"),
+                parameters=params if params else None,
+            )
+            messagebox.showinfo(
+                "Успіх",
+                f"Виріб збережено в бібліотеку стандартних виробів!\nID: {product_id}"
+            )
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося зберегти в бібліотеку:\n{e}")
 
     def _recalculate_all_prices(self):
         if not self.library.products:

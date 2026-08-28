@@ -759,6 +759,7 @@ class PriceListTab:
         ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(side=tk.LEFT, padx=2)
         ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(side=tk.LEFT, padx=2)
         ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(sync_frame, text="👷 Перерахувати зарплати", command=self._recalculate_salaries).pack(side=tk.LEFT, padx=2)
 
         # Експорт
         export_frame = ttk.LabelFrame(top, text="Експорт", padding=3)
@@ -1154,6 +1155,57 @@ class PriceListTab:
         )
         self.manager.add(new_item)
         self._refresh_tree()
+
+    def _recalculate_salaries(self):
+        """Перерахувати зарплати для всіх позицій з актуальними ставками."""
+        from ventilation_company.gui.settings_tab import PricingSettings
+        settings = PricingSettings.get_instance()
+        updated = 0
+
+        for item in self.manager.items:
+            if item.category != "власне виробництво":
+                continue
+
+            ptype = item.product_type or item.name
+            dims = item.dimensions
+
+            # Розпарсити розміри
+            try:
+                parts = dims.replace("×", "x").replace("X", "x").split("x")
+                if len(parts) >= 2:
+                    w = float(parts[0])
+                    h = float(parts[1]) if len(parts) > 1 else 0
+                    l = float(parts[2]) if len(parts) > 2 else 0
+                else:
+                    w = h = l = 0
+            except (ValueError, IndexError):
+                w = h = l = 0
+
+            # Приблизна площа
+            if "кругл" in ptype.lower():
+                area = 3.14159 * w * l / 1_000_000
+            else:
+                area = 2 * (w + h) * l / 1_000_000
+
+            if area <= 0:
+                continue
+
+            labor_info = settings.get_labor_rate(ptype)
+            rate = labor_info.get("rate_per_m2", 120.0)
+            difficulty = labor_info.get("difficulty_percent", 0.0)
+            new_labor = area * rate * (1 + difficulty / 100)
+
+            if abs(new_labor - item.labor_cost) > 0.01:
+                item.labor_cost = round(new_labor, 2)
+                item.recalculate()
+                updated += 1
+
+        if updated > 0:
+            self.manager.save()
+            self._refresh_tree()
+            messagebox.showinfo("Готово", f"Перераховано зарплати для {updated} позицій")
+        else:
+            messagebox.showinfo("Готово", "Усі зарплати вже актуальні")
 
     def _sync_from_products(self):
         """Синхронізувати вироби з вкладки 'Вироби' для поточного проєкту."""

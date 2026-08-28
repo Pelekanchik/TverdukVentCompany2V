@@ -68,35 +68,33 @@ class MainWindow:
         self._auto_save_id = self.root.after(300000, self._auto_save)
 
     def _auto_save(self):
+        """Автозбереження тепер у SQLite БД замість JSON-файлів."""
         try:
             products = self._get_products()
+            # Перераховуємо зарплати перед автозбереженням
+            self._recalculate_salaries(products)
             if not products or not self.current_project_id:
                 self._schedule_auto_save()
                 return
+
             project_name = self.spec_tab.project_name_var.get() or "auto_save"
-            versions_dir = os.path.join("data", "versions", str(self.current_project_id))
-            os.makedirs(versions_dir, exist_ok=True)
-            self.spec_tab._generate()
-            spec = self.spec_tab.get_specification()
-            self.cutting_tab._calculate()
-            plan = self.cutting_tab.get_plan()
-            version_data = {
-                "project_id": self.current_project_id,
-                "project_name": project_name,
-                "saved_at": datetime.now().isoformat(),
-                "products": [p.to_dict() if hasattr(p, "to_dict") else p for p in products],
-                "specification": spec.to_dict() if spec else None,
-                "cutting_plan": plan.to_dict() if plan else None,
-            }
-            filename = f"{project_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            filepath = os.path.join(versions_dir, filename)
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(version_data, f, ensure_ascii=False, indent=2)
-            versions = sorted(os.listdir(versions_dir))
-            if len(versions) > 50:
-                for old_file in versions[:-50]:
-                    os.remove(os.path.join(versions_dir, old_file))
-            self.status_bar.config(text=f"💾 Автозбережено: {filename}")
+
+            # Оновлюємо назву проєкту
+            self.db.update_project(
+                self.current_project_id,
+                name=project_name,
+                updated_at=datetime.now(),
+            )
+            # Перезаписуємо вироби в БД
+            old_products = self.db.get_project_products(self.current_project_id)
+            for p in old_products:
+                self.db.delete_product(p["id"])
+            for p in products:
+                self.db.add_product_to_project(self.current_project_id, p)
+
+            self.status_bar.config(
+                text=f"💾 Автозбережено в БД: проєкт ID {self.current_project_id}"
+            )
         except Exception as e:
             self.status_bar.config(text=f"⚠️ Помилка автозбереження: {e}")
         finally:
@@ -475,8 +473,27 @@ class MainWindow:
         except Exception:
             return []
 
+    def _recalculate_salaries(self, products):
+        """Перерахувати зарплату для всіх виробів з актуальними ставками."""
+        from ventilation_company.gui.settings_tab import PricingSettings
+        settings = PricingSettings.get_instance()
+        for p in products:
+            ptype = p.get("product_type", "")
+            metal_area = p.get("metal_area_m2", 0) or p.get("surface_area", 0)
+            qty = p.get("quantity", 1)
+            if metal_area and ptype:
+                labor = settings.get_labor_rate(ptype)
+                rate = labor.get("rate_per_m2", 120.0)
+                difficulty = labor.get("difficulty_percent", 0.0)
+                salary = metal_area * rate * (1 + difficulty / 100)
+                p["salary_per_unit"] = round(salary, 2)
+                p["salary_total"] = round(salary * qty, 2)
+
     def _save_project(self):
+        """Зберегти проєкт: оновлює існуючий або створює новий."""
         products = self._get_products()
+        # Перераховуємо зарплати перед збереженням
+        self._recalculate_salaries(products)
         if not products:
             messagebox.showwarning("Увага", "Додайте хоча б один виріб.")
             return
@@ -488,32 +505,50 @@ class MainWindow:
             plan = self.cutting_tab.get_plan()
             spec_data = spec.to_dict() if spec else None
             plan_data = plan.to_dict() if plan else None
-            result = save_project_full(
-                project_name=project_name,
-                products=products,
-                spec_data=spec_data,
-                cutting_plan=plan_data,
-                db_path="data/company.db",
-            )
-            self.current_project_id = result["project_id"]
+
+            if self.current_project_id:
+                # ── ОНОВЛЕННЯ існуючого проєкту ──
+                self.db.update_project(
+                    self.current_project_id,
+                    name=project_name,
+                    updated_at=datetime.now(),
+                )
+                # Видаляємо старі вироби проєкту
+                old_products = self.db.get_project_products(self.current_project_id)
+                for p in old_products:
+                    self.db.delete_product(p["id"])
+                # Додаємо актуальні вироби
+                for p in products:
+                    self.db.add_product_to_project(self.current_project_id, p)
+                project_id = self.current_project_id
+            else:
+                # ── СТВОРЕННЯ нового проєкту ──
+                result = save_project_full(
+                    project_name=project_name,
+                    products=products,
+                    spec_data=spec_data,
+                    cutting_plan=plan_data,
+                    db_path="data/company.db",
+                )
+                project_id = result["project_id"]
+                self.current_project_id = project_id
+
             self.project_label.config(
-                text=f"{project_name} (ID: {self.current_project_id})",
+                text=f"{project_name} (ID: {project_id})",
                 fg=self.theme_mgr.get()["accent2"],
             )
             self.status_bar.config(
-                text=f"✅ Проєкт збережено. ID: {self.current_project_id}",
+                text=f"✅ Проєкт збережено. ID: {project_id}",
                 fg=self.theme_mgr.get()["status_ok"],
             )
-            messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {self.current_project_id}")
-            self.price_list_tab._current_project_id = self.current_project_id
+            messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {project_id}")
+            self.price_list_tab._current_project_id = project_id
 
-            # === ЕТАП 7: Оновлюємо 3D-вкладку ===
             self.project_3d_tab.set_project({
                 "products": products,
-                "project_id": self.current_project_id,
+                "project_id": project_id,
                 "name": project_name,
             })
-            # =====================================
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося зберегти:\n{str(e)}")
 
