@@ -487,7 +487,7 @@ class SpecificationTab:
         """
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
-            pricing = PricingSettings()
+            pricing = PricingSettings.get_instance()
 
             total_material = 0.0
             total_labor = 0.0
@@ -503,7 +503,16 @@ class SpecificationTab:
                 if unit_price > 0:
                     full_cost = unit_price / 1.3
                     material = full_cost * 0.75
-                    labor = full_cost * 0.10
+                    # FIX: зарплата з актуальних ставок, а не 10% від ціни
+                    ptype = p.get("product_type", "")
+                    metal_area = p.get("metal_area_m2", 0) or p.get("surface_area", 0)
+                    if metal_area and ptype:
+                        labor_info = pricing.get_labor_rate(ptype)
+                        rate = labor_info.get("rate_per_m2", 120.0)
+                        difficulty = labor_info.get("difficulty_percent", 0.0)
+                        labor = metal_area * rate * (1 + difficulty / 100)
+                    else:
+                        labor = full_cost * 0.10
 
                     total_material += material * qty
                     total_labor += labor * qty

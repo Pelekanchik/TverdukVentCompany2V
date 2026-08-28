@@ -286,7 +286,7 @@ class CostEngine:
         labor_rate, labor_difficulty = self._get_labor_rate(product_type)
         result.labor_rate_per_m2 = labor_rate
         result.labor_difficulty_percent = labor_difficulty
-        result.labor_cost = blank_area_m2 * labor_rate * (1 + labor_difficulty / 100) * quantity
+        result.labor_cost = surface_area_m2 * labor_rate * (1 + labor_difficulty / 100) * quantity  # FIX v2.1: уніфікація з Виробництвом (surface_area)
 
         # ── 3. Фланці ──
         result.flange_cost = flange_count * flange_price * quantity

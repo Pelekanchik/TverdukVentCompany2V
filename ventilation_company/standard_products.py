@@ -180,6 +180,24 @@ class StandardProduct:
             _logger.warning("CostEngine failed: %s, fallback to legacy pricing", e)
             return self._legacy_calculate_price()
 
+    def recalculate_price(self) -> float:
+        """
+        Перерахувати ціну з актуальними ставками з pricing_settings.json.
+        Використовувати при завантаженні проєкту або зміні налаштувань.
+        """
+        self.unit_price = Decimal(str(self.calculate_price()))
+        self.total_price = self.unit_price * self.quantity
+        return float(self.unit_price)
+
+    def recalculate_price(self) -> float:
+        """
+        Перерахувати ціну з актуальними ставками з pricing_settings.json.
+        Використовувати при завантаженні проєкту або зміні налаштувань.
+        """
+        self.unit_price = Decimal(str(self.calculate_price()))
+        self.total_price = self.unit_price * self.quantity
+        return float(self.unit_price)
+
     def get_cost_breakdown(self):
         """Отримати детальний розбив собівартості (CostBreakdown)."""
         return self._cost_engine.calculate(

@@ -17,7 +17,6 @@ from ventilation_company.gui.project_3d_tab import Project3DTab
 from ventilation_company.gui.products_tab import ProductsTab
 from ventilation_company.gui.documents_tab import DocumentsTab
 from ventilation_company.gui.settings_tab import SettingsTab
-from ventilation_company.gui.price_list_tab import PriceListTab
 from ventilation_company.gui.specification_tab import SpecificationTab
 from ventilation_company.gui.production_tab import ProductionTab
 from ventilation_company.gui.material_order_tab import MaterialOrderTab
@@ -292,8 +291,7 @@ class MainWindow:
         self.settings_tab = SettingsTab(self.finance_nb)
         self.finance_nb.add(self.settings_tab.frame, text="💰 Ціноутворення")
 
-        self.price_list_tab = PriceListTab(self.finance_nb, get_products_callback=self._get_products)
-        self.finance_nb.add(self.price_list_tab.frame, text="🏷️ Прайс-лист")
+        # self.price_list_tab = PriceListTab(...)  # ВИДАЛЕНО
 
         self.documents_tab = DocumentsTab(self.finance_nb)
         self.finance_nb.add(self.documents_tab.frame, text="📄 Документи")
@@ -350,8 +348,7 @@ class MainWindow:
         ])
         self._finance_subs = _cat("💰 Фінанси", [
             ("💰", "Ціноутворення", self.finance_nb, 0),
-            ("🏷️", "Прайс-лист", self.finance_nb, 1),
-            ("📄", "Документи", self.finance_nb, 2),
+            ("📄", "Документи", self.finance_nb, 1),
         ])
         self._prod_subs = _cat("🏭 Виробництво", [
             ("🏭", "Виробництво", self.prod_nb, 0),
@@ -542,8 +539,7 @@ class MainWindow:
                 fg=self.theme_mgr.get()["status_ok"],
             )
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {project_id}")
-            self.price_list_tab._current_project_id = project_id
-
+    
             self.project_3d_tab.set_project({
                 "products": products,
                 "project_id": project_id,
@@ -616,7 +612,6 @@ class MainWindow:
         
         self.products_tab.load_products_from_dict(products)
         self.current_project_id = project_id
-        self.price_list_tab._current_project_id = self.current_project_id
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
 
