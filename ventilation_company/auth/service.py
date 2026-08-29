@@ -88,8 +88,8 @@ class AuthService:
             full_name=orm.full_name,
             role=orm.role,
             is_active=orm.is_active,
-            created_at=orm.created_at.isoformat() if orm.created_at else None,
-            last_login=orm.last_login.isoformat() if orm.last_login else None,
+            created_at=(orm.created_at.isoformat() if hasattr(orm.created_at, "isoformat") else str(orm.created_at)) if orm.created_at else None,
+            last_login=(orm.last_login.isoformat() if hasattr(orm.last_login, "isoformat") else str(orm.last_login)) if orm.last_login else None,
         )
 
     # ── CRUD користувачів ──

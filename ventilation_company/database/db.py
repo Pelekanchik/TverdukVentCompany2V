@@ -1,39 +1,21 @@
-"""Підключення до БД та сесії (PostgreSQL).
-
-Версія v2.2: Перехід з SQLite на PostgreSQL.
-"""
+"""Підключення до БД (PostgreSQL)."""
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-# PostgreSQL підключення
 DATABASE_URL = "postgresql://vent:vent123@localhost/ventcompany"
-
-# SQLAlchemy engine
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,  # True для дебагу SQL-запитів
-    future=True,
-)
-
-# Фабрика сесій
+engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Scoped session для потокобезпеки (GUI + фонові задачі)
 db_session = scoped_session(SessionLocal)
 
-
 def get_db():
-    """Генератор сесій для використання з context managers."""
     session = SessionLocal()
     try:
         yield session
     finally:
         session.close()
 
-
 def get_calc_db():
-    """Повертає sqlite3 connection для зворотної сумісності (calc_templates)."""
     import sqlite3
     from ventilation_company.config import DB_PATH
     return sqlite3.connect(DB_PATH)
