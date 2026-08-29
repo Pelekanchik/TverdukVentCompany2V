@@ -1,19 +1,29 @@
-"""Підключення до БД та сесії (PostgreSQL).
+"""Підключення до БД та сесії.
 
-Версія v2.2: Перехід з SQLite на PostgreSQL.
+Покращення v2.1:
+  • Додано connect_args={"check_same_thread": False} для безпечної
+    роботи SQLite з SQLAlchemy в однопоточному GUI.
+  • Збережено scoped_session для потокобезпечності.
+  • Додано get_calc_db() для зворотної сумісності з template_repo (raw sqlite3).
 """
+
+import os
+import sqlite3
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-# PostgreSQL підключення
-DATABASE_URL = "postgresql://vent:vent123@localhost/ventcompany"
+from ventilation_company.config import DB_PATH
+
+# Створюємо директорію, якщо немає
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # SQLAlchemy engine
 engine = create_engine(
-    DATABASE_URL,
+    f"sqlite:///{DB_PATH}",
     echo=False,  # True для дебагу SQL-запитів
     future=True,
+    connect_args={"check_same_thread": False},
 )
 
 # Фабрика сесій
@@ -34,6 +44,4 @@ def get_db():
 
 def get_calc_db():
     """Повертає sqlite3 connection для зворотної сумісності (calc_templates)."""
-    import sqlite3
-    from ventilation_company.config import DB_PATH
     return sqlite3.connect(DB_PATH)
