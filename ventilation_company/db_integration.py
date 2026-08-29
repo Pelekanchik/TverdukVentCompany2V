@@ -1054,16 +1054,16 @@ class ProjectDatabase:
 
     def get_monthly_revenue(self, months: int = 12) -> list[dict]:
         """Виручка по місяцях."""
-        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        since = datetime.now() - timedelta(days=months * 31)
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.strftime("%Y-%m", ClientProject.end_date).label("month"),
+                    func.to_char(ClientProject.end_date, 'YYYY-MM').label("month"),
                     func.sum(ClientProject.total_amount).label("amount"),
                 )
                 .filter(
                     ClientProject.end_date.isnot(None),
-                    ClientProject.end_date >= since + "-01",
+                    ClientProject.end_date >= since,
                 )
                 .group_by("month")
                 .order_by("month")
@@ -1104,7 +1104,7 @@ class ProjectDatabase:
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.strftime("%Y-%m", ClientProject.start_date).label("month"),
+                    func.to_char(ClientProject.start_date, 'YYYY-MM').label("month"),
                     func.sum(
                         case((ClientProject.status == "в роботі", 1), else_=0)
                     ).label("active"),
@@ -1130,16 +1130,16 @@ class ProjectDatabase:
 
     def get_monthly_avg_check(self, months: int = 12) -> list[dict]:
         """Середній чек по місяцях."""
-        since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m")
+        since = datetime.now() - timedelta(days=months * 31)
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.strftime("%Y-%m", ClientProject.end_date).label("month"),
+                    func.to_char(ClientProject.end_date, 'YYYY-MM').label("month"),
                     func.avg(ClientProject.total_amount).label("avg"),
                 )
                 .filter(
                     ClientProject.end_date.isnot(None),
-                    ClientProject.end_date >= since + "-01",
+                    ClientProject.end_date >= since,
                     ClientProject.total_amount > 0,
                 )
                 .group_by("month")
