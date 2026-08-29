@@ -1,13 +1,7 @@
-"""Сервісний шар — бізнес-логіка, відокремлена від GUI.
+"""Сервісний шар — бізнес-логіка відокремлена від GUI."""
 
-Модулі:
- • product_validator — валідація параметрів виробів
- • product_builder — фабрика створення виробів
- • price_calculator — розрахунок цін
-"""
+from .pricing_service import PricingService
+from .salary_service import SalaryService
+from .project_service import ProjectService
 
-from .product_validator import ProductValidator, ValidationError
-from .product_builder import ProductBuilder
-from .price_calculator import PriceCalculator
-
-__all__ = ["ProductValidator", "ValidationError", "ProductBuilder", "PriceCalculator"]
+__all__ = ["PricingService", "SalaryService", "ProjectService"]
