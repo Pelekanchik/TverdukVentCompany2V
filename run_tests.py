@@ -1,78 +1,84 @@
 #!/usr/bin/env python3
-"""
-RUN_TESTS.PY — Запуск глобальних тестів VentilationCompany2V
-===========================================================
+# -*- coding: utf-8 -*-
+"""Запуск тестів з backup/restore pricing_settings.json."""
 
-Використання:
-    python run_tests.py          — запуск усіх тестів
-    python run_tests.py -v       — докладний вивід
-    python run_tests.py --global — тільки test_global.py
-
-Перед першим запуском (якщо з'являються дивні помилки):
-    1. Видаліть кеш:  rmdir /s /q __pycache__  (Windows)
-                     rm -rf __pycache__        (Linux/Mac)
-    2. Видаліть .pyc:  del /s *.pyc           (Windows)
-                      find . -name "*.pyc" -delete  (Linux/Mac)
-
-Залежності:
-    pip install pytest sqlalchemy
-"""
-
-import subprocess
-import sys
 import os
+import sys
+import json
+import shutil
+import subprocess
 
+BASE = os.path.dirname(os.path.abspath(__file__))
+SETTINGS_PATH = os.path.join(BASE, "data", "pricing_settings.json")
+BACKUP_PATH = SETTINGS_PATH + ".test_backup"
 
-def print_header(text: str):
-    print("\n" + "=" * 60)
-    print(f"  {text}")
-    print("=" * 60 + "\n")
-
+# Тестові налаштування (ставка 120, важкість 20%)
+TEST_SETTINGS = {
+    "materials": {},
+    "labor_rates": {
+        "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty_percent": 20.0},
+        "повітропровід круглий": {"rate_per_m2": 120.0, "difficulty_percent": 20.0}
+    },
+    "markup_percent": 30.0,
+    "vat": {"rate": 20.0}
+}
 
 def main():
-    args = sys.argv[1:]
-
-    # Визначаємо, які тести запускати
-    if "--global" in args:
-        test_path = "tests/test_global.py"
-        args.remove("--global")
-    elif "--all" in args:
-        test_path = "tests/"
-        args.remove("--all")
+    # 1. Backup оригіналу
+    if os.path.exists(SETTINGS_PATH):
+        shutil.copy(SETTINGS_PATH, BACKUP_PATH)
+        print("Backup pricing_settings.json створено")
     else:
-        test_path = "tests/"  # за замовчуванням усі тести
+        print("Оригінал pricing_settings.json не знайдено, створюємо тестовий")
 
-    # Базова команда pytest
-    cmd = [sys.executable, "-m", "pytest", test_path, "--tb=short"]
+    # 2. Пишемо тестові налаштування
+    os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(TEST_SETTINGS, f, ensure_ascii=False, indent=2)
+    print("Тестові налаштування записано (ставка 120, важкість 20%)")
 
-    # Додаємо -v якщо не передано
-    if "-v" in args or "--verbose" in args:
-        cmd.append("-v")
-        if "--verbose" in args:
-            args.remove("--verbose")
-        if "-v" in args:
-            args.remove("-v")
+    # 3. Скидаємо сінглтон PricingSettings
+    try:
+        from ventilation_company.gui.settings_tab import PricingSettings
+        PricingSettings._instance = None
+        print("PricingSettings скинуто")
+    except Exception as e:
+        print("Не вдалося скинути PricingSettings:", e)
 
-    # Додаємо решту аргументів
-    cmd.extend(args)
+    # 4. Запускаємо тести
+    print("")
+    print("=" * 55)
+    print("ЗАПУСК ТЕСТІВ")
+    print("=" * 55)
+    print("")
+    
+    result = subprocess.run(
+        [sys.executable, "-m", "unittest", "tests.test_salary", "-v"],
+        cwd=BASE
+    )
 
-    print_header("ЗАПУСК ТЕСТІВ VentilationCompany2V")
-    print(f"Команда: {' '.join(cmd)}\n")
+    # 5. Відновлюємо оригінал
+    if os.path.exists(BACKUP_PATH):
+        shutil.copy(BACKUP_PATH, SETTINGS_PATH)
+        os.remove(BACKUP_PATH)
+        print("")
+        print("Оригінал pricing_settings.json відновлено")
+    else:
+        os.remove(SETTINGS_PATH)
+        print("")
+        print("Тестовий pricing_settings.json видалено")
 
-    result = subprocess.run(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
-
-    print_header("РЕЗУЛЬТАТ")
+    # 6. Результат
+    print("")
+    print("=" * 55)
     if result.returncode == 0:
-        print("✅ УСІ ТЕСТИ ПРОЙДЕНІ")
+        print("УСІ ТЕСТИ ПРОЙДЕНІ!")
     else:
-        print(f"❌ ТЕСТИ НЕ ПРОЙДЕНІ (код виходу: {result.returncode})")
-        print("\nПідказки:")
-        print("  • Якщо помилки імпорту — спробуйте очистити кеш:")
-        print("      python -c \"import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]\"")
-        print("  • Якщо pytest не знайдено — встановіть:")
-        print("      pip install pytest sqlalchemy")
+        print("ДЕЯКІ ТЕСТИ НЕ ПРОЙДЕНІ")
+    print("=" * 55)
 
-    sys.exit(result.returncode)
+    input("")
+    print("Натисніть Enter...")
 
 
 if __name__ == "__main__":

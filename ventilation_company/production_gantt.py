@@ -120,7 +120,7 @@ class GanttChart:
         self.ax.set_yticklabels(y_labels, fontsize=8)
         self.ax.set_xlabel("Години від початку проєкту", fontsize=10)
         self.ax.set_title(
-            f"📊 {self.plan.project_name} — Gantt-діаграма виробництва\n"
+            f" {self.plan.project_name} — Gantt-діаграма виробництва\n"
             f"Початок: {self._format_datetime(self.plan.start_date)}  |  "
             f"Завершення: {self._format_datetime(self.plan.estimated_end)}  |  "
             f"Виконано: {self.plan.completion_percent:.0f}%",

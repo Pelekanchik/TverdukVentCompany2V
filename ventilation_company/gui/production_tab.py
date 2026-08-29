@@ -44,7 +44,7 @@ class ProductionTab:
         self.deadline_var = tk.StringVar(value=(datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y 17:00"))
         ttk.Entry(top, textvariable=self.deadline_var, width=18).pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(top, text="📊 Запланувати виробництво", command=self._schedule
+        ttk.Button(top, text=" Запланувати виробництво", command=self._schedule
                    ).pack(side=tk.LEFT, padx=(20, 2))
         ttk.Button(top, text="💾 Експорт PNG", command=self._export_png
                    ).pack(side=tk.LEFT, padx=2)
@@ -75,7 +75,7 @@ class ProductionTab:
 
         # Вкладка 1: Gantt
         self.gantt_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.gantt_tab, text="📊 Gantt-діаграма")
+        self.notebook.add(self.gantt_tab, text=" Gantt-діаграма")
         self.gantt_container = ttk.Frame(self.gantt_tab)
         self.gantt_container.pack(fill=tk.BOTH, expand=True)
 
@@ -197,13 +197,18 @@ class ProductionTab:
             area = float(product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0))))
             qty = int(product.get("quantity", 1))
 
-            # Отримати ставку та важкість
+            # Розрахунок через SalaryService (уніфікований з усім проєктом)
+            from ventilation_company.services import SalaryService
+            salary_per_unit = SalaryService.calculate(
+                product_type=ptype,
+                dimensions=product.get("dimensions", ""),
+                quantity=1,
+                area=area,
+            )
+            # Отримати ставку та важкість для відображення
             labor = settings.get_labor_rate(ptype)
             rate = labor.get("rate_per_m2", 120.0)
             difficulty = labor.get("difficulty_percent", 0.0)
-
-            # Розрахунок
-            salary_per_unit = area * rate * (1 + difficulty / 100)
             salary_total = salary_per_unit * qty
             total_salary += salary_total
 

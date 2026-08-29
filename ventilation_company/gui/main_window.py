@@ -471,21 +471,10 @@ class MainWindow:
             return []
 
     def _recalculate_salaries(self, products):
-        """Перерахувати зарплату для всіх виробів з актуальними ставками."""
-        from ventilation_company.gui.settings_tab import PricingSettings
-        settings = PricingSettings.get_instance()
-        for p in products:
-            ptype = p.get("product_type", "")
-            metal_area = p.get("metal_area_m2", 0) or p.get("surface_area", 0)
-            qty = p.get("quantity", 1)
-            if metal_area and ptype:
-                labor = settings.get_labor_rate(ptype)
-                rate = labor.get("rate_per_m2", 120.0)
-                difficulty = labor.get("difficulty_percent", 0.0)
-                salary = metal_area * rate * (1 + difficulty / 100)
-                p["salary_per_unit"] = round(salary, 2)
-                p["salary_total"] = round(salary * qty, 2)
-
+        """Перерахувати ціни та зарплати перед збереженням."""
+        if not products:
+            return
+        ProjectService.recalculate_products(products)
     def _save_project(self):
         """Зберегти проєкт: оновлює існуючий або створює новий."""
         products = self._get_products()
@@ -616,31 +605,15 @@ class MainWindow:
         messagebox.showinfo("Успіх", f"Проєкт '{project['name']}' завантажено.")
 
     def _recalculate_current_project(self):
-        """Перерахувати ціни поточного проєкту з актуальними ставками."""
+        """Перерахувати ціни поточного проєкту."""
         products = self._get_products()
         if not products:
             messagebox.showwarning("Увага", "Немає виробів для перерахунку.")
             return
-        
-        from ventilation_company.gui.settings_tab import PricingSettings
-        from ventilation_company.calculations.cost_engine import CostEngine
-        settings = PricingSettings.get_instance()
-        engine = CostEngine(settings)
-        
-        updated = 0
-        for p in products:
-            try:
-                price_data = engine.calculate_price_breakdown(p)
-                p["unit_price"] = price_data["price_with_vat"]
-                p["total_price"] = p["unit_price"] * p.get("quantity", 1)
-                updated += 1
-            except Exception:
-                pass
-        
+        updated = ProjectService.recalculate_products(products)
         self._set_products(products)
         self.status_bar.config(text=f"🔄 Перераховано {updated} виробів")
-        messagebox.showinfo("Готово", f"Перераховано {updated} виробів з актуальними ставками.")
-
+        messagebox.showinfo("Готово", f"Перераховано {updated} виробів.")
     def _open_cutting_for_project(self, project_id: int):
         products = self.db.get_project_products(project_id)
         self._show_tab(self.project_nb, 2, None)
