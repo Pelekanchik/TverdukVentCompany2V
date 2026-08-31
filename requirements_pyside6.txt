@@ -1,0 +1,15 @@
+# VentCompany PySide6 — Залежності
+# База (вже є у вас)
+sqlalchemy>=2.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+bcrypt>=4.0.0
+
+# GUI
+PySide6>=6.6.0
+
+# Графіки (вбудовані в PySide6, але на всяк випадок)
+# PySide6-QtCharts — входить у PySide6
+
+# Додаткові утиліти
+python-dateutil>=2.8.0
