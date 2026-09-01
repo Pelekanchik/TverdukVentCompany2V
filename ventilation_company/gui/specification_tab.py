@@ -234,7 +234,7 @@ class SpecificationTab:
         self.get_products = get_products_callback
         self.current_spec = None
         self.current_project_id = None
-        self.db = ProjectDatabase("data/company.db")
+        self.db = ProjectDatabase()
         self.on_cutting_request = on_cutting_request
 
         self._build_ui()

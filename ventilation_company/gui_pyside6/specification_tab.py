@@ -18,11 +18,45 @@ from ventilation_company.gui_pyside6.theme import Theme
 class AddProductDialog(QDialog):
     """Діалог додавання виробу у специфікацію проєкту."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
+        self.main_window = main_window
         self.setWindowTitle("➕ Додати у специфікацію")
         self.setMinimumWidth(400)
         self._build_ui()
+
+    def _load_from_db(self):
+        """Завантажити вироби з БД для активного проєкту."""
+        from ventilation_company.database.repositories.product_repo import ProductRepository
+        project_id = self.main_window.active_project_id if self.main_window else None
+        if not project_id:
+            return
+        try:
+            items = ProductRepository.get_all(project_id=project_id)
+            for item in items:
+                self._items.append({
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "product_type": item.get("product_type"),
+                    "width": item.get("width"),
+                    "height": item.get("height"),
+                    "length": item.get("length"),
+                    "material": item.get("material"),
+                    "thickness": item.get("thickness"),
+                    "quantity": item.get("quantity"),
+                    "unit_price": item.get("unit_price"),
+                    "total_price": item.get("total_price"),
+                })
+            self._populate_table()
+        except Exception as e:
+            print(f"Помилка завантаження специфікації: {e}")
+
+    def on_project_changed(self, project_id: int | None):
+        """При зміні проєкту — оновити специфікацію."""
+        self._items.clear()
+        self.model.removeRows(0, self.model.rowCount())
+        if project_id:
+            self._load_from_db()
 
     def _build_ui(self):
         layout = QFormLayout(self)
@@ -124,11 +158,45 @@ class AddProductDialog(QDialog):
 class SpecificationTab(QWidget):
     """Вкладка специфікації проєкту."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
+        self.main_window = main_window
         self._current_project_id: int | None = None
         self._build_ui()
         self._load_projects()
+
+    def _load_from_db(self):
+        """Завантажити вироби з БД для активного проєкту."""
+        from ventilation_company.database.repositories.product_repo import ProductRepository
+        project_id = self.main_window.active_project_id if self.main_window else None
+        if not project_id:
+            return
+        try:
+            items = ProductRepository.get_all(project_id=project_id)
+            for item in items:
+                self._items.append({
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "product_type": item.get("product_type"),
+                    "width": item.get("width"),
+                    "height": item.get("height"),
+                    "length": item.get("length"),
+                    "material": item.get("material"),
+                    "thickness": item.get("thickness"),
+                    "quantity": item.get("quantity"),
+                    "unit_price": item.get("unit_price"),
+                    "total_price": item.get("total_price"),
+                })
+            self._populate_table()
+        except Exception as e:
+            print(f"Помилка завантаження специфікації: {e}")
+
+    def on_project_changed(self, project_id: int | None):
+        """При зміні проєкту — оновити специфікацію."""
+        self._items.clear()
+        self.model.removeRows(0, self.model.rowCount())
+        if project_id:
+            self._load_from_db()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)

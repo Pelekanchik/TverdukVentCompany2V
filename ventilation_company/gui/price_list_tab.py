@@ -1240,7 +1240,7 @@ class PriceListTab:
         if not project_id:
             try:
                 from ventilation_company.db_integration import ProjectDatabase
-                db = ProjectDatabase("data/company.db")
+                db = ProjectDatabase()
                 projects = db.list_projects()
                 if not projects:
                     messagebox.showinfo("Архів", "Архів проєктів порожній")

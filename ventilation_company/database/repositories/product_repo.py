@@ -1,150 +1,101 @@
-"""ORM-репозиторій для роботи з типами виробів, підтипами та розмірами."""
+"""Репозиторій для виробів (ProductItem) — PostgreSQL/SQLite ORM."""
 
-from sqlalchemy.orm import Session
+from typing import List
 
-from ventilation_company.database.db import SessionLocal
-from ventilation_company.database.models.product import ProductSubtype, ProductType, SizeRange
+from ventilation_company.database.db import get_db
+from ventilation_company.database.models.product_item import ProductItem
+
+
+def _item_to_dict(item: ProductItem) -> dict:
+    """Конвертує ORM-об'єкт в dict (поки сесія активна)."""
+    return {
+        "id": item.id,
+        "name": item.name,
+        "product_type": item.product_type,
+        "width": item.width,
+        "height": item.height,
+        "length": item.length,
+        "thickness": item.thickness,
+        "material": item.material,
+        "quantity": item.quantity,
+        "unit_price": float(item.unit_price) if item.unit_price else 0,
+        "total_price": float(item.total_price) if item.total_price else 0,
+        "notes": item.notes,
+    }
 
 
 class ProductRepository:
-    """CRUD для product_types, product_subtypes, size_ranges через ORM."""
+    """CRUD для виробів у бібліотеці."""
 
-    def __init__(self, db: Session):
-        self.db = db
+    @staticmethod
+    def get_all(project_id: int = None) -> List[dict]:
+        with get_db() as session:
+            q = session.query(ProductItem)
+            if project_id:
+                q = q.filter(ProductItem.project_id == project_id)
+            items = q.order_by(ProductItem.id.desc()).all()
+            return [_item_to_dict(i) for i in items]
 
-    # ── product_types ──
-    def get_all_types(self) -> list[ProductType]:
-        return self.db.query(ProductType).order_by(ProductType.sort_order).all()
+    @staticmethod
+    def get_by_id(item_id: int) -> dict | None:
+        with get_db() as session:
+            item = session.query(ProductItem).filter(ProductItem.id == item_id).first()
+            return _item_to_dict(item) if item else None
 
-    def get_all_subtypes(self) -> list[ProductSubtype]:
-        return self.db.query(ProductSubtype).order_by(ProductSubtype.name).all()
+    @staticmethod
+    def create(data: dict) -> dict:
+        with get_db() as session:
+            item = ProductItem(
+                name=data["name"],
+                product_type=data["product_type"],
+                width=data.get("width"),
+                height=data.get("height"),
+                length=data.get("length"),
+                thickness=data.get("thickness"),
+                material=data.get("material"),
+                quantity=data.get("quantity", 1),
+                unit_price=data.get("unit_price", 0),
+                total_price=data.get("total_price", 0),
+                notes=data.get("notes"),
+            )
+            session.add(item)
+            session.flush()
+            session.refresh(item)
+            return _item_to_dict(item)
 
-    def get_type_by_id(self, type_id: int) -> ProductType | None:
-        return self.db.query(ProductType).filter(ProductType.id == type_id).first()
+    @staticmethod
+    def update(item_id: int, data: dict) -> bool:
+        with get_db() as session:
+            item = session.query(ProductItem).filter(ProductItem.id == item_id).first()
+            if not item:
+                return False
+            for key, value in data.items():
+                if hasattr(item, key):
+                    setattr(item, key, value)
+            return True
 
-    def get_type_by_slug(self, slug: str) -> ProductType | None:
-        return self.db.query(ProductType).filter(ProductType.slug == slug).first()
+    @staticmethod
+    def delete(item_id: int) -> bool:
+        with get_db() as session:
+            item = session.query(ProductItem).filter(ProductItem.id == item_id).first()
+            if not item:
+                return False
+            session.delete(item)
+            return True
 
-    def add_type(self, name: str, slug: str, icon: str | None = None) -> ProductType:
-        pt = ProductType(name=name, slug=slug, icon=icon)
-        self.db.add(pt)
-        self.db.commit()
-        self.db.refresh(pt)
-        return pt
-
-    def update_type(self, type_id: int, **kwargs) -> ProductType | None:
-        pt = self.get_type_by_id(type_id)
-        if not pt:
-            return None
-        for k, v in kwargs.items():
-            if hasattr(pt, k):
-                setattr(pt, k, v)
-        self.db.commit()
-        self.db.refresh(pt)
-        return pt
-
-    def delete_type(self, type_id: int) -> bool:
-        pt = self.get_type_by_id(type_id)
-        if not pt:
-            return False
-        self.db.delete(pt)
-        self.db.commit()
-        return True
-
-    # ── product_subtypes ──
-    def get_subtypes_by_type(self, type_id: int) -> list[ProductSubtype]:
-        return (
-            self.db.query(ProductSubtype)
-            .filter(ProductSubtype.product_type_id == type_id)
-            .order_by(ProductSubtype.name)
-            .all()
-        )
-
-    def get_subtype_by_id(self, subtype_id: int) -> ProductSubtype | None:
-        return self.db.query(ProductSubtype).filter(ProductSubtype.id == subtype_id).first()
-
-    def add_subtype(
-        self,
-        type_id: int,
-        name: str,
-        slug: str,
-        formula: str,
-        shape_type: str = "round",
-        **kwargs,
-    ) -> ProductSubtype:
-        st = ProductSubtype(
-            product_type_id=type_id,
-            name=name,
-            slug=slug,
-            formula=formula,
-            shape_type=shape_type,
-            **kwargs,
-        )
-        self.db.add(st)
-        self.db.commit()
-        self.db.refresh(st)
-        return st
-
-    def update_subtype(self, subtype_id: int, **kwargs) -> ProductSubtype | None:
-        st = self.get_subtype_by_id(subtype_id)
-        if not st:
-            return None
-        allowed = {
-            "name",
-            "slug",
-            "formula",
-            "shape_type",
-            "flange_perimeter_formula",
-            "waste_factor",
-            "labor_norm",
-            "description",
-            "is_active",
-        }
-        for k, v in kwargs.items():
-            if k in allowed and hasattr(st, k):
-                setattr(st, k, v)
-        self.db.commit()
-        self.db.refresh(st)
-        return st
-
-    def delete_subtype(self, subtype_id: int) -> bool:
-        st = self.get_subtype_by_id(subtype_id)
-        if not st:
-            return False
-        self.db.delete(st)
-        self.db.commit()
-        return True
-
-    # ── size_ranges ──
-    def get_sizes_by_subtype(self, subtype_id: int) -> list[SizeRange]:
-        return self.db.query(SizeRange).filter(SizeRange.subtype_id == subtype_id).all()
-
-    def add_size_range(
-        self, subtype_id: int, param_name: str, param_label: str, **kwargs
-    ) -> SizeRange:
-        sr = SizeRange(
-            subtype_id=subtype_id, param_name=param_name, param_label=param_label, **kwargs
-        )
-        self.db.add(sr)
-        self.db.commit()
-        self.db.refresh(sr)
-        return sr
-
-    def delete_size_range(self, size_id: int) -> bool:
-        sr = self.db.query(SizeRange).filter(SizeRange.id == size_id).first()
-        if not sr:
-            return False
-        self.db.delete(sr)
-        self.db.commit()
-        return True
-
-    def delete_size(self, size_id: int) -> bool:
-        """Alias for delete_size_range."""
-        return self.delete_size_range(size_id)
-
-
-# Зворотна сумісність
-ProductRepo = ProductRepository
-
-
-ProductRepo = ProductRepository(SessionLocal())
+    @staticmethod
+    def search(query: str = "", product_type: str = "", material: str = "", thickness: str = "", project_id: int = None) -> List[dict]:
+        with get_db() as session:
+            q = session.query(ProductItem)
+            if project_id:
+                q = q.filter(ProductItem.project_id == project_id)
+            if query:
+                q = q.filter(ProductItem.name.ilike(f"%{query}%"))
+            if product_type and product_type != "Всі":
+                q = q.filter(ProductItem.product_type == product_type)
+            if material and material != "Всі":
+                q = q.filter(ProductItem.material == material)
+            if thickness and thickness != "Всі":
+                q = q.filter(ProductItem.thickness == float(thickness))
+            items = q.order_by(ProductItem.id.desc()).all()
+            return [_item_to_dict(i) for i in items]
