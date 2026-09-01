@@ -15,8 +15,9 @@ from ventilation_company.database.models.project import Project
 class ProjectsTab(QWidget):
     """Вкладка управління проєктами з нормальною таблицею."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
+        self.main_window = main_window
         self._build_ui()
         self._load_data()
 

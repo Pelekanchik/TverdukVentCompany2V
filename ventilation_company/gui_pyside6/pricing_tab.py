@@ -1,160 +1,471 @@
-"""Вкладка "Ціноутворення" (PySide6).
+"""Вкладка "💰 Ціноутворення" (PySide6).
 
-Інтеграція з CostEngine — розрахунок собівартості та ціни виробу.
+Налаштування цін:
+  • Ціни на метал (матеріал × товщина)
+  • Накладні витрати (%)
+  • Амортизація обладнання (%)
+  • Ставки робіт (грн/м²)
+  • Націнки по категоріях (%)
+
+Зміни зберігаються в data/pricing_settings.json
 """
+
+import json
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableView, QComboBox, QMessageBox, QAbstractItemView,
     QDialog, QFormLayout, QDialogButtonBox, QSpinBox,
-    QDoubleSpinBox, QLineEdit, QGroupBox, QGridLayout
+    QDoubleSpinBox, QLineEdit, QGroupBox, QGridLayout,
+    QTabWidget, QFrame, QScrollArea, QSplitter
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor
+from PySide6.QtGui import QStandardItemModel, QStandardItem
 
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.calculations.cost_engine import CostEngine
 
 
-class PriceCalcDialog(QDialog):
-    """Діалог розрахунку ціни виробу."""
+SETTINGS_PATH = Path(__file__).parent.parent.parent / "data" / "pricing_settings.json"
 
-    def __init__(self, product_data: dict | None = None, parent=None):
+
+def load_settings() -> dict:
+    """Завантажити налаштування цін."""
+    try:
+        with open(SETTINGS_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return get_default_settings()
+
+
+def save_settings(data: dict):
+    """Зберегти налаштування цін."""
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def get_default_settings() -> dict:
+    """Початкові налаштування."""
+    return {
+        "material_prices": {
+            "оцинкована сталь": {
+                "0.5": 450.0, "0.7": 580.0, "0.9": 650.0,
+                "1.0": 750.0, "1.2": 850.0, "1.5": 950.0, "2.0": 1200.0,
+            },
+            "нержавіюча сталь": {
+                "0.5": 950.0, "0.7": 1100.0, "0.9": 1200.0,
+                "1.0": 1200.0, "1.2": 1400.0, "1.5": 1600.0, "2.0": 2000.0,
+            },
+            "алюміній": {
+                "0.5": 320.0, "0.7": 380.0, "0.9": 420.0,
+                "1.0": 450.0, "1.2": 500.0, "1.5": 600.0, "2.0": 750.0,
+            },
+        },
+        "overhead": {
+            "waste_percent": 8.0,
+            "electricity_per_kg": 2.5,
+            "rent_per_month": 15000.0,
+            "transport_per_project": 500.0,
+        },
+        "depreciation": {
+            "guillotine_percent": 5.0,
+            "bending_percent": 4.0,
+            "welding_percent": 3.0,
+            "plasma_percent": 6.0,
+        },
+        "labor_rates": {
+            "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty": 0.0},
+            "повітропровід круглий": {"rate_per_m2": 130.0, "difficulty": 5.0},
+            "відвод прямокутний": {"rate_per_m2": 180.0, "difficulty": 20.0},
+            "відвод круглий": {"rate_per_m2": 200.0, "difficulty": 25.0},
+            "трійник прямокутний": {"rate_per_m2": 250.0, "difficulty": 25.0},
+            "трійник круглий": {"rate_per_m2": 280.0, "difficulty": 30.0},
+            "перехід прямокутний": {"rate_per_m2": 180.0, "difficulty": 15.0},
+            "перехід круглий": {"rate_per_m2": 200.0, "difficulty": 20.0},
+            "фланець прямокутний": {"rate_per_m2": 200.0, "difficulty": 15.0},
+            "фланець круглий": {"rate_per_m2": 180.0, "difficulty": 10.0},
+            "заглушка прямокутна": {"rate_per_m2": 150.0, "difficulty": 5.0},
+            "заглушка кругла": {"rate_per_m2": 150.0, "difficulty": 5.0},
+            "гнучка вставка": {"rate_per_m2": 100.0, "difficulty": 0.0},
+        },
+        "markup_percent": 30.0,
+        "markup_matrix": {
+            "Стандартна": 30.0,
+            "Преміум": 40.0,
+            "Економ": 20.0,
+            "Спецзамовлення": 50.0,
+        },
+        "flange_price": {
+            "P30": 150.0,
+            "P40": 200.0,
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# Вкладка "Ціни на метал"
+# ═══════════════════════════════════════════════════════════
+
+class MetalPricesTab(QWidget):
+    """Таблиця цін на метал (матеріал × товщина)."""
+
+    THICKNESSES = ["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"]
+
+    def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🧮 Розрахунок ціни")
-        self.setMinimumWidth(420)
-        self._data = product_data or {}
+        self.settings = settings
         self._build_ui()
-
-    def _build_ui(self):
-        layout = QFormLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
-
-        # Назва
-        self.edit_name = QLineEdit(self._data.get("name", ""))
-        layout.addRow("Назва виробу", self.edit_name)
-
-        # Тип
-        self.combo_type = QComboBox()
-        self.combo_type.addItems([
-            "повітропровід прямокутний",
-            "повітропровід круглий",
-            "відвод прямокутний",
-            "відвод круглий",
-            "трійник прямокутний",
-            "трійник круглий",
-            "перехід прямокутний",
-            "перехід круглий",
-            "фланець прямокутний",
-            "фланець круглий",
-            "заглушка прямокутна",
-            "заглушка кругла",
-        ])
-        self.combo_type.setCurrentText(self._data.get("type", "повітропровід прямокутний"))
-        layout.addRow("Тип", self.combo_type)
-
-        # Розміри
-        sizes = QHBoxLayout()
-        self.spin_a = QDoubleSpinBox()
-        self.spin_a.setRange(1, 5000)
-        self.spin_a.setSuffix(" мм")
-        self.spin_a.setDecimals(0)
-        self.spin_a.setValue(self._data.get("a", 400))
-        sizes.addWidget(QLabel("A:"))
-        sizes.addWidget(self.spin_a)
-
-        self.spin_b = QDoubleSpinBox()
-        self.spin_b.setRange(1, 5000)
-        self.spin_b.setSuffix(" мм")
-        self.spin_b.setDecimals(0)
-        self.spin_b.setValue(self._data.get("b", 200))
-        sizes.addWidget(QLabel("B:"))
-        sizes.addWidget(self.spin_b)
-
-        self.spin_l = QDoubleSpinBox()
-        self.spin_l.setRange(0, 10000)
-        self.spin_l.setSuffix(" мм")
-        self.spin_l.setDecimals(0)
-        self.spin_l.setValue(self._data.get("l", 1000))
-        sizes.addWidget(QLabel("L:"))
-        sizes.addWidget(self.spin_l)
-        layout.addRow("Розміри", sizes)
-
-        # Матеріал
-        self.combo_material = QComboBox()
-        self.combo_material.addItems(["оцинкована сталь", "нержавіюча сталь", "алюміній"])
-        self.combo_material.setCurrentText(self._data.get("material", "оцинкована сталь"))
-        layout.addRow("Матеріал", self.combo_material)
-
-        # Товщина
-        self.combo_thick = QComboBox()
-        self.combo_thick.addItems(["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"])
-        self.combo_thick.setCurrentText(str(self._data.get("thickness", "0.7")))
-        layout.addRow("Товщина", self.combo_thick)
-
-        # Кількість
-        self.spin_qty = QSpinBox()
-        self.spin_qty.setRange(1, 9999)
-        self.spin_qty.setValue(self._data.get("quantity", 1))
-        layout.addRow("Кількість", self.spin_qty)
-
-        # Фланці
-        flanges = QHBoxLayout()
-        self.spin_flange_count = QSpinBox()
-        self.spin_flange_count.setRange(0, 100)
-        flanges.addWidget(QLabel("К-ть:"))
-        flanges.addWidget(self.spin_flange_count)
-
-        self.spin_flange_price = QDoubleSpinBox()
-        self.spin_flange_price.setRange(0, 9999)
-        self.spin_flange_price.setSuffix(" ₴")
-        self.spin_flange_price.setDecimals(2)
-        self.spin_flange_price.setValue(85.0)
-        flanges.addWidget(QLabel("Ціна:"))
-        flanges.addWidget(self.spin_flange_price)
-        layout.addRow("Фланці", flanges)
-
-        # Кнопки
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self._on_calc)
-        buttons.rejected.connect(self.reject)
-        layout.addRow(buttons)
-
-    def _on_calc(self):
-        self.accept()
-
-    def get_data(self) -> dict:
-        return {
-            "name": self.edit_name.text().strip(),
-            "type": self.combo_type.currentText(),
-            "a": self.spin_a.value(),
-            "b": self.spin_b.value(),
-            "l": self.spin_l.value(),
-            "material": self.combo_material.currentText(),
-            "thickness": float(self.combo_thick.currentText()),
-            "quantity": self.spin_qty.value(),
-            "flange_count": self.spin_flange_count.value(),
-            "flange_price": self.spin_flange_price.value(),
-        }
-
-
-class PricingTab(QWidget):
-    """Вкладка ціноутворення з CostEngine."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._products: list[dict] = []
-        self._results: list[dict] = []
-        self._build_ui()
-        self._load_demo()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        lbl = QLabel("📊 Ціни на метал (₴/м²)")
+        lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 14px;")
+        layout.addWidget(lbl)
+
+        self.table = QTableView()
+        self.table.setAlternatingRowColors(True)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        layout.addWidget(self.table)
+
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(["Матеріал"] + self.THICKNESSES)
+        self.table.setModel(self.model)
+
+        self._load_data()
+
+        # Кнопка збереження
+        btn_save = QPushButton("💾 Зберегти зміни")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._on_save)
+        layout.addWidget(btn_save)
+
+    def _load_data(self):
+        self.model.removeRows(0, self.model.rowCount())
+        prices = self.settings.get("material_prices", {})
+        for material in ["оцинкована сталь", "нержавіюча сталь", "алюміній"]:
+            row = [QStandardItem(material)]
+            for thick in self.THICKNESSES:
+                price = prices.get(material, {}).get(thick, 0)
+                item = QStandardItem(f"{price:.2f}")
+                item.setEditable(True)
+                row.append(item)
+            self.model.appendRow(row)
+
+    def _on_save(self):
+        prices = {}
+        for row in range(self.model.rowCount()):
+            material = self.model.item(row, 0).text()
+            prices[material] = {}
+            for col, thick in enumerate(self.THICKNESSES, 1):
+                try:
+                    price = float(self.model.item(row, col).text().replace(",", "."))
+                    prices[material][thick] = price
+                except ValueError:
+                    QMessageBox.warning(self, "Помилка", f"Невірна ціна для {material} {thick}мм")
+                    return
+        self.settings["material_prices"] = prices
+        save_settings(self.settings)
+        QMessageBox.information(self, "Успіх", "Ціни на метал збережено!")
+
+
+# ═══════════════════════════════════════════════════════════
+# Вкладка "Накладні та амортизація"
+# ═══════════════════════════════════════════════════════════
+
+class OverheadTab(QWidget):
+    """Накладні витрати та амортизація."""
+
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.settings = settings
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
         layout.setSpacing(16)
+
+        # ── Накладні ──
+        group_overhead = QGroupBox("📊 Накладні витрати")
+        oh_layout = QGridLayout(group_overhead)
+
+        self.spin_waste = QDoubleSpinBox()
+        self.spin_waste.setRange(0, 50)
+        self.spin_waste.setSuffix(" %")
+        self.spin_waste.setValue(self.settings.get("overhead", {}).get("waste_percent", 8.0))
+        oh_layout.addWidget(QLabel("Відходи:"), 0, 0)
+        oh_layout.addWidget(self.spin_waste, 0, 1)
+
+        self.spin_electricity = QDoubleSpinBox()
+        self.spin_electricity.setRange(0, 50)
+        self.spin_electricity.setSuffix(" ₴/кг")
+        self.spin_electricity.setValue(self.settings.get("overhead", {}).get("electricity_per_kg", 2.5))
+        oh_layout.addWidget(QLabel("Електроенергія:"), 1, 0)
+        oh_layout.addWidget(self.spin_electricity, 1, 1)
+
+        self.spin_rent = QDoubleSpinBox()
+        self.spin_rent.setRange(0, 100000)
+        self.spin_rent.setSuffix(" ₴/міс")
+        self.spin_rent.setValue(self.settings.get("overhead", {}).get("rent_per_month", 15000.0))
+        oh_layout.addWidget(QLabel("Оренда:"), 2, 0)
+        oh_layout.addWidget(self.spin_rent, 2, 1)
+
+        self.spin_transport = QDoubleSpinBox()
+        self.spin_transport.setRange(0, 10000)
+        self.spin_transport.setSuffix(" ₴/проєкт")
+        self.spin_transport.setValue(self.settings.get("overhead", {}).get("transport_per_project", 500.0))
+        oh_layout.addWidget(QLabel("Транспорт:"), 3, 0)
+        oh_layout.addWidget(self.spin_transport, 3, 1)
+
+        layout.addWidget(group_overhead)
+
+        # ── Амортизація ──
+        group_dep = QGroupBox("🔧 Амортизація обладнання")
+        dep_layout = QGridLayout(group_dep)
+
+        dep = self.settings.get("depreciation", {})
+
+        self.spin_guillotine = QDoubleSpinBox()
+        self.spin_guillotine.setRange(0, 50)
+        self.spin_guillotine.setSuffix(" %")
+        self.spin_guillotine.setValue(dep.get("guillotine_percent", 5.0))
+        dep_layout.addWidget(QLabel("Гільйотина:"), 0, 0)
+        dep_layout.addWidget(self.spin_guillotine, 0, 1)
+
+        self.spin_bending = QDoubleSpinBox()
+        self.spin_bending.setRange(0, 50)
+        self.spin_bending.setSuffix(" %")
+        self.spin_bending.setValue(dep.get("bending_percent", 4.0))
+        dep_layout.addWidget(QLabel("Гнуття:"), 1, 0)
+        dep_layout.addWidget(self.spin_bending, 1, 1)
+
+        self.spin_welding = QDoubleSpinBox()
+        self.spin_welding.setRange(0, 50)
+        self.spin_welding.setSuffix(" %")
+        self.spin_welding.setValue(dep.get("welding_percent", 3.0))
+        dep_layout.addWidget(QLabel("Зварювання:"), 2, 0)
+        dep_layout.addWidget(self.spin_welding, 2, 1)
+
+        self.spin_plasma = QDoubleSpinBox()
+        self.spin_plasma.setRange(0, 50)
+        self.spin_plasma.setSuffix(" %")
+        self.spin_plasma.setValue(dep.get("plasma_percent", 6.0))
+        dep_layout.addWidget(QLabel("Плазма:"), 3, 0)
+        dep_layout.addWidget(self.spin_plasma, 3, 1)
+
+        layout.addWidget(group_dep)
+
+        # ── Кнопка збереження ──
+        btn_save = QPushButton("💾 Зберегти")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._on_save)
+        layout.addWidget(btn_save)
+        layout.addStretch()
+
+    def _on_save(self):
+        self.settings["overhead"] = {
+            "waste_percent": self.spin_waste.value(),
+            "electricity_per_kg": self.spin_electricity.value(),
+            "rent_per_month": self.spin_rent.value(),
+            "transport_per_project": self.spin_transport.value(),
+        }
+        self.settings["depreciation"] = {
+            "guillotine_percent": self.spin_guillotine.value(),
+            "bending_percent": self.spin_bending.value(),
+            "welding_percent": self.spin_welding.value(),
+            "plasma_percent": self.spin_plasma.value(),
+        }
+        save_settings(self.settings)
+        QMessageBox.information(self, "Успіх", "Налаштування збережено!")
+
+
+# ═══════════════════════════════════════════════════════════
+# Вкладка "Ставки робіт"
+# ═══════════════════════════════════════════════════════════
+
+class LaborRatesTab(QWidget):
+    """Ставки робіт (грн/м²) по типах виробів."""
+
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.settings = settings
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        lbl = QLabel("🔧 Ставки робіт (грн/м²)")
+        lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 14px;")
+        layout.addWidget(lbl)
+
+        self.table = QTableView()
+        self.table.setAlternatingRowColors(True)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        layout.addWidget(self.table)
+
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(["Тип виробу", "Ставка (₴/м²)", "Коеф. важкості (%)"])
+        self.table.setModel(self.model)
+
+        self.table.setColumnWidth(0, 250)
+        self.table.setColumnWidth(1, 120)
+        self.table.setColumnWidth(2, 150)
+
+        self._load_data()
+
+        btn_save = QPushButton("💾 Зберегти")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._on_save)
+        layout.addWidget(btn_save)
+
+    def _load_data(self):
+        self.model.removeRows(0, self.model.rowCount())
+        rates = self.settings.get("labor_rates", {})
+        for product_type, data in rates.items():
+            row = [
+                QStandardItem(product_type),
+                QStandardItem(f"{data.get('rate_per_m2', 0):.2f}"),
+                QStandardItem(f"{data.get('difficulty', 0):.1f}"),
+            ]
+            for cell in row[1:]:
+                cell.setEditable(True)
+            self.model.appendRow(row)
+
+    def _on_save(self):
+        rates = {}
+        for row in range(self.model.rowCount()):
+            ptype = self.model.item(row, 0).text()
+            try:
+                rate = float(self.model.item(row, 1).text().replace(",", "."))
+                diff = float(self.model.item(row, 2).text().replace(",", "."))
+                rates[ptype] = {"rate_per_m2": rate, "difficulty": diff}
+            except ValueError:
+                QMessageBox.warning(self, "Помилка", f"Невірне значення для {ptype}")
+                return
+        self.settings["labor_rates"] = rates
+        save_settings(self.settings)
+        QMessageBox.information(self, "Успіх", "Ставки робіт збережено!")
+
+
+# ═══════════════════════════════════════════════════════════
+# Вкладка "Націнки"
+# ═══════════════════════════════════════════════════════════
+
+class MarkupTab(QWidget):
+    """Націнки по категоріях."""
+
+    CATEGORIES = ["Стандартна", "Преміум", "Економ", "Спецзамовлення"]
+    DEFAULTS = {"Стандартна": 30.0, "Преміум": 40.0, "Економ": 20.0, "Спецзамовлення": 50.0}
+
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.settings = settings
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+
+        # Загальна націнка
+        group_base = QGroupBox("📐 Загальна націнка")
+        base_layout = QHBoxLayout(group_base)
+
+        self.spin_base_markup = QDoubleSpinBox()
+        self.spin_base_markup.setRange(0, 200)
+        self.spin_base_markup.setSuffix(" %")
+        self.spin_base_markup.setValue(self.settings.get("markup_percent", 30.0))
+        base_layout.addWidget(QLabel("Базова націнка:"))
+        base_layout.addWidget(self.spin_base_markup)
+        base_layout.addStretch()
+
+        layout.addWidget(group_base)
+
+        # Матриця націнок
+        group_matrix = QGroupBox("📂 Категорії націнок")
+        mat_layout = QGridLayout(group_matrix)
+
+        matrix = self.settings.get("markup_matrix", self.DEFAULTS)
+        self.markup_spins = {}
+
+        for i, name in enumerate(self.CATEGORIES):
+            value = matrix.get(name, self.DEFAULTS[name])
+            spin = QDoubleSpinBox()
+            spin.setRange(0, 200)
+            spin.setSuffix(" %")
+            spin.setValue(float(value))
+            mat_layout.addWidget(QLabel(f"{name}:"), i, 0)
+            mat_layout.addWidget(spin, i, 1)
+            self.markup_spins[name] = spin
+
+        layout.addWidget(group_matrix)
+
+        # Фланці
+        group_flange = QGroupBox("🔩 Ціни фланців")
+        fl_layout = QHBoxLayout(group_flange)
+
+        flange_prices = self.settings.get("flange_price", {})
+
+        self.spin_p30 = QDoubleSpinBox()
+        self.spin_p30.setRange(0, 1000)
+        self.spin_p30.setSuffix(" ₴")
+        self.spin_p30.setValue(flange_prices.get("P30", 150.0))
+        fl_layout.addWidget(QLabel("P30:"))
+        fl_layout.addWidget(self.spin_p30)
+
+        self.spin_p40 = QDoubleSpinBox()
+        self.spin_p40.setRange(0, 1000)
+        self.spin_p40.setSuffix(" ₴")
+        self.spin_p40.setValue(flange_prices.get("P40", 200.0))
+        fl_layout.addWidget(QLabel("P40:"))
+        fl_layout.addWidget(self.spin_p40)
+        fl_layout.addStretch()
+
+        layout.addWidget(group_flange)
+
+        btn_save = QPushButton("💾 Зберегти")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._on_save)
+        layout.addWidget(btn_save)
+        layout.addStretch()
+
+    def _on_save(self):
+        self.settings["markup_percent"] = self.spin_base_markup.value()
+
+        matrix = {}
+        for name, spin in self.markup_spins.items():
+            matrix[name] = spin.value()
+        self.settings["markup_matrix"] = matrix
+
+        self.settings["flange_price"] = {
+            "P30": self.spin_p30.value(),
+            "P40": self.spin_p40.value(),
+        }
+
+        save_settings(self.settings)
+        QMessageBox.information(self, "Успіх", "Націнки збережено!")
+
+
+# ═══════════════════════════════════════════════════════════
+# Головна вкладка "Ціноутворення"
+# ═══════════════════════════════════════════════════════════
+
+class PricingTab(QWidget):
+    """Вкладка ціноутворення з підвкладками."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.settings = load_settings()
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         # Заголовок
         header = QHBoxLayout()
@@ -163,204 +474,38 @@ class PricingTab(QWidget):
         header.addWidget(lbl_title)
         header.addStretch()
 
-        btn_calc = QPushButton("🧮 Новий розрахунок")
-        btn_calc.setObjectName("primary")
-        btn_calc.setMinimumHeight(32)
-        btn_calc.clicked.connect(self._on_new_calc)
-        header.addWidget(btn_calc)
-
-        btn_clear = QPushButton("♻️ Очистити")
-        btn_clear.clicked.connect(self._on_clear)
-        header.addWidget(btn_clear)
-
+        btn_reset = QPushButton("♻️ Скинути до стандартних")
+        btn_reset.clicked.connect(self._on_reset)
+        header.addWidget(btn_reset)
         layout.addLayout(header)
 
-        # Таблиця розрахунків
-        self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setMinimumHeight(300)
-        layout.addWidget(self.table)
+        # Підвкладки
+        self.tabs = QTabWidget()
+        self.tabs.addTab(MetalPricesTab(self.settings), "📊 Ціни на метал")
+        self.tabs.addTab(OverheadTab(self.settings), "📋 Накладні та амортизація")
+        self.tabs.addTab(LaborRatesTab(self.settings), "🔧 Ставки робіт")
+        self.tabs.addTab(MarkupTab(self.settings), "📐 Націнки")
+        layout.addWidget(self.tabs)
 
-        self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([
-            "№", "Назва", "Тип", "Матеріал", "Товщ.", "К-ть",
-            "Собівартість", "Ціна без ПДВ", "ПДВ", "Кінцева ціна"
-        ])
-        self.table.setModel(self.model)
+        # Підказка
+        hint = QLabel("💡 Зміни в цих налаштуваннях впливають на розрахунок ціни виробів у вкладці 'Вироби'")
+        hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 8px;")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
 
-        self.table.setColumnWidth(0, 40)
-        self.table.setColumnWidth(1, 200)
-        self.table.setColumnWidth(2, 130)
-        self.table.setColumnWidth(3, 120)
-        self.table.setColumnWidth(4, 50)
-        self.table.setColumnWidth(5, 50)
-        self.table.setColumnWidth(6, 100)
-        self.table.setColumnWidth(7, 100)
-        self.table.setColumnWidth(8, 80)
-        self.table.setColumnWidth(9, 100)
-
-        # Підсумок
-        self.lbl_summary = QLabel("Всього: 0 позицій | Сума: ₴ 0")
-        self.lbl_summary.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px; padding: 4px;")
-        layout.addWidget(self.lbl_summary)
-
-        # Детальний розбив (при виборі рядка)
-        detail = QHBoxLayout()
-        detail.setSpacing(12)
-
-        self.card_material = self._create_card("📦 Матеріал", "₴ 0")
-        detail.addWidget(self.card_material)
-
-        self.card_labor = self._create_card("🔧 Робота", "₴ 0")
-        detail.addWidget(self.card_labor)
-
-        self.card_overhead = self._create_card("📊 Накладні", "₴ 0")
-        detail.addWidget(self.card_overhead)
-
-        self.card_profit = self._create_card("💎 Прибуток", "₴ 0")
-        detail.addWidget(self.card_profit)
-
-        layout.addLayout(detail)
-
-        # Кнопки
-        actions = QHBoxLayout()
-        actions.addStretch()
-
-        btn_del = QPushButton("🗑️ Видалити")
-        btn_del.setStyleSheet(f"color: {Theme.DANGER};")
-        btn_del.clicked.connect(self._on_delete)
-        actions.addWidget(btn_del)
-
-        btn_refresh = QPushButton("🔄 Оновити")
-        btn_refresh.clicked.connect(self._refresh_table)
-        actions.addWidget(btn_refresh)
-
-        layout.addLayout(actions)
-
-    def _create_card(self, title: str, value: str) -> QLabel:
-        card = QLabel(f"<b>{title}</b><br><span style=\'font-size:18px; color:{Theme.ACCENT};\'>{value}</span>")
-        card.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Theme.BG_CARD};
-                border: 1px solid {Theme.BORDER};
-                border-radius: 10px;
-                padding: 12px 16px;
-                color: {Theme.TEXT};
-            }}
-        """)
-        card.setMinimumWidth(140)
-        card.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        return card
-
-    def _load_demo(self):
-        """Демо-розрахунки."""
-        self._products = [
-            {"name": "Повітропровід 400×200×1000", "type": "повітропровід прямокутний", "a": 400, "b": 200, "l": 1000, "material": "оцинкована сталь", "thickness": 0.7, "quantity": 1, "flange_count": 2, "flange_price": 85.0},
-            {"name": "Відвод 400×200 90°", "type": "відвод прямокутний", "a": 400, "b": 200, "l": 0, "material": "оцинкована сталь", "thickness": 0.7, "quantity": 1, "flange_count": 0, "flange_price": 0},
-            {"name": "Трійник 400×200", "type": "трійник прямокутний", "a": 400, "b": 200, "l": 300, "material": "оцинкована сталь", "thickness": 0.7, "quantity": 1, "flange_count": 3, "flange_price": 85.0},
-        ]
-        self._calculate_all()
-
-    def _calculate_all(self):
-        """Розрахувати ціни для всіх виробів через CostEngine."""
-        self._results = []
-        engine = CostEngine()
-
-        for p in self._products:
-            # Приблизні площі для демо (у реальності — з ваших формул)
-            a, b, l = p["a"], p["b"], p["l"]
-            qty = p["quantity"]
-
-            # Поверхня (площа фарбування / готового виробу)
-            if "кругл" in p["type"]:
-                import math
-                surface = (math.pi * a * l) / 1_000_000 if l > 0 else (math.pi * a * a) / 1_000_000
-                blank = surface * 1.15  # припуски
-            else:
-                if l > 0:
-                    surface = (2 * (a + b) * l) / 1_000_000
-                    blank = (2 * (a + b) * l * 1.1) / 1_000_000
-                else:
-                    surface = (a * b) / 1_000_000
-                    blank = surface * 1.1
-
-            material_area = blank * 1.2  # KIM + відходи
-
-            try:
-                result = engine.calculate(
-                    product_type=p["type"],
-                    material_name=p["material"],
-                    thickness_mm=p["thickness"],
-                    surface_area_m2=surface,
-                    blank_area_m2=blank,
-                    material_area_m2=material_area,
-                    quantity=qty,
-                    flange_count=p.get("flange_count", 0),
-                    flange_price=p.get("flange_price", 0),
-                )
-
-                self._results.append({
-                    "product": p,
-                    "result": result,
-                })
-            except Exception as e:
-                print(f"Помилка розрахунку {p['name']}: {e}")
-
-        self._refresh_table()
-
-    def _refresh_table(self):
-        self.model.removeRows(0, self.model.rowCount())
-        total = 0.0
-
-        for i, item in enumerate(self._results, 1):
-            p = item["product"]
-            r = item["result"]
-
-            row = [
-                QStandardItem(str(i)),
-                QStandardItem(p["name"]),
-                QStandardItem(p["type"]),
-                QStandardItem(p["material"]),
-                QStandardItem(str(p["thickness"])),
-                QStandardItem(str(p["quantity"])),
-                QStandardItem(f"₴ {r.base_cost:,.2f}"),
-                QStandardItem(f"₴ {r.price_no_vat:,.2f}"),
-                QStandardItem(f"₴ {r.vat_amount:,.2f}"),
-                QStandardItem(f"₴ {r.final_price:,.2f}"),
-            ]
-            for cell in row:
-                cell.setEditable(False)
-            self.model.appendRow(row)
-            total += r.final_price
-
-        self.lbl_summary.setText(f"Всього: {len(self._results)} позицій | Загальна сума: ₴ {total:,.2f}")
-
-    def _on_new_calc(self):
-        dlg = PriceCalcDialog(parent=self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            data = dlg.get_data()
-            self._products.append(data)
-            self._calculate_all()
-
-    def _on_delete(self):
-        idx = self.table.currentIndex()
-        if not idx.isValid():
-            QMessageBox.warning(self, "Увага", "Виберіть позицію для видалення")
-            return
-        row = idx.row()
-        if row < len(self._results):
-            self._products.pop(row)
-            self._calculate_all()
-
-    def _on_clear(self):
-        self._products.clear()
-        self._results.clear()
-        self.model.removeRows(0, self.model.rowCount())
-        self.lbl_summary.setText("Всього: 0 позицій | Сума: ₴ 0")
-
-    def refresh(self):
-        self._calculate_all()
+    def _on_reset(self):
+        reply = QMessageBox.question(
+            self, "Скидання",
+            "Скинути всі ціни до стандартних значень?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.settings = get_default_settings()
+            save_settings(self.settings)
+            # Оновлюємо вкладки
+            self.tabs.clear()
+            self.tabs.addTab(MetalPricesTab(self.settings), "📊 Ціни на метал")
+            self.tabs.addTab(OverheadTab(self.settings), "📋 Накладні та амортизація")
+            self.tabs.addTab(LaborRatesTab(self.settings), "🔧 Ставки робіт")
+            self.tabs.addTab(MarkupTab(self.settings), "📐 Націнки")
+            QMessageBox.information(self, "Успіх", "Ціни скинуто до стандартних!")

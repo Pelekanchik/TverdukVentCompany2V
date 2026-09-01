@@ -9,12 +9,16 @@
 import os
 import logging
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from dotenv import load_dotenv
 
-load_dotenv()
+# === ВАЖЛИВО: явний шлях до .env ===
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+# =====================================
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +69,7 @@ def check_db_connection() -> bool:
 
 
 def get_calc_db():
-    """Зворотна сумісність: повертає raw PostgreSQL connection.
-
-    Раніше це був sqlite3.connect(). Тепер — raw psycopg2 connection.
-    Якщо ви використовуєте цю функцію — краще перейдіть на SQLAlchemy ORM.
-    """
+    """Зворотна сумісність: повертає raw PostgreSQL connection."""
     import warnings
     warnings.warn(
         "get_calc_db() застаріло. Використовуйте get_db() або SQLAlchemy ORM.",

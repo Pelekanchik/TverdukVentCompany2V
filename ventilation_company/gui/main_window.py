@@ -46,7 +46,7 @@ class MainWindow:
         self.root.resizable(True, True)
         self.root.minsize(1200, 700)
 
-        self.db = ProjectDatabase("data/company.db")
+        self.db = ProjectDatabase()
         self.current_project_id = None
         self._auto_save_id = None
 
@@ -514,7 +514,6 @@ class MainWindow:
                     products=products,
                     spec_data=spec_data,
                     cutting_plan=plan_data,
-                    db_path="data/company.db",
                 )
                 project_id = result["project_id"]
                 self.current_project_id = project_id
