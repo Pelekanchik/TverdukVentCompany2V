@@ -125,4 +125,64 @@ class ProjectsTab(QWidget):
             self.table.setRowHidden(row, not visible)
 
     def _on_new_project(self):
-        QMessageBox.information(self, "Новий проєкт", "Тут буде діалог створення проєкту")
+        """Діалог створення нового проєкту."""
+        from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit, QComboBox, QDialogButtonBox
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("➕ Новий проєкт")
+        dlg.setMinimumWidth(400)
+
+        layout = QFormLayout(dlg)
+
+        edit_name = QLineEdit()
+        edit_name.setPlaceholderText("Назва проєкту")
+        layout.addRow("Назва *", edit_name)
+
+        edit_client = QLineEdit()
+        edit_client.setPlaceholderText("ПІБ або назва компанії")
+        layout.addRow("Клієнт", edit_client)
+
+        combo_status = QComboBox()
+        combo_status.addItems(["Новий", "В роботі", "На виробництві", "Готовий", "Відвантажено", "Закрито"])
+        layout.addRow("Статус", combo_status)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addRow(buttons)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            name = edit_name.text().strip()
+            if not name:
+                QMessageBox.warning(self, "Помилка", "Введіть назву проєкту")
+                return
+
+            try:
+                from ventilation_company.database.db import get_db
+                from ventilation_company.database.models.project import Project
+                from datetime import datetime
+
+                with get_db() as session:
+                    project = Project(
+                        name=name,
+                        client=edit_client.text().strip(),
+                        status=combo_status.currentText(),
+                        created_at=datetime.now(),
+                        cost_price=0,
+                        customer_price=0,
+                        project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S")}",
+                    )
+                    session.add(project)
+                    session.flush()
+                    project_id = project.id
+
+                QMessageBox.information(self, "Успіх", f"Проєкт '{name}' створено (ID: {project_id})")
+                self._load_data()
+
+                # Автоматично вибираємо новий проєкт
+                if self.main_window:
+                    self.main_window.set_active_project(project_id)
+
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося створити проєкт: {e}")
+
