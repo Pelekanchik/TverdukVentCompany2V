@@ -45,6 +45,7 @@ from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.repositories.product_repo import ProductRepository
 
 from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdown
+from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
 
 
 
@@ -1156,6 +1157,11 @@ class ProductDialog(QDialog):
 
         form.addRow(btn_calc)
 
+        btn_details = QPushButton("📊 Деталі розрахунку")
+        btn_details.setMinimumHeight(32)
+        btn_details.clicked.connect(self._on_show_details)
+        form.addRow(btn_details)
+
 
 
         # Результат
@@ -1756,6 +1762,29 @@ class ProductDialog(QDialog):
 
 
 
+    def _on_show_details(self):
+        if not self._calc_result:
+            QMessageBox.warning(self, "Увага", "Спочатку розрахуйте ціну")
+            return
+        dlg = CalcDetailsDialog(
+            product_type=self.combo_type.currentText(),
+            material=self.combo_material.currentText(),
+            thickness=float(self.combo_thickness.currentText()),
+            width=self.spin_width.value(),
+            height=self.spin_height.value() if self.spin_height.isEnabled() else 0,
+            length=self.spin_length.value() if self.spin_length.isEnabled() else 0,
+            qty=self.spin_qty.value(),
+            surface=self._calc_result.surface_area_m2 / max(self._calc_result.quantity, 1),
+            blank=self._calc_result.blank_area_m2 / max(self._calc_result.quantity, 1),
+            material_area=self._calc_result.material_area_m2 / max(self._calc_result.quantity, 1),
+            with_flanges=self.chk_with_flanges.isChecked(),
+            flange_count=self.spin_flange_count.value() if self.chk_with_flanges.isChecked() else 0,
+            flange_price=150.0 if self.combo_flange_profile.currentText() == "P30" else 200.0,
+            markup_name=self.combo_category.currentText(),
+            parent=self,
+        )
+        dlg.exec()
+
     def _on_save(self):
 
         if not self.edit_name.text().strip():
@@ -1864,6 +1893,25 @@ class ProductDialog(QDialog):
 
 
 
+
+        # -- CALCULATED VALUES: area, blank, weight --
+        if self._calc_result:
+            calc_qty = self._calc_result.quantity if self._calc_result.quantity > 0 else 1
+            params["metal_area_m2"] = round(self._calc_result.surface_area_m2 / calc_qty, 4)
+            params["blank_area_m2"] = round(self._calc_result.blank_area_m2 / calc_qty, 4)
+            params["material_area_m2"] = round(self._calc_result.material_area_m2 / calc_qty, 4)
+
+            # Weight = material_area * thickness(m) * density
+            density_map = {
+                "Оцинкована сталь": 7850,
+                "Нержавіюча сталь": 7900,
+                "Алюміній": 2700,
+            }
+            density = density_map.get(self.combo_material.currentText(), 7850)
+            thickness_m = float(self.combo_thickness.currentText()) / 1000
+            params["weight_kg"] = round(
+                (self._calc_result.material_area_m2 / calc_qty) * thickness_m * density, 4
+            )
         project_id = self.parent().main_window.active_project_id if self.parent() and hasattr(self.parent(), "main_window") else None
 
         return {

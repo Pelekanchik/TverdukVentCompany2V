@@ -1,4 +1,11 @@
-"""Репозиторій для виробів (ProductItem) — PostgreSQL/SQLite ORM."""
+"""Репозиторій для виробів (ProductItem) — PostgreSQL/SQLite ORM.
+
+ВИПРАВЛЕННЯ v2:
+  • create() тепер зберігає project_id
+  • _item_to_dict() повертає project_id, metal_area_m2, weight_kg, blank_area_m2
+  • update() тепер комітить зміни
+  • create() тепер комітить (на випадок, якщо get_db() не комітить автоматично)
+"""
 
 from typing import List
 
@@ -21,7 +28,25 @@ def _item_to_dict(item: ProductItem) -> dict:
         "unit_price": float(item.unit_price) if item.unit_price else 0,
         "total_price": float(item.total_price) if item.total_price else 0,
         "notes": item.notes,
+        "project_id": item.project_id,
+        # Розраховані поля (можуть бути в notes як JSON)
+        "metal_area_m2": _extract_float(item.notes, "metal_area_m2"),
+        "blank_area_m2": _extract_float(item.notes, "blank_area_m2"),
+        "weight_kg": _extract_float(item.notes, "weight_kg"),
     }
+
+
+def _extract_float(notes: str | None, key: str) -> float:
+    """Витягти число з JSON-нотаток."""
+    if not notes:
+        return 0.0
+    try:
+        import json
+        data = json.loads(notes)
+        val = data.get(key, 0)
+        return float(val) if val else 0.0
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return 0.0
 
 
 class ProductRepository:
@@ -57,10 +82,12 @@ class ProductRepository:
                 unit_price=data.get("unit_price", 0),
                 total_price=data.get("total_price", 0),
                 notes=data.get("notes"),
+                project_id=data.get("project_id"),  # ← ВИПРАВЛЕННЯ
             )
             session.add(item)
             session.flush()
             session.refresh(item)
+            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
             return _item_to_dict(item)
 
     @staticmethod
@@ -72,6 +99,7 @@ class ProductRepository:
             for key, value in data.items():
                 if hasattr(item, key):
                     setattr(item, key, value)
+            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
             return True
 
     @staticmethod
@@ -81,6 +109,7 @@ class ProductRepository:
             if not item:
                 return False
             session.delete(item)
+            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
             return True
 
     @staticmethod
