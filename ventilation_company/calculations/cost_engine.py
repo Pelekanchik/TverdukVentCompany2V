@@ -182,6 +182,19 @@ class CostEngine:
     def __init__(self):
         self.pricing = _pricing()
 
+    def _get_material_price(self, material_name: str, thickness_mm: float) -> float:
+        # Get material price from pricing_settings.json or manufacturing_params fallback
+        material_prices = self.pricing.get("material_prices", {})
+        if isinstance(material_prices, dict):
+            for mat_name, thicknesses in material_prices.items():
+                if isinstance(thicknesses, dict):
+                    if mat_name.lower() == material_name.lower():
+                        price = thicknesses.get(str(thickness_mm), 0)
+                        if price:
+                            return float(price)
+        # Fallback to manufacturing_params.py
+        return get_material_price(material_name, thickness_mm)
+
     def _get_labor_rate(self, product_type: str) -> tuple[float, float]:
         """Отримати тариф роботи і % складності за типом виробу.
 
@@ -271,7 +284,7 @@ class CostEngine:
         )
 
         # ── 1. Ціна матеріалу ──
-        material_price = get_material_price(material_name, thickness_mm)
+        material_price = self._get_material_price(material_name, thickness_mm)
         result.material_price_per_m2 = material_price
         result.material_cost = material_area_m2 * material_price * quantity
 

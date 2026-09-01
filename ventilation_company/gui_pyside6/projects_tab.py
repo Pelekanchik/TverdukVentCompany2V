@@ -1,4 +1,7 @@
-"""Вкладка проєктів з таблицею (PySide6 + SQLAlchemy)."""
+"""Вкладка проєктів з таблицею (PySide6 + SQLAlchemy).
+
+ВИПРАВЛЕННЯ: колонка 'Сума' тепер рахується як сума total_price всіх виробів проєкту.
+"""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -10,10 +13,11 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
+from ventilation_company.database.repositories.product_repo import ProductRepository
 
 
 class ProjectsTab(QWidget):
-    """Вкладка управління проєктами з нормальною таблицею."""
+    """Вкладка управління проєктами."""
 
     def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
@@ -26,13 +30,11 @@ class ProjectsTab(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        # Заголовок + кнопки
         header = QHBoxLayout()
 
         lbl_title = QLabel("📁 Проєкти")
         lbl_title.setObjectName("title")
         header.addWidget(lbl_title)
-
         header.addStretch()
 
         self.edit_search = QLineEdit()
@@ -55,7 +57,6 @@ class ProjectsTab(QWidget):
 
         layout.addLayout(header)
 
-        # Таблиця
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -66,14 +67,12 @@ class ProjectsTab(QWidget):
         self.table.setMinimumHeight(400)
         layout.addWidget(self.table)
 
-        # Модель таблиці
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "ID", "Номер", "Назва", "Клієнт", "Статус", "Дата створення", "Сума"
         ])
         self.table.setModel(self.model)
 
-        # Ширина колонок
         self.table.setColumnWidth(0, 50)
         self.table.setColumnWidth(1, 100)
         self.table.setColumnWidth(2, 250)
@@ -82,13 +81,12 @@ class ProjectsTab(QWidget):
         self.table.setColumnWidth(5, 120)
         self.table.setColumnWidth(6, 100)
 
-        # Підказка
         lbl_hint = QLabel("💡 Двічі клікніть на рядок для відкриття проєкту")
         lbl_hint.setObjectName("subtitle")
         layout.addWidget(lbl_hint)
 
     def _load_data(self):
-        """Завантажити проєкти з БД."""
+        """Завантажити проєкти з БД + підрахувати суму виробів."""
         self.model.removeRows(0, self.model.rowCount())
 
         try:
@@ -96,6 +94,13 @@ class ProjectsTab(QWidget):
                 projects = session.query(Project).order_by(Project.created_at.desc()).all()
 
                 for p in projects:
+                    # Підрахунок суми виробів проєкту
+                    try:
+                        products = ProductRepository.get_all(project_id=p.id)
+                        total = sum(item.get("total_price", 0) for item in products)
+                    except Exception:
+                        total = 0
+
                     row = [
                         QStandardItem(str(p.id)),
                         QStandardItem(p.project_number or "—"),
@@ -103,7 +108,7 @@ class ProjectsTab(QWidget):
                         QStandardItem(p.client or "—"),
                         QStandardItem(p.status or "draft"),
                         QStandardItem(str(p.created_at)[:10] if p.created_at else "—"),
-                        QStandardItem(f"₴ {float(p.customer_price or 0):,.0f}"),
+                        QStandardItem(f"₴ {total:,.0f}"),
                     ]
                     for item in row:
                         item.setEditable(False)
@@ -113,7 +118,6 @@ class ProjectsTab(QWidget):
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
 
     def _on_search(self, text: str):
-        """Фільтрація таблиці."""
         text = text.lower()
         for row in range(self.model.rowCount()):
             visible = False
@@ -125,7 +129,6 @@ class ProjectsTab(QWidget):
             self.table.setRowHidden(row, not visible)
 
     def _on_new_project(self):
-        """Діалог створення нового проєкту."""
         from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit, QComboBox, QDialogButtonBox
 
         dlg = QDialog(self)
@@ -179,10 +182,8 @@ class ProjectsTab(QWidget):
                 QMessageBox.information(self, "Успіх", f"Проєкт '{name}' створено (ID: {project_id})")
                 self._load_data()
 
-                # Автоматично вибираємо новий проєкт
                 if self.main_window:
                     self.main_window.set_active_project(project_id)
 
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося створити проєкт: {e}")
-

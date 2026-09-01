@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableView, QComboBox, QMessageBox, QAbstractItemView,
     QDialog, QFormLayout, QDialogButtonBox, QSpinBox,
-    QDoubleSpinBox, QLineEdit, QGroupBox, QGridLayout,
+    QDoubleSpinBox, QGroupBox, QGridLayout,
     QTabWidget, QFrame, QScrollArea, QSplitter
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -39,10 +39,19 @@ def load_settings() -> dict:
 
 
 def save_settings(data: dict):
-    """Зберегти налаштування цін."""
+    """Зберегти налаштування цін і скинути кеш розрахунків."""
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
+    # ── ВИПРАВЛЕННЯ: скидаємо кеш, щоб CostEngine бачив нові ціни одразу ──
+    try:
+        from ventilation_company.manufacturing_params import clear_cache as clear_manuf_cache
+        from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_cache
+        clear_manuf_cache()
+        clear_cost_cache()
+    except Exception:
+        pass
 
 
 def get_default_settings() -> dict:
@@ -137,7 +146,6 @@ class MetalPricesTab(QWidget):
 
         self._load_data()
 
-        # Кнопка збереження
         btn_save = QPushButton("💾 Зберегти зміни")
         btn_save.setObjectName("primary")
         btn_save.clicked.connect(self._on_save)
@@ -169,7 +177,7 @@ class MetalPricesTab(QWidget):
                     return
         self.settings["material_prices"] = prices
         save_settings(self.settings)
-        QMessageBox.information(self, "Успіх", "Ціни на метал збережено!")
+        QMessageBox.information(self, "Успіх", "Ціни на метал збережено! Тепер розрахунок використовує нові ціни одразу.")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -188,7 +196,6 @@ class OverheadTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
 
-        # ── Накладні ──
         group_overhead = QGroupBox("📊 Накладні витрати")
         oh_layout = QGridLayout(group_overhead)
 
@@ -222,7 +229,6 @@ class OverheadTab(QWidget):
 
         layout.addWidget(group_overhead)
 
-        # ── Амортизація ──
         group_dep = QGroupBox("🔧 Амортизація обладнання")
         dep_layout = QGridLayout(group_dep)
 
@@ -258,7 +264,6 @@ class OverheadTab(QWidget):
 
         layout.addWidget(group_dep)
 
-        # ── Кнопка збереження ──
         btn_save = QPushButton("💾 Зберегти")
         btn_save.setObjectName("primary")
         btn_save.clicked.connect(self._on_save)
@@ -371,7 +376,6 @@ class MarkupTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
 
-        # Загальна націнка
         group_base = QGroupBox("📐 Загальна націнка")
         base_layout = QHBoxLayout(group_base)
 
@@ -385,7 +389,6 @@ class MarkupTab(QWidget):
 
         layout.addWidget(group_base)
 
-        # Матриця націнок
         group_matrix = QGroupBox("📂 Категорії націнок")
         mat_layout = QGridLayout(group_matrix)
 
@@ -404,7 +407,6 @@ class MarkupTab(QWidget):
 
         layout.addWidget(group_matrix)
 
-        # Фланці
         group_flange = QGroupBox("🔩 Ціни фланців")
         fl_layout = QHBoxLayout(group_flange)
 
@@ -467,7 +469,6 @@ class PricingTab(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # Заголовок
         header = QHBoxLayout()
         lbl_title = QLabel("💰 Ціноутворення")
         lbl_title.setObjectName("title")
@@ -479,7 +480,6 @@ class PricingTab(QWidget):
         header.addWidget(btn_reset)
         layout.addLayout(header)
 
-        # Підвкладки
         self.tabs = QTabWidget()
         self.tabs.addTab(MetalPricesTab(self.settings), "📊 Ціни на метал")
         self.tabs.addTab(OverheadTab(self.settings), "📋 Накладні та амортизація")
@@ -487,8 +487,7 @@ class PricingTab(QWidget):
         self.tabs.addTab(MarkupTab(self.settings), "📐 Націнки")
         layout.addWidget(self.tabs)
 
-        # Підказка
-        hint = QLabel("💡 Зміни в цих налаштуваннях впливають на розрахунок ціни виробів у вкладці 'Вироби'")
+        hint = QLabel("💡 Зміни в цих налаштуваннях впливають на розрахунок ціни виробів у вкладці 'Вироби' одразу після збереження")
         hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 8px;")
         hint.setWordWrap(True)
         layout.addWidget(hint)
@@ -502,7 +501,6 @@ class PricingTab(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.settings = get_default_settings()
             save_settings(self.settings)
-            # Оновлюємо вкладки
             self.tabs.clear()
             self.tabs.addTab(MetalPricesTab(self.settings), "📊 Ціни на метал")
             self.tabs.addTab(OverheadTab(self.settings), "📋 Накладні та амортизація")

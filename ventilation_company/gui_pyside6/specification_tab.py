@@ -1,202 +1,34 @@
-"""Вкладка "Специфікація" (PySide6).
+"""Вкладка "Специфікація" (PySide6) — реальні дані з PostgreSQL.
 
-Вибір проєкту → таблиця виробів у проєкті → підсумки (вага, площа, сума).
+Вибір проєкту з БД → таблиця виробів проєкту з БД → підсумки (вага, площа, сума).
+Всі операції (додавання, редагування, видалення) працюють з БД через ProductRepository.
 """
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QComboBox, QMessageBox, QAbstractItemView, QLineEdit,
-    QDialog, QFormLayout, QSpinBox, QDoubleSpinBox, QDialogButtonBox,
-    QGroupBox, QSplitter
+    QTableView, QComboBox, QMessageBox, QAbstractItemView,
+    QDialog
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
 from ventilation_company.gui_pyside6.theme import Theme
-
-
-class AddProductDialog(QDialog):
-    """Діалог додавання виробу у специфікацію проєкту."""
-
-    def __init__(self, parent=None, main_window=None):
-        super().__init__(parent)
-        self.main_window = main_window
-        self.setWindowTitle("➕ Додати у специфікацію")
-        self.setMinimumWidth(400)
-        self._build_ui()
-
-    def _load_from_db(self):
-        """Завантажити вироби з БД для активного проєкту."""
-        from ventilation_company.database.repositories.product_repo import ProductRepository
-        project_id = self.main_window.active_project_id if self.main_window else None
-        if not project_id:
-            return
-        try:
-            items = ProductRepository.get_all(project_id=project_id)
-            for item in items:
-                self._items.append({
-                    "id": item.get("id"),
-                    "name": item.get("name"),
-                    "product_type": item.get("product_type"),
-                    "width": item.get("width"),
-                    "height": item.get("height"),
-                    "length": item.get("length"),
-                    "material": item.get("material"),
-                    "thickness": item.get("thickness"),
-                    "quantity": item.get("quantity"),
-                    "unit_price": item.get("unit_price"),
-                    "total_price": item.get("total_price"),
-                })
-            self._populate_table()
-        except Exception as e:
-            print(f"Помилка завантаження специфікації: {e}")
-
-    def on_project_changed(self, project_id: int | None):
-        """При зміні проєкту — оновити специфікацію."""
-        self._items.clear()
-        self.model.removeRows(0, self.model.rowCount())
-        if project_id:
-            self._load_from_db()
-
-    def _build_ui(self):
-        layout = QFormLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
-
-        # Назва
-        self.edit_name = QLineEdit()
-        self.edit_name.setPlaceholderText("Напр.: Повітропровід 400×200×1000")
-        layout.addRow("Назва *", self.edit_name)
-
-        # Тип
-        self.combo_type = QComboBox()
-        self.combo_type.addItems([
-            "Повітропровід", "Відвод", "Трійник", "Перехід",
-            "Фланець", "Заглушка", "Гнучка вставка", "Дифузор", "Решітка"
-        ])
-        layout.addRow("Тип", self.combo_type)
-
-        # Розміри
-        sizes = QHBoxLayout()
-        self.spin_a = QDoubleSpinBox()
-        self.spin_a.setRange(0, 5000)
-        self.spin_a.setSuffix(" мм")
-        self.spin_a.setDecimals(0)
-        sizes.addWidget(QLabel("A:"))
-        sizes.addWidget(self.spin_a)
-
-        self.spin_b = QDoubleSpinBox()
-        self.spin_b.setRange(0, 5000)
-        self.spin_b.setSuffix(" мм")
-        self.spin_b.setDecimals(0)
-        sizes.addWidget(QLabel("B:"))
-        sizes.addWidget(self.spin_b)
-
-        self.spin_l = QDoubleSpinBox()
-        self.spin_l.setRange(0, 10000)
-        self.spin_l.setSuffix(" мм")
-        self.spin_l.setDecimals(0)
-        sizes.addWidget(QLabel("L:"))
-        sizes.addWidget(self.spin_l)
-        layout.addRow("Розміри (мм)", sizes)
-
-        # Матеріал
-        self.combo_material = QComboBox()
-        self.combo_material.addItems(["Оцинкована сталь", "Нержавіюча сталь", "Алюміній"])
-        layout.addRow("Матеріал", self.combo_material)
-
-        # Товщина
-        self.combo_thickness = QComboBox()
-        self.combo_thickness.addItems(["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"])
-        layout.addRow("Товщина", self.combo_thickness)
-
-        # Кількість
-        self.spin_qty = QSpinBox()
-        self.spin_qty.setRange(1, 9999)
-        self.spin_qty.setValue(1)
-        layout.addRow("Кількість", self.spin_qty)
-
-        # Ціна
-        self.spin_price = QDoubleSpinBox()
-        self.spin_price.setRange(0, 999999)
-        self.spin_price.setSuffix(" ₴")
-        self.spin_price.setDecimals(2)
-        layout.addRow("Ціна за шт.", self.spin_price)
-
-        # Кнопки
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self._on_save)
-        buttons.rejected.connect(self.reject)
-        layout.addRow(buttons)
-
-    def _on_save(self):
-        if not self.edit_name.text().strip():
-            QMessageBox.warning(self, "Помилка", "Введіть назву виробу")
-            return
-        self.accept()
-
-    def get_data(self) -> dict:
-        return {
-            "name": self.edit_name.text().strip(),
-            "product_type": self.combo_type.currentText(),
-            "width": self.spin_a.value(),
-            "height": self.spin_b.value(),
-            "length": self.spin_l.value(),
-            "material": self.combo_material.currentText(),
-            "thickness": float(self.combo_thickness.currentText()),
-            "quantity": self.spin_qty.value(),
-            "unit_price": self.spin_price.value(),
-            "total_price": self.spin_price.value() * self.spin_qty.value(),
-            "metal_area_m2": 0,
-            "blank_area_m2": 0,
-            "weight_kg": 0,
-        }
+from ventilation_company.database.db import get_db
+from ventilation_company.database.models.project import Project
+from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.gui_pyside6.products_tab import ProductDialog
 
 
 class SpecificationTab(QWidget):
-    """Вкладка специфікації проєкту."""
+    """Вкладка специфікації проєкту — реальні дані з PostgreSQL."""
 
     def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
         self.main_window = main_window
         self._current_project_id: int | None = None
+        self._items: list[dict] = []
         self._build_ui()
         self._load_projects()
-
-    def _load_from_db(self):
-        """Завантажити вироби з БД для активного проєкту."""
-        from ventilation_company.database.repositories.product_repo import ProductRepository
-        project_id = self.main_window.active_project_id if self.main_window else None
-        if not project_id:
-            return
-        try:
-            items = ProductRepository.get_all(project_id=project_id)
-            for item in items:
-                self._items.append({
-                    "id": item.get("id"),
-                    "name": item.get("name"),
-                    "product_type": item.get("product_type"),
-                    "width": item.get("width"),
-                    "height": item.get("height"),
-                    "length": item.get("length"),
-                    "material": item.get("material"),
-                    "thickness": item.get("thickness"),
-                    "quantity": item.get("quantity"),
-                    "unit_price": item.get("unit_price"),
-                    "total_price": item.get("total_price"),
-                })
-            self._populate_table()
-        except Exception as e:
-            print(f"Помилка завантаження специфікації: {e}")
-
-    def on_project_changed(self, project_id: int | None):
-        """При зміні проєкту — оновити специфікацію."""
-        self._items.clear()
-        self.model.removeRows(0, self.model.rowCount())
-        if project_id:
-            self._load_from_db()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -309,83 +141,89 @@ class SpecificationTab(QWidget):
         summary.addStretch()
         layout.addLayout(summary)
 
+    # ═══════════════════════════════════════════════════════════
+    # Завантаження даних
+    # ═══════════════════════════════════════════════════════════
+
     def _load_projects(self):
-        """Завантажити список проєктів (демо)."""
-        self._projects = [
-            {"id": 1, "name": "ПВ-2024-001 — Вентиляція офісу ТОВ 'Будівельник'"},
-            {"id": 2, "name": "ПВ-2024-002 — Система витяжки ресторану 'Смак'"},
-            {"id": 3, "name": "ПВ-2024-003 — Приточна установка складу №5"},
-        ]
+        """Завантажити список проєктів з БД та вибрати активний."""
         self.combo_project.blockSignals(True)
         self.combo_project.clear()
-        for p in self._projects:
-            self.combo_project.addItem(p["name"], p["id"])
+        try:
+            with get_db() as session:
+                projects = session.query(Project).order_by(Project.created_at.desc()).all()
+                for p in projects:
+                    display = f"{p.project_number or '—'} — {p.name or 'Без назви'}"
+                    self.combo_project.addItem(display, p.id)
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
         self.combo_project.blockSignals(False)
-        self._on_project_changed(0)
+
+        # ВИПРАВЛЕННЯ: явно встановлюємо _current_project_id після завантаження
+        active_id = self.main_window.active_project_id if self.main_window else None
+        if active_id:
+            idx = self.combo_project.findData(active_id)
+            if idx >= 0:
+                self.combo_project.setCurrentIndex(idx)
+                self._current_project_id = active_id
+                self._load_specification()
+                return
+
+        if self.combo_project.count() > 0:
+            self.combo_project.setCurrentIndex(0)
+            self._current_project_id = self.combo_project.itemData(0)
+            self._load_specification()
+        else:
+            self._current_project_id = None
+            self.model.removeRows(0, self.model.rowCount())
+            self._items = []
+            self._update_summary([])
 
     def _on_project_changed(self, index: int):
+        """При зміні проєкту в комбобоксі користувачем."""
         self._current_project_id = self.combo_project.itemData(index)
+        if self.main_window and self._current_project_id:
+            self.main_window.set_active_project(self._current_project_id)
         self._load_specification()
 
-    def _load_specification(self):
-        """Завантажити вироби проєкту (демо)."""
-        self._items: list[dict] = []
+    def _load_specification(self, project_id: int | None = None):
+        """Завантажити вироби вибраного проєкту з БД."""
+        if project_id is None:
+            project_id = self._current_project_id
 
-        # Демо-дані залежно від проєкту
-        if self._current_project_id == 1:
-            self._items = [
-                {"pos": 1, "name": "Повітропровід 400×200×1000", "product_type": "Повітропровід",
-                 "width": 400, "height": 200, "length": 1000, "material": "Оцинкована сталь",
-                 "thickness": 0.7, "quantity": 8, "metal_area_m2": 11.2, "blank_area_m2": 12.5,
-                 "weight_kg": 8.4, "unit_price": 450.0, "total_price": 3600.0},
-                {"pos": 2, "name": "Відвод 90° 400×200", "product_type": "Відвод",
-                 "width": 400, "height": 200, "length": 0, "material": "Оцинкована сталь",
-                 "thickness": 0.7, "quantity": 4, "metal_area_m2": 1.8, "blank_area_m2": 2.1,
-                 "weight_kg": 1.5, "unit_price": 680.0, "total_price": 2720.0},
-                {"pos": 3, "name": "Трійник 400×200/200×200", "product_type": "Трійник",
-                 "width": 400, "height": 200, "length": 500, "material": "Оцинкована сталь",
-                 "thickness": 0.7, "quantity": 2, "metal_area_m2": 3.2, "blank_area_m2": 3.8,
-                 "weight_kg": 2.8, "unit_price": 1200.0, "total_price": 2400.0},
-                {"pos": 4, "name": "Фланець прямокутний 400×200", "product_type": "Фланець",
-                 "width": 400, "height": 200, "length": 0, "material": "Оцинкована сталь",
-                 "thickness": 1.5, "quantity": 16, "metal_area_m2": 0.32, "blank_area_m2": 0.4,
-                 "weight_kg": 3.1, "unit_price": 85.0, "total_price": 1360.0},
-                {"pos": 5, "name": "Гнучка вставка 400×200", "product_type": "Гнучка вставка",
-                 "width": 400, "height": 200, "length": 150, "material": "Алюміній",
-                 "thickness": 0.5, "quantity": 4, "metal_area_m2": 0.24, "blank_area_m2": 0.3,
-                 "weight_kg": 0.2, "unit_price": 320.0, "total_price": 1280.0},
-            ]
-        elif self._current_project_id == 2:
-            self._items = [
-                {"pos": 1, "name": "Витяжний зонт 1200×800", "product_type": "Зонт",
-                 "width": 1200, "height": 800, "length": 400, "material": "Нержавіюча сталь",
-                 "thickness": 1.0, "quantity": 3, "metal_area_m2": 5.6, "blank_area_m2": 6.2,
-                 "weight_kg": 12.5, "unit_price": 3500.0, "total_price": 10500.0},
-                {"pos": 2, "name": "Повітропровід Ø315", "product_type": "Повітропровід",
-                 "width": 315, "height": 0, "length": 2500, "material": "Нержавіюча сталь",
-                 "thickness": 0.7, "quantity": 6, "metal_area_m2": 14.8, "blank_area_m2": 16.5,
-                 "weight_kg": 11.2, "unit_price": 780.0, "total_price": 4680.0},
-            ]
-        else:
-            self._items = [
-                {"pos": 1, "name": "Повітропровід 500×300×1500", "product_type": "Повітропровід",
-                 "width": 500, "height": 300, "length": 1500, "material": "Оцинкована сталь",
-                 "thickness": 0.9, "quantity": 5, "metal_area_m2": 12.0, "blank_area_m2": 13.5,
-                 "weight_kg": 10.2, "unit_price": 620.0, "total_price": 3100.0},
-            ]
-
-        self._fill_table()
-        self._update_summary()
-
-    def _fill_table(self):
         self.model.removeRows(0, self.model.rowCount())
-        for item in self._items:
-            dims = f"{item['width']:.0f}×{item['height']:.0f}" if item.get("height", 0) > 0 else f"Ø{item['width']:.0f}"
-            if item.get("length", 0) > 0:
-                dims += f" × {item['length']:.0f}"
+        self._items = []
+
+        if not project_id:
+            self._update_summary([])
+            return
+
+        try:
+            items = ProductRepository.get_all(project_id=project_id)
+            self._items = items
+            self._populate_table(items)
+            self._update_summary(items)
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити специфікацію: {e}")
+
+    def _populate_table(self, items: list[dict]):
+        """Заповнити таблицю виробами."""
+        for pos, item in enumerate(items, 1):
+            w = item.get("width", 0) or 0
+            h = item.get("height", 0) or 0
+            l = item.get("length", 0) or 0
+
+            if h > 0:
+                dims = f"{w:.0f}×{h:.0f}"
+                if l > 0:
+                    dims += f" × {l:.0f}"
+            else:
+                dims = f"Ø{w:.0f}"
+                if l > 0:
+                    dims += f" × {l:.0f}"
 
             row = [
-                QStandardItem(str(item.get("pos", "—"))),
+                QStandardItem(str(pos)),
                 QStandardItem(item.get("name", "—")),
                 QStandardItem(item.get("product_type", "—")),
                 QStandardItem(dims),
@@ -401,12 +239,13 @@ class SpecificationTab(QWidget):
                 cell.setEditable(False)
             self.model.appendRow(row)
 
-    def _update_summary(self):
-        count = len(self._items)
-        qty = sum(i.get("quantity", 1) for i in self._items)
-        area = sum(i.get("metal_area_m2", 0) * i.get("quantity", 1) for i in self._items)
-        weight = sum(i.get("weight_kg", 0) * i.get("quantity", 1) for i in self._items)
-        total = sum(i.get("total_price", 0) for i in self._items)
+    def _update_summary(self, items: list[dict]):
+        """Оновити підсумкові мітки."""
+        count = len(items)
+        qty = sum(i.get("quantity", 1) for i in items)
+        area = sum((i.get("metal_area_m2") or 0) * (i.get("quantity") or 1) for i in items)
+        weight = sum((i.get("weight_kg") or 0) * (i.get("quantity") or 1) for i in items)
+        total = sum(i.get("total_price", 0) for i in items)
 
         self.lbl_count.setText(f"Позицій: {count}")
         self.lbl_qty.setText(f"Кількість: {qty} шт")
@@ -414,50 +253,110 @@ class SpecificationTab(QWidget):
         self.lbl_weight.setText(f"Вага: {weight:.2f} кг")
         self.lbl_total.setText(f"Сума: ₴ {total:,.2f}")
 
+    # ═══════════════════════════════════════════════════════════
+    # CRUD операції
+    # ═══════════════════════════════════════════════════════════
+
+    def _get_selected_id(self) -> int | None:
+        """Отримати ID вибраного виробу."""
+        idx = self.table.currentIndex()
+        if not idx.isValid():
+            return None
+        row = idx.row()
+        if 0 <= row < len(self._items):
+            return self._items[row].get("id")
+        return None
+
     def _on_add_product(self):
-        dlg = AddProductDialog(parent=self)
+        """Додати виріб у специфікацію."""
+        if not self._current_project_id:
+            QMessageBox.warning(self, "Увага", "Спочатку виберіть проєкт")
+            return
+
+        # Встановлюємо активний проєкт для діалогу
+        if self.main_window:
+            self.main_window.set_active_project(self._current_project_id)
+
+        dlg = ProductDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             data = dlg.get_data()
-            data["pos"] = len(self._items) + 1
-            self._items.append(data)
-            self._fill_table()
-            self._update_summary()
+            # Перевірка: якщо діалог не підхопив project_id — підставляємо вручну
+            if not data.get("project_id"):
+                data["project_id"] = self._current_project_id
+            try:
+                ProductRepository.create(data)
+                self._load_specification()
+                QMessageBox.information(self, "Успіх", "Виріб додано до специфікації!")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти: {e}")
 
     def _on_edit(self):
-        idx = self.table.currentIndex()
-        if not idx.isValid():
-            QMessageBox.warning(self, "Увага", "Виберіть позицію для редагування")
+        """Редагувати вибраний виріб."""
+        item_id = self._get_selected_id()
+        if not item_id:
+            QMessageBox.warning(self, "Увага", "Виберіть виріб для редагування")
             return
-        row = idx.row()
-        if row < 0 or row >= len(self._items):
-            return
-        # TODO: діалог редагування
-        QMessageBox.information(self, "Редагування", "Діалог редагування буде тут")
+        try:
+            item = ProductRepository.get_by_id(item_id)
+            if not item:
+                QMessageBox.warning(self, "Увага", "Виріб не знайдено в БД")
+                return
+            dlg = ProductDialog(item, parent=self)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                new_data = dlg.get_data()
+                if not new_data.get("project_id"):
+                    new_data["project_id"] = self._current_project_id
+                ProductRepository.update(item_id, new_data)
+                self._load_specification()
+                QMessageBox.information(self, "Успіх", "Виріб оновлено!")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося оновити: {e}")
 
     def _on_delete(self):
-        idx = self.table.currentIndex()
-        if not idx.isValid():
-            QMessageBox.warning(self, "Увага", "Виберіть позицію для видалення")
+        """Видалити вибраний виріб зі специфікації (і з БД)."""
+        item_id = self._get_selected_id()
+        if not item_id:
+            QMessageBox.warning(self, "Увага", "Виберіть виріб для видалення")
             return
-        row = idx.row()
-        if row < 0 or row >= len(self._items):
-            return
-        name = self._items[row].get("name", "")
+        name = self._items[self.table.currentIndex().row()].get("name", "")
         reply = QMessageBox.question(
             self, "Видалення",
-            f'Видалити позицію "{name}"?',
+            f'Видалити виріб "{name}" (ID: {item_id}) зі специфікації?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._items.pop(row)
-            # Перенумерувати
-            for i, item in enumerate(self._items, 1):
-                item["pos"] = i
-            self._fill_table()
-            self._update_summary()
+            try:
+                ProductRepository.delete(item_id)
+                self._load_specification()
+                QMessageBox.information(self, "Успіх", "Виріб видалено!")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
     def _refresh_current(self):
+        """Оновити поточну специфікацію."""
         self._load_specification()
 
+    # ═══════════════════════════════════════════════════════════
+    # Зовнішні події
+    # ═══════════════════════════════════════════════════════════
+
     def refresh(self):
+        """Повне оновлення (проєкти + специфікація)."""
         self._load_projects()
+
+    def on_project_changed(self, project_id: int | None):
+        """При зміні проєкту ззовні."""
+        if project_id:
+            idx = self.combo_project.findData(project_id)
+            if idx >= 0:
+                self.combo_project.blockSignals(True)
+                self.combo_project.setCurrentIndex(idx)
+                self.combo_project.blockSignals(False)
+                self._current_project_id = project_id
+                self._load_specification()
+        else:
+            self.combo_project.setCurrentIndex(-1)
+            self._current_project_id = None
+            self.model.removeRows(0, self.model.rowCount())
+            self._items = []
+            self._update_summary([])

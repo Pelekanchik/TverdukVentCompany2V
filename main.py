@@ -3,14 +3,10 @@
 ВЕНТИЛЯЦІЙНА ВИРОБНИЧА ФІРМА
 Запуск: python main.py        → GUI режим
         python main.py --cli  → Консольний режим
-
-Покращення v2.1:
-  • _init_db_tables() тепер використовує звичайний import замість
-    динамічного importlib, щоб уникнути дублювання Base.metadata.
-  • Прибрано окреме створення users через sqlite3 — тепер єдиний шар ORM.
 """
 
 import os
+import subprocess  # ← ВИПРАВЛЕННЯ: додано імпорт
 import sys
 
 
@@ -18,32 +14,30 @@ def _init_db_tables():
     """Створити/оновити всі SQLAlchemy-таблиці при запуску.
 
     Спочатку пробуємо Alembic (міграції), якщо не вдалось — fallback на create_all().
-    Перед міграціями автоматично створюється резервна копія БД.
     """
     from ventilation_company.utils.logging_config import setup_logging
     from ventilation_company.utils.backup import create_backup, cleanup_old_backups
 
     logger = setup_logging()
-
-    # Бекап перед будь-якими змінами
     create_backup()
     cleanup_old_backups(keep=10)
 
     try:
-        # Спробуємо Alembic спочатку
-        import subprocess
         result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            capture_output=True, text=True, timeout=30
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
         )
         if result.returncode == 0:
             logger.info("[DB] Міграції Alembic застосовано")
+            return
         else:
-            logger.warning("[DB] Alembic не вдалося застосувати: %s", result.stderr)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        logger.warning("Alembic не знайдено або таймаут, використовуємо create_all()")
+            logger.warning("[DB] Alembic stderr: %s", result.stderr)
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.warning("Alembic недоступний або таймаут: %s", e)
 
-    # Fallback: створити таблиці напряму
     try:
         import ventilation_company.database.models
         from ventilation_company.database.base import Base
@@ -51,20 +45,11 @@ def _init_db_tables():
         Base.metadata.create_all(bind=engine)
         logger.info("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
     except Exception as e:
-        logger.error("[DB] Помилка SQLAlchemy: %s", e)
-
-    # Авто-оновлення: додати відсутні колонки до існуючих таблиць
-    try:
-        from ventilation_company.database.auto_migrate import auto_add_missing_columns
-        auto_add_missing_columns()
-    except Exception as e:
-        logger.warning("[DB] Авто-оновлення колонок не вдалося: %s", e)
+        logger.error("[DB] Помилка SQLAlchemy create_all: %s", e)
 
 
 def run_gui():
-    """Функція для запуску GUI."""
     _init_db_tables()
-
     try:
         from ventilation_company.gui.main_window import main as gui_main
         gui_main()
@@ -72,12 +57,11 @@ def run_gui():
         from ventilation_company.utils.logging_config import get_logger
         log = get_logger("main")
         log.error("Помилка запуску GUI: %s", e)
-        log.info("Спробуйте: pip install tk")
         raise
 
 
 def run_cli():
-    """Функція для запуску CLI."""
+    _init_db_tables()
     try:
         from ventilation_company.main_cli import main as cli_main
     except ImportError:
