@@ -10,9 +10,7 @@ from ventilation_company.services.auth_service import AuthUser
 
 
 class SidebarItem(QPushButton):
-    """Один пункт бічної панелі."""
-
-    def __init__(self, icon: str, label: str, tab_id: str, parent=None):
+    def __init__(self, icon, label, tab_id, parent=None):
         super().__init__(f"{icon}  {label}", parent)
         self.tab_id = tab_id
         self.setCheckable(True)
@@ -41,14 +39,12 @@ class SidebarItem(QPushButton):
 
 
 class Sidebar(QFrame):
-    """Бічна панель з навігацією."""
-
     tab_changed = Signal(str)
 
-    def __init__(self, user: AuthUser, parent=None):
+    def __init__(self, user, parent=None):
         super().__init__(parent)
         self.user = user
-        self._buttons: list[SidebarItem] = []
+        self._buttons = []
         self._build_ui()
 
     def _build_ui(self):
@@ -59,24 +55,22 @@ class Sidebar(QFrame):
         layout.setContentsMargins(12, 16, 12, 16)
         layout.setSpacing(4)
 
-        # Логотип
-        lbl_logo = QLabel("🏭  VentCompany")
+        lbl_logo = QLabel("VentCompany")
         lbl_logo.setStyleSheet(f"color: {Theme.ACCENT}; font-size: 15px; font-weight: bold; padding: 4px;")
         layout.addWidget(lbl_logo)
 
-        # Користувач
-        lbl_user = QLabel(f"👤 {self.user.full_name}")
+        lbl_user = QLabel(f"{self.user.full_name}")
         lbl_user.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 4px;")
         layout.addWidget(lbl_user)
 
-        lbl_role = QLabel(f"• {self.user.role.upper()}")
+        lbl_role = QLabel(f"{self.user.role.upper()}")
         lbl_role.setStyleSheet(f"color: {Theme.ACCENT}; font-size: 10px; padding: 4px;")
         layout.addWidget(lbl_role)
 
         layout.addSpacing(16)
 
-        # Розділ: Робота
-        lbl_work = QLabel("📋 РОБОТА")
+        # РОБОТА
+        lbl_work = QLabel("РОБОТА")
         lbl_work.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
         layout.addWidget(lbl_work)
 
@@ -88,8 +82,8 @@ class Sidebar(QFrame):
 
         layout.addSpacing(12)
 
-        # Розділ: Фінанси
-        lbl_fin = QLabel("💰 ФІНАНСИ")
+        # ФІНАНСИ
+        lbl_fin = QLabel("ФІНАНСИ")
         lbl_fin.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
         layout.addWidget(lbl_fin)
 
@@ -98,8 +92,8 @@ class Sidebar(QFrame):
 
         layout.addSpacing(12)
 
-        # Розділ: Аналітика
-        lbl_an = QLabel("📈 АНАЛІТИКА")
+        # АНАЛІТИКА
+        lbl_an = QLabel("АНАЛІТИКА")
         lbl_an.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
         layout.addWidget(lbl_an)
 
@@ -108,8 +102,7 @@ class Sidebar(QFrame):
 
         layout.addStretch()
 
-        # Вихід
-        btn_logout = QPushButton("🚪 Вихід")
+        btn_logout = QPushButton("Вихід")
         btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_logout.setMinimumHeight(36)
         btn_logout.setStyleSheet(f"""
@@ -127,13 +120,13 @@ class Sidebar(QFrame):
         btn_logout.clicked.connect(self._on_logout)
         layout.addWidget(btn_logout)
 
-    def _add_item(self, icon: str, label: str, tab_id: str):
+    def _add_item(self, icon, label, tab_id):
         btn = SidebarItem(icon, label, tab_id)
         btn.clicked.connect(lambda: self._on_tab_clicked(btn))
         self._buttons.append(btn)
         self.layout().addWidget(btn)
 
-    def _on_tab_clicked(self, clicked: SidebarItem):
+    def _on_tab_clicked(self, clicked):
         for btn in self._buttons:
             btn.setChecked(btn == clicked)
         self.tab_changed.emit(clicked.tab_id)
@@ -147,6 +140,6 @@ class Sidebar(QFrame):
         if reply == QMessageBox.StandardButton.Yes:
             self.window().close()
 
-    def set_active(self, tab_id: str):
+    def set_active(self, tab_id):
         for btn in self._buttons:
             btn.setChecked(btn.tab_id == tab_id)
