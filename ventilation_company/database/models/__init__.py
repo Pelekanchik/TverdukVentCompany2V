@@ -78,3 +78,5 @@ __all__ = [
     "CalcTemplate",
     "ProductItem",
 ]
+
+from ventilation_company.database.models.project_document import ProjectDocument
