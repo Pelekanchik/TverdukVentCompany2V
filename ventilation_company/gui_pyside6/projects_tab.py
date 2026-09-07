@@ -1,13 +1,20 @@
-"""Вкладка проєктів (PySide6 + PostgreSQL)."""
+"""Вкладка проєктів (PySide6 + PostgreSQL) — v2.4 зі знижкою на виробах.
+
+Логіка:
+  Собівартість = сума cost_price × quantity з усіх виробів  [auto]
+  Ціна замовнику = сума discounted_price (якщо > 0) інакше total_price  [auto]
+  Ціна зі знижкою (проєкт) = ви вводите самі                [editable]
+  Прибуток = ціна (зі знижкою) − собівартість               [auto]
+"""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableView, QLineEdit, QMessageBox, QAbstractItemView,
     QDialog, QFormLayout, QDialogButtonBox, QComboBox,
-    QDoubleSpinBox
+    QDoubleSpinBox, QSpinBox
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
@@ -18,26 +25,49 @@ from datetime import datetime
 
 
 class ProjectEditDialog(QDialog):
+    """Діалог створення/редагування проєкту з ціноутворенням з виробів."""
+
     STATUSES = ["Новий", "В роботі", "На виробництві", "Готовий", "Відвантажено", "Закрито"]
 
     def __init__(self, project_data=None, parent=None):
         super().__init__(parent)
         self.project_data = project_data or {}
         self.setWindowTitle("Редагування проєкту" if project_data else "Новий проєкт")
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(480)
         self._build_ui()
+        self._recalc_profit()
 
     def _build_ui(self):
         layout = QFormLayout(self)
+        layout.setSpacing(10)
+
+        project_id = self.project_data.get("id")
+        products = []
+        if project_id:
+            try:
+                products = ProductRepository.get_all(project_id=project_id)
+            except Exception:
+                pass
+
+        cost_total = sum(p.get("cost_price", 0) * p.get("quantity", 1) for p in products)
+        # ← v2.4: ціна з урахуванням знижки на вироби
+        price_total = sum(
+            (p.get("discounted_price", 0) if p.get("discounted_price", 0) > 0 else p.get("total_price", 0))
+            for p in products
+        )
+
         self.edit_name = QLineEdit()
         self.edit_name.setText(self.project_data.get("name", ""))
         layout.addRow("Назва *", self.edit_name)
+
         self.edit_number = QLineEdit()
         self.edit_number.setText(self.project_data.get("project_number", ""))
         layout.addRow("Номер", self.edit_number)
+
         self.edit_client = QLineEdit()
         self.edit_client.setText(self.project_data.get("client", ""))
         layout.addRow("Клієнт", self.edit_client)
+
         self.combo_status = QComboBox()
         self.combo_status.addItems(self.STATUSES)
         current = self.project_data.get("status", "Новий")
@@ -45,29 +75,83 @@ class ProjectEditDialog(QDialog):
         if idx >= 0:
             self.combo_status.setCurrentIndex(idx)
         layout.addRow("Статус", self.combo_status)
+
+        layout.addRow(QLabel(""))
+
         self.spin_cost = QDoubleSpinBox()
         self.spin_cost.setRange(0, 99999999)
         self.spin_cost.setSuffix(" ₴")
-        self.spin_cost.setValue(float(self.project_data.get("cost_price", 0) or 0))
-        layout.addRow("Собівартість", self.spin_cost)
-        self.spin_price = QDoubleSpinBox()
-        self.spin_price.setRange(0, 99999999)
-        self.spin_price.setSuffix(" ₴")
-        self.spin_price.setValue(float(self.project_data.get("customer_price", 0) or 0))
-        layout.addRow("Ціна для замовника", self.spin_price)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        self.spin_cost.setDecimals(2)
+        self.spin_cost.setValue(cost_total)
+        self.spin_cost.setReadOnly(True)
+        self.spin_cost.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.spin_cost.setStyleSheet("QDoubleSpinBox { background-color: #1a1a2e; color: #a6e3a1; font-weight: bold; }")
+        layout.addRow("🔧 Собівартість (з виробів)", self.spin_cost)
+
+        self.spin_base_price = QDoubleSpinBox()
+        self.spin_base_price.setRange(0, 99999999)
+        self.spin_base_price.setSuffix(" ₴")
+        self.spin_base_price.setDecimals(2)
+        self.spin_base_price.setValue(price_total)
+        self.spin_base_price.setReadOnly(True)
+        self.spin_base_price.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.spin_base_price.setStyleSheet("QDoubleSpinBox { background-color: #1a1a2e; color: #89b4fa; font-weight: bold; }")
+        layout.addRow("💰 Ціна замовнику (з виробів)", self.spin_base_price)
+
+        self.spin_discounted = QDoubleSpinBox()
+        self.spin_discounted.setRange(0, 99999999)
+        self.spin_discounted.setSuffix(" ₴")
+        self.spin_discounted.setDecimals(2)
+        self.spin_discounted.setValue(float(self.project_data.get("discounted_price", 0) or 0))
+        self.spin_discounted.setStyleSheet("QDoubleSpinBox { background-color: #2a2a3e; color: #f9e2af; font-weight: bold; }")
+        self.spin_discounted.valueChanged.connect(self._recalc_profit)
+        layout.addRow("🏷️ Ціна зі знижкою", self.spin_discounted)
+
+        self.lbl_profit = QLabel("0.00 ₴")
+        self.lbl_profit.setStyleSheet("font-size: 14px; font-weight: bold; padding: 6px 12px; border-radius: 6px; background: #1a1a2e;")
+        layout.addRow("📊 Прибуток", self.lbl_profit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
 
+    def _recalc_profit(self):
+        cost = self.spin_cost.value()
+        base_price = self.spin_base_price.value()
+        discounted = self.spin_discounted.value()
+        effective_price = discounted if discounted > 0 else base_price
+        profit = effective_price - cost
+        if profit >= 0:
+            self.lbl_profit.setText(f"{profit:,.2f} ₴  ✅")
+            self.lbl_profit.setStyleSheet(
+                "font-size: 14px; font-weight: bold; padding: 6px 12px; "
+                "border-radius: 6px; background: #1a3a1a; color: #a6e3a1;"
+            )
+        else:
+            self.lbl_profit.setText(f"{profit:,.2f} ₴  ⚠️ ЗБИТОК")
+            self.lbl_profit.setStyleSheet(
+                "font-size: 14px; font-weight: bold; padding: 6px 12px; "
+                "border-radius: 6px; background: #3a1a1a; color: #f38ba8;"
+            )
+
     def get_data(self):
+        cost = self.spin_cost.value()
+        base_price = self.spin_base_price.value()
+        discounted = self.spin_discounted.value()
+        effective_price = discounted if discounted > 0 else base_price
+        profit = effective_price - cost
         return {
             "name": self.edit_name.text().strip(),
             "project_number": self.edit_number.text().strip(),
             "client": self.edit_client.text().strip(),
             "status": self.combo_status.currentText(),
-            "cost_price": self.spin_cost.value(),
-            "customer_price": self.spin_price.value(),
+            "cost_price": cost,
+            "customer_price": base_price,
+            "discounted_price": discounted,
+            "profit": profit,
         }
 
 
@@ -83,24 +167,30 @@ class ProjectsTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
+
         header = QHBoxLayout()
         lbl_title = QLabel("📁 Проєкти")
         lbl_title.setObjectName("title")
         header.addWidget(lbl_title)
         header.addStretch()
+
         self.edit_search = QLineEdit()
         self.edit_search.setPlaceholderText("🔍 Пошук проєкту...")
         self.edit_search.setFixedWidth(250)
         self.edit_search.textChanged.connect(self._on_search)
         header.addWidget(self.edit_search)
+
         btn_refresh = QPushButton("🔄 Оновити")
         btn_refresh.clicked.connect(self._load_data)
         header.addWidget(btn_refresh)
+
         btn_new = QPushButton("➕ Новий проєкт")
         btn_new.setObjectName("primary")
         btn_new.clicked.connect(self._on_new_project)
         header.addWidget(btn_new)
+
         layout.addLayout(header)
+
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -111,17 +201,24 @@ class ProjectsTab(QWidget):
         self.table.setMinimumHeight(400)
         self.table.doubleClicked.connect(self._on_double_click)
         layout.addWidget(self.table)
+
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(["ID", "Номер", "Назва", "Клієнт", "Статус", "Дата створення", "Сума виробів", "Ціна замовнику"])
+        self.model.setHorizontalHeaderLabels([
+            "ID", "Номер", "Назва", "Клієнт", "Статус", "Дата створення",
+            "Сума виробів", "Ціна зам.", "Зі знижкою", "Прибуток"
+        ])
         self.table.setModel(self.model)
         self.table.setColumnWidth(0, 40)
-        self.table.setColumnWidth(1, 100)
-        self.table.setColumnWidth(2, 200)
-        self.table.setColumnWidth(3, 150)
-        self.table.setColumnWidth(4, 100)
-        self.table.setColumnWidth(5, 100)
-        self.table.setColumnWidth(6, 100)
-        self.table.setColumnWidth(7, 120)
+        self.table.setColumnWidth(1, 90)
+        self.table.setColumnWidth(2, 180)
+        self.table.setColumnWidth(3, 130)
+        self.table.setColumnWidth(4, 90)
+        self.table.setColumnWidth(5, 90)
+        self.table.setColumnWidth(6, 90)
+        self.table.setColumnWidth(7, 90)
+        self.table.setColumnWidth(8, 90)
+        self.table.setColumnWidth(9, 90)
+
         actions = QHBoxLayout()
         actions.addStretch()
         btn_edit = QPushButton("✏️ Редагувати")
@@ -132,6 +229,7 @@ class ProjectsTab(QWidget):
         btn_del.clicked.connect(self._on_delete)
         actions.addWidget(btn_del)
         layout.addLayout(actions)
+
         lbl_hint = QLabel("💡 Двічі клікніть на рядок для відкриття картки проєкту")
         lbl_hint.setObjectName("subtitle")
         layout.addWidget(lbl_hint)
@@ -154,9 +252,21 @@ class ProjectsTab(QWidget):
                 for p in projects:
                     try:
                         products = ProductRepository.get_all(project_id=p.id)
-                        total = sum(item.get("total_price", 0) for item in products)
+                        # ← v2.4: ціна з урахуванням знижки на вироби
+                        cost = sum(pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products)
+                        base = sum(
+                            pr.get("discounted_price", 0) if pr.get("discounted_price", 0) > 0 
+                            else pr.get("total_price", 0)
+                            for pr in products
+                        )
                     except Exception:
-                        total = 0
+                        cost = 0
+                        base = 0
+
+                    discounted = float(p.discounted_price or 0)
+                    effective = discounted if discounted > 0 else base
+                    profit = effective - cost
+
                     data = {
                         "id": p.id,
                         "name": p.name or "—",
@@ -164,11 +274,15 @@ class ProjectsTab(QWidget):
                         "client": p.client or "—",
                         "status": p.status or "Новий",
                         "created_at": str(p.created_at)[:10] if p.created_at else "—",
-                        "cost_price": float(p.cost_price or 0),
-                        "customer_price": float(p.customer_price or 0),
-                        "products_total": total,
+                        "cost_price": cost,
+                        "customer_price": base,
+                        "discounted_price": discounted,
+                        "profit": profit,
                     }
                     self._projects.append(data)
+
+                    profit_color = Theme.SUCCESS if profit >= 0 else Theme.DANGER
+
                     row = [
                         QStandardItem(str(p.id)),
                         QStandardItem(data["project_number"]),
@@ -176,11 +290,14 @@ class ProjectsTab(QWidget):
                         QStandardItem(data["client"]),
                         QStandardItem(data["status"]),
                         QStandardItem(data["created_at"]),
-                        QStandardItem("₴ " + f"{total:,.0f}"),
-                        QStandardItem("₴ " + f"{data['customer_price']:,.0f}"),
+                        QStandardItem("₴ " + f"{base:,.0f}"),
+                        QStandardItem("₴ " + f"{base:,.0f}"),
+                        QStandardItem("₴ " + f"{discounted:,.0f}"),
+                        QStandardItem("₴ " + f"{profit:,.0f}"),
                     ]
                     for cell in row:
                         cell.setEditable(False)
+                    row[-1].setForeground(QBrush(QColor(profit_color)))
                     self.model.appendRow(row)
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
@@ -219,6 +336,8 @@ class ProjectsTab(QWidget):
                         status=data["status"],
                         cost_price=data["cost_price"],
                         customer_price=data["customer_price"],
+                        discounted_price=data["discounted_price"],
+                        profit=data["profit"],
                         created_at=datetime.now(),
                     )
                     session.add(project)
@@ -259,6 +378,8 @@ class ProjectsTab(QWidget):
                         project.status = data["status"]
                         project.cost_price = data["cost_price"]
                         project.customer_price = data["customer_price"]
+                        project.discounted_price = data["discounted_price"]
+                        project.profit = data["profit"]
                         session.commit()
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Проєкт оновлено!")
@@ -275,7 +396,7 @@ class ProjectsTab(QWidget):
             if p["id"] == project_id:
                 project_name = p["name"]
                 break
-        msg = "Видалити проєкт  + project_name +  (ID: " + str(project_id) + ")?"
+        msg = "Видалити проєкт \"" + project_name + "\" (ID: " + str(project_id) + ")?"
         msg += " ВСІ вироби та документи цього проєкту також будуть видалені!"
         reply = QMessageBox.question(self, "Видалення", msg,
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)

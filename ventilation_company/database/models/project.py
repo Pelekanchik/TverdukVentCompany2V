@@ -1,9 +1,9 @@
-"""ORM-моделі для проєктів (оновлені v2.1).
+"""ORM-моделі для проєктів (оновлені v2.3).
 
-Додано поля, раніше створені через raw sqlite3:
-  description, metadata, drawing_path, customer_price,
-  cost_price, salary_total, profit, assigned_to, created_by.
-Додано relationships до project_products, specifications, cutting_plans.
+Додано:
+  • ProjectExpense — додаткові витрати проєкту
+  • discounted_price (v2.2)
+  • Relationships для works, expenses
 """
 
 from __future__ import annotations
@@ -43,14 +43,15 @@ class Project(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String, default="draft")
-    total_area: Mapped[float] = mapped_column(Float, default=0)  # м² — фізична величина, float OK
+    total_area: Mapped[float] = mapped_column(Float, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Нові поля з sqlite3-версії
+    # Фінансові поля
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     drawing_path: Mapped[str | None] = mapped_column(String, nullable=True)
     customer_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    discounted_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)   # ← v2.2
     cost_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     salary_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     profit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
@@ -65,6 +66,9 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     works: Mapped[list["ProjectWork"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    expenses: Mapped[list["ProjectExpense"]] = relationship(   # ← v2.3 НОВЕ
         back_populates="project", cascade="all, delete-orphan"
     )
     calculations: Mapped[list["Calculation"]] = relationship(
@@ -121,3 +125,18 @@ class ProjectWork(Base):
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
     project: Mapped["Project"] = relationship(back_populates="works")
+
+
+class ProjectExpense(Base):   # ← v2.3 НОВЕ
+    __tablename__ = "project_expenses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    expense_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    quantity: Mapped[float] = mapped_column(Float, default=1)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now)
+
+    project: Mapped["Project"] = relationship(back_populates="expenses")

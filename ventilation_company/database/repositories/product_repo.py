@@ -1,20 +1,14 @@
-"""Репозиторій для виробів (ProductItem) — PostgreSQL/SQLite ORM.
+"""Репозиторій для виробів (ProductItem) — v2.4.
 
-ВИПРАВЛЕННЯ v2:
-  • create() тепер зберігає project_id
-  • _item_to_dict() повертає project_id, metal_area_m2, weight_kg, blank_area_m2
-  • update() тепер комітить зміни
-  • create() тепер комітить (на випадок, якщо get_db() не комітить автоматично)
+Додано discounted_price в _item_to_dict.
 """
 
 from typing import List
-
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.product_item import ProductItem
 
 
 def _item_to_dict(item: ProductItem) -> dict:
-    """Конвертує ORM-об'єкт в dict (поки сесія активна)."""
     return {
         "id": item.id,
         "name": item.name,
@@ -25,11 +19,12 @@ def _item_to_dict(item: ProductItem) -> dict:
         "thickness": item.thickness,
         "material": item.material,
         "quantity": item.quantity,
+        "cost_price": float(item.cost_price) if item.cost_price else 0,
         "unit_price": float(item.unit_price) if item.unit_price else 0,
         "total_price": float(item.total_price) if item.total_price else 0,
+        "discounted_price": float(item.discounted_price) if item.discounted_price else 0,  # ← v2.4
         "notes": item.notes,
         "project_id": item.project_id,
-        # Розраховані поля (можуть бути в notes як JSON)
         "metal_area_m2": _extract_float(item.notes, "metal_area_m2"),
         "blank_area_m2": _extract_float(item.notes, "blank_area_m2"),
         "weight_kg": _extract_float(item.notes, "weight_kg"),
@@ -37,7 +32,6 @@ def _item_to_dict(item: ProductItem) -> dict:
 
 
 def _extract_float(notes: str | None, key: str) -> float:
-    """Витягти число з JSON-нотаток."""
     if not notes:
         return 0.0
     try:
@@ -50,8 +44,6 @@ def _extract_float(notes: str | None, key: str) -> float:
 
 
 class ProductRepository:
-    """CRUD для виробів у бібліотеці."""
-
     @staticmethod
     def get_all(project_id: int = None) -> List[dict]:
         with get_db() as session:
@@ -79,15 +71,17 @@ class ProductRepository:
                 thickness=data.get("thickness"),
                 material=data.get("material"),
                 quantity=data.get("quantity", 1),
+                cost_price=data.get("cost_price", 0),
                 unit_price=data.get("unit_price", 0),
                 total_price=data.get("total_price", 0),
+                discounted_price=data.get("discounted_price", 0),  # ← v2.4
                 notes=data.get("notes"),
-                project_id=data.get("project_id"),  # ← ВИПРАВЛЕННЯ
+                project_id=data.get("project_id"),
             )
             session.add(item)
             session.flush()
             session.refresh(item)
-            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
+            session.commit()
             return _item_to_dict(item)
 
     @staticmethod
@@ -99,7 +93,7 @@ class ProductRepository:
             for key, value in data.items():
                 if hasattr(item, key):
                     setattr(item, key, value)
-            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
+            session.commit()
             return True
 
     @staticmethod
@@ -109,7 +103,7 @@ class ProductRepository:
             if not item:
                 return False
             session.delete(item)
-            session.commit()  # ← ВИПРАВЛЕННЯ: явний коміт
+            session.commit()
             return True
 
     @staticmethod
