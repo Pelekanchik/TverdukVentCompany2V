@@ -1,4 +1,4 @@
-"""Головне вікно VentCompany (PySide6)."""
+"""Головне вікно VentCompany (PySide6) — з вкладкою Налаштування."""
 
 import sys
 from PySide6.QtCore import Qt
@@ -17,6 +17,7 @@ from ventilation_company.gui_pyside6.cutting_tab import CuttingTab
 from ventilation_company.gui_pyside6.crm_tab import CRMTab
 from ventilation_company.gui_pyside6.pricing_tab import PricingTab
 from ventilation_company.gui_pyside6.documents_tab import DocumentsTab
+from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
 from ventilation_company.services.auth_service import AuthService, AuthUser
 
 
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
             "pricing": PricingTab(),
             "documents": DocumentsTab(main_window=self),
             "crm": CRMTab(),
+            "settings": ProgramSettingsTab(current_user=self.user),  # <-- НОВЕ
         }
 
         for key, tab in self.tabs.items():

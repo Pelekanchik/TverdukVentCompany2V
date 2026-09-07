@@ -1,10 +1,14 @@
-"""Система ролей та дозволів VentCompany.
+"""Система ролей та дозволів VentCompany (оновлена — сумісність PySide6 + Налаштування).
 
-Ролі:
-  • director   — повний доступ (все)
-  • engineer   — проєкти, вироби, специфікації, розкрій, 3D, аеродинаміка
-  • accountant — фінанси, ціни, налаштування, CRM, дашборд
-  • monter     — тільки свої проєкти (призначені), специфікації, розкрій
+Ролі (сумісність з обома системами):
+  • admin      — повний доступ
+  • director   — повний доступ (альтернатива admin)
+  • manager    — проєкти, клієнти, ціни, прайси
+  • engineer   — розкрій, специфікації, 3D-моделі, розрахунки
+  • master     — виробництво, статуси, відвантаження
+  • accountant — собівартість, прибуток, звіти, зарплати
+  • viewer     — тільки перегляд
+  • monter     — монтаж (альтернатива master)
 """
 
 from enum import Enum
@@ -15,90 +19,95 @@ class Role(str, Enum):
     ENGINEER = "engineer"
     ACCOUNTANT = "accountant"
     MONTER = "monter"
+    # Його ролі
+    ADMIN = "admin"
+    MANAGER = "manager"
+    MASTER = "master"
+    VIEWER = "viewer"
 
 
-# ── Дозволи (permission = "дія_об'єкт") ──
-# Формат: <дія>_<об'єкт>
-# Дії: view, edit, create, delete, export
-# Об'єкти: products, specification, cutting, project_3d, settings,
-#          price_list, metal_prices, production, materials,
-#          aerodynamics, crm, dashboard, projects, users
-
+# ── Дозволи ──
 ROLE_PERMISSIONS: dict[Role, list[str]] = {
-    Role.DIRECTOR: ["*"],  # wildcard — все дозволено
+    Role.DIRECTOR: ["*"],
+    Role.ADMIN: ["*"],
 
     Role.ENGINEER: [
-        # Вироби
         "view_products", "create_products", "edit_products", "delete_products",
-        # Специфікація
         "view_specification", "create_specification", "edit_specification", "export_specification",
-        # Розкрій
         "view_cutting", "create_cutting", "edit_cutting",
-        # 3D
         "view_project_3d", "create_project_3d", "export_project_3d",
-        # Проєкти
         "view_projects", "create_projects", "edit_projects",
-        # Аеродинаміка
         "view_aerodynamics",
-        # Прайс-лист (тільки перегляд)
         "view_price_list",
-        # Матеріали (тільки перегляд)
         "view_materials",
-        # Виробництво (тільки перегляд)
         "view_production",
-        # CRM (тільки перегляд клієнтів)
         "view_crm",
-        # Дашборд
         "view_dashboard",
+        "view_program_settings",
+    ],
+
+    Role.MANAGER: [
+        "view_products", "create_products", "edit_products",
+        "view_specification", "view_projects", "create_projects", "edit_projects",
+        "view_price_list", "edit_price_list", "export_price_list",
+        "view_crm", "edit_crm",
+        "view_dashboard",
+        "view_program_settings",
+    ],
+
+    Role.MASTER: [
+        "view_projects", "view_specification", "view_cutting",
+        "view_materials", "view_production",
+        "view_program_settings",
     ],
 
     Role.ACCOUNTANT: [
-        # Фінанси та ціноутворення
         "view_settings", "edit_settings",
         "view_price_list", "edit_price_list", "export_price_list",
         "view_metal_prices", "edit_metal_prices",
-        # CRM
         "view_crm", "edit_crm",
-        # Дашборд
         "view_dashboard",
-        # Виробництво (тільки перегляд для звітів)
         "view_production",
         "view_materials",
-        # Проєкти (тільки перегляд фінансової частини)
         "view_projects",
-        # Специфікація (перегляд)
         "view_specification",
-        # Експорт звітів
         "export_specification", "export_price_list",
+        "view_program_settings", "edit_program_settings",
     ],
 
     Role.MONTER: [
-        # Тільки свої проєкти (фільтрується в AuthService)
         "view_projects",
-        # Специфікація своїх проєктів
         "view_specification",
-        # Розкрій своїх проєктів
         "view_cutting",
-        # 3D перегляд
         "view_project_3d",
-        # Матеріали (тільки перегляд для своїх)
         "view_materials",
-        # Виробництво (тільки перегляд для своїх)
         "view_production",
+        "view_program_settings",
+    ],
+
+    Role.VIEWER: [
+        "view_products", "view_specification", "view_cutting",
+        "view_project_3d", "view_projects", "view_price_list",
+        "view_materials", "view_production", "view_crm",
+        "view_dashboard", "view_program_settings",
     ],
 }
 
 
-# ── Відображення ролей для GUI ──
+# ── Відображення ролей (сумісність) ──
 ROLE_LABELS: dict[Role, str] = {
     Role.DIRECTOR: "Директор",
     Role.ENGINEER: "Інженер",
     Role.ACCOUNTANT: "Бухгалтер",
     Role.MONTER: "Монтажник",
+    Role.ADMIN: "Адміністратор",
+    Role.MANAGER: "Менеджер",
+    Role.MASTER: "Майстер",
+    Role.VIEWER: "Перегляд",
 }
 
 
-# ── Вкладки та необхідні дозволи ──
+# ── Вкладки та дозволи ──
 TAB_PERMISSIONS: dict[str, list[str]] = {
     "📦 Вироби":       ["view_products"],
     "📋 Специфікація": ["view_specification"],
@@ -112,13 +121,17 @@ TAB_PERMISSIONS: dict[str, list[str]] = {
     "🏷️ Прайс-лист":   ["view_price_list"],
     "👥 CRM":          ["view_crm"],
     "🔧 Ціни на метал": ["view_metal_prices"],
+    "⚙️ Налаштування": ["view_program_settings"],
 }
 
 
 def has_permission(role: Role | str, permission: str) -> bool:
     """Перевірити, чи має роль вказаний дозвіл."""
     if isinstance(role, str):
-        role = Role(role)
+        try:
+            role = Role(role)
+        except ValueError:
+            return False
     perms = ROLE_PERMISSIONS.get(role, [])
     return "*" in perms or permission in perms
 
@@ -126,5 +139,5 @@ def has_permission(role: Role | str, permission: str) -> bool:
 def get_role_label(role: Role | str) -> str:
     """Отримати людську назву ролі."""
     if isinstance(role, str):
-        role = Role(role)
+        return ROLE_LABELS.get(role, role)
     return ROLE_LABELS.get(role, role.value)
