@@ -17,7 +17,7 @@ from typing import List
 try:
     from fpdf import FPDF
 except ImportError:
-    raise ImportError("Бібліотека fpdf2 не встановлена. Виконайте: pip install fpdf2")
+    raise ImportError("Бібліотека fpdf2 не встановлена. Виконайте: pip install fpdf2") from None
 
 
 _FONT_CANDIDATES = [
@@ -246,7 +246,7 @@ class ProposalPDF(FPDF):
 
         col_w = [10, 65, 20, 20, 25, 25, 25]  # №, Найменування, Од., К-ть, Ціна, Сума
         headers = ["№", "Найменування", "Од.", "К-ть", "Ціна, грн", "Сума, грн"]
-        for w, h in zip(col_w, headers):
+        for w, h in zip(col_w, headers, strict=False):
             self.cell(w, 8, h, border=0, align="C", fill=True)
         self.ln()
 
@@ -268,7 +268,7 @@ class ProposalPDF(FPDF):
                 self.set_fill_color(21, 101, 192)
                 self.set_text_color(255, 255, 255)
                 self._set_bold(9)
-                for w, h_text in zip(col_w, headers):
+                for w, h_text in zip(col_w, headers, strict=False):
                     self.cell(w, 8, h_text, border=0, align="C", fill=True)
                 self.ln()
                 self.set_text_color(50, 50, 50)

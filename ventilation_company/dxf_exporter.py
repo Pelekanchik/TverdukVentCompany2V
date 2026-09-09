@@ -47,7 +47,7 @@ class DXFExporter:
         dxf_lines.append("0")
         dxf_lines.append("ENTITIES")
 
-        for sheet_idx, sheet in enumerate(plan.sheets):
+        for _sheet_idx, sheet in enumerate(plan.sheets):
             # Межі листа
             dxf_lines.extend(
                 self._draw_rectangle(

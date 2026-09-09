@@ -246,13 +246,13 @@ class EquipmentLoadChart:
         names = list(total_hours.keys())
         totals = [total_hours[n] for n in names]
         useds = [used_hours[n] for n in names]
-        percents = [u / t * 100 if t > 0 else 0 for u, t in zip(useds, totals)]
+        percents = [u / t * 100 if t > 0 else 0 for u, t in zip(useds, totals, strict=False)]
 
         x = range(len(names))
         bars = self.ax.bar(x, percents, color="#3498db", edgecolor="#2980b9", linewidth=1.5)
 
         # Підписи значень
-        for i, (bar, pct) in enumerate(zip(bars, percents)):
+        for _i, (bar, pct) in enumerate(zip(bars, percents, strict=False)):
             self.ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height() + 1,

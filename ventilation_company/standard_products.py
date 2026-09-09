@@ -745,7 +745,7 @@ class ProductLibrary:
             grouped[key]["quantity"] += p.quantity
             grouped[key]["products"].append(p)
         result = []
-        for key, data in grouped.items():
+        for _key, data in grouped.items():
             p = data["products"][0]
             result.append(
                 {

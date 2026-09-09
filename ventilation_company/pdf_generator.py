@@ -10,7 +10,7 @@ from typing import List, Optional
 try:
     from fpdf import FPDF
 except ImportError:
-    raise ImportError("Бібліотека fpdf2 не встановлена. " "Виконайте: pip install fpdf2")
+    raise ImportError("Бібліотека fpdf2 не встановлена. " "Виконайте: pip install fpdf2") from None
 
 _FONT_CANDIDATES = [
     ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
@@ -262,7 +262,7 @@ class ProjectPDFReport(FPDF):
         self.set_fill_color(227, 242, 253)
         self.set_draw_color(180, 180, 180)
         self._set_font_bold(8)
-        for w, h, a in zip(col_widths, headers, aligns):
+        for w, h, a in zip(col_widths, headers, aligns, strict=False):
             self.cell(w, row_h, h, border=1, align=a, fill=True)
         self.ln()
 
@@ -275,7 +275,7 @@ class ProjectPDFReport(FPDF):
                 self._draw_header("ВИРОБИ ПРОЄКТУ (продовження)")
                 self.set_fill_color(227, 242, 253)
                 self._set_font_bold(8)
-                for w, h, a in zip(col_widths, headers, aligns):
+                for w, h, a in zip(col_widths, headers, aligns, strict=False):
                     self.cell(w, row_h, h, border=1, align=a, fill=True)
                 self.ln()
                 self._set_font_regular(8)
@@ -312,7 +312,7 @@ class ProjectPDFReport(FPDF):
                 f"{unit_price:,.2f}",
                 f"{total_price:,.2f}",
             ]
-            for w, v, a in zip(col_widths, values, aligns):
+            for w, v, a in zip(col_widths, values, aligns, strict=False):
                 self.cell(w, row_h, _clean_text(v), border=1, align=a)
             self.ln()
         self.ln(3)

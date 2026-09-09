@@ -1,0 +1,31 @@
+warning: in the working copy of 'cleanup.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/calculations/safe_evaluator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/dxf_exporter.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/freecad_geometry.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gui/dashboard_tab.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gui/material_order_tab.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gui/products_tab/tree_manager.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gui_pyside6/main_window.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gui_pyside6/program_settings_tab.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/pdf_generator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/production_gantt.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/collision_detection.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/proposal_generator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/standard_products.py', LF will be replaced by CRLF the next time Git touches it
+ cleanup.py                                         |  2 [32m+[m[31m-[m
+ pyproject.toml                                     |  2 [32m+[m[31m-[m
+ ventilation_company/calculations/safe_evaluator.py |  2 [32m+[m[31m-[m
+ ventilation_company/dxf_exporter.py                |  2 [32m+[m[31m-[m
+ ventilation_company/freecad_geometry.py            |  2 [32m+[m[31m-[m
+ ventilation_company/gui/dashboard_tab.py           |  4 [32m+[m[31m--[m
+ ventilation_company/gui/material_order_tab.py      |  4 [32m+[m[31m--[m
+ .../gui/products_tab/tree_manager.py               |  2 [32m+[m[31m-[m
+ ventilation_company/gui_pyside6/main_window.py     |  2 [32m+[m[31m-[m
+ .../gui_pyside6/program_settings_tab.py            |  2 [32m+[m[31m-[m
+ ventilation_company/pdf_generator.py               |  8 [32m+++[m[31m---[m
+ ventilation_company/production_gantt.py            |  4 [32m+[m[31m--[m
+ .../project3d/collision_detection.py               | 30 [32m+++++++++++[m[31m-----------[m
+ ventilation_company/proposal_generator.py          |  6 [32m++[m[31m---[m
+ ventilation_company/standard_products.py           |  2 [32m+[m[31m-[m
+ 15 files changed, 37 insertions(+), 37 deletions(-)

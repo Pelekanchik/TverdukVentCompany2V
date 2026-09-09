@@ -176,7 +176,7 @@ class SafeFormulaEvaluator:
         if isinstance(node, ast.Compare):
             left = self._eval_node(node.left, variables)
             result = True
-            for op, comparator in zip(node.ops, node.comparators):
+            for op, comparator in zip(node.ops, node.comparators, strict=False):
                 right = self._eval_node(comparator, variables)
                 if isinstance(op, ast.Eq):
                     result = result and (left == right)

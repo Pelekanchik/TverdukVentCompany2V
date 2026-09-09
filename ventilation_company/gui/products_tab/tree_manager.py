@@ -8,7 +8,7 @@ def refresh_tree(tree: ttk.Treeview, products: list, prices: list[float]):
     """Оновити дерево продуктів."""
     for item in tree.get_children():
         tree.delete(item)
-    for i, (product, price) in enumerate(zip(products, prices), 1):
+    for i, (product, price) in enumerate(zip(products, prices, strict=False), 1):
         dims = getattr(product, "dimensions_str", None) or "—"
         tree.insert(
             "",

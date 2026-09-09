@@ -86,7 +86,7 @@ class MaterialOrderTab:
         self.tree = ttk.Treeview(table_frame, columns=cols, show="headings", height=18)
 
         widths = [5, 15, 25, 22, 10, 12, 12, 12, 20]
-        for col, w in zip(cols, widths):
+        for col, w in zip(cols, widths, strict=False):
             self.tree.heading(col, text=col)
             self.tree.column(
                 col,
@@ -404,7 +404,7 @@ class MaterialOrderTab:
             pdf.set_font("DejaVu", "B", 9)
             headers = ["№", "Категорія", "Найменування", "Специф.", "Од.", "К-ть", "Ціна", "Сума"]
             col_widths = [10, 30, 45, 40, 15, 18, 20, 22]
-            for w, h in zip(col_widths, headers):
+            for w, h in zip(col_widths, headers, strict=False):
                 pdf.cell(w, 8, h, border=1, fill=True, align="C")
             pdf.ln()
 

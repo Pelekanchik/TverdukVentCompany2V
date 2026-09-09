@@ -39,7 +39,7 @@ for f in files:
         print(f"🗑️  {f}")
         removed += 1
 
-for root, dirs, files in os.walk("."):
+for root, _dirs, files in os.walk("."):
     for f in files:
         if f.endswith(".backup"):
             os.remove(os.path.join(root, f))

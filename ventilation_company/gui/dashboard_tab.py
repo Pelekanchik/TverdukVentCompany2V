@@ -262,7 +262,7 @@ class DashboardTab:
                 alpha=0.85,
             )
             # Значення на кінцях стовпчиків
-            for bar, val in zip(bars, amounts):
+            for bar, val in zip(bars, amounts, strict=False):
                 ax.text(
                     val + max(amounts) * 0.02,
                     bar.get_y() + bar.get_height() / 2,
@@ -401,7 +401,7 @@ class DashboardTab:
                 linewidth=0.5,
                 alpha=0.85,
             )
-            for bar, val in zip(bars, days):
+            for bar, val in zip(bars, days, strict=False):
                 ax.text(
                     val + 0.5,
                     bar.get_y() + bar.get_height() / 2,

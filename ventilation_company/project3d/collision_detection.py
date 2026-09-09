@@ -136,7 +136,7 @@ class CollisionDetector:
         eq_aabbs = [(eq, AABB.from_equipment(eq), tr, sys) for eq, tr, sys in all_equipment]
 
         # 1. Сегмент vs Стіна
-        for seg, aabb, trunk, system in seg_aabbs:
+        for seg, aabb, _trunk, _system in seg_aabbs:
             for wall in all_walls:
                 clearance = (
                     self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
@@ -156,8 +156,8 @@ class CollisionDetector:
                     )
 
         # 2. Сегмент vs Сегмент
-        for i, (seg_a, aabb_a, tr_a, sys_a) in enumerate(seg_aabbs):
-            for seg_b, aabb_b, tr_b, sys_b in seg_aabbs[i + 1 :]:
+        for i, (seg_a, aabb_a, _tr_a, _sys_a) in enumerate(seg_aabbs):
+            for seg_b, aabb_b, _tr_b, _sys_b in seg_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.DUCT_DUCT_CLEARANCE):
                     continue
                 if self._segment_hits_segment(seg_a, seg_b):
@@ -173,8 +173,8 @@ class CollisionDetector:
                     )
 
         # 3. Сегмент vs Фасонка
-        for seg, aabb_s, tr_s, sys_s in seg_aabbs:
-            for fit, aabb_f, tr_f, sys_f in fit_aabbs:
+        for seg, aabb_s, _tr_s, _sys_s in seg_aabbs:
+            for fit, aabb_f, _tr_f, _sys_f in fit_aabbs:
                 if not aabb_s.intersects(aabb_f, self.FITTING_CLEARANCE):
                     continue
                 if self._segment_hits_fitting(seg, fit):
@@ -190,8 +190,8 @@ class CollisionDetector:
                     )
 
         # 4. Сегмент vs Обладнання
-        for seg, aabb_s, tr_s, sys_s in seg_aabbs:
-            for eq, aabb_e, tr_e, sys_e in eq_aabbs:
+        for seg, aabb_s, _tr_s, _sys_s in seg_aabbs:
+            for eq, aabb_e, _tr_e, _sys_e in eq_aabbs:
                 if not aabb_s.intersects(aabb_e, self.EQUIPMENT_CLEARANCE):
                     continue
                 if self._segment_hits_equipment(seg, eq):
@@ -207,8 +207,8 @@ class CollisionDetector:
                     )
 
         # 5. Фасонка vs Фасонка
-        for i, (fit_a, aabb_a, tr_a, sys_a) in enumerate(fit_aabbs):
-            for fit_b, aabb_b, tr_b, sys_b in fit_aabbs[i + 1 :]:
+        for i, (fit_a, aabb_a, _tr_a, _sys_a) in enumerate(fit_aabbs):
+            for fit_b, aabb_b, _tr_b, _sys_b in fit_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.FITTING_CLEARANCE):
                     continue
                 if self._fitting_hits_fitting(fit_a, fit_b):
@@ -224,8 +224,8 @@ class CollisionDetector:
                     )
 
         # 6. Фасонка vs Обладнання
-        for fit, aabb_f, tr_f, sys_f in fit_aabbs:
-            for eq, aabb_e, tr_e, sys_e in eq_aabbs:
+        for fit, aabb_f, _tr_f, _sys_f in fit_aabbs:
+            for eq, aabb_e, _tr_e, _sys_e in eq_aabbs:
                 if not aabb_f.intersects(aabb_e, self.EQUIPMENT_CLEARANCE):
                     continue
                 if self._fitting_hits_equipment(fit, eq):
@@ -241,7 +241,7 @@ class CollisionDetector:
                     )
 
         # 7. Фасонка vs Стіна
-        for fit, aabb_f, tr_f, sys_f in fit_aabbs:
+        for fit, aabb_f, _tr_f, _sys_f in fit_aabbs:
             for wall in all_walls:
                 clearance = (
                     self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
@@ -261,7 +261,7 @@ class CollisionDetector:
                     )
 
         # 8. Обладнання vs Стіна
-        for eq, aabb_e, tr_e, sys_e in eq_aabbs:
+        for eq, aabb_e, _tr_e, _sys_e in eq_aabbs:
             for wall in all_walls:
                 clearance = (
                     self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
@@ -281,8 +281,8 @@ class CollisionDetector:
                     )
 
         # 9. Обладнання vs Обладнання
-        for i, (eq_a, aabb_a, tr_a, sys_a) in enumerate(eq_aabbs):
-            for eq_b, aabb_b, tr_b, sys_b in eq_aabbs[i + 1 :]:
+        for i, (eq_a, aabb_a, _tr_a, _sys_a) in enumerate(eq_aabbs):
+            for eq_b, aabb_b, _tr_b, _sys_b in eq_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.EQUIPMENT_CLEARANCE):
                     continue
                 if self._equipment_hits_equipment(eq_a, eq_b):

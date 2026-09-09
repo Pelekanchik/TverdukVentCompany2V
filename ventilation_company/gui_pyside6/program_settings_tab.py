@@ -896,7 +896,7 @@ class ProgramSettingsTab(QWidget):
 
             total_size = 0
             if os.path.exists("data"):
-                for dirpath, dirnames, filenames in os.walk("data"):
+                for dirpath, _dirnames, filenames in os.walk("data"):
                     for f in filenames:
                         fp = os.path.join(dirpath, f)
                         total_size += os.path.getsize(fp)

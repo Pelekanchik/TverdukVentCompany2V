@@ -654,4 +654,4 @@ class ProductLayout:
 
     def build_all(self, products: List[Dict[str, Any]]) -> List[MeshData]:
         positions = self.layout(products)
-        return [VentGeometry.build(p, pos) for p, pos in zip(products, positions)]
+        return [VentGeometry.build(p, pos) for p, pos in zip(products, positions, strict=False)]

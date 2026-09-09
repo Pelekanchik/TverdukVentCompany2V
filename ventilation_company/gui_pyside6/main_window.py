@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
             "settings": ProgramSettingsTab(current_user=self.user),  # <-- НОВЕ
         }
 
-        for key, tab in self.tabs.items():
+        for _key, tab in self.tabs.items():
             self.stack.addWidget(tab)
 
         self._on_tab_changed("dashboard")
