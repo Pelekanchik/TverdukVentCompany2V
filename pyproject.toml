@@ -47,6 +47,7 @@ exclude = '''
   | build
   | dist
   | __pycache__
+  | legacy
 )/
 '''
 
@@ -68,6 +69,7 @@ ignore = ["E501"]
 convention = "google"
 
 [tool.pytest.ini_options]
+norecursedirs = ["legacy", "data", "logs", "documents"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
