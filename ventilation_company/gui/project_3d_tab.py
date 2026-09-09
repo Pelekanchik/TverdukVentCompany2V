@@ -9,25 +9,16 @@
     • Імпорт/експорт IFC, DXF, STEP
 """
 
+import os
+import tkinter as tk
+from datetime import datetime
+from tkinter import filedialog, messagebox, ttk
 from typing import Optional
 
-import math
-import os
-from datetime import datetime
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
-
 from ventilation_company.project3d import (
-    VentProject,
-    ProjectConverter,
     Project3DPreview,
-    VentilationSystem,
-    VentilationTrunk,
-    DuctSegment,
-    Fitting,
-    Equipment,
-    Point3D,
-    Wall,
+    ProjectConverter,
+    VentProject,
 )
 from ventilation_company.project3d.preview_2d import Project2DPreview
 

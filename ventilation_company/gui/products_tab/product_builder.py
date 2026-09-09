@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from ventilation_company.standard_products import StandardProduct
 from ventilation_company.gui.products_tab.formula_utils import safe_float
+from ventilation_company.standard_products import StandardProduct
 
 
 @dataclass

@@ -3,36 +3,36 @@
 Використовує ventilation_company.metal_cutting для розрахунку розгорток.
 """
 
-from PySide6.QtCore import Qt, QRectF, QPointF
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTableView,
-    QComboBox,
-    QMessageBox,
-    QAbstractItemView,
-    QSplitter,
-    QSpinBox,
-    QDoubleSpinBox,
-    QLineEdit,
-    QDialog,
-    QFormLayout,
-    QDialogButtonBox,
-)
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
-    QStandardItemModel,
-    QStandardItem,
-    QPainter,
-    QPen,
     QBrush,
     QColor,
     QFont,
     QFontMetrics,
-    QWheelEvent,
     QMouseEvent,
+    QPainter,
+    QPen,
+    QStandardItem,
+    QStandardItemModel,
+    QWheelEvent,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ventilation_company.gui_pyside6.theme import Theme

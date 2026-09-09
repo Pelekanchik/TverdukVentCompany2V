@@ -1,12 +1,12 @@
 """Модуль автентифікації та авторизації VentCompany."""
 
 from ventilation_company.auth.permissions import (
-    Role,
-    ROLE_PERMISSIONS,
     ROLE_LABELS,
+    ROLE_PERMISSIONS,
     TAB_PERMISSIONS,
-    has_permission,
+    Role,
     get_role_label,
+    has_permission,
 )
 from ventilation_company.auth.service import AuthService, auth
 

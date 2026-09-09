@@ -4,14 +4,13 @@
   • 📁 Архів проєктів — збережені проєкти з фінансовою аналітикою
 """
 
-import subprocess
-
 import os
 import platform
 import sqlite3
+import subprocess
 import tempfile
-import webbrowser
 import tkinter as tk
+import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.auto_specification import SpecBuilder

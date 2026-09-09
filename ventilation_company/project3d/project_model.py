@@ -7,20 +7,19 @@ import json
 import os
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List
 
+from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor, Opening, Wall
 from ventilation_company.project3d.vent_system import (
+    DuctSegment,
+    DuctType,
+    Equipment,
+    Fitting,
+    Point3D,
     VentilationSystem,
     VentilationTrunk,
-    DuctSegment,
-    Fitting,
-    Equipment,
-    Point3D,
-    DuctType,
 )
-from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor, Wall, Opening
-from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor
 
 
 @dataclass

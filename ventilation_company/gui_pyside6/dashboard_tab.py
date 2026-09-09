@@ -5,13 +5,13 @@
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGridLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from sqlalchemy import extract, func
 
-from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
-from sqlalchemy import func, extract
+from ventilation_company.gui_pyside6.theme import Theme
 
 
 class StatCard(QFrame):

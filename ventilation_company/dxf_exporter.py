@@ -10,9 +10,8 @@
     Скопіюйте у ventilation_company/dxf_exporter.py
 """
 
-import math
-from typing import List
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass

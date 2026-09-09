@@ -1,14 +1,12 @@
 """Вкладка "Заявка на матеріали" — формування та експорт заявки для постачальника."""
 
-import os
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 from datetime import datetime
+from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.material_order import (
     MaterialItem,
     MaterialOrder,
-    MaterialCalculator,
     calculate_material_order,
     export_material_order_to_excel,
 )

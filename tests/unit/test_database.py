@@ -1,6 +1,5 @@
 """Тести бази даних та міграцій."""
 
-import pytest
 from decimal import Decimal
 
 

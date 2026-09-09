@@ -3,7 +3,7 @@
 import os
 import tempfile
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 from typing import Optional
 
 import matplotlib
@@ -11,9 +11,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import numpy as np
 
 from ventilation_company.project3d.project_model import VentProject
 from ventilation_company.project3d.vent_system import Point3D

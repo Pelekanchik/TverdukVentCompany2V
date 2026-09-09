@@ -11,8 +11,8 @@
     5. Перевіряє результат
 """
 
-import sys
 import subprocess
+import sys
 
 
 def install_package(pkg):
@@ -28,10 +28,11 @@ install_package("psycopg2-binary")
 install_package("sqlalchemy")
 install_package("python-dotenv")
 
+import os
+
 import psycopg2
 from psycopg2 import sql
-from sqlalchemy import create_engine, inspect, text
-import os
+from sqlalchemy import create_engine, inspect
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = "ventcompany"
@@ -126,12 +127,12 @@ database_url = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 try:
     sys.path.insert(0, BASE)
-    from ventilation_company.database.db import engine, check_db_connection
-    from ventilation_company.database.base import Base
-    from ventilation_company.database.models import *
-
     # Перевизначаємо engine з правильним URL
     from sqlalchemy import create_engine
+
+    from ventilation_company.database.base import Base
+    from ventilation_company.database.db import check_db_connection, engine
+    from ventilation_company.database.models import *
 
     engine = create_engine(database_url, echo=False, future=True)
 

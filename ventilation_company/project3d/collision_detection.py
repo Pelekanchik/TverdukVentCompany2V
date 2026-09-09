@@ -14,16 +14,15 @@
 
 import math
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set
+from typing import List, Optional, Set, Tuple
 
+from ventilation_company.project3d.arch_context import Opening, Wall
 from ventilation_company.project3d.vent_system import (
     DuctSegment,
-    DuctShape,
-    Fitting,
     Equipment,
+    Fitting,
     Point3D,
 )
-from ventilation_company.project3d.arch_context import Wall, Opening
 
 
 @dataclass

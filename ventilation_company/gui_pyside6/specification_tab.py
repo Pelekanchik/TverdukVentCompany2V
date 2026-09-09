@@ -4,26 +4,25 @@
 Всі операції (додавання, редагування, видалення) працюють з БД через ProductRepository.
 """
 
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QAbstractItemView,
+    QComboBox,
+    QDialog,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableView,
-    QComboBox,
-    QMessageBox,
-    QAbstractItemView,
-    QDialog,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem
 
-from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.products_tab import ProductDialog
+from ventilation_company.gui_pyside6.theme import Theme
 
 
 class SpecificationTab(QWidget):

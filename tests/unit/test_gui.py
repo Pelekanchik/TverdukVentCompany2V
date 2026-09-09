@@ -1,8 +1,5 @@
 """Тести GUI-компонентів."""
 
-import pytest
-import tkinter as tk
-
 
 class TestPresetDialog:
     """Тести діалогу пресетів."""
@@ -26,8 +23,11 @@ class TestProductsTab:
 
     def test_add_product_increases_count(self):
         """Додавання виробу збільшує кількість."""
-        from ventilation_company.standard_products import ProductLibrary, make_rect_duct
-        from ventilation_company.standard_products import MaterialType
+        from ventilation_company.standard_products import (
+            MaterialType,
+            ProductLibrary,
+            make_rect_duct,
+        )
 
         lib = ProductLibrary()
         lib.add(make_rect_duct(100, 50, 500, 0.7, MaterialType.GALVANIZED))

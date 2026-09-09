@@ -1,15 +1,12 @@
 """Вкладка FreeCAD — 3D-моделі, попередній перегляд та експорт."""
 
-import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.freecad_models import (
-    FREECAD_AVAILABLE,
-    FREECAD_VERSION,
-    get_freecad_info,
-    export_products_to_freecad,
     export_batch,
+    export_products_to_freecad,
+    get_freecad_info,
     show_preview,
 )
 

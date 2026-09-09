@@ -1,8 +1,8 @@
 """Дашборд для директора — графіки та KPI (Industrial Orange Edition)."""
 
 import tkinter as tk
+from datetime import datetime
 from tkinter import ttk
-from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg

@@ -3,8 +3,8 @@ Generates mesh data for matplotlib preview and parameters for FreeCAD macro.
 """
 
 import math
-from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Any, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
 
 
 @dataclass

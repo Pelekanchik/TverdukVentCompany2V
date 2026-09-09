@@ -9,14 +9,14 @@
     • Файл .env і data/.setup_credentials.json не мають потрапляти в Git.
 """
 
-import os
-import sys
 import json
-import stat
-import secrets
-import string
 import logging
+import os
+import secrets
+import stat
+import string
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -29,12 +29,13 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-from ventilation_company.database.db import engine, check_db_connection
-from ventilation_company.database.base import Base
-from ventilation_company.database.models import *  # noqa: F401,F403 - реєстрація моделей
-from ventilation_company.auth.service import auth
-from ventilation_company.auth.password_policy import validate_password
 from sqlalchemy.orm import Session
+
+from ventilation_company.auth.password_policy import validate_password
+from ventilation_company.auth.service import auth
+from ventilation_company.database.base import Base
+from ventilation_company.database.db import check_db_connection, engine
+from ventilation_company.database.models import *  # noqa: F401,F403 - реєстрація моделей
 
 
 def _generate_strong_password(length: int = 16) -> str:

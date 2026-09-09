@@ -4,12 +4,12 @@
     python demo_stage4.py
 """
 
+from ventilation_company.metal_cutting import estimate_metal_needed_for_standard_products
 from ventilation_company.standard_products import (
     ProductLibrary,
     make_rect_duct,
     make_round_duct,
 )
-from ventilation_company.metal_cutting import estimate_metal_needed_for_standard_products
 
 
 def demo():

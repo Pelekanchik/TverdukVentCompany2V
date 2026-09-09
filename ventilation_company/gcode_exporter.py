@@ -11,9 +11,8 @@
     Скопіюйте у ventilation_company/gcode_exporter.py
 """
 
-import math
-from typing import List
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass

@@ -7,32 +7,31 @@
   Прибуток = ціна (зі знижкою) − собівартість               [auto]
 """
 
-from PySide6.QtCore import Qt
+from datetime import datetime
+
+from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QAbstractItemView,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QTableView,
     QLineEdit,
     QMessageBox,
-    QAbstractItemView,
-    QDialog,
-    QFormLayout,
-    QDialogButtonBox,
-    QComboBox,
-    QDoubleSpinBox,
-    QSpinBox,
+    QPushButton,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 
-from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
-from datetime import datetime
+from ventilation_company.gui_pyside6.theme import Theme
 
 
 class ProjectEditDialog(QDialog):

@@ -1,13 +1,15 @@
 """Вкладка "Вироби" для GUI."""
 
-import copy
 import re
 import tkinter as tk
 from collections.abc import Callable
 from dataclasses import fields
 from tkinter import filedialog, messagebox, ttk
 
+from ventilation_company.db_integration import get_db
 from ventilation_company.freecad_models import FREECAD_AVAILABLE, export_products_to_freecad
+from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
+from ventilation_company.gui.settings_tab import PricingSettings
 from ventilation_company.standard_products import (
     FlexibleConnector,
     MaterialType,
@@ -27,12 +29,6 @@ from ventilation_company.standard_products import (
     make_rect_duct,
     make_round_duct,
 )
-
-from ventilation_company.gui.preset_dialog import choose_preset
-from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
-from ventilation_company.gui.settings_tab import PricingSettings
-from ventilation_company.gui.settings_tab import PricingSettings
-from ventilation_company.db_integration import get_db
 
 # ── TOOLTIP КЛАС ────────────────────────────────────────────
 

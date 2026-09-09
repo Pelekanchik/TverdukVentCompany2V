@@ -1,11 +1,12 @@
 """Тести стандартних виробів та бібліотеки."""
 
 import pytest
+
 from ventilation_company.standard_products import (
-    make_rect_duct,
-    make_round_duct,
     MaterialType,
     ProductLibrary,
+    make_rect_duct,
+    make_round_duct,
 )
 
 

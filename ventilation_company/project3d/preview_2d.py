@@ -7,12 +7,11 @@ import math
 import os
 import tempfile
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
-from typing import Optional, Callable, Tuple, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
+from tkinter import filedialog, messagebox, simpledialog, ttk
+from typing import Any, Callable, Optional, Tuple
 
-import numpy as np
 from PIL import Image
 
 try:
@@ -22,9 +21,9 @@ try:
 except ImportError:
     HAS_PYMUPDF = False
 
+from ventilation_company.project3d.arch_context import Floor, Opening, Wall
 from ventilation_company.project3d.project_model import VentProject
-from ventilation_company.project3d.vent_system import DuctSegment, Point3D, DuctShape, DuctType
-from ventilation_company.project3d.arch_context import Wall, Opening, Floor, WallMaterial
+from ventilation_company.project3d.vent_system import DuctSegment, DuctShape, DuctType, Point3D
 
 
 class DrawingTool(Enum):

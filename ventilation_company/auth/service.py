@@ -9,18 +9,18 @@
 
 from __future__ import annotations
 
-from ventilation_company.auth.password_policy import (
-    hash_password,
-    verify_password,
-    validate_password,
-    PasswordValidationResult,
-)
 import json
 import os
 import secrets
 import stat
 from typing import Optional
 
+from ventilation_company.auth.password_policy import (
+    PasswordValidationResult,
+    hash_password,
+    validate_password,
+    verify_password,
+)
 from ventilation_company.auth.permissions import Role, has_permission
 from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.user import UserORM

@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("salary")

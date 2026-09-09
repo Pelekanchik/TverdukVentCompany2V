@@ -1,7 +1,8 @@
 """Тести ціноутворення та фінансових розрахунків."""
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 
 class TestSalaryCalculation:

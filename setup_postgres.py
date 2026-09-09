@@ -5,8 +5,8 @@
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MIGRATIONS_DIR = os.path.join(BASE_DIR, "migrations")

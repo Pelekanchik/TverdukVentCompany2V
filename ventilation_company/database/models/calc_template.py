@@ -6,7 +6,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Integer, String, Text, DateTime
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base

@@ -5,10 +5,9 @@
 - Покращені стилі: rounded кнопки, hover-ефекти, кольорові KPI, zebra-таблиці
 """
 
-import tkinter as tk
-
 import json
 import os
+import tkinter as tk
 from tkinter import ttk
 
 _THEME_FILE = os.path.join("data", "theme.json")

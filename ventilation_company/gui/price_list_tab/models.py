@@ -10,44 +10,23 @@
 
 from __future__ import annotations
 
-import csv
-import io
+import importlib.util
 import json
 import os
-import tkinter as tk
 import zipfile
-from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
 from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("price_list")
-from decimal import Decimal
 from datetime import datetime
-from tkinter import filedialog, messagebox, ttk
+from decimal import Decimal
 
 # Спробуємо імпортувати openpyxl для Excel
-HAVE_OPENPYXL = False
-try:
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-    HAVE_OPENPYXL = True
-except ImportError:
-    pass
+HAVE_OPENPYXL = importlib.util.find_spec("openpyxl") is not None
 
 # Спробуємо імпортувати reportlab для PDF
-HAVE_REPORTLAB = False
-try:
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-
-    HAVE_REPORTLAB = True
-except ImportError:
-    pass
+HAVE_REPORTLAB = importlib.util.find_spec("reportlab") is not None
 
 
 PRICE_LIST_FILE = "data/price_list.json"

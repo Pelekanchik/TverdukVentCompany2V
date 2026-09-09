@@ -11,16 +11,13 @@
 Генерація Excel-файлу заявки через openpyxl.
 """
 
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, NamedStyle
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 
-from ventilation_company.config import MATERIALS, COMPONENTS
+from ventilation_company.config import COMPONENTS, MATERIALS
 
 
 @dataclass

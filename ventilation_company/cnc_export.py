@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
-from ventilation_company.metal_cutting import CuttingPlan, Sheet, PlacedDetail
+from ventilation_company.metal_cutting import CuttingPlan, PlacedDetail, Sheet
 
 
 @dataclass

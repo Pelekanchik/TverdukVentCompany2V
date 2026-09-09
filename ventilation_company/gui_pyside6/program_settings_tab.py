@@ -20,52 +20,52 @@ import subprocess
 from datetime import datetime
 from urllib.parse import urlparse
 
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QTabWidget,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-    QMessageBox,
-    QGroupBox,
-    QScrollArea,
-    QFrame,
-    QRadioButton,
-    QComboBox,
-    QSpinBox,
-    QCheckBox,
-    QListWidget,
-    QTextEdit,
-    QFileDialog,
-    QDialog,
-    QDialogButtonBox,
-    QFormLayout,
-)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
+from ventilation_company.auth.service import auth
+from ventilation_company.database.base import Base
 from ventilation_company.database.db import (
-    engine,
-    check_db_connection,
     DATABASE_URL,
-    POOL_SIZE,
     MAX_OVERFLOW,
     POOL_RECYCLE,
+    POOL_SIZE,
     SessionLocal,
+    check_db_connection,
+    engine,
 )
-from ventilation_company.database.base import Base
-from ventilation_company.database.models.user import UserORM
-from ventilation_company.database.models.project import Project
 from ventilation_company.database.models.calc import CalcSetting
-from ventilation_company.utils.backup import create_backup, restore_backup
-from ventilation_company.auth.service import auth
+from ventilation_company.database.models.project import Project
+from ventilation_company.database.models.user import UserORM
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.utils.backup import create_backup, restore_backup
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
 INDUSTRIAL_QSS = ""

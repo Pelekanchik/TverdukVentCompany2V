@@ -15,8 +15,8 @@ def _init_db_tables():
 
     Спочатку пробуємо Alembic (міграції), якщо не вдалось — fallback на create_all().
     """
+    from ventilation_company.utils.backup import cleanup_old_backups, create_backup
     from ventilation_company.utils.logging_config import setup_logging
-    from ventilation_company.utils.backup import create_backup, cleanup_old_backups
 
     logger = setup_logging()
     create_backup()
@@ -39,7 +39,6 @@ def _init_db_tables():
         logger.warning("Alembic недоступний або таймаут: %s", e)
 
     try:
-        import ventilation_company.database.models
         from ventilation_company.database.base import Base
         from ventilation_company.database.db import engine
 

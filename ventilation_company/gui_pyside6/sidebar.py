@@ -1,10 +1,9 @@
 """Бічна панель навігації (PySide6)."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.services.auth_service import AuthUser
 
 
 class SidebarItem(QPushButton):

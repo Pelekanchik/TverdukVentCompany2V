@@ -1,12 +1,10 @@
 """Двигун ціноутворення — Cost-plus, Competitive, Value-based."""
 
-from decimal import Decimal
-
 from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("pricing")
 
-from ventilation_company.config import VAT_RATE, OVERHEAD_PERCENTAGE
+from ventilation_company.config import VAT_RATE
 
 
 class PricingEngine:

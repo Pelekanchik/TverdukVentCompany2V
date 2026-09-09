@@ -5,8 +5,7 @@
     Theme.apply(app)
 """
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPalette, QFont
+from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
 

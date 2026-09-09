@@ -4,17 +4,14 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from ventilation_company.aerodynamics import (
-    AIR_DENSITY,
+    AerodynamicRoute,
     DuctSection,
     DuctShape,
     Fitting,
     FittingType,
-    AerodynamicRoute,
-    select_fan,
     get_all_fan_types,
     get_fitting_types,
-    FITTING_ZETA,
-    GRAVITY,
+    select_fan,
 )
 
 

@@ -1,6 +1,7 @@
 """Репозиторій для робіт проєкту (ProjectWork) — v2.3."""
 
 from typing import List
+
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import ProjectWork
 

@@ -4,20 +4,20 @@
 """
 
 from ventilation_company.standard_products import (
-    RectDuct,
-    RoundDuct,
-    RectElbow,
-    RoundElbow,
-    RectFlange,
-    RoundFlange,
-    RectTee,
-    RoundTee,
-    RectTransition,
-    RoundTransition,
-    RectCap,
-    RoundCap,
     FlexibleConnector,
     MaterialType,
+    RectCap,
+    RectDuct,
+    RectElbow,
+    RectFlange,
+    RectTee,
+    RectTransition,
+    RoundCap,
+    RoundDuct,
+    RoundElbow,
+    RoundFlange,
+    RoundTee,
+    RoundTransition,
     Thickness,
 )
 

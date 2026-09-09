@@ -4,7 +4,8 @@
 """
 
 from datetime import datetime
-from sqlalchemy import Float, ForeignKey, Integer, Numeric, String, Text, DateTime
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base

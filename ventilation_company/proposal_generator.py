@@ -10,9 +10,9 @@
 """
 
 import os
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import List
 
 try:
     from fpdf import FPDF

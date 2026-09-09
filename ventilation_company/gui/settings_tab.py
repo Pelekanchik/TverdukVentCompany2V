@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 """Вкладка "💰 Ціноутворення" для GUI.
 
 Налаштування:
@@ -22,19 +20,18 @@ from tkinter import messagebox, ttk
 
 from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_engine_cache
 
+# ═══════════════════════════════════════════════════════════════════
+# 🔒 БЕЗПЕКА: заміна небезпечного eval() на SafeFormulaEvaluator
+# ═══════════════════════════════════════════════════════════════════
+from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
 from ventilation_company.gui.markup_matrix_tab import (
-    MarkupMatrixTab,
     PRODUCT_TYPE_LABELS,
+    MarkupMatrixTab,
     build_default_markup_matrix,
     classify_product,
     is_standard_size,
 )
 from ventilation_company.gui.theme_manager import get_theme_manager
-
-# ═══════════════════════════════════════════════════════════════════
-# 🔒 БЕЗПЕКА: заміна небезпечного eval() на SafeFormulaEvaluator
-# ═══════════════════════════════════════════════════════════════════
-from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
 
 SETTINGS_FILE = "data/pricing_settings.json"
 

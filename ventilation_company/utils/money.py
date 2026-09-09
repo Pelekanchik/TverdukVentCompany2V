@@ -5,7 +5,7 @@
   Decimal: Decimal('0.1') + Decimal('0.2') = Decimal('0.3')  ✅
 """
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 # Контекст для всіх грошових операцій
 MONEY_CONTEXT = Decimal("0.01")  # точність до копійки

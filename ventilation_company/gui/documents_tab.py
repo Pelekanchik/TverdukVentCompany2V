@@ -6,11 +6,11 @@ from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
 from ventilation_company.documents import (
-    Invoice,
-    DeliveryNote,
-    WorkAct,
-    CompanyInfo,
     DEFAULT_COMPANY,
+    CompanyInfo,
+    DeliveryNote,
+    Invoice,
+    WorkAct,
 )
 from ventilation_company.gui.price_list_tab.models import PriceListManager
 from ventilation_company.utils.logging_config import get_logger

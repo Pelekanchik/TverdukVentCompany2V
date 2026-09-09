@@ -3,16 +3,16 @@
 import matplotlib
 
 matplotlib.use("TkAgg")
+from datetime import datetime
+
+import matplotlib.patches as mpatches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-import matplotlib.patches as mpatches
-from datetime import datetime, timedelta
 
 from ventilation_company.production_models import (
     OperationStatus,
     OperationType,
     ProductionPlan,
-    ScheduledOperation,
 )
 
 # Кольори операцій

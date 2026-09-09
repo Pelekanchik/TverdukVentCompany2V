@@ -1,23 +1,22 @@
 """Утиліти для роботи з формулами розрахунку площі металу."""
 
-import math
 import re
 from typing import Any
 
 from ventilation_company.standard_products import (
-    RectDuct,
-    RoundDuct,
-    RectFlange,
-    RoundFlange,
-    RectTee,
-    RoundTee,
-    RectTransition,
-    RoundTransition,
-    RectElbow,
-    RoundElbow,
-    RectCap,
-    RoundCap,
     FlexibleConnector,
+    RectCap,
+    RectDuct,
+    RectElbow,
+    RectFlange,
+    RectTee,
+    RectTransition,
+    RoundCap,
+    RoundDuct,
+    RoundElbow,
+    RoundFlange,
+    RoundTee,
+    RoundTransition,
 )
 
 

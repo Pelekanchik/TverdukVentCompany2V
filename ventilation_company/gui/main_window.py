@@ -1,7 +1,5 @@
 """Головне вікно додатку VentCompany — Compact Header Edition."""
 
-from ventilation_company.services.project_service import ProjectService
-
 import json
 import os
 import sys
@@ -9,24 +7,24 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox, ttk
 
-from ventilation_company.gui.cabinet_tab import CabinetTab
-from ventilation_company.auth.service import auth
 from ventilation_company.auth.permissions import TAB_PERMISSIONS, get_role_label
-from ventilation_company.gui.login_window import show_login
+from ventilation_company.auth.service import auth
 from ventilation_company.db_integration import ProjectDatabase, save_project_full
+from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
+from ventilation_company.gui.cabinet_tab import CabinetTab
+from ventilation_company.gui.crm_tab import CRMTab
 from ventilation_company.gui.cutting_tab import CuttingTab
-from ventilation_company.gui.project_3d_tab import Project3DTab
-from ventilation_company.gui.products_tab import ProductsTab
+from ventilation_company.gui.dashboard_tab import DashboardTab
 from ventilation_company.gui.documents_tab import DocumentsTab
+from ventilation_company.gui.login_window import show_login
+from ventilation_company.gui.material_order_tab import MaterialOrderTab
+from ventilation_company.gui.production_tab import ProductionTab
+from ventilation_company.gui.products_tab import ProductsTab
+from ventilation_company.gui.project_3d_tab import Project3DTab
 from ventilation_company.gui.settings_tab import SettingsTab
 from ventilation_company.gui.specification_tab import SpecificationTab
-from ventilation_company.gui.production_tab import ProductionTab
-from ventilation_company.gui.material_order_tab import MaterialOrderTab
-from ventilation_company.gui.metal_prices_tab import MetalPricesTab
-from ventilation_company.gui.aerodynamics_tab import AerodynamicsTab
-from ventilation_company.gui.crm_tab import CRMTab
-from ventilation_company.gui.dashboard_tab import DashboardTab
 from ventilation_company.gui.theme_manager import get_theme_manager
+from ventilation_company.services.project_service import ProjectService
 
 
 class MainWindow:
@@ -683,8 +681,8 @@ class MainWindow:
         products = self.db.get_project_products(project_id)
 
         # === ПЕРЕРАХУНОК ЦІН ТА ЗАРПЛАТИ при завантаженні ===
-        from ventilation_company.gui.settings_tab import PricingSettings
         from ventilation_company.calculations.cost_engine import CostEngine
+        from ventilation_company.gui.settings_tab import PricingSettings
 
         settings = PricingSettings.get_instance()
         engine = CostEngine(settings)

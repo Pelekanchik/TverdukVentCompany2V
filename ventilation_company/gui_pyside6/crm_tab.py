@@ -3,24 +3,23 @@
 Таблиця клієнтів з пошуком, фільтрами, діалогом додавання/редагування.
 """
 
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QAbstractItemView,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
+    QMessageBox,
     QPushButton,
     QTableView,
-    QLineEdit,
-    QComboBox,
-    QMessageBox,
-    QAbstractItemView,
-    QDialog,
-    QFormLayout,
-    QDialogButtonBox,
     QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor
 
 from ventilation_company.gui_pyside6.theme import Theme
 

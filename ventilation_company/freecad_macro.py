@@ -13,9 +13,9 @@ Improvements over v1:
 """
 
 import json
-import sys
-import os
 import math
+import os
+import sys
 
 # Fix Windows console encoding
 try:
@@ -27,9 +27,9 @@ except Exception:
     pass
 
 try:
+    import Draft
     import FreeCAD
     import Part
-    import Draft
 
     FREECAD_OK = True
 except ImportError:

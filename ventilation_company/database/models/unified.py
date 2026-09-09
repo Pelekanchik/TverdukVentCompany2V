@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    DateTime,
     Float,
     ForeignKey,
     Index,
@@ -19,8 +20,6 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    DateTime,
-    JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

@@ -1,6 +1,5 @@
 """PricingService — єдиний сервіс розрахунку ціни виробу."""
 
-from decimal import Decimal
 from ventilation_company.standard_products import StandardProduct
 
 

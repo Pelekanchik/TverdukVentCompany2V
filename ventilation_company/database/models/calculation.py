@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 # ДОДАТИ на початок файлу (після імпортів sqlalchemy):
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from decimal import Decimal
 
 from ventilation_company.database.base import Base
 

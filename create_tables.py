@@ -4,14 +4,14 @@
     python create_tables.py
 """
 
-import sys
 import os
+import sys
 
 # Додаємо корінь проєкту
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ventilation_company.database.db import engine, check_db_connection, DATABASE_URL
 from ventilation_company.database.base import Base
+from ventilation_company.database.db import DATABASE_URL, check_db_connection, engine
 from ventilation_company.database.models import *  # noqa: F401, F403
 
 print(f"Підключення до: {DATABASE_URL}")

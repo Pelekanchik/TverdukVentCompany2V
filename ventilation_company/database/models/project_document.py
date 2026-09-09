@@ -11,7 +11,8 @@
 """
 
 from datetime import datetime
-from sqlalchemy import Integer, String, LargeBinary, DateTime, ForeignKey
+
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base

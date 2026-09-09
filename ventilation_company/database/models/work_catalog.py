@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-
-from sqlalchemy import Float, Index, Integer, Numeric, String
+from sqlalchemy import Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ventilation_company.database.base import Base

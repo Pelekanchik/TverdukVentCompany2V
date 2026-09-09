@@ -1,15 +1,14 @@
 """Діалог вибору пресету з бібліотеки типових розмірів + 3D прев'ю."""
 
-from ventilation_company.freecad_models import FREECAD_AVAILABLE, build_product_model
-
 import copy
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from ventilation_company.product_presets_manager import PresetsManager
-from ventilation_company.gui.preview_3d import ProductPreview3D
-from ventilation_company.standard_products import StandardProduct
+from ventilation_company.freecad_models import FREECAD_AVAILABLE, build_product_model
 from ventilation_company.gui.dialog_utils import setup_dialog
+from ventilation_company.gui.preview_3d import ProductPreview3D
+from ventilation_company.product_presets_manager import PresetsManager
+from ventilation_company.standard_products import StandardProduct
 
 
 class PresetDialog:

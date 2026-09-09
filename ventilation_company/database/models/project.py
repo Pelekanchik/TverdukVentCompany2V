@@ -7,22 +7,23 @@
 """
 
 from __future__ import annotations
-from .calculation import Calculation
 
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, Numeric, String, Text, DateTime
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
 
+from .calculation import Calculation
+
 if TYPE_CHECKING:
     from ventilation_company.database.models.unified import (
+        CuttingPlan,
         ProjectProduct,
         Specification,
-        CuttingPlan,
     )
 
 

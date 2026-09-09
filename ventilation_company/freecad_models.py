@@ -9,20 +9,19 @@
   • Пакетний експорт
 """
 
-from datetime import datetime
-
 import json
 import os
-import subprocess
-import tempfile
 import platform
 import shutil
+import subprocess
 import sys
-from typing import List, Any, Optional, Callable
+import tempfile
+from datetime import datetime
+from typing import Any, Callable, List, Optional
 
 # ── Імпорт прев'ю ──
 try:
-    from ventilation_company.freecad_preview import FreeCADPreview, show_preview_dialog
+    from ventilation_company.freecad_preview import show_preview_dialog
 
     PREVIEW_AVAILABLE = True
 except ImportError:

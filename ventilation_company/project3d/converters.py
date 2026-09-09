@@ -8,33 +8,30 @@
   • Власний формат .ventproj
 """
 
-from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
-
-import os
 import json
-import tempfile
+import os
 import subprocess
-from typing import Optional, List, Dict, Any, Tuple
+import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from ventilation_company.project3d.project_model import VentProject
-from ventilation_company.project3d.vent_system import (
-    Point3D,
-    DuctSegment,
-    DuctShape,
-    DuctType,
-    VentilationTrunk,
-    VentilationSystem,
-    Fitting,
-    Equipment,
-)
+from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
 from ventilation_company.project3d.arch_context import (
-    ArchitecturalContext,
     Floor,
+    Opening,
     Wall,
     WallMaterial,
-    Opening,
+)
+from ventilation_company.project3d.project_model import VentProject
+from ventilation_company.project3d.vent_system import (
+    DuctSegment,
+    DuctShape,
+    Equipment,
+    Fitting,
+    Point3D,
+    VentilationSystem,
+    VentilationTrunk,
 )
 
 # ── Перевірка доступності бібліотек ──

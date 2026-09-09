@@ -6,8 +6,8 @@
 import math
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 from ventilation_company.project3d.vent_system import Point3D
 

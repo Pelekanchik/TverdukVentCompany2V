@@ -1,22 +1,22 @@
 """Головне вікно VentCompany (PySide6) — з вкладкою Налаштування."""
 
 import sys
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget
 
-from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.gui_pyside6.sidebar import Sidebar
-from ventilation_company.gui_pyside6.login_dialog import LoginDialog
-from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
-from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
-from ventilation_company.gui_pyside6.products_tab import ProductsTab
-from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
-from ventilation_company.gui_pyside6.cutting_tab import CuttingTab
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
+
 from ventilation_company.gui_pyside6.crm_tab import CRMTab
-from ventilation_company.gui_pyside6.pricing_tab import PricingTab
+from ventilation_company.gui_pyside6.cutting_tab import CuttingTab
+from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
 from ventilation_company.gui_pyside6.documents_tab import DocumentsTab
+from ventilation_company.gui_pyside6.login_dialog import LoginDialog
+from ventilation_company.gui_pyside6.pricing_tab import PricingTab
+from ventilation_company.gui_pyside6.products_tab import ProductsTab
 from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
-from ventilation_company.services.auth_service import AuthService, AuthUser
+from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
+from ventilation_company.gui_pyside6.sidebar import Sidebar
+from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
+from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.auth_service import AuthUser
 
 
 class MainWindow(QMainWindow):

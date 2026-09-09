@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from ventilation_company.utils.logging_config import get_logger
 from ventilation_company.utils.backup import create_backup
+from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("price_importer")
 

@@ -1,12 +1,14 @@
 """Додавання користувача в PostgreSQL."""
 
-import sys, os
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import bcrypt
+
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.user import UserORM
-import bcrypt
 
 print("=" * 50)
 print("  Додавання користувача в PostgreSQL")

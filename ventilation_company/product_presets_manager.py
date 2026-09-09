@@ -3,28 +3,24 @@
 CRUD операції + збереження в JSON.
 """
 
-import json
-import os
 import copy
-from dataclasses import asdict
+import json
 from pathlib import Path
 
 from ventilation_company.standard_products import (
-    RectDuct,
-    RoundDuct,
-    RectElbow,
-    RoundElbow,
-    RectFlange,
-    RoundFlange,
-    RectTee,
-    RoundTee,
-    RectTransition,
-    RoundTransition,
-    RectCap,
-    RoundCap,
     FlexibleConnector,
-    MaterialType,
-    Thickness,
+    RectCap,
+    RectDuct,
+    RectElbow,
+    RectFlange,
+    RectTee,
+    RectTransition,
+    RoundCap,
+    RoundDuct,
+    RoundElbow,
+    RoundFlange,
+    RoundTee,
+    RoundTransition,
     StandardProduct,
 )
 

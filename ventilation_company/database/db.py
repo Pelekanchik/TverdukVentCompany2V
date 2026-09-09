@@ -6,14 +6,14 @@
         ...
 """
 
-import os
 import logging
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import scoped_session, sessionmaker
-from dotenv import load_dotenv
 
 # === ВАЖЛИВО: явний шлях до .env ===
 env_path = Path(__file__).resolve().parent.parent.parent / ".env"

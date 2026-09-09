@@ -8,8 +8,8 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from ventilation_company.auth.service import auth
 from ventilation_company.auth.permissions import get_role_label
+from ventilation_company.auth.service import auth
 
 
 class CabinetTab(ttk.Frame):

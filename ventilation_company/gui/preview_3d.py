@@ -4,16 +4,15 @@
 """
 
 import tkinter as tk
-from tkinter import ttk
 
 import matplotlib
 
 matplotlib.use("TkAgg")
+import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import numpy as np
 
 # ═══════════════════════════════════════════════════════════
 # КОЛІРНА СХЕМА

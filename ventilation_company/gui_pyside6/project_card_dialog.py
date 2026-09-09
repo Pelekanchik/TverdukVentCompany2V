@@ -8,38 +8,33 @@
   Прибуток = ціна (зі знижкою) − собівартість − роботи − витрати
 """
 
-from PySide6.QtGui import QBrush, QColor
-
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTabWidget,
-    QTableView,
-    QAbstractItemView,
-    QMessageBox,
+    QDialogButtonBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
-    QWidget,
+    QHBoxLayout,
+    QLabel,
     QLineEdit,
-    QDoubleSpinBox,
-    QSpinBox,
-    QDialogButtonBox,
+    QMessageBox,
+    QPushButton,
+    QTableView,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem
 
-from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
-from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
+from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.theme import Theme
 
 
 class WorkEditDialog(QDialog):

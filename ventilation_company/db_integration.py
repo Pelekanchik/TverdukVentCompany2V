@@ -20,9 +20,6 @@ from sqlalchemy.orm import Session
 
 from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.project import Project
-from ventilation_company.utils.backup import create_backup
-from ventilation_company.utils.logging_config import get_logger
-from ventilation_company.utils.money import to_decimal, money_round
 from ventilation_company.database.models.unified import (
     Client,
     ClientProject,
@@ -35,6 +32,8 @@ from ventilation_company.database.models.unified import (
     StandardProductLibrary,
     WarrantyReminder,
 )
+from ventilation_company.utils.logging_config import get_logger
+from ventilation_company.utils.money import money_round
 
 _logger = get_logger("db_integration")
 

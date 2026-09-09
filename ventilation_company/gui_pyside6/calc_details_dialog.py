@@ -4,23 +4,23 @@
 """
 
 from copy import deepcopy
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QFormLayout,
-    QDoubleSpinBox,
-    QGroupBox,
-    QMessageBox,
-    QWidget,
     QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
 
+from ventilation_company.calculations.cost_engine import CostEngine
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdown
 
 
 class CalcDetailsDialog(QDialog):

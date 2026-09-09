@@ -3,30 +3,29 @@
 ВИПРАВЛЕННЯ: документи зберігаються в БД (project_documents), а не у файловій системі.
 """
 
-from PySide6.QtCore import Qt
+import io
+from datetime import datetime
+
+import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QComboBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QComboBox,
     QMessageBox,
-    QGridLayout,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
-from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
-
-import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from datetime import datetime
-import io
+from ventilation_company.gui_pyside6.theme import Theme
 
 
 class DocumentsTab(QWidget):

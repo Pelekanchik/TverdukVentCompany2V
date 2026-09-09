@@ -1,6 +1,5 @@
 """Інтеграційні тести (end-to-end)."""
 
-import pytest
 from decimal import Decimal
 
 

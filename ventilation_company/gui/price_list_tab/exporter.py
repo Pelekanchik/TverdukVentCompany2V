@@ -11,22 +11,15 @@
 from __future__ import annotations
 
 import csv
-import pathlib
 import io
-import json
-import os
-import tkinter as tk
-import zipfile
-from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+import pathlib
 from datetime import datetime
-from tkinter import filedialog, messagebox, ttk
 
 # Спробуємо імпортувати openpyxl для Excel
 HAVE_OPENPYXL = False
 try:
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     HAVE_OPENPYXL = True
 except ImportError:
@@ -38,11 +31,11 @@ _PDF_FONT_NAME = "Helvetica"
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     # Реєструємо системний шрифт з підтримкою кирилиці
     for _fp in [

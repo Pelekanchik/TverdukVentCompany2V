@@ -5,8 +5,6 @@
 """
 
 from ventilation_company.standard_products import (
-    RectDuct,
-    RoundDuct,
     RectElbow,
     make_rect_duct,
     make_round_duct,

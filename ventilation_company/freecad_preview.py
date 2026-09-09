@@ -4,7 +4,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, List, Optional
 
 try:
     import matplotlib
@@ -12,14 +12,13 @@ try:
     matplotlib.use("TkAgg")
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
     from matplotlib.figure import Figure
-    from mpl_toolkits.mplot3d import Axes3D
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     MATPLOTLIB_OK = True
 except ImportError:
     MATPLOTLIB_OK = False
 
-from ventilation_company.freecad_geometry import VentGeometry, ProductLayout, MeshData
+from ventilation_company.freecad_geometry import MeshData, ProductLayout
 
 
 class FreeCADPreview:

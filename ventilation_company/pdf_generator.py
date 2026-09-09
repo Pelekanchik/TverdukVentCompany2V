@@ -5,7 +5,7 @@
 
 import os
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 try:
     from fpdf import FPDF

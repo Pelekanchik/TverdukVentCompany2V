@@ -13,30 +13,20 @@
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QDoubleSpinBox,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableView,
-    QComboBox,
-    QMessageBox,
-    QAbstractItemView,
-    QDialog,
-    QFormLayout,
-    QDialogButtonBox,
-    QSpinBox,
-    QDoubleSpinBox,
-    QGroupBox,
-    QGridLayout,
     QTabWidget,
-    QFrame,
-    QScrollArea,
-    QSplitter,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem
 
 from ventilation_company.gui_pyside6.theme import Theme
 
@@ -60,8 +50,8 @@ def save_settings(data: dict):
 
     # ── ВИПРАВЛЕННЯ: скидаємо кеш, щоб CostEngine бачив нові ціни одразу ──
     try:
-        from ventilation_company.manufacturing_params import clear_cache as clear_manuf_cache
         from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_cache
+        from ventilation_company.manufacturing_params import clear_cache as clear_manuf_cache
 
         clear_manuf_cache()
         clear_cost_cache()

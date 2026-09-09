@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from sqlalchemy import Float, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from decimal import Decimal
 
 from ventilation_company.database.base import Base
 

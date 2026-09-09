@@ -1,8 +1,7 @@
 """Вкладка CRM — картки клієнтів, історія, платежі, нагадування."""
 
-import os
 import tkinter as tk
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter import messagebox, simpledialog, ttk
 
 from ventilation_company.db_integration import ProjectDatabase

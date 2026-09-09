@@ -4,14 +4,12 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from ventilation_company.acoustics import (
+    NOISE_LIMITS,
+    SILENCER_CATALOG,
     AcousticCalculator,
     AcousticReport,
     DuctPath,
-    NoiseSource,
     Room,
-    SILENCER_CATALOG,
-    NOISE_LIMITS,
-    OCTAVE_BANDS,
 )
 
 

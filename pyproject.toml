@@ -61,7 +61,7 @@ target-version = "py310"
 exclude = ["venv", ".venv", "build", "dist", "__pycache__"]
 
 [tool.ruff.lint]
-select = ["E9", "F821"]
+select = ["E9", "F821", "F401", "I001"]
 ignore = ["E501"]
 
 [tool.ruff.lint.pydocstyle]
@@ -72,3 +72,6 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+
+[tool.ruff.lint.isort]
+known-first-party = ["ventilation_company"]

@@ -2,19 +2,16 @@
 
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 from datetime import datetime, timedelta
+from tkinter import filedialog, messagebox, ttk
 
+from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_engine_cache
+from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.production_gantt import EquipmentLoadChart, GanttChart
 from ventilation_company.production_models import (
-    DEFAULT_EQUIPMENT,
-    Equipment,
-    OperationStatus,
     ProductionPlan,
 )
 from ventilation_company.production_scheduler import ProductionScheduler
-from ventilation_company.production_gantt import GanttChart, EquipmentLoadChart
-from ventilation_company.gui.settings_tab import PricingSettings
-from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_engine_cache
 
 
 class ProductionTab:

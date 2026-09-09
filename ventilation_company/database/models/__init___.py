@@ -12,7 +12,6 @@ from .calculation import Calculation
 from .employee import Employee
 from .product import ProductSubtype, ProductType, SizeRange
 from .project import Project, ProjectComponent, ProjectMaterial, ProjectWork
-from ventilation_company.database.models.user import User
 
 __all__ = [
     "Project",

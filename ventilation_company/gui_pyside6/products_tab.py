@@ -3,45 +3,48 @@
 v2.4b: знижка вводиться у відсотках, кінцева ціна рахується автоматично.
 """
 
-from PySide6.QtGui import QBrush
-
-import math
 import json
-from pathlib import Path
+import math
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QPainter,
+    QPen,
+    QPolygon,
+    QStandardItem,
+    QStandardItemModel,
+)
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QTableView,
     QLineEdit,
-    QComboBox,
     QMessageBox,
-    QAbstractItemView,
-    QDialog,
-    QFormLayout,
-    QSpinBox,
-    QDoubleSpinBox,
-    QDialogButtonBox,
-    QGroupBox,
-    QSplitter,
-    QFrame,
+    QPushButton,
     QScrollArea,
-    QGridLayout,
-    QTextEdit,
-    QCheckBox,
+    QSpinBox,
+    QSplitter,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QPainter, QPen, QColor, QFont, QPolygon
-from PySide6.QtCore import QPoint
-from PySide6.QtCore import QRect
 
-from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.calculations.cost_engine import CostBreakdown, CostEngine
 from ventilation_company.database.repositories.product_repo import ProductRepository
-from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdown
 from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
+from ventilation_company.gui_pyside6.theme import Theme
 
 SCHEMAS = {
     "Відвод круглий": "",
