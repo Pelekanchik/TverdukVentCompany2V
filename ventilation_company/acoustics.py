@@ -15,7 +15,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-
 # ── НОРМИ ШУМУ ДЛЯ РІЗНИХ ПРИМІЩЕНЬ (дБА) ──
 NOISE_LIMITS = {
     "офіс": 45,
@@ -38,6 +37,7 @@ OCTAVE_BANDS = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
 
 class SilencerType(Enum):
     """Тип шумоглушника."""
+
     PLATE = "пластинчастий"
     BAFFLE = "ламельний"
     CIRCULAR = "круглий"
@@ -47,6 +47,7 @@ class SilencerType(Enum):
 @dataclass
 class Silencer:
     """Шумоглушник."""
+
     name: str
     silencer_type: SilencerType
     length_mm: float
@@ -73,51 +74,72 @@ SILENCER_CATALOG = [
     Silencer(
         name="Шумоглушник пластинчастий СП-300×200-600",
         silencer_type=SilencerType.PLATE,
-        length_mm=600, width_mm=300, height_mm=200,
+        length_mm=600,
+        width_mm=300,
+        height_mm=200,
         attenuation={63: 3, 125: 8, 250: 15, 500: 22, 1000: 28, 2000: 25, 4000: 18, 8000: 12},
-        pressure_drop_pa=45, price=4200,
+        pressure_drop_pa=45,
+        price=4200,
     ),
     Silencer(
         name="Шумоглушник пластинчастий СП-300×200-900",
         silencer_type=SilencerType.PLATE,
-        length_mm=900, width_mm=300, height_mm=200,
+        length_mm=900,
+        width_mm=300,
+        height_mm=200,
         attenuation={63: 5, 125: 12, 250: 22, 500: 32, 1000: 38, 2000: 35, 4000: 25, 8000: 18},
-        pressure_drop_pa=65, price=5800,
+        pressure_drop_pa=65,
+        price=5800,
     ),
     Silencer(
         name="Шумоглушник пластинчастий СП-400×300-1200",
         silencer_type=SilencerType.PLATE,
-        length_mm=1200, width_mm=400, height_mm=300,
+        length_mm=1200,
+        width_mm=400,
+        height_mm=300,
         attenuation={63: 8, 125: 18, 250: 28, 500: 38, 1000: 45, 2000: 42, 4000: 32, 8000: 22},
-        pressure_drop_pa=85, price=8500,
+        pressure_drop_pa=85,
+        price=8500,
     ),
     Silencer(
         name="Шумоглушник ламельний СЛ-315-600 (круглий)",
         silencer_type=SilencerType.BAFFLE,
-        length_mm=600, width_mm=315, height_mm=315,
+        length_mm=600,
+        width_mm=315,
+        height_mm=315,
         attenuation={63: 4, 125: 10, 250: 18, 500: 26, 1000: 32, 2000: 30, 4000: 22, 8000: 15},
-        pressure_drop_pa=40, price=6500,
+        pressure_drop_pa=40,
+        price=6500,
     ),
     Silencer(
         name="Шумоглушник ламельний СЛ-315-900 (круглий)",
         silencer_type=SilencerType.BAFFLE,
-        length_mm=900, width_mm=315, height_mm=315,
+        length_mm=900,
+        width_mm=315,
+        height_mm=315,
         attenuation={63: 6, 125: 15, 250: 25, 500: 35, 1000: 42, 2000: 38, 4000: 28, 8000: 20},
-        pressure_drop_pa=60, price=9200,
+        pressure_drop_pa=60,
+        price=9200,
     ),
     Silencer(
         name="Шумоглушник круглий СК-200-600",
         silencer_type=SilencerType.CIRCULAR,
-        length_mm=600, width_mm=200, height_mm=200,
+        length_mm=600,
+        width_mm=200,
+        height_mm=200,
         attenuation={63: 2, 125: 6, 250: 12, 500: 18, 1000: 24, 2000: 22, 4000: 16, 8000: 10},
-        pressure_drop_pa=30, price=3800,
+        pressure_drop_pa=30,
+        price=3800,
     ),
     Silencer(
         name="Шумоглушник круглий СК-250-900",
         silencer_type=SilencerType.CIRCULAR,
-        length_mm=900, width_mm=250, height_mm=250,
+        length_mm=900,
+        width_mm=250,
+        height_mm=250,
         attenuation={63: 4, 125: 10, 250: 18, 500: 26, 1000: 32, 2000: 30, 4000: 22, 8000: 15},
-        pressure_drop_pa=45, price=5200,
+        pressure_drop_pa=45,
+        price=5200,
     ),
 ]
 
@@ -125,6 +147,7 @@ SILENCER_CATALOG = [
 @dataclass
 class NoiseSource:
     """Джерело шуму (вентилятор, потік, решітка)."""
+
     name: str
     source_type: str  # "fan", "flow", "grille", "damper"
     # Звукова потужність Lw (дБ) по октавних смугах
@@ -146,6 +169,7 @@ class NoiseSource:
 @dataclass
 class DuctPath:
     """Акустичний шлях від джерела до приміщення."""
+
     name: str
     length_m: float = 0.0
     diameter_mm: float = 300.0
@@ -165,13 +189,16 @@ class DuctPath:
     def get_path_attenuation(self) -> float:
         """Загальне зниження на шляху (дБ)."""
         duct_att = self.length_m * self.attenuation_per_meter
-        fitting_att = self.elbow_count * self.elbow_attenuation + self.tee_count * self.tee_attenuation
+        fitting_att = (
+            self.elbow_count * self.elbow_attenuation + self.tee_count * self.tee_attenuation
+        )
         return duct_att + fitting_att
 
 
 @dataclass
 class Room:
     """Приміщення-рецептор шуму."""
+
     name: str
     room_type: str = "офіс"  # ключ з NOISE_LIMITS
     volume_m3: float = 50.0
@@ -181,8 +208,9 @@ class Room:
     def noise_limit_dba(self) -> int:
         return NOISE_LIMITS.get(self.room_type, 45)
 
-    def calculate_lp(self, lw_source: float, path_attenuation: float = 0.0,
-                     silencer_attenuation: float = 0.0) -> float:
+    def calculate_lp(
+        self, lw_source: float, path_attenuation: float = 0.0, silencer_attenuation: float = 0.0
+    ) -> float:
         """Розрахувати рівень звукового тиску у приміщенні.
 
         Lp = Lw - path_attenuation - silencer_attenuation - 10*log10(A) + 6
@@ -213,8 +241,9 @@ class AcousticCalculator:
     FLOW_NOISE_CONST = -60
 
     @staticmethod
-    def calculate_fan_noise(fan_type: str, air_flow_m3h: float, pressure_pa: float,
-                            fan_power_kw: float = 0.0) -> NoiseSource:
+    def calculate_fan_noise(
+        fan_type: str, air_flow_m3h: float, pressure_pa: float, fan_power_kw: float = 0.0
+    ) -> NoiseSource:
         """Розрахувати шум вентилятора.
 
         Args:
@@ -238,8 +267,14 @@ class AcousticCalculator:
         # Розподіл по октавах (типовий спектр для вентилятора)
         # Низькі частоти сильніші
         octave_distribution = {
-            63: 1.0, 125: 0.9, 250: 0.85, 500: 0.8,
-            1000: 0.75, 2000: 0.7, 4000: 0.6, 8000: 0.5,
+            63: 1.0,
+            125: 0.9,
+            250: 0.85,
+            500: 0.8,
+            1000: 0.75,
+            2000: 0.7,
+            4000: 0.6,
+            8000: 0.5,
         }
 
         lw_octave = {}
@@ -265,7 +300,9 @@ class AcousticCalculator:
             lwa = 0  # нижче 3 м/с шум незначний
         else:
             # Емпірична формула
-            lwa = 10 * math.log10(velocity_ms ** 8 * duct_area_m2) + AcousticCalculator.FLOW_NOISE_CONST
+            lwa = (
+                10 * math.log10(velocity_ms**8 * duct_area_m2) + AcousticCalculator.FLOW_NOISE_CONST
+            )
             lwa = max(0, lwa)
 
         return NoiseSource(
@@ -284,7 +321,7 @@ class AcousticCalculator:
             lwa = 0
         else:
             # Lw = 10*log10(v^6 * A) + const
-            lwa = 10 * math.log10(velocity_ms ** 6 * grille_area_m2) - 45
+            lwa = 10 * math.log10(velocity_ms**6 * grille_area_m2) - 45
             lwa = max(0, lwa)
 
         return NoiseSource(
@@ -304,8 +341,12 @@ class AcousticCalculator:
         return 10 * math.log10(total)
 
     @staticmethod
-    def select_silencer(required_attenuation: float, duct_width: float, duct_height: float,
-                        max_pressure_drop: float = 100.0) -> Optional[Silencer]:
+    def select_silencer(
+        required_attenuation: float,
+        duct_width: float,
+        duct_height: float,
+        max_pressure_drop: float = 100.0,
+    ) -> Optional[Silencer]:
         """Підібрати шумоглушник.
 
         Args:
@@ -337,6 +378,7 @@ class AcousticCalculator:
 @dataclass
 class AcousticReport:
     """Повний акустичний звіт."""
+
     room_name: str
     room_type: str
     noise_limit: int

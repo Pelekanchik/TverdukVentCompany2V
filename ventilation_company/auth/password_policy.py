@@ -20,6 +20,7 @@ import bcrypt
 
 class PasswordValidationResult(NamedTuple):
     """Результат валідації паролю."""
+
     valid: bool
     errors: list[str]
     strength: str  # "weak" | "medium" | "strong"

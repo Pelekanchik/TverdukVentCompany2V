@@ -27,8 +27,12 @@ class CRMTab:
         ttk.Label(tbar, text="👥 CRM", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
         ttk.Separator(tbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-        ttk.Button(tbar, text="➕ Новий клієнт", command=self._add_client_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(tbar, text="✏️ Редагувати", command=self._edit_client_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="➕ Новий клієнт", command=self._add_client_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(tbar, text="✏️ Редагувати", command=self._edit_client_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
         ttk.Button(tbar, text="❌ Видалити", command=self._delete_client).pack(side=tk.LEFT, padx=2)
         ttk.Separator(tbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
@@ -38,7 +42,9 @@ class CRMTab:
         ttk.Entry(tbar, textvariable=self.search_var, width=20).pack(side=tk.LEFT, padx=2)
 
         ttk.Separator(tbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
-        ttk.Button(tbar, text="🔔 Нагадування", command=self._show_reminders).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="🔔 Нагадування", command=self._show_reminders).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # ── Основна область: ліворуч список, праворуч деталі ──
         paned = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
@@ -124,8 +130,12 @@ class CRMTab:
     def _build_interactions_tab(self):
         tbar = ttk.Frame(self.inter_frame)
         tbar.pack(fill=tk.X, pady=(0, 5))
-        ttk.Button(tbar, text="➕ Додати дзвінок/зустріч", command=self._add_interaction_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(tbar, text="🗑️ Видалити", command=self._delete_interaction).pack(side=tk.LEFT, padx=2)
+        ttk.Button(
+            tbar, text="➕ Додати дзвінок/зустріч", command=self._add_interaction_dialog
+        ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="🗑️ Видалити", command=self._delete_interaction).pack(
+            side=tk.LEFT, padx=2
+        )
 
         cols = ("date", "type", "subject", "result", "next")
         self.inter_tree = ttk.Treeview(self.inter_frame, columns=cols, show="headings", height=12)
@@ -146,8 +156,12 @@ class CRMTab:
     def _build_payments_tab(self):
         tbar = ttk.Frame(self.pay_frame)
         tbar.pack(fill=tk.X, pady=(0, 5))
-        ttk.Button(tbar, text="➕ Додати платіж", command=self._add_payment_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(tbar, text="🗑️ Видалити", command=self._delete_payment).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="➕ Додати платіж", command=self._add_payment_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(tbar, text="🗑️ Видалити", command=self._delete_payment).pack(
+            side=tk.LEFT, padx=2
+        )
 
         cols = ("date", "type", "amount", "purpose", "project")
         self.pay_tree = ttk.Treeview(self.pay_frame, columns=cols, show="headings", height=12)
@@ -161,7 +175,9 @@ class CRMTab:
         self.pay_tree.column("purpose", width=200)
         self.pay_tree.pack(fill=tk.BOTH, expand=True)
 
-        self.balance_label = ttk.Label(self.pay_frame, text="Баланс: 0.00 грн", font=("Arial", 11, "bold"))
+        self.balance_label = ttk.Label(
+            self.pay_frame, text="Баланс: 0.00 грн", font=("Arial", 11, "bold")
+        )
         self.balance_label.pack(anchor=tk.W, pady=5)
 
     # ═══════════════════════════════════════════════════════════════════
@@ -171,8 +187,12 @@ class CRMTab:
     def _build_projects_tab(self):
         tbar = ttk.Frame(self.proj_frame)
         tbar.pack(fill=tk.X, pady=(0, 5))
-        ttk.Button(tbar, text="➕ Додати проєкт", command=self._add_project_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(tbar, text="🔄 Змінити статус", command=self._change_project_status).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="➕ Додати проєкт", command=self._add_project_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(tbar, text="🔄 Змінити статус", command=self._change_project_status).pack(
+            side=tk.LEFT, padx=2
+        )
 
         cols = ("name", "number", "start", "end", "status", "amount")
         self.proj_tree = ttk.Treeview(self.proj_frame, columns=cols, show="headings", height=12)
@@ -194,7 +214,9 @@ class CRMTab:
     def _build_warranty_tab(self):
         tbar = ttk.Frame(self.warr_frame)
         tbar.pack(fill=tk.X, pady=(0, 5))
-        ttk.Button(tbar, text="✅ Виконано", command=self._complete_reminder).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar, text="✅ Виконано", command=self._complete_reminder).pack(
+            side=tk.LEFT, padx=2
+        )
 
         cols = ("date", "project", "description", "completed")
         self.warr_tree = ttk.Treeview(self.warr_frame, columns=cols, show="headings", height=12)
@@ -217,8 +239,12 @@ class CRMTab:
         self.client_tree.delete(*self.client_tree.get_children())
         for c in clients:
             balance = self.db.get_client_balance(c["id"])
-            self.client_tree.insert("", tk.END, iid=str(c["id"]),
-                                    values=(c["name"], c.get("phone", ""), f"{balance:,.2f}"))
+            self.client_tree.insert(
+                "",
+                tk.END,
+                iid=str(c["id"]),
+                values=(c["name"], c.get("phone", ""), f"{balance:,.2f}"),
+            )
 
     def _on_client_select(self, event=None):
         sel = self.client_tree.selection()
@@ -244,25 +270,35 @@ class CRMTab:
         self.inter_tree.delete(*self.inter_tree.get_children())
         rows = self.db.get_client_interactions(self._selected_client_id)
         for r in rows:
-            self.inter_tree.insert("", tk.END, iid=str(r["id"]), values=(
-                r.get("date", "")[:10],
-                r.get("interaction_type", ""),
-                r.get("subject", "") or "—",
-                r.get("result", "") or "—",
-                r.get("next_action", "") or "—",
-            ))
+            self.inter_tree.insert(
+                "",
+                tk.END,
+                iid=str(r["id"]),
+                values=(
+                    r.get("date", "")[:10],
+                    r.get("interaction_type", ""),
+                    r.get("subject", "") or "—",
+                    r.get("result", "") or "—",
+                    r.get("next_action", "") or "—",
+                ),
+            )
 
     def _load_payments(self):
         self.pay_tree.delete(*self.pay_tree.get_children())
         rows = self.db.get_client_payments(self._selected_client_id)
         for r in rows:
-            self.pay_tree.insert("", tk.END, iid=str(r["id"]), values=(
-                r.get("date", "")[:10],
-                r.get("payment_type", ""),
-                f"{r.get('amount', 0):,.2f} {r.get('currency', 'UAH')}",
-                r.get("purpose", "") or "—",
-                r.get("project_name", "") or "—",
-            ))
+            self.pay_tree.insert(
+                "",
+                tk.END,
+                iid=str(r["id"]),
+                values=(
+                    r.get("date", "")[:10],
+                    r.get("payment_type", ""),
+                    f"{r.get('amount', 0):,.2f} {r.get('currency', 'UAH')}",
+                    r.get("purpose", "") or "—",
+                    r.get("project_name", "") or "—",
+                ),
+            )
         balance = self.db.get_client_balance(self._selected_client_id)
         self.balance_label.config(text=f"Баланс: {balance:,.2f} грн")
 
@@ -270,25 +306,35 @@ class CRMTab:
         self.proj_tree.delete(*self.proj_tree.get_children())
         rows = self.db.get_client_projects(self._selected_client_id)
         for r in rows:
-            self.proj_tree.insert("", tk.END, iid=str(r["id"]), values=(
-                r.get("project_name", ""),
-                r.get("project_number", "") or "—",
-                (r.get("start_date").strftime("%Y-%m-%d") if r.get("start_date") else "—"),
-                (r.get("end_date").strftime("%Y-%m-%d") if r.get("end_date") else "—"),
-                r.get("status", ""),
-                f"{r.get('total_amount', 0):,.2f}",
-            ))
+            self.proj_tree.insert(
+                "",
+                tk.END,
+                iid=str(r["id"]),
+                values=(
+                    r.get("project_name", ""),
+                    r.get("project_number", "") or "—",
+                    (r.get("start_date").strftime("%Y-%m-%d") if r.get("start_date") else "—"),
+                    (r.get("end_date").strftime("%Y-%m-%d") if r.get("end_date") else "—"),
+                    r.get("status", ""),
+                    f"{r.get('total_amount', 0):,.2f}",
+                ),
+            )
 
     def _load_warranty(self):
         self.warr_tree.delete(*self.warr_tree.get_children())
         rows = self.db.get_warranty_reminders(self._selected_client_id, upcoming_days=3650)
         for r in rows:
-            self.warr_tree.insert("", tk.END, iid=str(r["id"]), values=(
-                (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
-                r.get("project_name", ""),
-                r.get("description", "") or "—",
-                "✅ Так" if r.get("is_completed") else "❌ Ні",
-            ))
+            self.warr_tree.insert(
+                "",
+                tk.END,
+                iid=str(r["id"]),
+                values=(
+                    (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
+                    r.get("project_name", ""),
+                    r.get("description", "") or "—",
+                    "✅ Так" if r.get("is_completed") else "❌ Ні",
+                ),
+            )
 
     # ═══════════════════════════════════════════════════════════════════
     # ДІАЛОГИ
@@ -339,7 +385,7 @@ class CRMTab:
             )
             self._refresh_client_list()
             dialog.destroy()
-            self.status.config(text=f"✅ Клієнта \"{name}\" додано")
+            self.status.config(text=f'✅ Клієнта "{name}" додано')
 
         ttk.Button(dialog, text="✅ Додати", command=on_ok).pack(pady=15)
 
@@ -404,7 +450,10 @@ class CRMTab:
         client = self.db.get_client(self._selected_client_id)
         if not client:
             return
-        if messagebox.askyesno("Підтвердження", f"Видалити клієнта \"{client['name']}\"?\n\nВсі дані (платежі, проєкти, взаємодії) будуть видалені!"):
+        if messagebox.askyesno(
+            "Підтвердження",
+            f"Видалити клієнта \"{client['name']}\"?\n\nВсі дані (платежі, проєкти, взаємодії) будуть видалені!",
+        ):
             self.db.delete_client(self._selected_client_id)
             self._selected_client_id = None
             self._refresh_client_list()
@@ -424,7 +473,13 @@ class CRMTab:
 
         ttk.Label(dialog, text="Тип:").pack(anchor=tk.W, padx=10, pady=(10, 0))
         type_var = tk.StringVar(value="дзвінок")
-        ttk.Combobox(dialog, textvariable=type_var, values=["дзвінок", "зустріч", "лист", "email", "замітка"], state="readonly", width=20).pack(anchor=tk.W, padx=10)
+        ttk.Combobox(
+            dialog,
+            textvariable=type_var,
+            values=["дзвінок", "зустріч", "лист", "email", "замітка"],
+            state="readonly",
+            width=20,
+        ).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Тема:").pack(anchor=tk.W, padx=10, pady=(5, 0))
         subj_var = tk.StringVar()
@@ -436,7 +491,13 @@ class CRMTab:
 
         ttk.Label(dialog, text="Результат:").pack(anchor=tk.W, padx=10, pady=(5, 0))
         res_var = tk.StringVar(value="у процесі")
-        ttk.Combobox(dialog, textvariable=res_var, values=["позитив", "негатив", "у процесі"], state="readonly", width=20).pack(anchor=tk.W, padx=10)
+        ttk.Combobox(
+            dialog,
+            textvariable=res_var,
+            values=["позитив", "негатив", "у процесі"],
+            state="readonly",
+            width=20,
+        ).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Наступна дія:").pack(anchor=tk.W, padx=10, pady=(5, 0))
         next_var = tk.StringVar()
@@ -481,11 +542,19 @@ class CRMTab:
 
         ttk.Label(dialog, text="Тип:").pack(anchor=tk.W, padx=10, pady=(10, 0))
         type_var = tk.StringVar(value="вхідний")
-        ttk.Combobox(dialog, textvariable=type_var, values=["вхідний", "вихідний"], state="readonly", width=15).pack(anchor=tk.W, padx=10)
+        ttk.Combobox(
+            dialog,
+            textvariable=type_var,
+            values=["вхідний", "вихідний"],
+            state="readonly",
+            width=15,
+        ).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Сума (грн):").pack(anchor=tk.W, padx=10, pady=(5, 0))
         amt_var = tk.DoubleVar(value=0)
-        ttk.Spinbox(dialog, from_=0, to=9999999, increment=100, textvariable=amt_var, width=15).pack(anchor=tk.W, padx=10)
+        ttk.Spinbox(
+            dialog, from_=0, to=9999999, increment=100, textvariable=amt_var, width=15
+        ).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Призначення:").pack(anchor=tk.W, padx=10, pady=(5, 0))
         purp_var = tk.StringVar()
@@ -545,17 +614,23 @@ class CRMTab:
         start_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
         ttk.Entry(dialog, textvariable=start_var, width=15).pack(anchor=tk.W, padx=10)
 
-        ttk.Label(dialog, text="Дата завершення (РРРР-ММ-ДД):").pack(anchor=tk.W, padx=10, pady=(5, 0))
+        ttk.Label(dialog, text="Дата завершення (РРРР-ММ-ДД):").pack(
+            anchor=tk.W, padx=10, pady=(5, 0)
+        )
         end_var = tk.StringVar()
         ttk.Entry(dialog, textvariable=end_var, width=15).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Сума (грн):").pack(anchor=tk.W, padx=10, pady=(5, 0))
         amt_var = tk.DoubleVar(value=0)
-        ttk.Spinbox(dialog, from_=0, to=9999999, increment=1000, textvariable=amt_var, width=15).pack(anchor=tk.W, padx=10)
+        ttk.Spinbox(
+            dialog, from_=0, to=9999999, increment=1000, textvariable=amt_var, width=15
+        ).pack(anchor=tk.W, padx=10)
 
         ttk.Label(dialog, text="Гарантія (міс):").pack(anchor=tk.W, padx=10, pady=(5, 0))
         warr_var = tk.IntVar(value=24)
-        ttk.Spinbox(dialog, from_=0, to=120, increment=1, textvariable=warr_var, width=10).pack(anchor=tk.W, padx=10)
+        ttk.Spinbox(dialog, from_=0, to=120, increment=1, textvariable=warr_var, width=10).pack(
+            anchor=tk.W, padx=10
+        )
 
         def on_ok():
             name = name_var.get().strip()
@@ -574,7 +649,7 @@ class CRMTab:
             self._load_projects()
             self._load_warranty()
             dialog.destroy()
-            self.status.config(text=f"✅ Проєкт \"{name}\" додано")
+            self.status.config(text=f'✅ Проєкт "{name}" додано')
 
         ttk.Button(dialog, text="✅ Додати", command=on_ok).pack(pady=10)
 
@@ -593,11 +668,15 @@ class CRMTab:
         dialog.grab_set()
         ttk.Label(dialog, text="Новий статус:").pack(pady=5)
         status_var = tk.StringVar()
-        ttk.Combobox(dialog, textvariable=status_var, values=statuses, state="readonly", width=15).pack(pady=5)
+        ttk.Combobox(
+            dialog, textvariable=status_var, values=statuses, state="readonly", width=15
+        ).pack(pady=5)
+
         def on_ok():
             self.db.update_client_project_status(int(sel[0]), status_var.get())
             self._load_projects()
             dialog.destroy()
+
         ttk.Button(dialog, text="✅ Змінити", command=on_ok).pack(pady=10)
 
     def _complete_reminder(self):
@@ -633,12 +712,16 @@ class CRMTab:
 
         rows = self.db.get_warranty_reminders(upcoming_days=365)
         for r in rows:
-            tree.insert("", tk.END, values=(
-                (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
-                r.get("client_name", ""),
-                r.get("project_name", ""),
-                r.get("description", "") or "—",
-            ))
+            tree.insert(
+                "",
+                tk.END,
+                values=(
+                    (r.get("reminder_date").strftime("%Y-%m-%d") if r.get("reminder_date") else ""),
+                    r.get("client_name", ""),
+                    r.get("project_name", ""),
+                    r.get("description", "") or "—",
+                ),
+            )
 
         ttk.Button(dialog, text="OK", command=dialog.destroy).pack(pady=5)
 

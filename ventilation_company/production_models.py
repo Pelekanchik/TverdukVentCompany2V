@@ -8,6 +8,7 @@ from typing import Optional
 
 class OperationType(Enum):
     """Типи виробничих операцій."""
+
     CUTTING = "розкрій"
     BENDING = "гнуття"
     WELDING = "зварка"
@@ -18,6 +19,7 @@ class OperationType(Enum):
 
 class OperationStatus(Enum):
     """Статус операції."""
+
     PLANNED = "заплановано"
     IN_PROGRESS = "в роботі"
     COMPLETED = "виконано"
@@ -28,44 +30,36 @@ class OperationStatus(Enum):
 @dataclass
 class Equipment:
     """Одиниця обладнання."""
+
     id: str
     name: str
     operation_types: list[OperationType]
     capacity_per_hour: float  # м²/год або шт/год
-    shift_start: int = 8       # година початку зміни
-    shift_end: int = 17        # година кінця зміни
+    shift_start: int = 8  # година початку зміни
+    shift_end: int = 17  # година кінця зміни
     is_active: bool = True
 
 
 @dataclass
 class OperationNorm:
     """Норма часу на операцію (хвилин на м² або на штуку)."""
+
     operation_type: OperationType
-    time_per_m2: float = 0.0   # хв/м²
+    time_per_m2: float = 0.0  # хв/м²
     time_per_piece: float = 0.0  # хв/шт
-    setup_time: float = 10.0   # хв — наладка
+    setup_time: float = 10.0  # хв — наладка
 
 
 # ── СТАНДАРТНІ НОРМИ ЧАСУ ──
 DEFAULT_NORMS = {
-    OperationType.CUTTING: OperationNorm(
-        OperationType.CUTTING, time_per_m2=2.0, setup_time=15.0
-    ),
-    OperationType.BENDING: OperationNorm(
-        OperationType.BENDING, time_per_m2=5.0, setup_time=10.0
-    ),
-    OperationType.WELDING: OperationNorm(
-        OperationType.WELDING, time_per_m2=8.0, setup_time=20.0
-    ),
-    OperationType.PAINTING: OperationNorm(
-        OperationType.PAINTING, time_per_m2=3.0, setup_time=30.0
-    ),
+    OperationType.CUTTING: OperationNorm(OperationType.CUTTING, time_per_m2=2.0, setup_time=15.0),
+    OperationType.BENDING: OperationNorm(OperationType.BENDING, time_per_m2=5.0, setup_time=10.0),
+    OperationType.WELDING: OperationNorm(OperationType.WELDING, time_per_m2=8.0, setup_time=20.0),
+    OperationType.PAINTING: OperationNorm(OperationType.PAINTING, time_per_m2=3.0, setup_time=30.0),
     OperationType.ASSEMBLY: OperationNorm(
         OperationType.ASSEMBLY, time_per_piece=10.0, setup_time=5.0
     ),
-    OperationType.PACKING: OperationNorm(
-        OperationType.PACKING, time_per_piece=2.0, setup_time=5.0
-    ),
+    OperationType.PACKING: OperationNorm(OperationType.PACKING, time_per_piece=2.0, setup_time=5.0),
 }
 
 
@@ -77,13 +71,16 @@ DEFAULT_EQUIPMENT = [
     Equipment("WLD_01", "Зварювальний пост", [OperationType.WELDING], 8.0, 8, 17),
     Equipment("WLD_02", "Зварювальний пост 2", [OperationType.WELDING], 8.0, 8, 17),
     Equipment("PNT_01", "Фарбувальна камера", [OperationType.PAINTING], 20.0, 8, 17),
-    Equipment("ASM_01", "Складальний стіл", [OperationType.ASSEMBLY, OperationType.PACKING], 6.0, 8, 17),
+    Equipment(
+        "ASM_01", "Складальний стіл", [OperationType.ASSEMBLY, OperationType.PACKING], 6.0, 8, 17
+    ),
 ]
 
 
 @dataclass
 class ScheduledOperation:
     """Одна запланована операція для конкретного виробу."""
+
     id: str
     product_name: str
     product_type: str
@@ -104,6 +101,7 @@ class ScheduledOperation:
 @dataclass
 class ProductionPlan:
     """Повний план виробництва проєкту."""
+
     project_name: str
     project_id: Optional[int] = None
     start_date: datetime = field(default_factory=datetime.now)

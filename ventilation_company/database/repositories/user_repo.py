@@ -26,8 +26,14 @@ class UserRepository:
             query = query.filter(UserORM.is_active == 1)
         return query.order_by(UserORM.full_name).all()
 
-    def create(self, username: str, password: str, full_name: str,
-               role: str = "viewer", is_active: bool = True) -> UserORM:
+    def create(
+        self,
+        username: str,
+        password: str,
+        full_name: str,
+        role: str = "viewer",
+        is_active: bool = True,
+    ) -> UserORM:
         if self.get_by_username(username):
             raise ValueError(f"Користувач '{username}' вже існує")
 
@@ -36,7 +42,7 @@ class UserRepository:
             password_hash=AuthService.hash_password(password),
             full_name=full_name,
             role=role,
-            is_active=1 if is_active else 0
+            is_active=1 if is_active else 0,
         )
         self.session.add(user)
         self.session.commit()

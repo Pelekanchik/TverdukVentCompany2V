@@ -1,5 +1,7 @@
 """ORM-репозиторій для роботи з розрахунками (КП)."""
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from ventilation_company.database.db import SessionLocal

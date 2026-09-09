@@ -106,11 +106,14 @@ def create_default_admin():
             logger.error("❌ ADMIN_PASSWORD з .env не відповідає політиці паролів:")
             for err in check.errors:
                 logger.error(f"   - {err}")
-            logger.error("Виправте .env або залиште ADMIN_PASSWORD порожнім для генерації випадкового пароля.")
+            logger.error(
+                "Виправте .env або залиште ADMIN_PASSWORD порожнім для генерації випадкового пароля."
+            )
             raise SystemExit(2)
 
     with Session(engine) as session:
         from ventilation_company.database.models.user import UserORM
+
         existing = session.query(UserORM).filter(UserORM.username == admin_username).first()
         if existing:
             logger.info(f"Адміністратор '{admin_username}' вже існує")

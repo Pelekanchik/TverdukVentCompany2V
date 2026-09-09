@@ -49,7 +49,11 @@ else:
 old_active = 'elif name == "specification":'
 if old_active in content:
     # Replace first occurrence only
-    content = content.replace(old_active, 'elif name == "specification":\n                widget.on_project_changed(project_id)\n            elif name == "documents":\n                widget.on_project_changed(project_id)\n            elif name == "specification":', 1)
+    content = content.replace(
+        old_active,
+        'elif name == "specification":\n                widget.on_project_changed(project_id)\n            elif name == "documents":\n                widget.on_project_changed(project_id)\n            elif name == "specification":',
+        1,
+    )
     print("Active project sync added.")
 else:
     print("WARN: set_active_project not found.")

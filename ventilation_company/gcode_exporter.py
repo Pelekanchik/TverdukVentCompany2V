@@ -19,16 +19,17 @@ from dataclasses import dataclass
 @dataclass
 class PlasmaSettings:
     """Налаштування плазменного різака."""
-    feed_rate: float = 1500.0          # мм/хв — швидкість різання
-    rapid_feed: float = 8000.0         # мм/хв — швидкість холостого ходу
-    pierce_delay: float = 0.5          # сек — затримка пробивки
-    pierce_height: float = 3.0         # мм — висота пробивки
-    cut_height: float = 1.5            # мм — висота різання
-    safe_height: float = 15.0          # мм — безпечна висота
-    kerf_width: float = 1.5            # мм — ширина різу (компенсація)
-    lead_in_length: float = 5.0        # мм — довжина підходу
-    lead_out_length: float = 5.0       # мм — довжина відходу
-    unit: str = "G21"                  # G21=мм, G20=дюйми
+
+    feed_rate: float = 1500.0  # мм/хв — швидкість різання
+    rapid_feed: float = 8000.0  # мм/хв — швидкість холостого ходу
+    pierce_delay: float = 0.5  # сек — затримка пробивки
+    pierce_height: float = 3.0  # мм — висота пробивки
+    cut_height: float = 1.5  # мм — висота різання
+    safe_height: float = 15.0  # мм — безпечна висота
+    kerf_width: float = 1.5  # мм — ширина різу (компенсація)
+    lead_in_length: float = 5.0  # мм — довжина підходу
+    lead_out_length: float = 5.0  # мм — довжина відходу
+    unit: str = "G21"  # G21=мм, G20=дюйми
 
 
 class GCodeExporter:
@@ -48,12 +49,12 @@ class GCodeExporter:
         lines.append("; VentCompany — G-код для плазменного різака")
         lines.append("; Генеровано автоматично")
         lines.append("")
-        lines.append(self.settings.unit)       # мм
-        lines.append("G90")                     # Абсолютні координати
-        lines.append("G17")                     # Плоскість XY
-        lines.append("G40")                     # Відміна компенсації радіуса
-        lines.append("G49")                     # Відміна корекції довжини інструменту
-        lines.append("G80")                     # Відміна циклів
+        lines.append(self.settings.unit)  # мм
+        lines.append("G90")  # Абсолютні координати
+        lines.append("G17")  # Плоскість XY
+        lines.append("G40")  # Відміна компенсації радіуса
+        lines.append("G49")  # Відміна корекції довжини інструменту
+        lines.append("G80")  # Відміна циклів
         lines.append("")
         lines.append(f"; Налаштування плазми:")
         lines.append(f"; Швидкість різання: {self.settings.feed_rate} мм/хв")
@@ -103,7 +104,7 @@ class GCodeExporter:
                 # Пробивка
                 lines.append("; Пробивка")
                 lines.append(f"G0 Z{self.settings.pierce_height:.1f}")
-                lines.append("M3 S1")          # Включити плазму
+                lines.append("M3 S1")  # Включити плазму
                 lines.append(f"G4 P{self.settings.pierce_delay:.1f}")  # Затримка
                 lines.append(f"G1 Z{self.settings.cut_height:.1f} F{self.settings.feed_rate:.0f}")
                 lines.append("")
@@ -120,7 +121,7 @@ class GCodeExporter:
                 # Відхід (lead-out)
                 lines.append("; Відхід")
                 lines.append(f"G1 X{contour[-1][0]:.2f} Y{contour[-1][1]:.2f}")
-                lines.append("M5")              # Вимкнути плазму
+                lines.append("M5")  # Вимкнути плазму
                 lines.append(f"G0 Z{self.settings.safe_height:.1f}")
                 lines.append("")
 
@@ -128,13 +129,15 @@ class GCodeExporter:
         lines.append("; ЗАВЕРШЕННЯ")
         lines.append(f"G0 Z{self.settings.safe_height:.1f}")
         lines.append("G0 X0 Y0")
-        lines.append("M30")                     # Кінець програми
+        lines.append("M30")  # Кінець програми
         lines.append("%")
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
-    def _calculate_contour(self, x: float, y: float, w: float, h: float, rotated: bool) -> List[tuple]:
+    def _calculate_contour(
+        self, x: float, y: float, w: float, h: float, rotated: bool
+    ) -> List[tuple]:
         """Розрахувати контур деталі з компенсацією різу.
 
         Повертає список (X, Y) точок контуру за годинниковою стрілкою.
@@ -147,17 +150,19 @@ class GCodeExporter:
 
         # Контур зсунутий всередину на k (компенсація різу)
         points = [
-            (x + k, y + k),           # лівий нижній
-            (x + w - k, y + k),       # правий нижній
-            (x + w - k, y + h - k),   # правий верхній
-            (x + k, y + h - k),       # лівий верхній
-            (x + k, y + k),           # замикаємо
+            (x + k, y + k),  # лівий нижній
+            (x + w - k, y + k),  # правий нижній
+            (x + w - k, y + h - k),  # правий верхній
+            (x + k, y + h - k),  # лівий верхній
+            (x + k, y + k),  # замикаємо
         ]
         return points
 
     def export_single_sheet(self, sheet, filepath: str):
         """Експортувати один лист (для ручного вибору)."""
+
         class FakePlan:
             def __init__(self, sheets):
                 self.sheets = sheets
+
         self.export_cutting_plan(FakePlan([sheet]), filepath)

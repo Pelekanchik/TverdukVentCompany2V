@@ -14,15 +14,15 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-
 # ── ФІЗИЧНІ КОНСТАНТИ ──
-AIR_DENSITY = 1.2          # кг/м³ — густина повітря при 20°C
-AIR_VISCOSITY = 15.06e-6   # м²/с — кінематична в'язкість
-GRAVITY = 9.81             # м/с²
+AIR_DENSITY = 1.2  # кг/м³ — густина повітря при 20°C
+AIR_VISCOSITY = 15.06e-6  # м²/с — кінематична в'язкість
+GRAVITY = 9.81  # м/с²
 
 
 class DuctShape(Enum):
     """Форма перерізу повітропроводу."""
+
     RECTANGULAR = "прямокутний"
     CIRCULAR = "круглий"
     OVAL = "овальний"
@@ -30,6 +30,7 @@ class DuctShape(Enum):
 
 class FittingType(Enum):
     """Тип фітинга / місцевого опору."""
+
     ELBOW_90 = "відвід 90°"
     ELBOW_45 = "відвід 45°"
     TEE_STRAIGHT = "трійник прямий"
@@ -52,9 +53,9 @@ class FittingType(Enum):
 FITTING_ZETA = {
     FittingType.ELBOW_90: {
         "default": 0.8,
-        "r_d_1.0": 0.5,      # R/D = 1.0
-        "r_d_0.5": 1.2,      # R/D = 0.5
-        "rect_sharp": 1.1,   # прямокутний без закруглення
+        "r_d_1.0": 0.5,  # R/D = 1.0
+        "r_d_0.5": 1.2,  # R/D = 0.5
+        "rect_sharp": 1.1,  # прямокутний без закруглення
     },
     FittingType.ELBOW_45: {
         "default": 0.4,
@@ -89,8 +90,8 @@ FITTING_ZETA = {
         "default": 0.5,
     },
     FittingType.FILTER: {
-        "default": 80.0,     # чистий
-        "dirty": 150.0,      # забруднений
+        "default": 80.0,  # чистий
+        "dirty": 150.0,  # забруднений
     },
     FittingType.DAMPER: {
         "default": 0.5,
@@ -118,10 +119,11 @@ FITTING_ZETA = {
 @dataclass
 class DuctSection:
     """Пряма ділянка повітропроводу."""
+
     name: str
-    length: float          # м
-    width: float           # мм (діаметр для круглого)
-    height: float = 0      # мм (0 для круглого)
+    length: float  # м
+    width: float  # мм (діаметр для круглого)
+    height: float = 0  # мм (0 для круглого)
     shape: DuctShape = DuctShape.RECTANGULAR
     air_flow: float = 0.0  # м³/год
     roughness: float = 0.0001  # м — шорсткість (оцинкована сталь)
@@ -160,7 +162,7 @@ class DuctSection:
     def dynamic_pressure(self) -> float:
         """Динамічний тиск (Па)."""
         v = self.velocity
-        return 0.5 * AIR_DENSITY * v ** 2
+        return 0.5 * AIR_DENSITY * v**2
 
     @property
     def reynolds(self) -> float:
@@ -177,7 +179,7 @@ class DuctSection:
         # Турбулентний режим
         # λ = 0.11 * (68/Re + Δ/D)^0.25
         term = 68.0 / re + self.roughness / self.diameter_m
-        return 0.11 * (term ** 0.25)
+        return 0.11 * (term**0.25)
 
     def friction_loss(self) -> float:
         """Втрати тиску на тертя (Па)."""
@@ -189,9 +191,10 @@ class DuctSection:
 @dataclass
 class Fitting:
     """Місцевий опір (фітинг)."""
+
     name: str
     fitting_type: FittingType
-    section: DuctSection   # до якої ділянки належить
+    section: DuctSection  # до якої ділянки належить
     variant: str = "default"  # підтип з FITTING_ZETA
     quantity: int = 1
 
@@ -209,6 +212,7 @@ class Fitting:
 @dataclass
 class AerodynamicRoute:
     """Траса повітропроводу з ділянками та фітингами."""
+
     name: str
     system_type: str = "припливна"  # припливна / витяжна / димовидалення
     sections: list[DuctSection] = field(default_factory=list)
@@ -261,19 +265,149 @@ class AerodynamicRoute:
 
 # ── КАТАЛОГ ВЕНТИЛЯТОРІВ ──
 FAN_CATALOG = [
-    {"name": "Вентилятор осьовий ВО-300", "type": "осьовий", "flow_min": 500, "flow_max": 2500, "pressure_min": 50, "pressure_max": 200, "power": 0.25, "price": 3500, "noise": 55},
-    {"name": "Вентилятор осьовий ВО-400", "type": "осьовий", "flow_min": 1500, "flow_max": 5000, "pressure_min": 80, "pressure_max": 300, "power": 0.55, "price": 4200, "noise": 58},
-    {"name": "Вентилятор осьовий ВО-500", "type": "осьовий", "flow_min": 3000, "flow_max": 10000, "pressure_min": 100, "pressure_max": 400, "power": 1.1, "price": 6800, "noise": 62},
-    {"name": "Вентилятор радіальний ВР-80-75 №2.5", "type": "радіальний", "flow_min": 500, "flow_max": 2500, "pressure_min": 200, "pressure_max": 800, "power": 0.37, "price": 8500, "noise": 60},
-    {"name": "Вентилятор радіальний ВР-80-75 №3.15", "type": "радіальний", "flow_min": 1000, "flow_max": 5000, "pressure_min": 300, "pressure_max": 1200, "power": 0.75, "price": 12000, "noise": 63},
-    {"name": "Вентилятор радіальний ВР-80-75 №4.0", "type": "радіальний", "flow_min": 2000, "flow_max": 10000, "pressure_min": 400, "pressure_max": 1800, "power": 1.5, "price": 18500, "noise": 67},
-    {"name": "Вентилятор радіальний ВР-80-75 №5.0", "type": "радіальний", "flow_min": 5000, "flow_max": 20000, "pressure_min": 500, "pressure_max": 2500, "power": 3.0, "price": 28000, "noise": 70},
-    {"name": "Вентилятор канальний ВК-100", "type": "канальний", "flow_min": 100, "flow_max": 500, "pressure_min": 30, "pressure_max": 150, "power": 0.04, "price": 3200, "noise": 45},
-    {"name": "Вентилятор канальний ВК-125", "type": "канальний", "flow_min": 200, "flow_max": 800, "pressure_min": 50, "pressure_max": 200, "power": 0.06, "price": 3800, "noise": 48},
-    {"name": "Вентилятор канальний ВК-150", "type": "канальний", "flow_min": 300, "flow_max": 1200, "pressure_min": 60, "pressure_max": 250, "power": 0.09, "price": 4500, "noise": 50},
-    {"name": "Вентилятор канальний ВК-200", "type": "канальний", "flow_min": 500, "flow_max": 2000, "pressure_min": 80, "pressure_max": 350, "power": 0.12, "price": 5200, "noise": 52},
-    {"name": "Вентилятор канальний ВК-250", "type": "канальний", "flow_min": 800, "flow_max": 3500, "pressure_min": 100, "pressure_max": 450, "power": 0.18, "price": 6500, "noise": 54},
-    {"name": "Вентилятор канальний ВК-315", "type": "канальний", "flow_min": 1200, "flow_max": 5500, "pressure_min": 120, "pressure_max": 550, "power": 0.25, "price": 8200, "noise": 56},
+    {
+        "name": "Вентилятор осьовий ВО-300",
+        "type": "осьовий",
+        "flow_min": 500,
+        "flow_max": 2500,
+        "pressure_min": 50,
+        "pressure_max": 200,
+        "power": 0.25,
+        "price": 3500,
+        "noise": 55,
+    },
+    {
+        "name": "Вентилятор осьовий ВО-400",
+        "type": "осьовий",
+        "flow_min": 1500,
+        "flow_max": 5000,
+        "pressure_min": 80,
+        "pressure_max": 300,
+        "power": 0.55,
+        "price": 4200,
+        "noise": 58,
+    },
+    {
+        "name": "Вентилятор осьовий ВО-500",
+        "type": "осьовий",
+        "flow_min": 3000,
+        "flow_max": 10000,
+        "pressure_min": 100,
+        "pressure_max": 400,
+        "power": 1.1,
+        "price": 6800,
+        "noise": 62,
+    },
+    {
+        "name": "Вентилятор радіальний ВР-80-75 №2.5",
+        "type": "радіальний",
+        "flow_min": 500,
+        "flow_max": 2500,
+        "pressure_min": 200,
+        "pressure_max": 800,
+        "power": 0.37,
+        "price": 8500,
+        "noise": 60,
+    },
+    {
+        "name": "Вентилятор радіальний ВР-80-75 №3.15",
+        "type": "радіальний",
+        "flow_min": 1000,
+        "flow_max": 5000,
+        "pressure_min": 300,
+        "pressure_max": 1200,
+        "power": 0.75,
+        "price": 12000,
+        "noise": 63,
+    },
+    {
+        "name": "Вентилятор радіальний ВР-80-75 №4.0",
+        "type": "радіальний",
+        "flow_min": 2000,
+        "flow_max": 10000,
+        "pressure_min": 400,
+        "pressure_max": 1800,
+        "power": 1.5,
+        "price": 18500,
+        "noise": 67,
+    },
+    {
+        "name": "Вентилятор радіальний ВР-80-75 №5.0",
+        "type": "радіальний",
+        "flow_min": 5000,
+        "flow_max": 20000,
+        "pressure_min": 500,
+        "pressure_max": 2500,
+        "power": 3.0,
+        "price": 28000,
+        "noise": 70,
+    },
+    {
+        "name": "Вентилятор канальний ВК-100",
+        "type": "канальний",
+        "flow_min": 100,
+        "flow_max": 500,
+        "pressure_min": 30,
+        "pressure_max": 150,
+        "power": 0.04,
+        "price": 3200,
+        "noise": 45,
+    },
+    {
+        "name": "Вентилятор канальний ВК-125",
+        "type": "канальний",
+        "flow_min": 200,
+        "flow_max": 800,
+        "pressure_min": 50,
+        "pressure_max": 200,
+        "power": 0.06,
+        "price": 3800,
+        "noise": 48,
+    },
+    {
+        "name": "Вентилятор канальний ВК-150",
+        "type": "канальний",
+        "flow_min": 300,
+        "flow_max": 1200,
+        "pressure_min": 60,
+        "pressure_max": 250,
+        "power": 0.09,
+        "price": 4500,
+        "noise": 50,
+    },
+    {
+        "name": "Вентилятор канальний ВК-200",
+        "type": "канальний",
+        "flow_min": 500,
+        "flow_max": 2000,
+        "pressure_min": 80,
+        "pressure_max": 350,
+        "power": 0.12,
+        "price": 5200,
+        "noise": 52,
+    },
+    {
+        "name": "Вентилятор канальний ВК-250",
+        "type": "канальний",
+        "flow_min": 800,
+        "flow_max": 3500,
+        "pressure_min": 100,
+        "pressure_max": 450,
+        "power": 0.18,
+        "price": 6500,
+        "noise": 54,
+    },
+    {
+        "name": "Вентилятор канальний ВК-315",
+        "type": "канальний",
+        "flow_min": 1200,
+        "flow_max": 5500,
+        "pressure_min": 120,
+        "pressure_max": 550,
+        "power": 0.25,
+        "price": 8200,
+        "noise": 56,
+    },
 ]
 
 

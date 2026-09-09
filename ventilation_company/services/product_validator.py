@@ -8,6 +8,7 @@ from typing import Any
 
 class ValidationError(ValueError):
     """Помилка валідації зі списком проблем."""
+
     def __init__(self, errors: list[str]):
         self.errors = errors
         super().__init__("\n".join(errors))

@@ -24,12 +24,8 @@ class Invoice(BaseDocument):
         self.ln(4)
 
         # Реквізити
-        self._draw_company_block(
-            "Постачальник:", self.company, x=10, y=self.get_y(), w=90
-        )
-        self._draw_company_block(
-            "Платник:", self.client, x=110, y=self.get_y() - 25, w=90
-        )
+        self._draw_company_block("Постачальник:", self.company, x=10, y=self.get_y(), w=90)
+        self._draw_company_block("Платник:", self.client, x=110, y=self.get_y() - 25, w=90)
         self.ln(10)
 
     def build(self, items: list[dict], filepath: str) -> str:
@@ -68,9 +64,11 @@ class Invoice(BaseDocument):
         self.set_y(-40)
         self.set_font("DejaVu", "", 8)
         self.set_text_color(100, 100, 100)
-        self.multi_cell(0, 4, 
+        self.multi_cell(
+            0,
+            4,
             f"Примітка: Рахунок дійсний до сплати протягом 5 банківських днів. "
-            f"Після оплати надішліть копію платіжного доручення на {self.company.email}"
+            f"Після оплати надішліть копію платіжного доручення на {self.company.email}",
         )
 
         self.output(filepath)

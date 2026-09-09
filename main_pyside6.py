@@ -4,44 +4,39 @@
     python main_pyside6.py
 """
 
-import sys
-import os
+from __future__ import annotations
+
 import subprocess
+import sys
+from pathlib import Path
 
-# Додаємо корінь проєкту
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 
-def _init_db_tables():
-    """Ініціалізація БД: Alembic → create_all fallback."""
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
-        )
-        if result.returncode == 0:
-            print("[DB] Міграції Alembic застосовано")
-            return
-        else:
-            print(f"[DB] Alembic warning: {result.stderr}")
-    except Exception as e:
-        print(f"[DB] Alembic недоступний: {e}")
+def run_migrations() -> None:
+    """Застосувати міграції Alembic. Без create_all fallback."""
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode != 0:
+        print("[DB] Помилка міграцій Alembic:")
+        print(result.stdout or "")
+        print(result.stderr or "")
+        raise SystemExit(1)
+    print("[DB] Міграції Alembic застосовано")
 
-    # Fallback
-    try:
-        import ventilation_company.database.models
-        from ventilation_company.database.base import Base
-        from ventilation_company.database.db import engine
-        Base.metadata.create_all(bind=engine)
-        print("[DB] Таблиці створено через SQLAlchemy")
-    except Exception as e:
-        print(f"[DB] Помилка створення таблиць: {e}")
+
+def main() -> None:
+    run_migrations()
+    from ventilation_company.gui_pyside6.main_window import run_app
+
+    run_app()
 
 
 if __name__ == "__main__":
-    _init_db_tables()
-    from ventilation_company.gui_pyside6.main_window import run_app
-    run_app()
+    main()

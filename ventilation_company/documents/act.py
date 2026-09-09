@@ -22,7 +22,13 @@ class WorkAct(BaseDocument):
         self.cell(0, 6, f"№ {self.doc_number} від {self.doc_date}", ln=True, align="C")
 
         if self.contract_number:
-            self.cell(0, 6, f"Договір № {self.contract_number} від {self.contract_date}", ln=True, align="C")
+            self.cell(
+                0,
+                6,
+                f"Договір № {self.contract_number} від {self.contract_date}",
+                ln=True,
+                align="C",
+            )
         self.ln(4)
 
         self._draw_company_block("Виконавець:", self.company, 10, self.get_y(), 90)

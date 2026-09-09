@@ -35,7 +35,9 @@ class PresetDialog:
         header = ttk.Frame(self.top)
         header.pack(fill=tk.X, padx=10, pady=(10, 5))
 
-        ttk.Label(header, text="📚 Бібліотека типових розмірів", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
+        ttk.Label(header, text="📚 Бібліотека типових розмірів", font=("Arial", 14, "bold")).pack(
+            side=tk.LEFT
+        )
 
         # Категорія
         cat_frame = ttk.Frame(header)
@@ -54,7 +56,9 @@ class PresetDialog:
         ttk.Label(search_frame, text="Пошук:").pack(side=tk.LEFT)
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self._filter_list())
-        ttk.Entry(search_frame, textvariable=self.search_var, width=20).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Entry(search_frame, textvariable=self.search_var, width=20).pack(
+            side=tk.LEFT, padx=(5, 0)
+        )
 
         # === ОСНОВНИЙ КОНТЕНТ ===
         content = ttk.Frame(self.top)
@@ -68,20 +72,36 @@ class PresetDialog:
         crud_frame = ttk.Frame(left)
         crud_frame.pack(fill=tk.X, pady=(0, 5))
         tk.Button(
-            crud_frame, text="➕ Додати", bg="#4CAF50", fg="white",
-            font=("Arial", 9, "bold"), command=self._on_add_preset
+            crud_frame,
+            text="➕ Додати",
+            bg="#4CAF50",
+            fg="white",
+            font=("Arial", 9, "bold"),
+            command=self._on_add_preset,
         ).pack(side=tk.LEFT, padx=(0, 5))
         tk.Button(
-            crud_frame, text="✏️ Редагувати", bg="#2196F3", fg="white",
-            font=("Arial", 9, "bold"), command=self._on_edit_preset
+            crud_frame,
+            text="✏️ Редагувати",
+            bg="#2196F3",
+            fg="white",
+            font=("Arial", 9, "bold"),
+            command=self._on_edit_preset,
         ).pack(side=tk.LEFT, padx=(0, 5))
         tk.Button(
-            crud_frame, text="🗑️ Видалити", bg="#F44336", fg="white",
-            font=("Arial", 9, "bold"), command=self._on_delete_preset
+            crud_frame,
+            text="🗑️ Видалити",
+            bg="#F44336",
+            fg="white",
+            font=("Arial", 9, "bold"),
+            command=self._on_delete_preset,
         ).pack(side=tk.LEFT, padx=(0, 5))
         tk.Button(
-            crud_frame, text="↺ Скинути", bg="#FF9800", fg="white",
-            font=("Arial", 9, "bold"), command=self._on_reset
+            crud_frame,
+            text="↺ Скинути",
+            bg="#FF9800",
+            fg="white",
+            font=("Arial", 9, "bold"),
+            command=self._on_reset,
         ).pack(side=tk.LEFT)
 
         # Таблиця
@@ -122,8 +142,14 @@ class PresetDialog:
         self.info_frame = ttk.LabelFrame(right, text="Параметри", padding=5)
         self.info_frame.pack(fill=tk.X, pady=10)
         self.info_text = tk.Text(
-            self.info_frame, height=6, width=45, wrap=tk.WORD,
-            font=("Consolas", 9), bg="#f5f5f5", relief=tk.FLAT, state=tk.DISABLED
+            self.info_frame,
+            height=6,
+            width=45,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg="#f5f5f5",
+            relief=tk.FLAT,
+            state=tk.DISABLED,
         )
         self.info_text.pack(fill=tk.BOTH, expand=True)
 
@@ -139,7 +165,9 @@ class PresetDialog:
         ttk.Entry(qty_frame, textvariable=self.qty_var, width=8).pack(side=tk.LEFT, padx=(5, 0))
 
         # Кнопки дії
-        ttk.Button(bottom, text="❌ Скасувати", command=self._on_cancel).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(bottom, text="❌ Скасувати", command=self._on_cancel).pack(
+            side=tk.RIGHT, padx=(5, 0)
+        )
         ttk.Button(bottom, text="➕ Додати", command=self._on_ok).pack(side=tk.RIGHT)
 
     def _on_cat_changed(self, event=None):
@@ -165,9 +193,12 @@ class PresetDialog:
             size = f"{p.width:.0f}×{p.height:.0f}" if p.width != p.height else f"Ø{p.width:.0f}"
             mat = p._material_str() if hasattr(p, "_material_str") else str(p.material)
             thick = p._thickness_float() if hasattr(p, "_thickness_float") else float(p.thickness)
-            self.tree.insert("", tk.END, values=(
-                p.name, size, f"{p.length:.0f}", mat, f"{thick:.1f}"
-            ), tags=(len(self._current_presets),))
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(p.name, size, f"{p.length:.0f}", mat, f"{thick:.1f}"),
+                tags=(len(self._current_presets),),
+            )
             self._current_presets.append(p)
 
         self.preview.clear()
@@ -241,7 +272,9 @@ class PresetDialog:
         """Додати новий пресет (спрощено — копія обраного з редагуванням)."""
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Увага", "Спочатку оберіть виріб для копіювання.", parent=self.top)
+            messagebox.showwarning(
+                "Увага", "Спочатку оберіть виріб для копіювання.", parent=self.top
+            )
             return
         item = self.tree.item(sel[0])
         tags = item.get("tags", [])
@@ -303,7 +336,11 @@ class PresetDialog:
         self._on_cat_changed()
 
     def _on_reset(self):
-        if messagebox.askyesno("Підтвердження", "Скинути бібліотеку до заводських налаштувань?\nВсі ваші зміни будуть втрачені!", parent=self.top):
+        if messagebox.askyesno(
+            "Підтвердження",
+            "Скинути бібліотеку до заводських налаштувань?\nВсі ваші зміни будуть втрачені!",
+            parent=self.top,
+        ):
             self.manager.reset_to_defaults()
             self._on_cat_changed()
 
@@ -356,23 +393,41 @@ class _PresetEditorDialog:
 
         # Матеріал
         ttk.Label(self.top, text="Матеріал:").pack(pady=(10, 0))
-        self.mat_var = tk.StringVar(value=base._material_str() if hasattr(base, "_material_str") else str(base.material))
-        ttk.Combobox(self.top, textvariable=self.mat_var,
-                     values=["оцинкована сталь", "нержавіюча сталь", "алюміній"],
-                     state="readonly", width=25).pack()
+        self.mat_var = tk.StringVar(
+            value=base._material_str() if hasattr(base, "_material_str") else str(base.material)
+        )
+        ttk.Combobox(
+            self.top,
+            textvariable=self.mat_var,
+            values=["оцинкована сталь", "нержавіюча сталь", "алюміній"],
+            state="readonly",
+            width=25,
+        ).pack()
 
         # Товщина
         ttk.Label(self.top, text="Товщина (мм):").pack(pady=(10, 0))
-        self.thick_var = tk.StringVar(value=str(base._thickness_float() if hasattr(base, "_thickness_float") else float(base.thickness)))
-        ttk.Combobox(self.top, textvariable=self.thick_var,
-                     values=["0.5", "0.55", "0.6", "0.7", "0.8", "1.0", "1.2", "1.5", "2.0"],
-                     state="readonly", width=10).pack()
+        self.thick_var = tk.StringVar(
+            value=str(
+                base._thickness_float()
+                if hasattr(base, "_thickness_float")
+                else float(base.thickness)
+            )
+        )
+        ttk.Combobox(
+            self.top,
+            textvariable=self.thick_var,
+            values=["0.5", "0.55", "0.6", "0.7", "0.8", "1.0", "1.2", "1.5", "2.0"],
+            state="readonly",
+            width=10,
+        ).pack()
 
         # Кнопки
         btn_frame = ttk.Frame(self.top)
         btn_frame.pack(pady=20)
         ttk.Button(btn_frame, text="💾 Зберегти", command=self._on_save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="❌ Скасувати", command=self.top.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ Скасувати", command=self.top.destroy).pack(
+            side=tk.LEFT, padx=5
+        )
 
         # Автооновлення назви при зміні розмірів
         for var in (self.w_var, self.h_var, self.l_var):
@@ -428,6 +483,7 @@ class _PresetEditorDialog:
 
     def _on_save(self):
         from ventilation_company.standard_products import MaterialType, Thickness
+
         try:
             w = float(self.w_var.get())
             h = float(self.h_var.get())
@@ -464,7 +520,7 @@ class _PresetEditorDialog:
             p.product_type = ptype
 
             # Перераховуємо площі, вагу, ціну
-            if hasattr(p, '__post_init__'):
+            if hasattr(p, "__post_init__"):
                 p.__post_init__()
 
             self.result = p

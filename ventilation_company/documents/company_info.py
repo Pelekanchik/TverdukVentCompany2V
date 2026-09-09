@@ -6,18 +6,19 @@ from dataclasses import dataclass
 @dataclass
 class CompanyInfo:
     """Реквізити компанії (фірми або клієнта)."""
-    name: str = ""                    # Повна назва
-    edrpou: str = ""                # ЄДРПОУ / РНОКПП
-    address: str = ""               # Юридична адреса
-    phone: str = ""                 # Телефон
-    email: str = ""                 # Email
-    bank_name: str = ""             # Назва банку
-    bank_account: str = ""          # Р/р (IBAN)
-    bank_mfo: str = ""              # МФО
-    director: str = ""              # ПІБ директора
-    accountant: str = ""            # ПІБ бухгалтера
-    tax_system: str = "загальна"    # загальна / єдиний податок
-    vat_payer: bool = True          # Платник ПДВ
+
+    name: str = ""  # Повна назва
+    edrpou: str = ""  # ЄДРПОУ / РНОКПП
+    address: str = ""  # Юридична адреса
+    phone: str = ""  # Телефон
+    email: str = ""  # Email
+    bank_name: str = ""  # Назва банку
+    bank_account: str = ""  # Р/р (IBAN)
+    bank_mfo: str = ""  # МФО
+    director: str = ""  # ПІБ директора
+    accountant: str = ""  # ПІБ бухгалтера
+    tax_system: str = "загальна"  # загальна / єдиний податок
+    vat_payer: bool = True  # Платник ПДВ
 
     def validate(self) -> list[str]:
         """Перевірити заповненість обов'язкових полів."""

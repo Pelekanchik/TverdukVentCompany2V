@@ -35,6 +35,7 @@ _logger = get_logger("products")
 # ENUMS
 # ═══════════════════════════════════════════════════════════
 
+
 class MaterialType(Enum):
     GALVANIZED = "оцинкована сталь"
     STAINLESS = "нержавіюча сталь"
@@ -77,6 +78,7 @@ def _normalize_thickness(thickness_value: Thickness | float) -> float:
 # ═══════════════════════════════════════════════════════════
 # БАЗОВИЙ КЛАС
 # ═══════════════════════════════════════════════════════════
+
 
 @dataclass
 class StandardProduct:
@@ -251,12 +253,25 @@ class StandardProduct:
             "notes": self.notes,
         }
         for field_name in [
-            "branch_width", "branch_height", "branch_length",
-            "branch_diameter", "branch_offset", "end_width",
-            "end_height", "end_diameter", "angle", "radius",
-            "top_extension", "bottom_extension",
-            "segments", "depth", "border", "bolt_count",
-            "bolt_diameter", "bolt_spacing", "fabric_type",
+            "branch_width",
+            "branch_height",
+            "branch_length",
+            "branch_diameter",
+            "branch_offset",
+            "end_width",
+            "end_height",
+            "end_diameter",
+            "angle",
+            "radius",
+            "top_extension",
+            "bottom_extension",
+            "segments",
+            "depth",
+            "border",
+            "bolt_count",
+            "bolt_diameter",
+            "bolt_spacing",
+            "fabric_type",
         ]:
             if hasattr(self, field_name):
                 data[field_name] = getattr(self, field_name)
@@ -312,6 +327,7 @@ class StandardProduct:
 # ПРЯМОКУТНИЙ ПОВІТРОПРОВІД
 # ═══════════════════════════════════════════════════════════
 
+
 @dataclass
 class RectDuct(StandardProduct):
     _category = ProductCategory.RECT_DUCT
@@ -347,6 +363,7 @@ class RectDuct(StandardProduct):
 # ═══════════════════════════════════════════════════════════
 # КРУГЛИЙ ПОВІТРОПРОВІД
 # ═══════════════════════════════════════════════════════════
+
 
 @dataclass
 class RoundDuct(StandardProduct):
@@ -385,6 +402,7 @@ class RoundDuct(StandardProduct):
 # ═══════════════════════════════════════════════════════════
 # КОЛІНА
 # ═══════════════════════════════════════════════════════════
+
 
 @dataclass
 class RectElbow(StandardProduct):
@@ -453,13 +471,20 @@ class RoundElbow(StandardProduct):
         strip_width = math.pi * d_mm
         mean_r = r_mm + d_mm / 2
         arc = mean_r * angle_rad
-        total_len = self.top_extension + self.bottom_extension + arc + 2 * params.cut_allowance_mm + params.bend_allowance_mm
+        total_len = (
+            self.top_extension
+            + self.bottom_extension
+            + arc
+            + 2 * params.cut_allowance_mm
+            + params.bend_allowance_mm
+        )
         return (strip_width * total_len) / 1_000_000
 
 
 # ═══════════════════════════════════════════════════════════
 # ІНШІ ВИРОБИ
 # ═══════════════════════════════════════════════════════════
+
 
 @dataclass
 class RectFlange(StandardProduct):
@@ -550,7 +575,9 @@ class RoundTee(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        factor = 1 + (params.cut_allowance_mm * 3 + params.bend_allowance_mm) / (self.width + 1) * 0.01
+        factor = (
+            1 + (params.cut_allowance_mm * 3 + params.bend_allowance_mm) / (self.width + 1) * 0.01
+        )
         return base * max(factor, 1.05)
 
 
@@ -573,7 +600,9 @@ class RectTransition(StandardProduct):
         t = self._thickness_float()
         base = self.calculate_surface_area()
         seam = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
-        factor = 1 + (seam + params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (self.width + self.height + 1)
+        factor = 1 + (seam + params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (
+            self.width + self.height + 1
+        )
         return base * factor
 
 
@@ -591,7 +620,9 @@ class RoundTransition(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        factor = 1 + (params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (self.width + 1) * 0.01
+        factor = (
+            1 + (params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (self.width + 1) * 0.01
+        )
         return base * max(factor, 1.03)
 
 
@@ -608,7 +639,9 @@ class RectCap(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        factor = 1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (self.width + self.height + 1)
+        factor = 1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (
+            self.width + self.height + 1
+        )
         return base * factor
 
 
@@ -625,7 +658,9 @@ class RoundCap(StandardProduct):
     def calculate_blank_area(self) -> float:
         params = get_params(self._category)
         base = self.calculate_surface_area()
-        factor = 1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (self.width + 1) * 0.01
+        factor = (
+            1 + (params.seam_allowance_mm + params.cut_allowance_mm * 2) / (self.width + 1) * 0.01
+        )
         return base * max(factor, 1.02)
 
 
@@ -661,6 +696,7 @@ class FlexibleConnector(StandardProduct):
 # БІБЛІОТЕКА
 # ═══════════════════════════════════════════════════════════
 
+
 @dataclass
 class ProductLibrary:
     products: list = field(default_factory=list)
@@ -695,31 +731,41 @@ class ProductLibrary:
 
     def get_specification(self) -> list[dict]:
         from collections import defaultdict
+
         grouped = defaultdict(lambda: {"quantity": 0, "products": []})
         for p in self.products:
-            key = (p.product_type, p.width, p.height, p.length, p._thickness_float(), p._material_str())
+            key = (
+                p.product_type,
+                p.width,
+                p.height,
+                p.length,
+                p._thickness_float(),
+                p._material_str(),
+            )
             grouped[key]["quantity"] += p.quantity
             grouped[key]["products"].append(p)
         result = []
         for key, data in grouped.items():
             p = data["products"][0]
-            result.append({
-                "name": p.name,
-                "product_type": p.product_type,
-                "width": p.width,
-                "height": p.height,
-                "length": p.length,
-                "thickness": p._thickness_float(),
-                "material": p._material_str(),
-                "quantity": data["quantity"],
-                "surface_area_m2": round(p.surface_area, 4),
-                "blank_area_m2": round(p.blank_area, 4),
-                "material_area_m2": round(p.material_area, 4),
-                "metal_area_m2": round(p.metal_area, 4),
-                "weight_kg": round(p.weight, 4),
-                "unit_price": round(float(p.unit_price), 2),
-                "total_price": round(float(p.unit_price) * data["quantity"], 2),
-            })
+            result.append(
+                {
+                    "name": p.name,
+                    "product_type": p.product_type,
+                    "width": p.width,
+                    "height": p.height,
+                    "length": p.length,
+                    "thickness": p._thickness_float(),
+                    "material": p._material_str(),
+                    "quantity": data["quantity"],
+                    "surface_area_m2": round(p.surface_area, 4),
+                    "blank_area_m2": round(p.blank_area, 4),
+                    "material_area_m2": round(p.material_area, 4),
+                    "metal_area_m2": round(p.metal_area, 4),
+                    "weight_kg": round(p.weight, 4),
+                    "unit_price": round(float(p.unit_price), 2),
+                    "total_price": round(float(p.unit_price) * data["quantity"], 2),
+                }
+            )
         return result
 
     def to_dict(self) -> list[dict]:
@@ -735,6 +781,7 @@ class ProductLibrary:
 # ═══════════════════════════════════════════════════════════
 # ХЕЛПЕРИ / ФАБРИКИ
 # ═══════════════════════════════════════════════════════════
+
 
 def _resolve_thickness(thickness: float | Thickness) -> Thickness:
     if isinstance(thickness, Thickness):
@@ -755,7 +802,9 @@ def _resolve_material(material: str | MaterialType) -> MaterialType:
 
 
 def make_rect_duct(
-    width: float, height: float, length: float,
+    width: float,
+    height: float,
+    length: float,
     thickness: float | Thickness = 0.7,
     material: str | MaterialType = "оцинкована сталь",
     quantity: int = 1,
@@ -765,13 +814,18 @@ def make_rect_duct(
     return RectDuct(
         name=f"Повітропровід {width:.0f}×{height:.0f}×{length:.0f}",
         product_type="повітропровід прямокутний",
-        width=width, height=height, length=length,
-        thickness=thick, material=mat, quantity=quantity,
+        width=width,
+        height=height,
+        length=length,
+        thickness=thick,
+        material=mat,
+        quantity=quantity,
     )
 
 
 def make_round_duct(
-    diameter: float, length: float,
+    diameter: float,
+    length: float,
     thickness: float | Thickness = 0.7,
     material: str | MaterialType = "оцинкована сталь",
     quantity: int = 1,
@@ -781,6 +835,10 @@ def make_round_duct(
     return RoundDuct(
         name=f"Повітропровід Ø{diameter:.0f}×{length:.0f}",
         product_type="повітропровід круглий",
-        width=diameter, height=diameter, length=length,
-        thickness=thick, material=mat, quantity=quantity,
+        width=diameter,
+        height=diameter,
+        length=length,
+        thickness=thick,
+        material=mat,
+        quantity=quantity,
     )

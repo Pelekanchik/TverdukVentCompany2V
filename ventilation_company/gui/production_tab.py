@@ -40,16 +40,19 @@ class ProductionTab:
         self.start_var = tk.StringVar(value=datetime.now().strftime("%d.%m.%Y 08:00"))
         ttk.Entry(top, textvariable=self.start_var, width=18).pack(side=tk.LEFT, padx=2)
 
-        ttk.Label(top, text="⏰ Дедлайн:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(15, 2))
-        self.deadline_var = tk.StringVar(value=(datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y 17:00"))
+        ttk.Label(top, text="⏰ Дедлайн:", font=("Arial", 10, "bold")).pack(
+            side=tk.LEFT, padx=(15, 2)
+        )
+        self.deadline_var = tk.StringVar(
+            value=(datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y 17:00")
+        )
         ttk.Entry(top, textvariable=self.deadline_var, width=18).pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(top, text=" Запланувати виробництво", command=self._schedule
-                   ).pack(side=tk.LEFT, padx=(20, 2))
-        ttk.Button(top, text="💾 Експорт PNG", command=self._export_png
-                   ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(top, text="📄 Експорт PDF", command=self._export_pdf
-                   ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(top, text=" Запланувати виробництво", command=self._schedule).pack(
+            side=tk.LEFT, padx=(20, 2)
+        )
+        ttk.Button(top, text="💾 Експорт PNG", command=self._export_png).pack(side=tk.LEFT, padx=2)
+        ttk.Button(top, text="📄 Експорт PDF", command=self._export_pdf).pack(side=tk.LEFT, padx=2)
 
         # ── Статусна панель ──
         self.status_frame = ttk.LabelFrame(self.frame, text="Статус проєкту", padding=5)
@@ -64,9 +67,11 @@ class ProductionTab:
             ("deadline_status", "Дедлайн:"),
         ]
         for i, (key, text) in enumerate(status_fields):
-            ttk.Label(self.status_frame, text=text, font=("Arial", 9)).grid(row=0, column=i*2, padx=5)
+            ttk.Label(self.status_frame, text=text, font=("Arial", 9)).grid(
+                row=0, column=i * 2, padx=5
+            )
             lbl = ttk.Label(self.status_frame, text="—", font=("Arial", 9, "bold"))
-            lbl.grid(row=0, column=i*2+1, padx=5)
+            lbl.grid(row=0, column=i * 2 + 1, padx=5)
             self.status_labels[key] = lbl
 
         # ── Notebook з діаграмами та зарплатою ──
@@ -99,7 +104,8 @@ class ProductionTab:
         hint = ttk.Label(
             self.frame,
             text="💡 Підказка: введіть дату початку та дедлайн, натисніть «Запланувати виробництво». Кольори = тип операції, штрихування = статус.",
-            foreground="#666", font=("Arial", 8)
+            foreground="#666",
+            font=("Arial", 8),
         )
         hint.pack(anchor=tk.W, padx=5, pady=2)
 
@@ -127,10 +133,14 @@ class ProductionTab:
         """Вкладка розрахунку зарплат по виробах."""
         top = ttk.Frame(self.salary_tab, padding=5)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="💰 Розрахунок зарплати робітників (від виробітку)",
-                  font=("Arial", 12, "bold")).pack(side=tk.LEFT)
-        ttk.Button(top, text="🔄 Перерахувати", command=self._calculate_salary
-                   ).pack(side=tk.RIGHT, padx=5)
+        ttk.Label(
+            top,
+            text="💰 Розрахунок зарплати робітників (від виробітку)",
+            font=("Arial", 12, "bold"),
+        ).pack(side=tk.LEFT)
+        ttk.Button(top, text="🔄 Перерахувати", command=self._calculate_salary).pack(
+            side=tk.RIGHT, padx=5
+        )
 
         # Таблиця
         cols = ("product", "type", "area", "rate", "difficulty", "salary", "total")
@@ -158,17 +168,21 @@ class ProductionTab:
         vsb.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
 
         # Підсумок
-        self.salary_total_frame = ttk.LabelFrame(self.salary_tab, text="Підсумок по проєкту", padding=10)
+        self.salary_total_frame = ttk.LabelFrame(
+            self.salary_tab, text="Підсумок по проєкту", padding=10
+        )
         self.salary_total_frame.pack(fill=tk.X, padx=5, pady=5, side=tk.BOTTOM)
-        self.salary_total_label = ttk.Label(self.salary_total_frame, text="Загальна зарплата: 0.00 грн",
-                                             font=("Arial", 11, "bold"))
+        self.salary_total_label = ttk.Label(
+            self.salary_total_frame, text="Загальна зарплата: 0.00 грн", font=("Arial", 11, "bold")
+        )
         self.salary_total_label.pack(anchor=tk.W)
 
         # Підказка
         hint = ttk.Label(
             self.salary_tab,
             text="💡 Формула: Зарплата = площа_металу × ставка_грн/м² × (1 + важкість_%) | Ставки беруться з вкладки 'Ціноутворення → Зарплата'",
-            foreground="#666", font=("Arial", 8)
+            foreground="#666",
+            font=("Arial", 8),
         )
         hint.pack(anchor=tk.W, padx=5, pady=2)
 
@@ -194,11 +208,14 @@ class ProductionTab:
             # === ВИПРАВЛЕННЯ 2: використовуємо name (українську назву) для пошуку ставки ===
             # бо product_type = "rectangular_duct", а labor_rates має ключ "повітропровід прямокутний"
             ptype = product.get("product_type", product.get("type", product.get("name", "")))
-            area = float(product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0))))
+            area = float(
+                product.get("metal_area_m2", product.get("metal_area", product.get("area_m2", 0)))
+            )
             qty = int(product.get("quantity", 1))
 
             # Розрахунок через SalaryService (уніфікований з усім проєктом)
             from ventilation_company.services import SalaryService
+
             salary_per_unit = SalaryService.calculate(
                 product_type=ptype,
                 dimensions=product.get("dimensions", ""),
@@ -212,15 +229,19 @@ class ProductionTab:
             salary_total = salary_per_unit * qty
             total_salary += salary_total
 
-            self.salary_tree.insert("", tk.END, values=(
-                name,
-                product.get("product_type", ""),
-                f"{area:.4f}",
-                f"{rate:.2f}",
-                f"{difficulty:.1f}",
-                f"{salary_per_unit:.2f}",
-                f"{salary_total:.2f}",
-            ))
+            self.salary_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    name,
+                    product.get("product_type", ""),
+                    f"{area:.4f}",
+                    f"{rate:.2f}",
+                    f"{difficulty:.1f}",
+                    f"{salary_per_unit:.2f}",
+                    f"{salary_total:.2f}",
+                ),
+            )
 
         self.salary_total_label.config(text=f"Загальна зарплата: {total_salary:,.2f} грн")
 
@@ -245,7 +266,9 @@ class ProductionTab:
         deadline = self._parse_datetime(self.deadline_var.get())
 
         if start is None:
-            messagebox.showerror("Помилка", "Невірний формат дати початку. Використовуйте ДД.ММ.РРРР ГГ:ХХ")
+            messagebox.showerror(
+                "Помилка", "Невірний формат дати початку. Використовуйте ДД.ММ.РРРР ГГ:ХХ"
+            )
             return
 
         project_name = "Проєкт"
@@ -265,6 +288,7 @@ class ProductionTab:
             self._update_ui()
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             messagebox.showerror("Помилка планування", str(e))
 
@@ -282,7 +306,9 @@ class ProductionTab:
 
         self.status_labels["project"].config(text=plan.project_name)
         self.status_labels["operations"].config(text=str(plan.total_operations))
-        self.status_labels["duration"].config(text=f"{duration.days} дн {duration.seconds//3600} год")
+        self.status_labels["duration"].config(
+            text=f"{duration.days} дн {duration.seconds//3600} год"
+        )
         self.status_labels["completion"].config(text=f"{plan.completion_percent:.0f}%")
         self.status_labels["deadline_status"].config(text=dl_text, foreground=dl_color)
 
@@ -303,7 +329,9 @@ class ProductionTab:
         for widget in self.gantt_container.winfo_children():
             widget.destroy()
 
-        chart = GanttChart(self.current_plan, figsize=(14, max(6, len(self.current_plan.operations) * 0.4)))
+        chart = GanttChart(
+            self.current_plan, figsize=(14, max(6, len(self.current_plan.operations) * 0.4))
+        )
         chart.draw(show_equipment=True)
 
         self.gantt_canvas = chart.get_canvas(self.gantt_container)
@@ -328,15 +356,19 @@ class ProductionTab:
             self.tree.delete(item)
 
         for op in self.current_plan.operations:
-            self.tree.insert("", tk.END, values=(
-                op.product_name,
-                op.operation_type.value,
-                op.equipment.name,
-                op.start_time.strftime("%d.%m %H:%M"),
-                op.end_time.strftime("%d.%m %H:%M"),
-                f"{op.duration_minutes:.0f} хв",
-                op.status.value,
-            ))
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    op.product_name,
+                    op.operation_type.value,
+                    op.equipment.name,
+                    op.start_time.strftime("%d.%m %H:%M"),
+                    op.end_time.strftime("%d.%m %H:%M"),
+                    f"{op.duration_minutes:.0f} хв",
+                    op.status.value,
+                ),
+            )
 
     def _export_png(self):
         """Експортувати діаграми в PNG."""

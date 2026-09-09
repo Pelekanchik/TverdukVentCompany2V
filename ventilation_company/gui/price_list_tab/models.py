@@ -31,6 +31,7 @@ HAVE_OPENPYXL = False
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
     HAVE_OPENPYXL = True
 except ImportError:
     pass
@@ -43,6 +44,7 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     HAVE_REPORTLAB = True
 except ImportError:
     pass
@@ -82,7 +84,7 @@ class PriceItem:
     created_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
     updated_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
     source: str = "manual"  # manual / products / archive
-    project_id: str = ""      # ID проєкту, якщо з архіву
+    project_id: str = ""  # ID проєкту, якщо з архіву
 
     def __post_init__(self):
         if not self.id:
@@ -91,6 +93,7 @@ class PriceItem:
 
     def recalculate(self):
         from ventilation_company.utils.money import money_round
+
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
@@ -106,6 +109,7 @@ class PriceItem:
     @property
     def profit(self) -> Decimal:
         from ventilation_company.utils.money import money_round
+
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
@@ -132,8 +136,15 @@ class PriceItem:
         valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_keys}
         # Конвертуємо Decimal-поля назад у Decimal (JSON зберігає як float)
-        decimal_fields = {"cost_price", "labor_cost", "material_cost",
-                          "overhead_cost", "supplier_price", "unit_price", "total_price"}
+        decimal_fields = {
+            "cost_price",
+            "labor_cost",
+            "material_cost",
+            "overhead_cost",
+            "supplier_price",
+            "unit_price",
+            "total_price",
+        }
         for key in decimal_fields:
             if key in filtered and not isinstance(filtered[key], Decimal):
                 try:
@@ -166,7 +177,9 @@ class PriceListManager:
         with open(self.filepath, "w", encoding="utf-8") as f:
             json.dump(
                 {"items": [item.to_dict() for item in self.items]},
-                f, ensure_ascii=False, indent=2,
+                f,
+                ensure_ascii=False,
+                indent=2,
             )
 
     def add(self, item: PriceItem) -> PriceItem:
@@ -241,16 +254,24 @@ class PriceListManager:
             name = p.get("name", "Виріб")
 
             def _to_float(val, default=0.0):
-                if val is None: return default
-                if isinstance(val, (int, float)): return float(val)
-                if hasattr(val, "__float__"): return float(val)
-                try: return float(str(val).replace(",", "."))
-                except: return default
+                if val is None:
+                    return default
+                if isinstance(val, (int, float)):
+                    return float(val)
+                if hasattr(val, "__float__"):
+                    return float(val)
+                try:
+                    return float(str(val).replace(",", "."))
+                except:
+                    return default
 
             def _to_str(val):
-                if val is None: return ""
-                if isinstance(val, str): return val
-                if hasattr(val, "value"): return str(val.value)
+                if val is None:
+                    return ""
+                if isinstance(val, str):
+                    return val
+                if hasattr(val, "value"):
+                    return str(val.value)
                 return str(val)
 
             unit_price = _to_float(p.get("unit_price"), 0)
@@ -271,9 +292,9 @@ class PriceListManager:
                 #   10% — робота
                 #   15% — накладні
                 full_cost = unit_price / 1.3
-                cost_price = Decimal(str(full_cost * 0.75))   # тільки матеріал
-                labor = float(full_cost) * 0.10               # робота
-                overhead_total = float(full_cost) * 0.15      # накладні
+                cost_price = Decimal(str(full_cost * 0.75))  # тільки матеріал
+                labor = float(full_cost) * 0.10  # робота
+                overhead_total = float(full_cost) * 0.15  # накладні
             else:
                 # Ціна невідома — розраховуємо fallback
                 cost_price = Decimal("0")
@@ -287,12 +308,18 @@ class PriceListManager:
                     }
                     price_per_m2 = material_prices.get(material, {}).get(thickness, 260)
                     type_coef = {
-                        "rect_duct": 1.15, "round_duct": 1.20,
-                        "rect_flange": 1.30, "round_flange": 1.30,
-                        "rect_tee": 1.50, "round_tee": 1.55,
-                        "rect_transition": 1.40, "round_transition": 1.45,
-                        "rect_elbow": 1.60, "round_elbow": 1.65,
-                        "rect_cap": 1.25, "round_cap": 1.25,
+                        "rect_duct": 1.15,
+                        "round_duct": 1.20,
+                        "rect_flange": 1.30,
+                        "round_flange": 1.30,
+                        "rect_tee": 1.50,
+                        "round_tee": 1.55,
+                        "rect_transition": 1.40,
+                        "round_transition": 1.45,
+                        "rect_elbow": 1.60,
+                        "round_elbow": 1.65,
+                        "rect_cap": 1.25,
+                        "round_cap": 1.25,
                         "flexible": 1.0,
                     }
                     coef = type_coef.get(product_type, 1.3)
@@ -363,6 +390,7 @@ class PriceListManager:
         if os.path.exists(db_path):
             try:
                 import sqlite3
+
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
@@ -373,14 +401,18 @@ class PriceListManager:
                     return 0
                 project_id_db = project["id"]
                 project_name = project["name"]
-                cursor.execute("SELECT * FROM project_products WHERE project_id = ?", (project_id_db,))
+                cursor.execute(
+                    "SELECT * FROM project_products WHERE project_id = ?", (project_id_db,)
+                )
                 products = cursor.fetchall()
                 for p in products:
                     item_name = p["name"]
                     if not item_name:
                         continue
                     exists = any(
-                        i.name == item_name and i.project_id == str(project_id_db) and i.source == "archive"
+                        i.name == item_name
+                        and i.project_id == str(project_id_db)
+                        and i.source == "archive"
                         for i in self.items
                     )
                     if exists:
@@ -392,13 +424,21 @@ class PriceListManager:
                     unit_price = p["unit_price"] or 0
                     qty = p["quantity"] or 1
                     if unit_price == 0 and p["metal_area_m2"]:
-                        material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                        material_prices = {
+                            "оцинкована сталь": 120.0,
+                            "нержавіюча сталь": 350.0,
+                            "алюміній": 200.0,
+                        }
                         area = p["metal_area_m2"] or 0
                         mat = p["material"] or "оцинкована сталь"
                         price_per_m2 = material_prices.get(mat, 120.0)
                         unit_price = area * (price_per_m2 + 50)
                     total_price = unit_price * qty
-                    cost = Decimal(str(unit_price)) / Decimal("1.3") if unit_price > 0 else Decimal("0")
+                    cost = (
+                        Decimal(str(unit_price)) / Decimal("1.3")
+                        if unit_price > 0
+                        else Decimal("0")
+                    )
                     item = PriceItem(
                         name=item_name,
                         category="власне виробництво",
@@ -449,8 +489,7 @@ class PriceListManager:
                             if not item_name:
                                 continue
                             exists = any(
-                                i.name == item_name and i.source == "archive"
-                                for i in self.items
+                                i.name == item_name and i.source == "archive" for i in self.items
                             )
                             if exists:
                                 continue

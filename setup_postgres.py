@@ -49,7 +49,9 @@ def check_dependencies():
 
 
 def create_env():
-    write_file(os.path.join(BASE_DIR, ".env"), '''# PostgreSQL конфігурація VentCompany
+    write_file(
+        os.path.join(BASE_DIR, ".env"),
+        """# PostgreSQL конфігурація VentCompany
 DATABASE_URL=postgresql://CHANGE_ME:CHANGE_ME@localhost:5432/ventcompany
 
 # Налаштування пулу з'єднань
@@ -61,11 +63,14 @@ DB_POOL_RECYCLE=3600
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=
 ADMIN_FULL_NAME=Адміністратор
-''')
+""",
+    )
 
 
 def create_alembic_ini():
-    write_file(os.path.join(BASE_DIR, "alembic.ini"), '''# Alembic конфігурація для VentCompany (PostgreSQL)
+    write_file(
+        os.path.join(BASE_DIR, "alembic.ini"),
+        """# Alembic конфігурація для VentCompany (PostgreSQL)
 
 [alembic]
 script_location = migrations
@@ -109,11 +114,14 @@ formatter = generic
 [formatter_generic]
 format = %(levelname)-5.5s [%(name)s] %(message)s
 datefmt = %H:%M:%S
-''')
+""",
+    )
 
 
 def create_migrations_env():
-    write_file(os.path.join(MIGRATIONS_DIR, "env.py"), '''"""Alembic env.py для PostgreSQL."""
+    write_file(
+        os.path.join(MIGRATIONS_DIR, "env.py"),
+        '''"""Alembic env.py для PostgreSQL."""
 
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
@@ -164,7 +172,8 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-''')
+''',
+    )
 
 
 def create_migrations_structure():
@@ -177,7 +186,9 @@ def create_migrations_structure():
     # script.py.mako (шаблон)
     mako_path = os.path.join(MIGRATIONS_DIR, "script.py.mako")
     if not os.path.exists(mako_path):
-        write_file(mako_path, '''"""${message}
+        write_file(
+            mako_path,
+            '''"""${message}
 
 Revision ID: ${up_revision}
 Revises: ${down_revision | comma,n}
@@ -201,7 +212,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
-''')
+''',
+        )
 
     # versions папка
     versions_dir = os.path.join(MIGRATIONS_DIR, "versions")
@@ -210,7 +222,9 @@ def downgrade() -> None:
     # initial міграція (якщо ще немає)
     initial_path = os.path.join(versions_dir, "001_initial.py")
     if not os.path.exists(initial_path):
-        write_file(initial_path, '''"""Initial migration
+        write_file(
+            initial_path,
+            '''"""Initial migration
 
 Revision ID: 001
 Revises: 
@@ -232,7 +246,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     pass
-''')
+''',
+        )
         print("  ✅ Створено initial міграцію 001_initial.py")
 
 
@@ -314,7 +329,7 @@ def main():
         print("     1. Запустіть програму: python main.py")
         print("     2. Перевірте data/.setup_credentials.json для стартового пароля admin")
         print("     3. ЗМІНІТЬ ПАРОЛЬ АДМІНІСТРАТОРА!")
-        print("     4. Для нових міграцій: alembic revision --autogenerate -m \"опис\"")
+        print('     4. Для нових міграцій: alembic revision --autogenerate -m "опис"')
     else:
         print("  ⚠️  Файли створено, але init_db не вдалося запустити.")
         print("     Спробуйте вручну: python -m ventilation_company.database.init_db")

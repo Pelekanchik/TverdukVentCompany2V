@@ -24,6 +24,7 @@ _PRICING_PATH = Path(__file__).parent.parent / "data" / "pricing_settings.json"
 # ENUMS
 # ═══════════════════════════════════════════════════════════
 
+
 class ProductCategory(Enum):
     RECT_DUCT = "rect_duct"
     ROUND_DUCT = "round_duct"
@@ -43,6 +44,7 @@ class ProductCategory(Enum):
 # ═══════════════════════════════════════════════════════════
 # DATA CLASSES
 # ═══════════════════════════════════════════════════════════
+
 
 @dataclass(frozen=True)
 class StiffenerRule:
@@ -145,6 +147,7 @@ def get_all_params() -> dict[ProductCategory, ManufacturingParams]:
 # ЦІНИ / ТАРИФИ (з pricing_settings.json)
 # ═══════════════════════════════════════════════════════════
 
+
 def get_material_price(material_name: str, thickness_mm: float) -> float:
     """Ціна матеріалу за м² для заданої товщини.
 
@@ -194,6 +197,7 @@ def get_labor_rate(product_type: str) -> dict[str, float]:
 # УТИЛІТИ
 # ═══════════════════════════════════════════════════════════
 
+
 def seam_allowance_for_thickness(
     base_mm: float, thickness_mm: float, factor: float = 20.0
 ) -> float:
@@ -209,6 +213,7 @@ def seam_allowance_for_thickness(
 # ═══════════════════════════════════════════════════════════
 # GUI-READY API
 # ═══════════════════════════════════════════════════════════
+
 
 def update_category(category: ProductCategory, params: ManufacturingParams) -> None:
     """Оновити параметри категорії в JSON-файлі (для GUI-налаштувань)."""

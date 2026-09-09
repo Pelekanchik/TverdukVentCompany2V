@@ -22,7 +22,12 @@ class ProjectExpenseRepository:
     @staticmethod
     def get_all(project_id: int) -> List[dict]:
         with get_db() as session:
-            items = session.query(ProjectExpense).filter(ProjectExpense.project_id == project_id).order_by(ProjectExpense.id).all()
+            items = (
+                session.query(ProjectExpense)
+                .filter(ProjectExpense.project_id == project_id)
+                .order_by(ProjectExpense.id)
+                .all()
+            )
             return [_expense_to_dict(i) for i in items]
 
     @staticmethod

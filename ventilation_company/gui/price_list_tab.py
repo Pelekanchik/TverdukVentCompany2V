@@ -26,6 +26,7 @@ HAVE_OPENPYXL = False
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
     HAVE_OPENPYXL = True
 except ImportError:
     pass
@@ -38,6 +39,7 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     HAVE_REPORTLAB = True
 except ImportError:
     pass
@@ -77,7 +79,7 @@ class PriceItem:
     created_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
     updated_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
     source: str = "manual"  # manual / products / archive
-    project_id: str = ""      # ID проєкту, якщо з архіву
+    project_id: str = ""  # ID проєкту, якщо з архіву
 
     def __post_init__(self):
         if not self.id:
@@ -87,6 +89,7 @@ class PriceItem:
     def recalculate(self):
         # FIX v2.1: оновлюємо labor_cost з актуальними ставками + важкість
         from ventilation_company.gui.settings_tab import PricingSettings
+
         settings = PricingSettings.get_instance()
         if self.category == "власне виробництво":
             labor = settings.get_labor_rate(self.product_type or self.name)
@@ -94,7 +97,7 @@ class PriceItem:
             difficulty = labor.get("difficulty_percent", 0.0)
             area = self._estimate_area()
             self.labor_cost = round(area * rate * (1 + difficulty / 100), 2)
-        
+
         if self.category == "перепродаж" and self.supplier_price > 0:
             base = self.supplier_price
         else:
@@ -108,10 +111,10 @@ class PriceItem:
             parts = self.dimensions.replace("×", "x").replace("X", "x").split("x")
             if len(parts) >= 3:
                 w, h, l = float(parts[0]), float(parts[1]), float(parts[2])
-                return 2 * (w/1000 + h/1000) * (l/1000)
+                return 2 * (w / 1000 + h / 1000) * (l / 1000)
             elif len(parts) == 2:
                 d, l = float(parts[0]), float(parts[1])
-                return 3.14159 * (d/1000) * (l/1000)
+                return 3.14159 * (d / 1000) * (l / 1000)
         except (ValueError, IndexError):
             pass
         return 0.0
@@ -164,7 +167,9 @@ class PriceListManager:
         with open(self.filepath, "w", encoding="utf-8") as f:
             json.dump(
                 {"items": [item.to_dict() for item in self.items]},
-                f, ensure_ascii=False, indent=2,
+                f,
+                ensure_ascii=False,
+                indent=2,
             )
 
     def add(self, item: PriceItem) -> PriceItem:
@@ -230,6 +235,7 @@ class PriceListManager:
 
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
+
             pricing = PricingSettings()
         except Exception:
             pricing = None
@@ -294,7 +300,9 @@ class PriceListManager:
                         "bottom_extension": _to_float(p.get("bottom_extension"), 100),
                     }
                     result = pricing.calculate_product_price_detailed(data)
-                    steps = result["steps"]  # list of dicts: {"name": ..., "calc": ..., "value": ...}
+                    steps = result[
+                        "steps"
+                    ]  # list of dicts: {"name": ..., "calc": ..., "value": ...}
 
                     if len(steps) >= 7:
                         after_waste = steps[1]["value"]
@@ -304,10 +312,10 @@ class PriceListManager:
                         after_overhead = steps[6]["value"]
                         final_price = steps[7]["value"] if len(steps) > 7 else after_overhead
 
-                        labor = after_labor - after_waste          # чиста робота
-                        depreciation = after_depr - after_labor      # амортизація
-                        electricity = after_elec - after_depr        # електроенергія
-                        overhead = after_overhead - after_elec       # накладні
+                        labor = after_labor - after_waste  # чиста робота
+                        depreciation = after_depr - after_labor  # амортизація
+                        electricity = after_elec - after_depr  # електроенергія
+                        overhead = after_overhead - after_elec  # накладні
 
                         unit_price = final_price
                         cost_price = after_overhead
@@ -324,12 +332,18 @@ class PriceListManager:
                 }
                 price_per_m2 = material_prices.get(material, {}).get(thickness, 260)
                 type_coef = {
-                    "rect_duct": 1.15, "round_duct": 1.20,
-                    "rect_flange": 1.30, "round_flange": 1.30,
-                    "rect_tee": 1.50, "round_tee": 1.55,
-                    "rect_transition": 1.40, "round_transition": 1.45,
-                    "rect_elbow": 1.60, "round_elbow": 1.65,
-                    "rect_cap": 1.25, "round_cap": 1.25,
+                    "rect_duct": 1.15,
+                    "round_duct": 1.20,
+                    "rect_flange": 1.30,
+                    "round_flange": 1.30,
+                    "rect_tee": 1.50,
+                    "round_tee": 1.55,
+                    "rect_transition": 1.40,
+                    "round_transition": 1.45,
+                    "rect_elbow": 1.60,
+                    "round_elbow": 1.65,
+                    "rect_cap": 1.25,
+                    "round_cap": 1.25,
                     "flexible": 1.0,
                 }
                 coef = type_coef.get(product_type, 1.3)
@@ -342,13 +356,14 @@ class PriceListManager:
             # FIX v2.1: зарплата від surface_area (як у Виробництві), а не від material_area
             # Розраховуємо площу ПОВЕРХНІ готового виробу
             try:
+                dimensions = str(locals().get("dimensions", ""))
                 parts = dimensions.replace("×", "x").replace("X", "x").split("x")
                 if len(parts) >= 3:
                     w, h, l = float(parts[0]), float(parts[1]), float(parts[2])
-                    area = 2 * (w/1000 + h/1000) * (l/1000)
+                    area = 2 * (w / 1000 + h / 1000) * (l / 1000)
                 elif len(parts) == 2:
                     d, l = float(parts[0]), float(parts[1])
-                    area = 3.14159 * (d/1000) * (l/1000)
+                    area = 3.14159 * (d / 1000) * (l / 1000)
                 else:
                     area = 0
             except (ValueError, IndexError):
@@ -415,6 +430,7 @@ class PriceListManager:
         if os.path.exists(db_path):
             try:
                 import sqlite3
+
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
@@ -425,14 +441,18 @@ class PriceListManager:
                     return 0
                 project_id_db = project["id"]
                 project_name = project["name"]
-                cursor.execute("SELECT * FROM project_products WHERE project_id = ?", (project_id_db,))
+                cursor.execute(
+                    "SELECT * FROM project_products WHERE project_id = ?", (project_id_db,)
+                )
                 products = cursor.fetchall()
                 for p in products:
                     item_name = p["name"]
                     if not item_name:
                         continue
                     exists = any(
-                        i.name == item_name and i.project_id == str(project_id_db) and i.source == "archive"
+                        i.name == item_name
+                        and i.project_id == str(project_id_db)
+                        and i.source == "archive"
                         for i in self.items
                     )
                     if exists:
@@ -444,7 +464,11 @@ class PriceListManager:
                     unit_price = p["unit_price"] or 0
                     qty = p["quantity"] or 1
                     if unit_price == 0 and p["metal_area_m2"]:
-                        material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                        material_prices = {
+                            "оцинкована сталь": 120.0,
+                            "нержавіюча сталь": 350.0,
+                            "алюміній": 200.0,
+                        }
                         area = p["metal_area_m2"] or 0
                         mat = p["material"] or "оцинкована сталь"
                         price_per_m2 = material_prices.get(mat, 120.0)
@@ -500,8 +524,7 @@ class PriceListManager:
                             if not item_name:
                                 continue
                             exists = any(
-                                i.name == item_name and i.source == "archive"
-                                for i in self.items
+                                i.name == item_name and i.source == "archive" for i in self.items
                             )
                             if exists:
                                 continue
@@ -537,32 +560,81 @@ class PriceListExporter:
         output = io.StringIO()
         writer = csv.writer(output)
         if internal:
-            writer.writerow([
-                "№", "Назва", "Категорія", "Тип", "Розміри", "Матеріал", "Товщ.",
-                "Од.", "К-ть", "Собівартість", "Роботи", "Накладні", "Націнка%",
-                "Ціна за од.", "Загальна", "Прибуток", "Постачальник", "Примітки"
-            ])
+            writer.writerow(
+                [
+                    "№",
+                    "Назва",
+                    "Категорія",
+                    "Тип",
+                    "Розміри",
+                    "Матеріал",
+                    "Товщ.",
+                    "Од.",
+                    "К-ть",
+                    "Собівартість",
+                    "Роботи",
+                    "Накладні",
+                    "Націнка%",
+                    "Ціна за од.",
+                    "Загальна",
+                    "Прибуток",
+                    "Постачальник",
+                    "Примітки",
+                ]
+            )
             for i, item in enumerate(items, 1):
-                writer.writerow([
-                    i, item.name, item.category, item.product_type, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier, item.notes_internal,
-                ])
+                writer.writerow(
+                    [
+                        i,
+                        item.name,
+                        item.category,
+                        item.product_type,
+                        item.dimensions,
+                        item.material,
+                        item.thickness,
+                        item.unit,
+                        item.quantity,
+                        f"{item.cost_price:.2f}",
+                        f"{item.labor_cost:.2f}",
+                        f"{item.overhead_cost:.2f}",
+                        f"{item.markup_percent:.1f}",
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        f"{item.profit:.2f}",
+                        item.supplier,
+                        item.notes_internal,
+                    ]
+                )
         else:
-            writer.writerow([
-                "№", "Назва", "Розміри", "Матеріал", "Товщ.",
-                "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
-            ])
+            writer.writerow(
+                [
+                    "№",
+                    "Назва",
+                    "Розміри",
+                    "Матеріал",
+                    "Товщ.",
+                    "Од.",
+                    "К-ть",
+                    "Ціна за од.",
+                    "Загальна",
+                    "Примітки",
+                ]
+            )
             for i, item in enumerate(items, 1):
-                writer.writerow([
-                    i, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    item.notes_public,
-                ])
+                writer.writerow(
+                    [
+                        i,
+                        item.display_name,
+                        item.dimensions,
+                        item.material,
+                        item.thickness,
+                        item.unit,
+                        item.quantity,
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        item.notes_public,
+                    ]
+                )
         return output.getvalue()
 
     @staticmethod
@@ -576,19 +648,44 @@ class PriceListExporter:
         header_fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
         header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         thin_border = Border(
-            left=Side(style="thin"), right=Side(style="thin"),
-            top=Side(style="thin"), bottom=Side(style="thin")
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
         )
         if internal:
             headers = [
-                "№", "Назва", "Категорія", "Тип", "Розміри", "Матеріал", "Товщ. (мм)",
-                "Од.", "К-ть", "Собівартість", "Роботи", "Накладні", "Націнка %",
-                "Ціна за од.", "Загальна", "Прибуток", "Постачальник", "Примітки"
+                "№",
+                "Назва",
+                "Категорія",
+                "Тип",
+                "Розміри",
+                "Матеріал",
+                "Товщ. (мм)",
+                "Од.",
+                "К-ть",
+                "Собівартість",
+                "Роботи",
+                "Накладні",
+                "Націнка %",
+                "Ціна за од.",
+                "Загальна",
+                "Прибуток",
+                "Постачальник",
+                "Примітки",
             ]
         else:
             headers = [
-                "№", "Назва", "Розміри", "Матеріал", "Товщ. (мм)",
-                "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
+                "№",
+                "Назва",
+                "Розміри",
+                "Матеріал",
+                "Товщ. (мм)",
+                "Од.",
+                "К-ть",
+                "Ціна за од.",
+                "Загальна",
+                "Примітки",
             ]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -599,17 +696,37 @@ class PriceListExporter:
         for row, item in enumerate(items, 2):
             if internal:
                 values = [
-                    row - 1, item.name, item.category, item.product_type,
-                    item.dimensions, item.material, item.thickness,
-                    item.unit, item.quantity, item.cost_price, item.labor_cost,
-                    item.overhead_cost, item.markup_percent, item.unit_price,
-                    item.total_price, item.profit, item.supplier, item.notes_internal,
+                    row - 1,
+                    item.name,
+                    item.category,
+                    item.product_type,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    item.cost_price,
+                    item.labor_cost,
+                    item.overhead_cost,
+                    item.markup_percent,
+                    item.unit_price,
+                    item.total_price,
+                    item.profit,
+                    item.supplier,
+                    item.notes_internal,
                 ]
             else:
                 values = [
-                    row - 1, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    item.unit_price, item.total_price, item.notes_public,
+                    row - 1,
+                    item.display_name,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    item.unit_price,
+                    item.total_price,
+                    item.notes_public,
                 ]
             for col, value in enumerate(values, 1):
                 cell = ws.cell(row=row, column=col, value=value)
@@ -629,69 +746,123 @@ class PriceListExporter:
         total_row = len(items) + 3
         ws.cell(row=total_row, column=1, value="ВСЬОГО:").font = Font(bold=True)
         if internal:
-            ws.cell(row=total_row, column=15, value=sum(i.total_price for i in items)).font = Font(bold=True)
-            ws.cell(row=total_row, column=16, value=sum(i.profit for i in items)).font = Font(bold=True)
+            ws.cell(row=total_row, column=15, value=sum(i.total_price for i in items)).font = Font(
+                bold=True
+            )
+            ws.cell(row=total_row, column=16, value=sum(i.profit for i in items)).font = Font(
+                bold=True
+            )
         else:
-            ws.cell(row=total_row, column=9, value=sum(i.total_price for i in items)).font = Font(bold=True)
+            ws.cell(row=total_row, column=9, value=sum(i.total_price for i in items)).font = Font(
+                bold=True
+            )
         wb.save(filepath)
 
     @staticmethod
-    def to_pdf(items: list[PriceItem], filepath: str, internal: bool = True, title: str = "Прайс-лист"):
+    def to_pdf(
+        items: list[PriceItem], filepath: str, internal: bool = True, title: str = "Прайс-лист"
+    ):
         if not HAVE_REPORTLAB:
             raise ImportError("Встановіть reportlab: pip install reportlab")
         doc = SimpleDocTemplate(
-            filepath, pagesize=A4, rightMargin=10 * mm, leftMargin=10 * mm,
-            topMargin=15 * mm, bottomMargin=15 * mm
+            filepath,
+            pagesize=A4,
+            rightMargin=10 * mm,
+            leftMargin=10 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
         )
         styles = getSampleStyleSheet()
         story = []
         title_style = ParagraphStyle(
-            "CustomTitle", parent=styles["Heading1"], fontSize=16,
-            alignment=1, spaceAfter=12, textColor=colors.HexColor("#1565C0")
+            "CustomTitle",
+            parent=styles["Heading1"],
+            fontSize=16,
+            alignment=1,
+            spaceAfter=12,
+            textColor=colors.HexColor("#1565C0"),
         )
         story.append(Paragraph(f"<b>{title}</b>", title_style))
-        story.append(Paragraph(
-            f"Дата формування: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-            styles["Normal"]
-        ))
+        story.append(
+            Paragraph(
+                f"Дата формування: {datetime.now().strftime('%d.%m.%Y %H:%M')}", styles["Normal"]
+            )
+        )
         story.append(Spacer(1, 10))
         if internal:
-            headers = ["№", "Назва", "Кат.", "Тип", "Розміри", "Мат.", "Товщ.", "К-ть",
-                       "Собіварт.", "Роботи", "Накладні", "Націнка%", "Ціна", "Сума", "Прибуток", "Постач."]
+            headers = [
+                "№",
+                "Назва",
+                "Кат.",
+                "Тип",
+                "Розміри",
+                "Мат.",
+                "Товщ.",
+                "К-ть",
+                "Собіварт.",
+                "Роботи",
+                "Накладні",
+                "Націнка%",
+                "Ціна",
+                "Сума",
+                "Прибуток",
+                "Постач.",
+            ]
             data = [headers]
             for i, item in enumerate(items, 1):
-                data.append([
-                    str(i), item.name[:22], item.category[:8], item.product_type[:10],
-                    item.dimensions[:12], item.material[:8], str(item.thickness),
-                    str(item.quantity), f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}%",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier[:8] or "—",
-                ])
+                data.append(
+                    [
+                        str(i),
+                        item.name[:22],
+                        item.category[:8],
+                        item.product_type[:10],
+                        item.dimensions[:12],
+                        item.material[:8],
+                        str(item.thickness),
+                        str(item.quantity),
+                        f"{item.cost_price:.2f}",
+                        f"{item.labor_cost:.2f}",
+                        f"{item.overhead_cost:.2f}",
+                        f"{item.markup_percent:.1f}%",
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        f"{item.profit:.2f}",
+                        item.supplier[:8] or "—",
+                    ]
+                )
             col_widths = [18, 75, 35, 45, 45, 38, 28, 25, 40, 35, 35, 32, 38, 38, 38, 38]
         else:
             headers = ["№", "Назва", "Розміри", "Матеріал", "Товщ.", "К-ть", "Ціна", "Сума"]
             data = [headers]
             for i, item in enumerate(items, 1):
-                data.append([
-                    str(i), item.display_name[:30], item.dimensions[:18],
-                    item.material[:12], str(item.thickness), str(item.quantity),
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                ])
+                data.append(
+                    [
+                        str(i),
+                        item.display_name[:30],
+                        item.dimensions[:18],
+                        item.material[:12],
+                        str(item.thickness),
+                        str(item.quantity),
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                    ]
+                )
             col_widths = [22, 110, 70, 60, 35, 35, 55, 55]
         table = Table(data, colWidths=col_widths, repeatRows=1)
-        table_style = TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1565C0")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("ALIGN", (1, 1), (1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 8),
-            ("FONTSIZE", (0, 1), (-1, -1), 7),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ])
+        table_style = TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1565C0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("ALIGN", (1, 1), (1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 8),
+                ("FONTSIZE", (0, 1), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
         table.setStyle(table_style)
         story.append(table)
         story.append(Spacer(1, 10))
@@ -793,38 +964,68 @@ class PriceListTab:
         btn_frame.pack(side=tk.LEFT, padx=(20, 0))
 
         ttk.Button(btn_frame, text="➕ Додати", command=self._add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="📋 Дублювати", command=self._duplicate_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="📋 Дублювати", command=self._duplicate_selected).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # Синхронізація
         sync_frame = ttk.LabelFrame(top, text="Синхронізація", padding=3)
         sync_frame.pack(side=tk.LEFT, padx=(10, 0))
-        ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sync_frame, text="👷 Перерахувати зарплати", command=self._recalculate_salaries).pack(side=tk.LEFT, padx=2)
+        ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(
+            sync_frame, text="👷 Перерахувати зарплати", command=self._recalculate_salaries
+        ).pack(side=tk.LEFT, padx=2)
 
         # Експорт
         export_frame = ttk.LabelFrame(top, text="Експорт", padding=3)
         export_frame.pack(side=tk.RIGHT, padx=5)
-        ttk.Button(export_frame, text="📄 PDF", command=lambda: self._export("pdf")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="📊 Excel", command=lambda: self._export("excel")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="🌐 HTML", command=lambda: self._export("html")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="📋 CSV", command=lambda: self._export("csv")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="🖨️ Друк", command=self._print_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(export_frame, text="📄 PDF", command=lambda: self._export("pdf")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="📊 Excel", command=lambda: self._export("excel")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="🌐 HTML", command=lambda: self._export("html")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="📋 CSV", command=lambda: self._export("csv")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="🖨️ Друк", command=self._print_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
 
         view_frame = ttk.LabelFrame(self.frame, text="Режим перегляду", padding=5)
         view_frame.pack(fill=tk.X, padx=5, pady=(5, 0))
 
         self.view_var = tk.StringVar(value="internal")
         ttk.Radiobutton(
-            view_frame, text="🔐 Внутрішній прайс (повна інформація)",
-            variable=self.view_var, value="internal", command=self._on_view_changed
+            view_frame,
+            text="🔐 Внутрішній прайс (повна інформація)",
+            variable=self.view_var,
+            value="internal",
+            command=self._on_view_changed,
         ).pack(side=tk.LEFT, padx=10)
         ttk.Radiobutton(
-            view_frame, text="📋 Прайс замовника (публічний)",
-            variable=self.view_var, value="customer", command=self._on_view_changed
+            view_frame,
+            text="📋 Прайс замовника (публічний)",
+            variable=self.view_var,
+            value="customer",
+            command=self._on_view_changed,
         ).pack(side=tk.LEFT, padx=10)
 
         filter_frame = ttk.Frame(self.frame, padding=5)
@@ -833,8 +1034,11 @@ class PriceListTab:
         ttk.Label(filter_frame, text="Фільтр категорії:").pack(side=tk.LEFT)
         self.filter_cat_var = tk.StringVar(value="всі")
         ttk.Combobox(
-            filter_frame, textvariable=self.filter_cat_var,
-            values=["всі"] + self.CATEGORIES, state="readonly", width=20
+            filter_frame,
+            textvariable=self.filter_cat_var,
+            values=["всі"] + self.CATEGORIES,
+            state="readonly",
+            width=20,
         ).pack(side=tk.LEFT, padx=5)
         self.filter_cat_var.trace_add("write", lambda *args: self._refresh_tree())
 
@@ -848,38 +1052,102 @@ class PriceListTab:
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         self.internal_columns = (
-            "num", "name", "category", "type", "dimensions", "material", "thickness",
-            "unit", "qty", "cost", "labor", "overhead", "markup",
-            "unit_price", "total", "profit", "supplier", "notes"
+            "num",
+            "name",
+            "category",
+            "type",
+            "dimensions",
+            "material",
+            "thickness",
+            "unit",
+            "qty",
+            "cost",
+            "labor",
+            "overhead",
+            "markup",
+            "unit_price",
+            "total",
+            "profit",
+            "supplier",
+            "notes",
         )
         self.internal_headings = {
-            "num": "№", "name": "Назва", "category": "Категорія", "type": "Тип",
-            "dimensions": "Розміри", "material": "Матеріал", "thickness": "Товщ.",
-            "unit": "Од.", "qty": "К-ть", "cost": "Собіварт.", "labor": "Роботи",
-            "overhead": "Накладні", "markup": "Націнка%", "unit_price": "Ціна од.",
-            "total": "Сума", "profit": "Прибуток", "supplier": "Постач.", "notes": "Примітки"
+            "num": "№",
+            "name": "Назва",
+            "category": "Категорія",
+            "type": "Тип",
+            "dimensions": "Розміри",
+            "material": "Матеріал",
+            "thickness": "Товщ.",
+            "unit": "Од.",
+            "qty": "К-ть",
+            "cost": "Собіварт.",
+            "labor": "Роботи",
+            "overhead": "Накладні",
+            "markup": "Націнка%",
+            "unit_price": "Ціна од.",
+            "total": "Сума",
+            "profit": "Прибуток",
+            "supplier": "Постач.",
+            "notes": "Примітки",
         }
         self.internal_widths = {
-            "num": 30, "name": 150, "category": 90, "type": 100, "dimensions": 90,
-            "material": 90, "thickness": 45, "unit": 40, "qty": 45, "cost": 70,
-            "labor": 60, "overhead": 60, "markup": 55, "unit_price": 70,
-            "total": 80, "profit": 70, "supplier": 90, "notes": 100
+            "num": 30,
+            "name": 150,
+            "category": 90,
+            "type": 100,
+            "dimensions": 90,
+            "material": 90,
+            "thickness": 45,
+            "unit": 40,
+            "qty": 45,
+            "cost": 70,
+            "labor": 60,
+            "overhead": 60,
+            "markup": 55,
+            "unit_price": 70,
+            "total": 80,
+            "profit": 70,
+            "supplier": 90,
+            "notes": 100,
         }
 
         # === ЗАМОВНИК: без колонки "Тип" ===
         self.customer_columns = (
-            "num", "name", "dimensions", "material", "thickness",
-            "unit", "qty", "unit_price", "total", "notes"
+            "num",
+            "name",
+            "dimensions",
+            "material",
+            "thickness",
+            "unit",
+            "qty",
+            "unit_price",
+            "total",
+            "notes",
         )
         self.customer_headings = {
-            "num": "№", "name": "Назва", "dimensions": "Розміри",
-            "material": "Матеріал", "thickness": "Товщ.", "unit": "Од.",
-            "qty": "К-ть", "unit_price": "Ціна за од.", "total": "Загальна", "notes": "Примітки"
+            "num": "№",
+            "name": "Назва",
+            "dimensions": "Розміри",
+            "material": "Матеріал",
+            "thickness": "Товщ.",
+            "unit": "Од.",
+            "qty": "К-ть",
+            "unit_price": "Ціна за од.",
+            "total": "Загальна",
+            "notes": "Примітки",
         }
         self.customer_widths = {
-            "num": 35, "name": 200, "dimensions": 120,
-            "material": 100, "thickness": 50, "unit": 45, "qty": 50,
-            "unit_price": 90, "total": 90, "notes": 150
+            "num": 35,
+            "name": 200,
+            "dimensions": 120,
+            "material": 100,
+            "thickness": 50,
+            "unit": 45,
+            "qty": 50,
+            "unit_price": 90,
+            "total": 90,
+            "notes": 150,
         }
 
         self.tree = ttk.Treeview(table_frame, show="headings", height=20)
@@ -921,7 +1189,9 @@ class PriceListTab:
         self.tree["columns"] = cols
         for col in cols:
             self.tree.heading(col, text=headings.get(col, col))
-            self.tree.column(col, width=widths.get(col, 80), anchor=tk.CENTER if col != "name" else tk.W)
+            self.tree.column(
+                col, width=widths.get(col, 80), anchor=tk.CENTER if col != "name" else tk.W
+            )
 
     def _on_view_changed(self):
         self._current_view = self.view_var.get()
@@ -941,7 +1211,8 @@ class PriceListTab:
         search = self.search_var.get().lower().strip()
         if search:
             items = [
-                i for i in items
+                i
+                for i in items
                 if search in i.name.lower()
                 or search in i.product_type.lower()
                 or search in i.dimensions.lower()
@@ -959,19 +1230,37 @@ class PriceListTab:
         for i, item in enumerate(items, 1):
             if self._current_view == "internal":
                 values = (
-                    i, item.name, item.category, item.product_type, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier, item.notes_internal,
+                    i,
+                    item.name,
+                    item.category,
+                    item.product_type,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    f"{item.cost_price:.2f}",
+                    f"{item.labor_cost:.2f}",
+                    f"{item.overhead_cost:.2f}",
+                    f"{item.markup_percent:.1f}",
+                    f"{item.unit_price:.2f}",
+                    f"{item.total_price:.2f}",
+                    f"{item.profit:.2f}",
+                    item.supplier,
+                    item.notes_internal,
                 )
             else:
                 # === ЗАМОВНИК: назва без розмірів (product_type), без колонки "Тип" ===
                 values = (
-                    i, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
+                    i,
+                    item.display_name,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    f"{item.unit_price:.2f}",
+                    f"{item.total_price:.2f}",
                     item.notes_public,
                 )
             self.tree.insert("", tk.END, values=values, tags=(item.id,))
@@ -994,7 +1283,9 @@ class PriceListTab:
                 f"Прибуток: {total_profit:,.2f} грн"
             )
         else:
-            text = f"Позицій: {len(items)}  |  К-ть: {total_qty}  |  Загальна: {total_price:,.2f} грн"
+            text = (
+                f"Позицій: {len(items)}  |  К-ть: {total_qty}  |  Загальна: {total_price:,.2f} грн"
+            )
 
         self.summary_label.config(text=text)
 
@@ -1049,16 +1340,25 @@ class PriceListTab:
         }
 
         row = 0
+
         def add_row(label_text, var, entry_width=15):
             nonlocal row
             ttk.Label(dialog, text=label_text).grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-            ttk.Entry(dialog, textvariable=var, width=entry_width).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+            ttk.Entry(dialog, textvariable=var, width=entry_width).grid(
+                row=row, column=1, sticky=tk.W, padx=5, pady=2
+            )
             row += 1
 
         add_row("Назва *:", vars_dict["name"], 35)
 
         ttk.Label(dialog, text="Категорія:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-        ttk.Combobox(dialog, textvariable=vars_dict["category"], values=self.CATEGORIES, state="readonly", width=20).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Combobox(
+            dialog,
+            textvariable=vars_dict["category"],
+            values=self.CATEGORIES,
+            state="readonly",
+            width=20,
+        ).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
         row += 1
 
         add_row("Тип виробу:", vars_dict["product_type"], 25)
@@ -1067,14 +1367,20 @@ class PriceListTab:
         add_row("Товщина (мм):", vars_dict["thickness"])
 
         ttk.Label(dialog, text="Од. виміру:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-        ttk.Combobox(dialog, textvariable=vars_dict["unit"], values=self.UNITS, state="readonly", width=10).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Combobox(
+            dialog, textvariable=vars_dict["unit"], values=self.UNITS, state="readonly", width=10
+        ).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
         row += 1
 
         add_row("Кількість:", vars_dict["quantity"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="💰 Фінанси (внутрішні)", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="💰 Фінанси (внутрішні)", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Собівартість за од.:", vars_dict["cost_price"])
@@ -1082,17 +1388,25 @@ class PriceListTab:
         add_row("Накладні витрати за од.:", vars_dict["overhead_cost"])
         add_row("Націнка (%):", vars_dict["markup_percent"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="🔄 Перепродаж", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="🔄 Перепродаж", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Постачальник:", vars_dict["supplier"], 25)
         add_row("Закупівельна ціна:", vars_dict["supplier_price"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="📝 Примітки", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="📝 Примітки", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Внутрішні:", vars_dict["notes_internal"], 35)
@@ -1163,7 +1477,9 @@ class PriceListTab:
                 messagebox.showwarning("Увага", f"Помилка в даних: {e}")
 
         ttk.Button(btn_frame, text="✅ Зберегти", command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(
+            side=tk.LEFT, padx=5
+        )
 
     def _delete_selected(self):
         item = self._get_selected_item()
@@ -1219,14 +1535,16 @@ class PriceListTab:
 
     def _sync_from_products(self):
         """Синхронізувати вироби з вкладки 'Вироби' для поточного проєкту."""
-        project_id = getattr(self, '_current_project_id', '') or 'current'
+        project_id = getattr(self, "_current_project_id", "") or "current"
         if self.get_products_callback:
             products = self.get_products_callback()
             if products:
                 count = self.manager.import_from_products(products, project_id=project_id)
                 self._refresh_tree()
                 if count > 0:
-                    messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з виробів")
+                    messagebox.showinfo(
+                        "Синхронізація", f"Імпортовано {count} нових позицій з виробів"
+                    )
                 else:
                     messagebox.showinfo("Синхронізація", "Усі вироби вже в прайсі")
             else:
@@ -1236,10 +1554,11 @@ class PriceListTab:
 
     def _sync_from_archive(self):
         """Синхронізувати з конкретного проєкту в архіві."""
-        project_id = getattr(self, '_current_project_id', None)
+        project_id = getattr(self, "_current_project_id", None)
         if not project_id:
             try:
                 from ventilation_company.db_integration import ProjectDatabase
+
                 db = ProjectDatabase()
                 projects = db.list_projects()
                 if not projects:
@@ -1257,8 +1576,9 @@ class PriceListTab:
                 project_map = {}
                 for p in projects:
                     display = f"{p.get('name', 'Без назви')} (ID: {p.get('id', '?')})"
-                    project_map[display] = p.get('id')
+                    project_map[display] = p.get("id")
                     listbox.insert(tk.END, display)
+
                 def on_select():
                     sel = listbox.curselection()
                     if not sel:
@@ -1266,6 +1586,7 @@ class PriceListTab:
                     selected_id = project_map[listbox.get(sel[0])]
                     dialog.destroy()
                     self._do_archive_sync(selected_id)
+
                 ttk.Button(dialog, text="Імпортувати", command=on_select).pack(pady=5)
             except Exception as e:
                 messagebox.showerror("Помилка", f"Не вдалося відкрити архів: {e}")
@@ -1279,17 +1600,20 @@ class PriceListTab:
         if count > 0:
             messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з архіву")
         else:
-            messagebox.showinfo("Синхронізація", "Усі позиції вже синхронізовані або проєкт порожній")
+            messagebox.showinfo(
+                "Синхронізація", "Усі позиції вже синхронізовані або проєкт порожній"
+            )
 
     def _refresh_current_project(self):
         """Оновити прайс-лист для поточного проєкту (перезавантажити дані)."""
-        project_id = getattr(self, '_current_project_id', None)
+        project_id = getattr(self, "_current_project_id", None)
         if not project_id:
             messagebox.showwarning("Увага", "Спочатку відкрийте або створіть проєкт")
             return
         old_count = len(self.manager.items)
         self.manager.items = [
-            i for i in self.manager.items
+            i
+            for i in self.manager.items
             if not (i.source in ("products", "archive") and i.project_id == str(project_id))
         ]
         removed = old_count - len(self.manager.items)
@@ -1310,8 +1634,9 @@ class PriceListTab:
         try:
             if fmt == "csv":
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".csv", filetypes=[("CSV", "*.csv")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.csv"
+                    defaultextension=".csv",
+                    filetypes=[("CSV", "*.csv")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.csv",
                 )
                 if filepath:
                     content = PriceListExporter.to_csv(items, internal)
@@ -1324,8 +1649,9 @@ class PriceListTab:
                     messagebox.showwarning("Увага", "Встановіть openpyxl: pip install openpyxl")
                     return
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.xlsx"
+                    defaultextension=".xlsx",
+                    filetypes=[("Excel", "*.xlsx")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 )
                 if filepath:
                     PriceListExporter.to_excel(items, filepath, internal)
@@ -1336,8 +1662,9 @@ class PriceListTab:
                     messagebox.showwarning("Увага", "Встановіть reportlab: pip install reportlab")
                     return
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".pdf", filetypes=[("PDF", "*.pdf")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.pdf"
+                    defaultextension=".pdf",
+                    filetypes=[("PDF", "*.pdf")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.pdf",
                 )
                 if filepath:
                     title = "Прайс-лист (внутрішній)" if internal else "Прайс-лист для замовника"
@@ -1346,8 +1673,9 @@ class PriceListTab:
 
             elif fmt == "html":
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".html", filetypes=[("HTML", "*.html")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.html"
+                    defaultextension=".html",
+                    filetypes=[("HTML", "*.html")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.html",
                 )
                 if filepath:
                     title = "Прайс-лист (внутрішній)" if internal else "Прайс-лист для замовника"
@@ -1370,11 +1698,13 @@ class PriceListTab:
         content = PriceListExporter.to_html(items, internal, title)
 
         import tempfile
+
         with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
             f.write(content)
             temp_path = f.name
 
         import webbrowser
+
         webbrowser.open(f"file:///{temp_path}")
 
     def _on_right_click(self, event):

@@ -35,12 +35,13 @@ class MaterialOrderTab:
 
         ttk.Separator(top, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=15)
 
-        ttk.Button(top, text="📊 Розрахувати потребу", command=self._calculate
-                   ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(top, text="📥 Експорт Excel", command=self._export_excel
-                   ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(top, text="📄 Експорт PDF", command=self._export_pdf
-                   ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(top, text="📊 Розрахувати потребу", command=self._calculate).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(top, text="📥 Експорт Excel", command=self._export_excel).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(top, text="📄 Експорт PDF", command=self._export_pdf).pack(side=tk.LEFT, padx=2)
 
         # ── Параметри ──
         params = ttk.LabelFrame(self.frame, text="Параметри заявки", padding=5)
@@ -48,11 +49,15 @@ class MaterialOrderTab:
 
         ttk.Label(params, text="Назва проєкту:").grid(row=0, column=0, sticky=tk.W, padx=5)
         self.project_var = tk.StringVar(value="Проєкт")
-        ttk.Entry(params, textvariable=self.project_var, width=40).grid(row=0, column=1, sticky=tk.W, padx=5)
+        ttk.Entry(params, textvariable=self.project_var, width=40).grid(
+            row=0, column=1, sticky=tk.W, padx=5
+        )
 
         ttk.Label(params, text="Примітки:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
         self.notes_var = tk.StringVar(value="")
-        ttk.Entry(params, textvariable=self.notes_var, width=60).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(params, textvariable=self.notes_var, width=60).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=2
+        )
 
         # ── Таблиця матеріалів ──
         table_frame = ttk.LabelFrame(self.frame, text="Перелік матеріалів", padding=5)
@@ -62,16 +67,36 @@ class MaterialOrderTab:
         crud_frame = ttk.Frame(table_frame)
         crud_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, pady=(0, 5))
         ttk.Button(crud_frame, text="➕ Додати", command=self._add_item).pack(side=tk.LEFT, padx=2)
-        ttk.Button(crud_frame, text="✏️ Редагувати", command=self._edit_item).pack(side=tk.LEFT, padx=2)
-        ttk.Button(crud_frame, text="🗑️ Видалити", command=self._delete_item).pack(side=tk.LEFT, padx=2)
+        ttk.Button(crud_frame, text="✏️ Редагувати", command=self._edit_item).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(crud_frame, text="🗑️ Видалити", command=self._delete_item).pack(
+            side=tk.LEFT, padx=2
+        )
 
-        cols = ("№", "Категорія", "Найменування", "Специфікація", "Од. вим.", "Кількість", "Ціна", "Сума", "Примітки")
+        cols = (
+            "№",
+            "Категорія",
+            "Найменування",
+            "Специфікація",
+            "Од. вим.",
+            "Кількість",
+            "Ціна",
+            "Сума",
+            "Примітки",
+        )
         self.tree = ttk.Treeview(table_frame, columns=cols, show="headings", height=18)
 
         widths = [5, 15, 25, 22, 10, 12, 12, 12, 20]
         for col, w in zip(cols, widths):
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=w * 8, anchor=tk.CENTER if col not in ("Найменування", "Специфікація", "Примітки") else tk.W)
+            self.tree.column(
+                col,
+                width=w * 8,
+                anchor=(
+                    tk.CENTER if col not in ("Найменування", "Специфікація", "Примітки") else tk.W
+                ),
+            )
 
         vsb = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
         hsb = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
@@ -98,7 +123,9 @@ class MaterialOrderTab:
             ("components", "Комплектуючі:"),
         ]
         for i, (key, text) in enumerate(summary_fields):
-            ttk.Label(self.summary_frame, text=text, font=("Arial", 9)).grid(row=0, column=i * 2, padx=5)
+            ttk.Label(self.summary_frame, text=text, font=("Arial", 9)).grid(
+                row=0, column=i * 2, padx=5
+            )
             lbl = ttk.Label(self.summary_frame, text="—", font=("Arial", 9, "bold"))
             lbl.grid(row=0, column=i * 2 + 1, padx=5)
             self.summary_labels[key] = lbl
@@ -107,7 +134,8 @@ class MaterialOrderTab:
         hint = ttk.Label(
             self.frame,
             text="💡 Натисніть «Розрахувати потребу» щоб сформувати заявку на основі виробів проєкту, або додайте матеріали вручну. Потім експортуйте в Excel для постачальника.",
-            foreground="#666", font=("Arial", 8)
+            foreground="#666",
+            font=("Arial", 8),
         )
         hint.pack(anchor=tk.W, padx=5, pady=2)
 
@@ -135,7 +163,9 @@ class MaterialOrderTab:
             return
         idx = self.tree.index(sel[0])
         if self.current_order and 0 <= idx < len(self.current_order.items):
-            if messagebox.askyesno("Підтвердження", f'Видалити "{self.current_order.items[idx].name}"?'):
+            if messagebox.askyesno(
+                "Підтвердження", f'Видалити "{self.current_order.items[idx].name}"?'
+            ):
                 self.current_order.items.pop(idx)
                 self._update_table()
                 self._update_summary()
@@ -157,8 +187,20 @@ class MaterialOrderTab:
         # Поля
         ttk.Label(frm, text="Категорія *").grid(row=0, column=0, sticky=tk.W, pady=5)
         cat_var = tk.StringVar(value=item.category if item else "Листовий метал")
-        ttk.Combobox(frm, values=["Листовий метал", "Ущільнювачі", "Кріплення", "Ізоляція", "Комплектуючі", "Розхідні матеріали"],
-                     textvariable=cat_var, state="readonly", width=30).grid(row=0, column=1, sticky=tk.W, pady=5)
+        ttk.Combobox(
+            frm,
+            values=[
+                "Листовий метал",
+                "Ущільнювачі",
+                "Кріплення",
+                "Ізоляція",
+                "Комплектуючі",
+                "Розхідні матеріали",
+            ],
+            textvariable=cat_var,
+            state="readonly",
+            width=30,
+        ).grid(row=0, column=1, sticky=tk.W, pady=5)
 
         ttk.Label(frm, text="Найменування *").grid(row=1, column=0, sticky=tk.W, pady=5)
         name_var = tk.StringVar(value=item.name if item else "")
@@ -221,7 +263,9 @@ class MaterialOrderTab:
             except ValueError:
                 status.config(text="❌ Кількість і ціна мають бути числами", foreground="#ef4444")
 
-        ttk.Button(frm, text="💾 Зберегти", command=save).grid(row=8, column=0, columnspan=2, pady=10)
+        ttk.Button(frm, text="💾 Зберегти", command=save).grid(
+            row=8, column=0, columnspan=2, pady=10
+        )
 
     def _calculate(self):
         """Розрахувати потребу в матеріалах."""
@@ -243,6 +287,7 @@ class MaterialOrderTab:
             self._update_summary()
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             messagebox.showerror("Помилка розрахунку", str(e))
 
@@ -255,17 +300,25 @@ class MaterialOrderTab:
             return
 
         for i, item in enumerate(self.current_order.items, 1):
-            self.tree.insert("", tk.END, values=(
-                i,
-                item.category,
-                item.name,
-                item.specification,
-                item.unit,
-                f"{item.quantity:.1f}" if item.quantity != int(item.quantity) else str(int(item.quantity)),
-                f"{item.price_per_unit:.2f}" if item.price_per_unit > 0 else "—",
-                f"{item.total_price:.2f}" if item.total_price > 0 else "—",
-                item.notes,
-            ))
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    i,
+                    item.category,
+                    item.name,
+                    item.specification,
+                    item.unit,
+                    (
+                        f"{item.quantity:.1f}"
+                        if item.quantity != int(item.quantity)
+                        else str(int(item.quantity))
+                    ),
+                    f"{item.price_per_unit:.2f}" if item.price_per_unit > 0 else "—",
+                    f"{item.total_price:.2f}" if item.total_price > 0 else "—",
+                    item.notes,
+                ),
+            )
 
     def _update_summary(self):
         """Оновити підсумкові дані."""
@@ -326,12 +379,25 @@ class MaterialOrderTab:
         try:
             # Спочатку створимо тимчасовий Excel, потім конвертуємо через fpdf2
             from ventilation_company.pdf_generator import PDFGenerator
+
             pdf = PDFGenerator()
             pdf.add_page()
             pdf.set_font("DejaVu", "B", 16)
-            pdf.cell(0, 10, f"ЗАЯВКА НА МАТЕРІАЛИ — {self.current_order.project_name}", ln=True, align="C")
+            pdf.cell(
+                0,
+                10,
+                f"ЗАЯВКА НА МАТЕРІАЛИ — {self.current_order.project_name}",
+                ln=True,
+                align="C",
+            )
             pdf.set_font("DejaVu", "", 10)
-            pdf.cell(0, 8, f"Дата: {self.current_order.order_date.strftime('%d.%m.%Y %H:%M')}", ln=True, align="C")
+            pdf.cell(
+                0,
+                8,
+                f"Дата: {self.current_order.order_date.strftime('%d.%m.%Y %H:%M')}",
+                ln=True,
+                align="C",
+            )
             pdf.ln(5)
 
             # Заголовки
@@ -353,7 +419,11 @@ class MaterialOrderTab:
                 pdf.cell(45, 7, item.name, border=1)
                 pdf.cell(40, 7, item.specification[:20], border=1)
                 pdf.cell(15, 7, item.unit, border=1, align="C")
-                qty_str = f"{item.quantity:.1f}" if item.quantity != int(item.quantity) else str(int(item.quantity))
+                qty_str = (
+                    f"{item.quantity:.1f}"
+                    if item.quantity != int(item.quantity)
+                    else str(int(item.quantity))
+                )
                 pdf.cell(18, 7, qty_str, border=1, align="R")
                 price_str = f"{item.price_per_unit:.2f}" if item.price_per_unit > 0 else "—"
                 pdf.cell(20, 7, price_str, border=1, align="R")
@@ -363,7 +433,13 @@ class MaterialOrderTab:
 
             # Підсумок
             pdf.set_font("DejaVu", "B", 10)
-            pdf.cell(178, 10, f"ЗАГАЛЬНА СУМА: {self.current_order.total_cost:,.2f} грн", border=1, align="R")
+            pdf.cell(
+                178,
+                10,
+                f"ЗАГАЛЬНА СУМА: {self.current_order.total_cost:,.2f} грн",
+                border=1,
+                align="R",
+            )
             pdf.ln()
 
             pdf.output(fpath)

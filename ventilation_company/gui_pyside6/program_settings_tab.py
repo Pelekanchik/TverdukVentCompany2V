@@ -21,19 +21,43 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget,
-    QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QMessageBox, QGroupBox, QScrollArea, QFrame,
-    QRadioButton, QComboBox, QSpinBox, QCheckBox,
-    QListWidget, QTextEdit, QFileDialog,
-    QDialog, QDialogButtonBox, QFormLayout
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QTabWidget,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QMessageBox,
+    QGroupBox,
+    QScrollArea,
+    QFrame,
+    QRadioButton,
+    QComboBox,
+    QSpinBox,
+    QCheckBox,
+    QListWidget,
+    QTextEdit,
+    QFileDialog,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from ventilation_company.database.db import (
-    engine, check_db_connection, DATABASE_URL,
-    POOL_SIZE, MAX_OVERFLOW, POOL_RECYCLE, SessionLocal
+    engine,
+    check_db_connection,
+    DATABASE_URL,
+    POOL_SIZE,
+    MAX_OVERFLOW,
+    POOL_RECYCLE,
+    SessionLocal,
 )
 from ventilation_company.database.base import Base
 from ventilation_company.database.models.user import UserORM
@@ -42,7 +66,6 @@ from ventilation_company.database.models.calc import CalcSetting
 from ventilation_company.utils.backup import create_backup, restore_backup
 from ventilation_company.auth.service import auth
 from ventilation_company.gui_pyside6.theme import Theme
-
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
 INDUSTRIAL_QSS = ""
@@ -96,10 +119,14 @@ class AppSettingsRepository:
 # Хелпери
 # ═══════════════════════════════════════════════════════════════════
 ROLE_LABELS = {
-    "admin": "Адміністратор", "manager": "Менеджер",
-    "engineer": "Інженер", "master": "Майстер",
-    "accountant": "Бухгалтер", "viewer": "Перегляд",
-    "director": "Директор", "monter": "Монтажник",
+    "admin": "Адміністратор",
+    "manager": "Менеджер",
+    "engineer": "Інженер",
+    "master": "Майстер",
+    "accountant": "Бухгалтер",
+    "viewer": "Перегляд",
+    "director": "Директор",
+    "monter": "Монтажник",
 }
 
 
@@ -333,6 +360,7 @@ class ProgramSettingsTab(QWidget):
             self.lbl_db_status.setStyleSheet(f"color: {Theme.SUCCESS};")
             try:
                 from sqlalchemy import text
+
                 with engine.connect() as conn:
                     version = conn.execute(text("SELECT version()")).scalar()
                     self.lbl_db_info.setText(str(version)[:150])
@@ -345,10 +373,10 @@ class ProgramSettingsTab(QWidget):
 
     def _create_tables(self):
         reply = QMessageBox.question(
-            self, "Підтвердження",
-            "Створити всі таблиці (create_all)?\n\n"
-            "Існуючі таблиці НЕ будуть видалені.",
-            QMessageBox.Yes | QMessageBox.No
+            self,
+            "Підтвердження",
+            "Створити всі таблиці (create_all)?\n\n" "Існуючі таблиці НЕ будуть видалені.",
+            QMessageBox.Yes | QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             try:
@@ -361,19 +389,28 @@ class ProgramSettingsTab(QWidget):
     def _refresh_db_stats(self):
         try:
             from sqlalchemy import text
+
             stats = []
             with engine.connect() as conn:
-                size_row = conn.execute(text(
-                    "SELECT pg_size_pretty(pg_database_size(current_database()))"
-                )).scalar()
+                size_row = conn.execute(
+                    text("SELECT pg_size_pretty(pg_database_size(current_database()))")
+                ).scalar()
                 stats.append(f"📦 Розмір БД: {size_row}")
 
-                tables = conn.execute(text(
-                    "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"
-                )).scalar()
+                tables = conn.execute(
+                    text(
+                        "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"
+                    )
+                ).scalar()
                 stats.append(f"📋 Таблиць: {tables}")
 
-                for tbl in ["projects", "users", "project_products", "clients", "calc_calculations"]:
+                for tbl in [
+                    "projects",
+                    "users",
+                    "project_products",
+                    "clients",
+                    "calc_calculations",
+                ]:
                     try:
                         cnt = conn.execute(text(f"SELECT count(*) FROM {tbl}")).scalar()
                         stats.append(f"   • {tbl}: {cnt} записів")
@@ -405,9 +442,13 @@ class ProgramSettingsTab(QWidget):
         grp = QGroupBox("Preview кольорів")
         h = QHBoxLayout(grp)
         self.preview_frames = []
-        for name, color in [("bg", Theme.BG), ("accent", Theme.ACCENT),
-                             ("frame", Theme.BG_CARD), ("button", Theme.BG_HOVER),
-                             ("select", Theme.ACCENT)]:
+        for name, color in [
+            ("bg", Theme.BG),
+            ("accent", Theme.ACCENT),
+            ("frame", Theme.BG_CARD),
+            ("button", Theme.BG_HOVER),
+            ("select", Theme.ACCENT),
+        ]:
             f = QFrame()
             f.setFixedSize(60, 40)
             f.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
@@ -426,8 +467,7 @@ class ProgramSettingsTab(QWidget):
 
     def _apply_theme(self):
         QMessageBox.information(
-            self, "Готово",
-            "Тему збережено.\nПерезапустіть програму для повного ефекту."
+            self, "Готово", "Тему збережено.\nПерезапустіть програму для повного ефекту."
         )
 
     # ═══════════════════════════════════════════════════════════════
@@ -459,7 +499,9 @@ class ProgramSettingsTab(QWidget):
 
         self.users_table = QTableWidget()
         self.users_table.setColumnCount(6)
-        self.users_table.setHorizontalHeaderLabels(["ID", "Логін", "ПІБ", "Роль", "Активний", "Останній вхід"])
+        self.users_table.setHorizontalHeaderLabels(
+            ["ID", "Логін", "ПІБ", "Роль", "Активний", "Останній вхід"]
+        )
         self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.users_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.users_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -523,7 +565,9 @@ class ProgramSettingsTab(QWidget):
         lay.addRow("🔒 Підтвердіть пароль", pass2_edit)
 
         role_combo = QComboBox()
-        role_combo.addItems(["Адміністратор", "Менеджер", "Інженер", "Майстер", "Бухгалтер", "Перегляд"])
+        role_combo.addItems(
+            ["Адміністратор", "Менеджер", "Інженер", "Майстер", "Бухгалтер", "Перегляд"]
+        )
         if is_edit:
             role_combo.setCurrentText(get_role_label(user.role))
         lay.addRow("🛡️ Посада *", role_combo)
@@ -537,9 +581,12 @@ class ProgramSettingsTab(QWidget):
 
         def save():
             role_map = {
-                "Адміністратор": "admin", "Менеджер": "manager",
-                "Інженер": "engineer", "Майстер": "master",
-                "Бухгалтер": "accountant", "Перегляд": "viewer"
+                "Адміністратор": "admin",
+                "Менеджер": "manager",
+                "Інженер": "engineer",
+                "Майстер": "master",
+                "Бухгалтер": "accountant",
+                "Перегляд": "viewer",
             }
             new_role = role_map.get(role_combo.currentText(), "viewer")
 
@@ -681,8 +728,19 @@ class ProgramSettingsTab(QWidget):
                 env["PGPASSWORD"] = parsed.password or ""
 
                 cmd = [
-                    "pg_dump", "-h", host, "-p", str(port), "-U", user,
-                    "-d", db_name, "-f", dump_file, "-F", "p"
+                    "pg_dump",
+                    "-h",
+                    host,
+                    "-p",
+                    str(port),
+                    "-U",
+                    user,
+                    "-d",
+                    db_name,
+                    "-f",
+                    dump_file,
+                    "-F",
+                    "p",
                 ]
                 subprocess.run(cmd, env=env, check=True, capture_output=True)
                 QMessageBox.information(self, "Успіх", f"Бекап PostgreSQL створено:\n{dump_file}")
@@ -733,10 +791,10 @@ class ProgramSettingsTab(QWidget):
         full_path = os.path.join(path, filename)
 
         reply = QMessageBox.warning(
-            self, "⚠️ УВАГА",
-            f"Відновити БД з бекапу?\n\n{filename}\n\n"
-            "ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
-            QMessageBox.Yes | QMessageBox.No
+            self,
+            "⚠️ УВАГА",
+            f"Відновити БД з бекапу?\n\n{filename}\n\n" "ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
+            QMessageBox.Yes | QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -750,7 +808,19 @@ class ProgramSettingsTab(QWidget):
                 user = parsed.username or "vent"
                 env = os.environ.copy()
                 env["PGPASSWORD"] = parsed.password or ""
-                cmd = ["psql", "-h", host, "-p", str(port), "-U", user, "-d", db_name, "-f", full_path]
+                cmd = [
+                    "psql",
+                    "-h",
+                    host,
+                    "-p",
+                    str(port),
+                    "-U",
+                    user,
+                    "-d",
+                    db_name,
+                    "-f",
+                    full_path,
+                ]
                 subprocess.run(cmd, env=env, check=True, capture_output=True)
                 QMessageBox.information(self, "Успіх", "БД відновлено. Перезапустіть програму.")
             else:
@@ -798,7 +868,9 @@ class ProgramSettingsTab(QWidget):
 
         license_grp = QGroupBox("Ліцензія")
         v2 = QVBoxLayout(license_grp)
-        v2.addWidget(QLabel("VentCompany v2.0 — MIT License\n© Pelekanchik", alignment=Qt.AlignCenter))
+        v2.addWidget(
+            QLabel("VentCompany v2.0 — MIT License\n© Pelekanchik", alignment=Qt.AlignCenter)
+        )
         vlay.addWidget(license_grp)
         vlay.addStretch()
 
@@ -807,6 +879,7 @@ class ProgramSettingsTab(QWidget):
     def _pkg_version(self, pkg: str) -> str:
         try:
             import importlib.metadata
+
             return importlib.metadata.version(pkg)
         except Exception:
             return "невідомо"

@@ -4,6 +4,8 @@
   • 📁 Архів проєктів — збережені проєкти з фінансовою аналітикою
 """
 
+import subprocess
+
 import os
 import platform
 import sqlite3
@@ -15,6 +17,7 @@ from tkinter import filedialog, messagebox, ttk
 from ventilation_company.auto_specification import SpecBuilder
 from ventilation_company.db_integration import ProjectDatabase
 from ventilation_company.pdf_generator import generate_project_pdf
+
 
 class ArchiveProjectDialog(tk.Toplevel):
     """Діалог додавання/редагування проєкту в архіві."""
@@ -95,9 +98,7 @@ class ArchiveProjectDialog(tk.Toplevel):
         )
 
         row += 1
-        ttk.Label(self, text="Собівартість:").grid(
-            row=row, column=0, sticky=tk.W, padx=10, pady=5
-        )
+        ttk.Label(self, text="Собівартість:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
         self.cost_var = tk.StringVar(value=default_cost)
         ttk.Entry(self, textvariable=self.cost_var, width=15).grid(
             row=row, column=1, sticky=tk.W, padx=5, pady=5
@@ -113,9 +114,7 @@ class ArchiveProjectDialog(tk.Toplevel):
         )
 
         row += 1
-        ttk.Label(self, text="Націнка (%):").grid(
-            row=row, column=0, sticky=tk.W, padx=10, pady=5
-        )
+        ttk.Label(self, text="Націнка (%):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
         self.markup_var = tk.StringVar(value=default_markup)
         ttk.Entry(self, textvariable=self.markup_var, width=15).grid(
             row=row, column=1, sticky=tk.W, padx=5, pady=5
@@ -126,15 +125,11 @@ class ArchiveProjectDialog(tk.Toplevel):
             row=row, column=0, sticky=tk.W, padx=10, pady=5
         )
         self.price_var = tk.StringVar(value=default_price)
-        self.price_entry = ttk.Entry(
-            self, textvariable=self.price_var, width=15, state="readonly"
-        )
+        self.price_entry = ttk.Entry(self, textvariable=self.price_var, width=15, state="readonly")
         self.price_entry.grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
 
         row += 1
-        ttk.Label(self, text="Прибуток:").grid(
-            row=row, column=0, sticky=tk.W, padx=10, pady=5
-        )
+        ttk.Label(self, text="Прибуток:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
         self.profit_label = ttk.Label(
             self, text="0.00 грн", font=("Arial", 10, "bold"), foreground="#2E7D32"
         )
@@ -147,12 +142,8 @@ class ArchiveProjectDialog(tk.Toplevel):
         row += 1
         btn_frm = ttk.Frame(self)
         btn_frm.grid(row=row, column=0, columnspan=2, pady=15)
-        ttk.Button(btn_frm, text="💾 Зберегти", command=self._save).pack(
-            side=tk.LEFT, padx=5
-        )
-        ttk.Button(btn_frm, text="Скасувати", command=self.destroy).pack(
-            side=tk.LEFT, padx=5
-        )
+        ttk.Button(btn_frm, text="💾 Зберегти", command=self._save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frm, text="Скасувати", command=self.destroy).pack(side=tk.LEFT, padx=5)
 
         self._calc_auto()
         self.wait_window(self)
@@ -194,9 +185,7 @@ class ArchiveProjectDialog(tk.Toplevel):
             salary = float(self.salary_var.get() or 0)
             customer = float(self.price_var.get() or 0)
         except ValueError:
-            messagebox.showwarning(
-                "Увага", "Фінансові поля мають бути числами!", parent=self
-            )
+            messagebox.showwarning("Увага", "Фінансові поля мають бути числами!", parent=self)
             return
 
         data = {
@@ -279,9 +268,7 @@ class SpecificationTab:
             state="readonly",
             width=15,
         ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl_frame, text="💾 Зберегти", command=self._export).pack(
-            side=tk.LEFT, padx=2
-        )
+        ttk.Button(ctrl_frame, text="💾 Зберегти", command=self._export).pack(side=tk.LEFT, padx=2)
 
         self.summary_frame = ttk.LabelFrame(self.spec_tab, text="📊 Підсумки", padding=5)
         self.summary_frame.pack(fill=tk.X, padx=5, pady=2)
@@ -320,9 +307,7 @@ class SpecificationTab:
             "a_total",
             "price",
         )
-        self.tree = ttk.Treeview(
-            table_frame, columns=columns, show="headings", height=18
-        )
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=18)
 
         headers = {
             "pos": "№",
@@ -355,13 +340,9 @@ class SpecificationTab:
 
         for col in columns:
             self.tree.heading(col, text=headers[col])
-            self.tree.column(
-                col, width=widths[col], anchor=tk.CENTER if col != "name" else tk.W
-            )
+            self.tree.column(col, width=widths[col], anchor=tk.CENTER if col != "name" else tk.W)
 
-        scrollbar = ttk.Scrollbar(
-            table_frame, orient=tk.VERTICAL, command=self.tree.yview
-        )
+        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -375,27 +356,27 @@ class SpecificationTab:
         arch_toolbar = ttk.Frame(self.archive_tab)
         arch_toolbar.pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Button(
-            arch_toolbar, text="➕ Додати", command=self._add_archive_project
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="✏️ Редагувати", command=self._edit_archive_project
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="🗑️ Видалити", command=self._delete_archive_project
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="📂 Креслення", command=self._open_drawing
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="🖨️ Друк звіту", command=self._print_archive_project
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="🔄 Оновити", command=self._load_archive
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
-            arch_toolbar, text="📄 PDF-звіт", command=self._open_pdf_report
-        ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(arch_toolbar, text="➕ Додати", command=self._add_archive_project).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="✏️ Редагувати", command=self._edit_archive_project).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="🗑️ Видалити", command=self._delete_archive_project).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="📂 Креслення", command=self._open_drawing).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="🖨️ Друк звіту", command=self._print_archive_project).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="🔄 Оновити", command=self._load_archive).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(arch_toolbar, text="📄 PDF-звіт", command=self._open_pdf_report).pack(
+            side=tk.LEFT, padx=2
+        )
 
         table_frame = ttk.Frame(self.archive_tab)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -411,9 +392,7 @@ class SpecificationTab:
             "profit",
             "date",
         )
-        self.archive_tree = ttk.Treeview(
-            table_frame, columns=a_cols, show="headings", height=18
-        )
+        self.archive_tree = ttk.Treeview(table_frame, columns=a_cols, show="headings", height=18)
 
         a_headers = {
             "id": "ID",
@@ -444,9 +423,7 @@ class SpecificationTab:
                 col, width=a_widths[col], anchor=tk.CENTER if col != "name" else tk.W
             )
 
-        a_scroll = ttk.Scrollbar(
-            table_frame, orient=tk.VERTICAL, command=self.archive_tree.yview
-        )
+        a_scroll = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.archive_tree.yview)
         self.archive_tree.configure(yscrollcommand=a_scroll.set)
 
         self.archive_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -456,25 +433,13 @@ class SpecificationTab:
         self.archive_tree.bind("<Button-3>", self._archive_context_menu)
 
         self.arch_ctx = tk.Menu(self.frame, tearoff=0)
-        self.arch_ctx.add_command(
-            label="✏️ Редагувати", command=self._edit_archive_project
-        )
-        self.arch_ctx.add_command(
-            label="📂 Відкрити креслення", command=self._open_drawing
-        )
-        self.arch_ctx.add_command(
-            label="🖨️ Друк звіту", command=self._print_archive_project
-        )
-        self.arch_ctx.add_command(
-            label="📄 Відкрити PDF-звіт", command=self._open_pdf_report
-        )
-        self.arch_ctx.add_command(
-            label="✂️ Розкрій металу", command=self._open_cutting_for_project
-        )
+        self.arch_ctx.add_command(label="✏️ Редагувати", command=self._edit_archive_project)
+        self.arch_ctx.add_command(label="📂 Відкрити креслення", command=self._open_drawing)
+        self.arch_ctx.add_command(label="🖨️ Друк звіту", command=self._print_archive_project)
+        self.arch_ctx.add_command(label="📄 Відкрити PDF-звіт", command=self._open_pdf_report)
+        self.arch_ctx.add_command(label="✂️ Розкрій металу", command=self._open_cutting_for_project)
         self.arch_ctx.add_separator()
-        self.arch_ctx.add_command(
-            label="🗑️ Видалити", command=self._delete_archive_project
-        )
+        self.arch_ctx.add_command(label="🗑️ Видалити", command=self._delete_archive_project)
 
     # ═══════════════════════════════════════════════════════
     # РОЗРАХУНОК ФІНАНСІВ ПРОЄКТУ
@@ -487,6 +452,7 @@ class SpecificationTab:
         """
         try:
             from ventilation_company.gui.settings_tab import PricingSettings
+
             pricing = PricingSettings.get_instance()
 
             total_material = 0.0
@@ -618,9 +584,7 @@ class SpecificationTab:
         """Видалити всі вироби проєкту (для оновлення)."""
         try:
             conn = sqlite3.connect(self.db.db_path)
-            conn.execute(
-                "DELETE FROM project_products WHERE project_id = ?", (project_id,)
-            )
+            conn.execute("DELETE FROM project_products WHERE project_id = ?", (project_id,))
             conn.commit()
             conn.close()
         except Exception as e:
@@ -685,21 +649,11 @@ class SpecificationTab:
         if not self.current_spec:
             return
 
-        self.summary_labels["total_items"].config(
-            text=str(self.current_spec.total_items)
-        )
-        self.summary_labels["total_qty"].config(
-            text=str(self.current_spec.total_quantity)
-        )
-        self.summary_labels["total_weight"].config(
-            text=f"{self.current_spec.total_weight:.3f}"
-        )
-        self.summary_labels["total_area"].config(
-            text=f"{self.current_spec.total_area:.4f}"
-        )
-        self.summary_labels["total_price"].config(
-            text=f"{self.current_spec.total_price:.2f}"
-        )
+        self.summary_labels["total_items"].config(text=str(self.current_spec.total_items))
+        self.summary_labels["total_qty"].config(text=str(self.current_spec.total_quantity))
+        self.summary_labels["total_weight"].config(text=f"{self.current_spec.total_weight:.3f}")
+        self.summary_labels["total_area"].config(text=f"{self.current_spec.total_area:.4f}")
+        self.summary_labels["total_price"].config(text=f"{self.current_spec.total_price:.2f}")
 
     def _export(self):
         if not self.current_spec:
@@ -829,6 +783,7 @@ class SpecificationTab:
             messagebox.showerror("Помилка", f"Файл не знайдено:\n{path}")
         else:
             messagebox.showinfo("Інфо", "Креслення не додано.")
+
     def _open_pdf_report(self):
         """Згенерувати та відкрити PDF-звіт по обраному проєкту."""
         sel = self.archive_tree.selection()
@@ -866,7 +821,7 @@ class SpecificationTab:
         pid = int(sel[0])
         if self.on_cutting_request:
             self.on_cutting_request(pid)
-            
+
     def _print_archive_project(self):
         sel = self.archive_tree.selection()
         if not sel:
@@ -908,9 +863,7 @@ class SpecificationTab:
 
         drawing = project.get("drawing_path", "")
         drawing_text = (
-            f"<a href='file:///{drawing.replace(chr(92), '/')}'>{drawing}</a>"
-            if drawing
-            else "—"
+            f"<a href='file:///{drawing.replace(chr(92), '/')}'>{drawing}</a>" if drawing else "—"
         )
 
         return f"""<!DOCTYPE html>

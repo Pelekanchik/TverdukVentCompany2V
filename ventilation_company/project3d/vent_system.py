@@ -35,7 +35,9 @@ class Point3D:
         return Point3D(self.x - other.x, self.y - other.y, self.z - other.z)
 
     def distance(self, other: "Point3D") -> float:
-        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2 + (self.z - other.z)**2)
+        return math.sqrt(
+            (self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2
+        )
 
     def to_tuple(self) -> Tuple[float, float, float]:
         return (self.x, self.y, self.z)
@@ -48,6 +50,7 @@ class Point3D:
 @dataclass
 class DuctSegment:
     """Один відрізок повітропроводу."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     start: Point3D = field(default_factory=Point3D)
     end: Point3D = field(default_factory=Point3D)
@@ -114,6 +117,7 @@ class DuctSegment:
 @dataclass
 class Fitting:
     """Фасонний виріб (відвід, трійник, перехід, фланець)."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     position: Point3D = field(default_factory=Point3D)
     fitting_type: str = "відвід"  # відвід, трійник, перехід, фланець, заглушка, гнучка вставка
@@ -167,6 +171,7 @@ class Fitting:
 @dataclass
 class Equipment:
     """Обладнання (вентилятор, фільтр, калорифер, глушник)."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = ""
     position: Point3D = field(default_factory=Point3D)
@@ -214,6 +219,7 @@ class Equipment:
 @dataclass
 class VentilationTrunk:
     """Магістральна трасса — послідовність сегментів і фасонних виробів."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Магістраль"
     floor: int = 1
@@ -269,6 +275,7 @@ class VentilationTrunk:
 @dataclass
 class VentilationSystem:
     """Повна вентиляційна система проєкту."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Система вентиляції"
     system_type: str = "припливно-витяжна"

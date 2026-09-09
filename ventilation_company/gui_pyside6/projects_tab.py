@@ -9,10 +9,21 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QLineEdit, QMessageBox, QAbstractItemView,
-    QDialog, QFormLayout, QDialogButtonBox, QComboBox,
-    QDoubleSpinBox, QSpinBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QLineEdit,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
+    QFormLayout,
+    QDialogButtonBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QSpinBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 
@@ -52,7 +63,11 @@ class ProjectEditDialog(QDialog):
         cost_total = sum(p.get("cost_price", 0) * p.get("quantity", 1) for p in products)
         # ← v2.4: ціна з урахуванням знижки на вироби
         price_total = sum(
-            (p.get("discounted_price", 0) if p.get("discounted_price", 0) > 0 else p.get("total_price", 0))
+            (
+                p.get("discounted_price", 0)
+                if p.get("discounted_price", 0) > 0
+                else p.get("total_price", 0)
+            )
             for p in products
         )
 
@@ -85,7 +100,9 @@ class ProjectEditDialog(QDialog):
         self.spin_cost.setValue(cost_total)
         self.spin_cost.setReadOnly(True)
         self.spin_cost.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self.spin_cost.setStyleSheet("QDoubleSpinBox { background-color: #1a1a2e; color: #a6e3a1; font-weight: bold; }")
+        self.spin_cost.setStyleSheet(
+            "QDoubleSpinBox { background-color: #1a1a2e; color: #a6e3a1; font-weight: bold; }"
+        )
         layout.addRow("🔧 Собівартість (з виробів)", self.spin_cost)
 
         self.spin_base_price = QDoubleSpinBox()
@@ -95,7 +112,9 @@ class ProjectEditDialog(QDialog):
         self.spin_base_price.setValue(price_total)
         self.spin_base_price.setReadOnly(True)
         self.spin_base_price.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self.spin_base_price.setStyleSheet("QDoubleSpinBox { background-color: #1a1a2e; color: #89b4fa; font-weight: bold; }")
+        self.spin_base_price.setStyleSheet(
+            "QDoubleSpinBox { background-color: #1a1a2e; color: #89b4fa; font-weight: bold; }"
+        )
         layout.addRow("💰 Ціна замовнику (з виробів)", self.spin_base_price)
 
         self.spin_discounted = QDoubleSpinBox()
@@ -103,12 +122,16 @@ class ProjectEditDialog(QDialog):
         self.spin_discounted.setSuffix(" ₴")
         self.spin_discounted.setDecimals(2)
         self.spin_discounted.setValue(float(self.project_data.get("discounted_price", 0) or 0))
-        self.spin_discounted.setStyleSheet("QDoubleSpinBox { background-color: #2a2a3e; color: #f9e2af; font-weight: bold; }")
+        self.spin_discounted.setStyleSheet(
+            "QDoubleSpinBox { background-color: #2a2a3e; color: #f9e2af; font-weight: bold; }"
+        )
         self.spin_discounted.valueChanged.connect(self._recalc_profit)
         layout.addRow("🏷️ Ціна зі знижкою", self.spin_discounted)
 
         self.lbl_profit = QLabel("0.00 ₴")
-        self.lbl_profit.setStyleSheet("font-size: 14px; font-weight: bold; padding: 6px 12px; border-radius: 6px; background: #1a1a2e;")
+        self.lbl_profit.setStyleSheet(
+            "font-size: 14px; font-weight: bold; padding: 6px 12px; border-radius: 6px; background: #1a1a2e;"
+        )
         layout.addRow("📊 Прибуток", self.lbl_profit)
 
         buttons = QDialogButtonBox(
@@ -203,10 +226,20 @@ class ProjectsTab(QWidget):
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([
-            "ID", "Номер", "Назва", "Клієнт", "Статус", "Дата створення",
-            "Сума виробів", "Ціна зам.", "Зі знижкою", "Прибуток"
-        ])
+        self.model.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Номер",
+                "Назва",
+                "Клієнт",
+                "Статус",
+                "Дата створення",
+                "Сума виробів",
+                "Ціна зам.",
+                "Зі знижкою",
+                "Прибуток",
+            ]
+        )
         self.table.setModel(self.model)
         self.table.setColumnWidth(0, 40)
         self.table.setColumnWidth(1, 90)
@@ -253,10 +286,15 @@ class ProjectsTab(QWidget):
                     try:
                         products = ProductRepository.get_all(project_id=p.id)
                         # ← v2.4: ціна з урахуванням знижки на вироби
-                        cost = sum(pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products)
+                        cost = sum(
+                            pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products
+                        )
                         base = sum(
-                            pr.get("discounted_price", 0) if pr.get("discounted_price", 0) > 0 
-                            else pr.get("total_price", 0)
+                            (
+                                pr.get("discounted_price", 0)
+                                if pr.get("discounted_price", 0) > 0
+                                else pr.get("total_price", 0)
+                            )
                             for pr in products
                         )
                     except Exception:
@@ -331,7 +369,8 @@ class ProjectsTab(QWidget):
                 with get_db() as session:
                     project = Project(
                         name=data["name"],
-                        project_number=data["project_number"] or f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                        project_number=data["project_number"]
+                        or f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
                         client=data["client"],
                         status=data["status"],
                         cost_price=data["cost_price"],
@@ -396,16 +435,20 @@ class ProjectsTab(QWidget):
             if p["id"] == project_id:
                 project_name = p["name"]
                 break
-        msg = "Видалити проєкт \"" + project_name + "\" (ID: " + str(project_id) + ")?"
+        msg = 'Видалити проєкт "' + project_name + '" (ID: ' + str(project_id) + ")?"
         msg += " ВСІ вироби та документи цього проєкту також будуть видалені!"
-        reply = QMessageBox.question(self, "Видалення", msg,
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self, "Видалення", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 with get_db() as session:
                     from ventilation_company.database.models.product_item import ProductItem
                     from ventilation_company.database.models.project_document import ProjectDocument
-                    session.query(ProjectDocument).filter(ProjectDocument.project_id == project_id).delete()
+
+                    session.query(ProjectDocument).filter(
+                        ProjectDocument.project_id == project_id
+                    ).delete()
                     session.query(ProductItem).filter(ProductItem.project_id == project_id).delete()
                     session.query(Project).filter(Project.id == project_id).delete()
                     session.commit()

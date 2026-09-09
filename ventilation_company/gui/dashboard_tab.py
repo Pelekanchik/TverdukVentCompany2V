@@ -27,8 +27,9 @@ class DashboardTab:
         tbar = tk.Frame(self.frame, bg=theme["bg"])
         tbar.pack(fill=tk.X, padx=10, pady=(10, 0))
 
-        tk.Label(tbar, text="📊 Дашборд", font=("Segoe UI", 16, "bold"),
-                 bg=theme["bg"], fg=theme["fg"]).pack(side=tk.LEFT, padx=5)
+        tk.Label(
+            tbar, text="📊 Дашборд", font=("Segoe UI", 16, "bold"), bg=theme["bg"], fg=theme["fg"]
+        ).pack(side=tk.LEFT, padx=5)
         ttk.Separator(tbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
         ttk.Button(tbar, text="🔄 Оновити", command=self._refresh_all).pack(side=tk.LEFT, padx=2)
 
@@ -59,13 +60,19 @@ class DashboardTab:
             frm.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
 
             # Іконка + заголовок
-            hdr = tk.Label(frm, text=title, font=("Segoe UI", 10, "bold"),
-                           bg=theme["frame_bg"], fg=theme["fg_secondary"])
+            hdr = tk.Label(
+                frm,
+                text=title,
+                font=("Segoe UI", 10, "bold"),
+                bg=theme["frame_bg"],
+                fg=theme["fg_secondary"],
+            )
             hdr.pack(anchor="w")
 
             # Значення
-            lbl = tk.Label(frm, text=default, font=("Segoe UI", 22, "bold"),
-                           bg=theme["frame_bg"], fg=color)
+            lbl = tk.Label(
+                frm, text=default, font=("Segoe UI", 22, "bold"), bg=theme["frame_bg"], fg=color
+            )
             lbl.pack(anchor="w", pady=(4, 0))
 
             # Індикатор-лінія
@@ -83,8 +90,12 @@ class DashboardTab:
 
         # ── Статус ──
         self.status = tk.Label(
-            self.frame, text="Готово", relief=tk.SUNKEN, anchor=tk.W,
-            bg=theme["status_bg"], fg=theme["status_fg"],
+            self.frame,
+            text="Готово",
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+            bg=theme["status_bg"],
+            fg=theme["status_fg"],
             font=("Segoe UI", 9),
         )
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
@@ -116,7 +127,8 @@ class DashboardTab:
         self.canvas.draw()
         self.status.config(
             text=f"Оновлено: {datetime.now().strftime('%H:%M:%S')}",
-            bg=theme["status_bg"], fg=theme["status_fg"],
+            bg=theme["status_bg"],
+            fg=theme["status_fg"],
         )
 
     def _update_kpi(self):
@@ -132,15 +144,15 @@ class DashboardTab:
             fg=theme["kpi_projects"],
         )
         self.kpi_labels["active_projects"].config(
-            text=str(stats.get('active_projects', 0)),
+            text=str(stats.get("active_projects", 0)),
             fg=theme["kpi_utilization"],
         )
         self.kpi_labels["overdue_projects"].config(
-            text=str(stats.get('overdue_projects', 0)),
+            text=str(stats.get("overdue_projects", 0)),
             fg=theme["kpi_overdue"],
         )
         self.kpi_labels["total_clients"].config(
-            text=str(stats.get('total_clients', 0)),
+            text=str(stats.get("total_clients", 0)),
             fg=theme["kpi_clients"],
         )
 
@@ -165,11 +177,14 @@ class DashboardTab:
         if data:
             months = [d["month"] for d in data]
             amounts = [d["amount"] for d in data]
-            bars = ax.bar(months, amounts,
-                          color=theme["chart_accent"],
-                          edgecolor=theme["chart_grid"],
-                          linewidth=0.5,
-                          alpha=0.9)
+            bars = ax.bar(
+                months,
+                amounts,
+                color=theme["chart_accent"],
+                edgecolor=theme["chart_grid"],
+                linewidth=0.5,
+                alpha=0.9,
+            )
             # Градієнт-ефект для останнього стовпчика
             if bars:
                 bars[-1].set_color(theme["accent_soft"])
@@ -177,8 +192,16 @@ class DashboardTab:
             ax.set_ylabel("грн", fontsize=8)
             ax.tick_params(axis="x", rotation=45, labelsize=7)
         else:
-            ax.text(0.5, 0.5, "Немає даних", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_fg"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає даних",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_fg"],
+                fontsize=10,
+            )
             ax.set_title("Виручка по місяцях", fontsize=10)
 
     def _draw_workload_chart(self):
@@ -188,11 +211,17 @@ class DashboardTab:
         if data:
             labels = list(data.keys())
             values = list(data.values())
-            colors = [theme["chart_accent"], theme["chart_accent2"],
-                      theme["chart_danger"], theme["chart_accent3"]]
+            colors = [
+                theme["chart_accent"],
+                theme["chart_accent2"],
+                theme["chart_danger"],
+                theme["chart_accent3"],
+            ]
             wedges, texts, autotexts = ax.pie(
-                values, labels=labels, autopct="%1.0f%%",
-                colors=colors[:len(labels)],
+                values,
+                labels=labels,
+                autopct="%1.0f%%",
+                colors=colors[: len(labels)],
                 textprops={"fontsize": 8, "color": theme["chart_fg"]},
                 startangle=90,
                 wedgeprops={"edgecolor": theme["chart_bg"], "linewidth": 2},
@@ -200,11 +229,20 @@ class DashboardTab:
             for autotext in autotexts:
                 autotext.set_fontweight("bold")
                 autotext.set_fontsize(9)
-            ax.set_title("Завантаження цеху", fontsize=10, fontweight="bold",
-                         color=theme["chart_fg"], pad=10)
+            ax.set_title(
+                "Завантаження цеху", fontsize=10, fontweight="bold", color=theme["chart_fg"], pad=10
+            )
         else:
-            ax.text(0.5, 0.5, "Немає даних", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_fg"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає даних",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_fg"],
+                fontsize=10,
+            )
             ax.set_title("Завантаження цеху", fontsize=10, color=theme["chart_fg"])
 
     def _draw_top_clients_chart(self):
@@ -215,23 +253,39 @@ class DashboardTab:
         if data:
             names = [d["name"][:15] for d in data]
             amounts = [d["total"] for d in data]
-            bars = ax.barh(names, amounts,
-                           color=theme["chart_accent3"],
-                           edgecolor=theme["chart_grid"],
-                           linewidth=0.5,
-                           alpha=0.85)
+            bars = ax.barh(
+                names,
+                amounts,
+                color=theme["chart_accent3"],
+                edgecolor=theme["chart_grid"],
+                linewidth=0.5,
+                alpha=0.85,
+            )
             # Значення на кінцях стовпчиків
             for bar, val in zip(bars, amounts):
-                ax.text(val + max(amounts) * 0.02, bar.get_y() + bar.get_height() / 2,
-                        f"{val:,.0f}", va="center", fontsize=8,
-                        color=theme["chart_fg"])
+                ax.text(
+                    val + max(amounts) * 0.02,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{val:,.0f}",
+                    va="center",
+                    fontsize=8,
+                    color=theme["chart_fg"],
+                )
             ax.set_title("ТОП-5 клієнтів", fontsize=10, fontweight="bold", pad=10)
             ax.set_xlabel("грн", fontsize=8)
             ax.invert_yaxis()
             ax.tick_params(axis="both", labelsize=7)
         else:
-            ax.text(0.5, 0.5, "Немає даних", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_fg"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає даних",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_fg"],
+                fontsize=10,
+            )
             ax.set_title("ТОП-5 клієнтів", fontsize=10)
 
     def _draw_status_chart(self):
@@ -245,19 +299,43 @@ class DashboardTab:
             completed = [d.get("completed", 0) for d in data]
             x = range(len(months))
             width = 0.35
-            ax.bar([i - width / 2 for i in x], active, width,
-                   label="В роботі", color=theme["chart_accent"], alpha=0.9)
-            ax.bar([i + width / 2 for i in x], completed, width,
-                   label="Завершено", color=theme["chart_accent2"], alpha=0.9)
+            ax.bar(
+                [i - width / 2 for i in x],
+                active,
+                width,
+                label="В роботі",
+                color=theme["chart_accent"],
+                alpha=0.9,
+            )
+            ax.bar(
+                [i + width / 2 for i in x],
+                completed,
+                width,
+                label="Завершено",
+                color=theme["chart_accent2"],
+                alpha=0.9,
+            )
             ax.set_xticks(x)
             ax.set_xticklabels(months, rotation=45, fontsize=7)
             ax.set_title("Динаміка проєктів", fontsize=10, fontweight="bold", pad=10)
-            ax.legend(fontsize=8, labelcolor=theme["chart_fg"],
-                      facecolor=theme["chart_bg"], edgecolor=theme["chart_grid"])
+            ax.legend(
+                fontsize=8,
+                labelcolor=theme["chart_fg"],
+                facecolor=theme["chart_bg"],
+                edgecolor=theme["chart_grid"],
+            )
             ax.tick_params(axis="y", labelsize=7)
         else:
-            ax.text(0.5, 0.5, "Немає даних", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_fg"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає даних",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_fg"],
+                fontsize=10,
+            )
             ax.set_title("Динаміка проєктів", fontsize=10)
 
     def _draw_monthly_revenue_chart(self):
@@ -268,17 +346,33 @@ class DashboardTab:
         if data:
             months = [d["month"] for d in data]
             avg = [d["avg"] for d in data]
-            ax.plot(months, avg, marker="o", color=theme["chart_accent2"],
-                    linewidth=2.5, markersize=5, markerfacecolor=theme["chart_bg"],
-                    markeredgecolor=theme["chart_accent2"], markeredgewidth=2)
+            ax.plot(
+                months,
+                avg,
+                marker="o",
+                color=theme["chart_accent2"],
+                linewidth=2.5,
+                markersize=5,
+                markerfacecolor=theme["chart_bg"],
+                markeredgecolor=theme["chart_accent2"],
+                markeredgewidth=2,
+            )
             ax.fill_between(months, avg, alpha=0.15, color=theme["chart_accent2"])
             ax.set_title("Середній чек", fontsize=10, fontweight="bold", pad=10)
             ax.set_ylabel("грн", fontsize=8)
             ax.tick_params(axis="x", rotation=45, labelsize=7)
             ax.tick_params(axis="y", labelsize=7)
         else:
-            ax.text(0.5, 0.5, "Немає даних", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_fg"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає даних",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_fg"],
+                fontsize=10,
+            )
             ax.set_title("Середній чек", fontsize=10)
 
     def _draw_overdue_chart(self):
@@ -288,22 +382,47 @@ class DashboardTab:
         overdue = self.db.get_overdue_projects()
         if overdue:
             names = [p["project_name"][:20] for p in overdue[:5]]
-            days = [(datetime.now() - (p["end_date"] if isinstance(p["end_date"], datetime) else datetime.fromisoformat(p["end_date"]))).days
-                    for p in overdue[:5]]
-            bars = ax.barh(names, days,
-                           color=theme["chart_danger"],
-                           edgecolor=theme["chart_grid"],
-                           linewidth=0.5,
-                           alpha=0.85)
+            days = [
+                (
+                    datetime.now()
+                    - (
+                        p["end_date"]
+                        if isinstance(p["end_date"], datetime)
+                        else datetime.fromisoformat(p["end_date"])
+                    )
+                ).days
+                for p in overdue[:5]
+            ]
+            bars = ax.barh(
+                names,
+                days,
+                color=theme["chart_danger"],
+                edgecolor=theme["chart_grid"],
+                linewidth=0.5,
+                alpha=0.85,
+            )
             for bar, val in zip(bars, days):
-                ax.text(val + 0.5, bar.get_y() + bar.get_height() / 2,
-                        f"{val} дн", va="center", fontsize=8,
-                        color=theme["chart_fg"])
+                ax.text(
+                    val + 0.5,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{val} дн",
+                    va="center",
+                    fontsize=8,
+                    color=theme["chart_fg"],
+                )
             ax.set_title("Прострочення (дні)", fontsize=10, fontweight="bold", pad=10)
             ax.set_xlabel("днів", fontsize=8)
             ax.invert_yaxis()
             ax.tick_params(axis="both", labelsize=7)
         else:
-            ax.text(0.5, 0.5, "Немає прострочень ✓", ha="center", va="center",
-                    transform=ax.transAxes, color=theme["chart_accent2"], fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "Немає прострочень ✓",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=theme["chart_accent2"],
+                fontsize=10,
+            )
             ax.set_title("Прострочення", fontsize=10)

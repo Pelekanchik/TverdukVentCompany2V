@@ -34,6 +34,7 @@ try:
 
     # Перевіримо, які таблиці створені
     from sqlalchemy import inspect
+
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     print(f"\nСтворено таблиць: {len(tables)}")
@@ -43,5 +44,6 @@ try:
 except Exception as e:
     print(f"❌ Помилка: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)

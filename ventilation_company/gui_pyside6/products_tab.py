@@ -3,17 +3,36 @@
 v2.4b: знижка вводиться у відсотках, кінцева ціна рахується автоматично.
 """
 
+from PySide6.QtGui import QBrush
+
 import math
 import json
 from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QLineEdit, QComboBox, QMessageBox, QAbstractItemView,
-    QDialog, QFormLayout, QSpinBox, QDoubleSpinBox, QDialogButtonBox,
-    QGroupBox, QSplitter, QFrame, QScrollArea, QGridLayout, QTextEdit,
-    QCheckBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QLineEdit,
+    QComboBox,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
+    QFormLayout,
+    QSpinBox,
+    QDoubleSpinBox,
+    QDialogButtonBox,
+    QGroupBox,
+    QSplitter,
+    QFrame,
+    QScrollArea,
+    QGridLayout,
+    QTextEdit,
+    QCheckBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPainter, QPen, QColor, QFont, QPolygon
 from PySide6.QtCore import QPoint
@@ -23,7 +42,6 @@ from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdown
 from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
-
 
 SCHEMAS = {
     "Відвод круглий": "",
@@ -185,9 +203,17 @@ class SchemaWidget(QWidget):
         p.drawText(cx - 40, cy + 45, "Тканина: ПВХ")
 
 
-def calc_surface_area(product_type: str, width: float, height: float, length: float,
-                       bend_angle: float = 90, radius: float = 0,
-                       branch_width: float = 0, branch_height: float = 0, branch_length: float = 0) -> float:
+def calc_surface_area(
+    product_type: str,
+    width: float,
+    height: float,
+    length: float,
+    bend_angle: float = 90,
+    radius: float = 0,
+    branch_width: float = 0,
+    branch_height: float = 0,
+    branch_length: float = 0,
+) -> float:
     pt = product_type.lower()
     if "повітропровід круглий" in pt or "труба кругла" in pt:
         return math.pi * width * length / 1_000_000
@@ -198,7 +224,7 @@ def calc_surface_area(product_type: str, width: float, height: float, length: fl
         if bend_angle != 90:
             base *= bend_angle / 90
         if radius > 0:
-            base *= (1 + radius / width)
+            base *= 1 + radius / width
         return base
     elif "відвод прямокутний" in pt:
         base = 2 * (width + height) * width * 1.5 / 1_000_000
@@ -218,7 +244,7 @@ def calc_surface_area(product_type: str, width: float, height: float, length: fl
     elif "перехід круглий" in pt:
         return (math.pi * width * width + math.pi * height * height) / 2 / 1_000_000
     elif "перехід прямокутний" in pt:
-        return (2*(width+height) + 2*(width+height)) * length / 2 / 1_000_000
+        return (2 * (width + height) + 2 * (width + height)) * length / 2 / 1_000_000
     elif "фланець круглий" in pt:
         return math.pi * width * width / 4 / 1_000_000
     elif "фланець прямокутний" in pt:
@@ -336,9 +362,9 @@ class ProductDialog(QDialog):
         form.addRow("Кількість", self.spin_qty)
 
         self.combo_category = QComboBox()
-        self.combo_category.addItems([
-            "Стандартна (30%)", "Преміум (40%)", "Економ (20%)", "Спецзамовлення (50%)"
-        ])
+        self.combo_category.addItems(
+            ["Стандартна (30%)", "Преміум (40%)", "Економ (20%)", "Спецзамовлення (50%)"]
+        )
         form.addRow("Категорія", self.combo_category)
 
         btn_calc = QPushButton("🧮 Розрахувати ціну")
@@ -413,7 +439,9 @@ class ProductDialog(QDialog):
         right_layout.addWidget(lbl_desc)
         self.lbl_description = QLabel()
         self.lbl_description.setWordWrap(True)
-        self.lbl_description.setStyleSheet("font-size: 12px; padding: 8px; background: #1a1a2e; border-radius: 8px;")
+        self.lbl_description.setStyleSheet(
+            "font-size: 12px; padding: 8px; background: #1a1a2e; border-radius: 8px;"
+        )
         right_layout.addWidget(self.lbl_description)
         right_layout.addStretch()
         layout.addWidget(right_widget)
@@ -575,21 +603,26 @@ class ProductDialog(QDialog):
         branch_w = 0
         branch_h = 0
         branch_l = 0
-        if hasattr(self, 'spin_bend_angle'):
+        if hasattr(self, "spin_bend_angle"):
             bend_angle = self.spin_bend_angle.value()
-        if hasattr(self, 'spin_radius'):
+        if hasattr(self, "spin_radius"):
             radius = self.spin_radius.value()
-        if hasattr(self, 'spin_branch_width'):
+        if hasattr(self, "spin_branch_width"):
             branch_w = self.spin_branch_width.value()
-        if hasattr(self, 'spin_branch_height'):
+        if hasattr(self, "spin_branch_height"):
             branch_h = self.spin_branch_height.value()
-        if hasattr(self, 'spin_branch_length'):
+        if hasattr(self, "spin_branch_length"):
             branch_l = self.spin_branch_length.value()
 
         surface = calc_surface_area(pt, w, h, l, bend_angle, radius, branch_w, branch_h, branch_l)
         blank = surface * 1.15
         material_area = blank * 1.05
-        markup_map = {"Стандартна (30%)": 30, "Преміум (40%)": 40, "Економ (20%)": 20, "Спецзамовлення (50%)": 50}
+        markup_map = {
+            "Стандартна (30%)": 30,
+            "Преміум (40%)": 40,
+            "Економ (20%)": 20,
+            "Спецзамовлення (50%)": 50,
+        }
         custom_markup = markup_map.get(self.combo_category.currentText(), 30)
         flange_count = 0
         flange_price = 0
@@ -598,9 +631,15 @@ class ProductDialog(QDialog):
             flange_price = 150.0 if self.combo_flange_profile.currentText() == "P30" else 200.0
 
         result = self._engine.calculate(
-            product_type=pt, material_name=mat, thickness_mm=thick,
-            surface_area_m2=surface, blank_area_m2=blank, material_area_m2=material_area,
-            quantity=qty, flange_count=flange_count, flange_price=flange_price,
+            product_type=pt,
+            material_name=mat,
+            thickness_mm=thick,
+            surface_area_m2=surface,
+            blank_area_m2=blank,
+            material_area_m2=material_area,
+            quantity=qty,
+            flange_count=flange_count,
+            flange_price=flange_price,
             custom_markup_percent=custom_markup,
         )
         self._calc_result = result
@@ -642,10 +681,14 @@ class ProductDialog(QDialog):
         profit = discounted_price - cost
         if profit >= 0:
             self.lbl_product_profit.setText(f"Прибуток: {profit:,.2f} ₴ ✅")
-            self.lbl_product_profit.setStyleSheet("font-size: 12px; font-weight: bold; color: #a6e3a1;")
+            self.lbl_product_profit.setStyleSheet(
+                "font-size: 12px; font-weight: bold; color: #a6e3a1;"
+            )
         else:
             self.lbl_product_profit.setText(f"Прибуток: {profit:,.2f} ₴ ⚠️ ЗБИТОК")
-            self.lbl_product_profit.setStyleSheet("font-size: 12px; font-weight: bold; color: #f38ba8;")
+            self.lbl_product_profit.setStyleSheet(
+                "font-size: 12px; font-weight: bold; color: #f38ba8;"
+            )
 
     def _on_show_details(self):
         if not self._calc_result:
@@ -676,8 +719,10 @@ class ProductDialog(QDialog):
             return
         if not self._calc_result:
             reply = QMessageBox.question(
-                self, "Розрахунок", "Ціну не розраховано. Розрахувати зараз?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                self,
+                "Розрахунок",
+                "Ціну не розраховано. Розрахувати зараз?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply == QMessageBox.StandardButton.Yes:
                 self._on_calc()
@@ -694,37 +739,41 @@ class ProductDialog(QDialog):
 
         params = {
             "with_flanges": self.chk_with_flanges.isChecked(),
-            "flange_count": self.spin_flange_count.value() if self.chk_with_flanges.isChecked() else 0,
-            "flange_profile": self.combo_flange_profile.currentText() if self.chk_with_flanges.isChecked() else "",
+            "flange_count": (
+                self.spin_flange_count.value() if self.chk_with_flanges.isChecked() else 0
+            ),
+            "flange_profile": (
+                self.combo_flange_profile.currentText() if self.chk_with_flanges.isChecked() else ""
+            ),
             "category": self.combo_category.currentText(),
         }
-        if hasattr(self, 'spin_bend_angle'):
+        if hasattr(self, "spin_bend_angle"):
             params["bend_angle"] = self.spin_bend_angle.value()
-        if hasattr(self, 'spin_radius'):
+        if hasattr(self, "spin_radius"):
             params["radius"] = self.spin_radius.value()
-        if hasattr(self, 'spin_ext_top'):
+        if hasattr(self, "spin_ext_top"):
             params["ext_top"] = self.spin_ext_top.value()
-        if hasattr(self, 'spin_ext_bottom'):
+        if hasattr(self, "spin_ext_bottom"):
             params["ext_bottom"] = self.spin_ext_bottom.value()
-        if hasattr(self, 'spin_branch_dist'):
+        if hasattr(self, "spin_branch_dist"):
             params["branch_dist"] = self.spin_branch_dist.value()
-        if hasattr(self, 'spin_branch_width'):
+        if hasattr(self, "spin_branch_width"):
             params["branch_width"] = self.spin_branch_width.value()
-        if hasattr(self, 'spin_branch_height'):
+        if hasattr(self, "spin_branch_height"):
             params["branch_height"] = self.spin_branch_height.value()
-        if hasattr(self, 'spin_branch_length'):
+        if hasattr(self, "spin_branch_length"):
             params["branch_length"] = self.spin_branch_length.value()
-        if hasattr(self, 'spin_end_width'):
+        if hasattr(self, "spin_end_width"):
             params["end_width"] = self.spin_end_width.value()
-        if hasattr(self, 'spin_end_height'):
+        if hasattr(self, "spin_end_height"):
             params["end_height"] = self.spin_end_height.value()
-        if hasattr(self, 'spin_bend_width'):
+        if hasattr(self, "spin_bend_width"):
             params["bend_width"] = self.spin_bend_width.value()
-        if hasattr(self, 'spin_depth'):
+        if hasattr(self, "spin_depth"):
             params["depth"] = self.spin_depth.value()
-        if hasattr(self, 'combo_fabric'):
+        if hasattr(self, "combo_fabric"):
             params["fabric"] = self.combo_fabric.currentText()
-        if hasattr(self, 'spin_holes'):
+        if hasattr(self, "spin_holes"):
             params["holes"] = self.spin_holes.value()
 
         if self._calc_result:
@@ -739,7 +788,11 @@ class ProductDialog(QDialog):
                 (self._calc_result.material_area_m2 / calc_qty) * thickness_m * density, 4
             )
 
-        project_id = self.parent().main_window.active_project_id if self.parent() and hasattr(self.parent(), "main_window") else None
+        project_id = (
+            self.parent().main_window.active_project_id
+            if self.parent() and hasattr(self.parent(), "main_window")
+            else None
+        )
 
         return {
             "name": self.edit_name.text().strip(),
@@ -833,9 +886,20 @@ class ProductsTab(QWidget):
         right_layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([
-            "ID", "Назва", "Тип", "Розміри", "Мат.", "Товщ.", "К-ть", "Ціна", "Знижка %", "Кінцева"
-        ])
+        self.model.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Назва",
+                "Тип",
+                "Розміри",
+                "Мат.",
+                "Товщ.",
+                "К-ть",
+                "Ціна",
+                "Знижка %",
+                "Кінцева",
+            ]
+        )
         self.table.setModel(self.model)
         self.table.setColumnWidth(0, 50)
         self.table.setColumnWidth(1, 180)
@@ -973,8 +1037,10 @@ class ProductsTab(QWidget):
             QMessageBox.warning(self, "Увага", "Виберіть виріб для видалення")
             return
         reply = QMessageBox.question(
-            self, "Видалення", f"Видалити виріб #{item_id}?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            self,
+            "Видалення",
+            f"Видалити виріб #{item_id}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:

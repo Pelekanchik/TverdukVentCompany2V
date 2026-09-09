@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 
 import matplotlib
+
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -14,21 +15,20 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
-
 # ═══════════════════════════════════════════════════════════
 # КОЛІРНА СХЕМА
 # ═══════════════════════════════════════════════════════════
 
 COLORS = {
-    "rect_duct":    {"face": "#42A5F5", "edge": "#1565C0", "alpha": 0.75},
-    "round_duct":   {"face": "#66BB6A", "edge": "#2E7D32", "alpha": 0.70},
-    "elbow":        {"face": "#AB47BC", "edge": "#6A1B9A", "alpha": 0.75},
-    "flange":       {"face": "#FFA726", "edge": "#EF6C00", "alpha": 0.80},
-    "cap":          {"face": "#EF5350", "edge": "#C62828", "alpha": 0.80},
-    "transition":   {"face": "#26C6DA", "edge": "#00838F", "alpha": 0.75},
-    "tee":          {"face": "#EC407A", "edge": "#AD1457", "alpha": 0.75},
-    "flexible":     {"face": "#8D6E63", "edge": "#4E342E", "alpha": 0.60},
-    "generic":      {"face": "#78909C", "edge": "#37474F", "alpha": 0.70},
+    "rect_duct": {"face": "#42A5F5", "edge": "#1565C0", "alpha": 0.75},
+    "round_duct": {"face": "#66BB6A", "edge": "#2E7D32", "alpha": 0.70},
+    "elbow": {"face": "#AB47BC", "edge": "#6A1B9A", "alpha": 0.75},
+    "flange": {"face": "#FFA726", "edge": "#EF6C00", "alpha": 0.80},
+    "cap": {"face": "#EF5350", "edge": "#C62828", "alpha": 0.80},
+    "transition": {"face": "#26C6DA", "edge": "#00838F", "alpha": 0.75},
+    "tee": {"face": "#EC407A", "edge": "#AD1457", "alpha": 0.75},
+    "flexible": {"face": "#8D6E63", "edge": "#4E342E", "alpha": 0.60},
+    "generic": {"face": "#78909C", "edge": "#37474F", "alpha": 0.70},
 }
 
 
@@ -137,10 +137,18 @@ class ProductPreview3D:
     def _add_box(self, w, h, l, cx=0, cy=0, cz=0, color_key="generic"):
         """Намалювати заповнений прямокутний паралелепіпед."""
         color = COLORS.get(color_key, COLORS["generic"])
-        verts = np.array([
-            [cx, cy, cz], [cx+w, cy, cz], [cx+w, cy+h, cz], [cx, cy+h, cz],
-            [cx, cy, cz+l], [cx+w, cy, cz+l], [cx+w, cy+h, cz+l], [cx, cy+h, cz+l],
-        ])
+        verts = np.array(
+            [
+                [cx, cy, cz],
+                [cx + w, cy, cz],
+                [cx + w, cy + h, cz],
+                [cx, cy + h, cz],
+                [cx, cy, cz + l],
+                [cx + w, cy, cz + l],
+                [cx + w, cy + h, cz + l],
+                [cx, cy + h, cz + l],
+            ]
+        )
         faces = [
             [verts[0], verts[1], verts[2], verts[3]],
             [verts[4], verts[5], verts[6], verts[7]],
@@ -149,14 +157,20 @@ class ProductPreview3D:
             [verts[1], verts[2], verts[6], verts[5]],
             [verts[0], verts[3], verts[7], verts[4]],
         ]
-        poly3d = Poly3DCollection(faces, facecolors=color["face"], edgecolors=color["edge"],
-                                   linewidths=0.6, alpha=color["alpha"], shade=True)
+        poly3d = Poly3DCollection(
+            faces,
+            facecolors=color["face"],
+            edgecolors=color["edge"],
+            linewidths=0.6,
+            alpha=color["alpha"],
+            shade=True,
+        )
         self.ax.add_collection3d(poly3d)
 
     def _add_cylinder(self, r, l, cx=0, cy=0, cz=0, axis="z", segments=30, color_key="generic"):
         """Намалювати заповнений циліндр вздовж заданої осі."""
         color = COLORS.get(color_key, COLORS["generic"])
-        theta = np.linspace(0, 2*np.pi, segments)
+        theta = np.linspace(0, 2 * np.pi, segments)
         t_vals = np.linspace(0, l, 10)
         theta_grid, t_grid = np.meshgrid(theta, t_vals)
 
@@ -177,27 +191,45 @@ class ProductPreview3D:
             y = cy + r * np.sin(theta_grid)
             z = cz + t_grid
 
-        self.ax.plot_surface(x, y, z, alpha=color["alpha"], color=color["face"],
-                             edgecolor=color["edge"], linewidth=0.3, shade=True)
+        self.ax.plot_surface(
+            x,
+            y,
+            z,
+            alpha=color["alpha"],
+            color=color["face"],
+            edgecolor=color["edge"],
+            linewidth=0.3,
+            shade=True,
+        )
 
-    def _add_torus_segment(self, R, r, angle_deg, segments_u=30, segments_v=20, color_key="generic"):
+    def _add_torus_segment(
+        self, R, r, angle_deg, segments_u=30, segments_v=20, color_key="generic"
+    ):
         """Намалювати частину тора (дуга круглої труби)."""
         color = COLORS.get(color_key, COLORS["generic"])
         u = np.radians(np.linspace(0, angle_deg, segments_u))
-        v = np.linspace(0, 2*np.pi, segments_v)
+        v = np.linspace(0, 2 * np.pi, segments_v)
         u_grid, v_grid = np.meshgrid(u, v)
 
         x = (R + r * np.cos(v_grid)) * np.cos(u_grid)
         y = (R + r * np.cos(v_grid)) * np.sin(u_grid)
         z = r * np.sin(v_grid)
 
-        self.ax.plot_surface(x, y, z, alpha=color["alpha"], color=color["face"],
-                             edgecolor=color["edge"], linewidth=0.3, shade=True)
+        self.ax.plot_surface(
+            x,
+            y,
+            z,
+            alpha=color["alpha"],
+            color=color["face"],
+            edgecolor=color["edge"],
+            linewidth=0.3,
+            shade=True,
+        )
 
     def _add_cone_frustum(self, r1, r2, l, segments=30, color_key="generic"):
         """Намалювати усечений конус (круглий перехід)."""
         color = COLORS.get(color_key, COLORS["generic"])
-        theta = np.linspace(0, 2*np.pi, segments)
+        theta = np.linspace(0, 2 * np.pi, segments)
         t_vals = np.linspace(0, l, 10)
         theta_grid, t_grid = np.meshgrid(theta, t_vals)
 
@@ -206,22 +238,38 @@ class ProductPreview3D:
         y = radius * np.sin(theta_grid)
         z = t_grid
 
-        self.ax.plot_surface(x, y, z, alpha=color["alpha"], color=color["face"],
-                             edgecolor=color["edge"], linewidth=0.3, shade=True)
+        self.ax.plot_surface(
+            x,
+            y,
+            z,
+            alpha=color["alpha"],
+            color=color["face"],
+            edgecolor=color["edge"],
+            linewidth=0.3,
+            shade=True,
+        )
 
     def _add_sphere_cap(self, r, segments=30, color_key="generic"):
         """Намалювати півсферу (кругла заглушка)."""
         color = COLORS.get(color_key, COLORS["generic"])
-        u = np.linspace(0, 2*np.pi, segments)
-        v = np.linspace(0, np.pi/2, 15)
+        u = np.linspace(0, 2 * np.pi, segments)
+        v = np.linspace(0, np.pi / 2, 15)
         u_grid, v_grid = np.meshgrid(u, v)
 
         x = r * np.cos(u_grid) * np.sin(v_grid)
         y = r * np.sin(u_grid) * np.sin(v_grid)
         z = r * np.cos(v_grid)
 
-        self.ax.plot_surface(x, y, z, alpha=color["alpha"], color=color["face"],
-                             edgecolor=color["edge"], linewidth=0.3, shade=True)
+        self.ax.plot_surface(
+            x,
+            y,
+            z,
+            alpha=color["alpha"],
+            color=color["face"],
+            edgecolor=color["edge"],
+            linewidth=0.3,
+            shade=True,
+        )
 
     # ─────────────────────────────────────────────────────────
     #  МОДЕЛІ ВИРОБІВ
@@ -231,28 +279,28 @@ class ProductPreview3D:
         w, h, l = product.width, product.height, product.length
         self._add_box(w, h, l, color_key="rect_duct")
         self._draw_dimension(0, -50, 0, w, -50, 0, f"{w:.0f}")
-        self._draw_dimension(w+30, 0, 0, w+30, h, 0, f"{h:.0f}")
-        self._draw_dimension(0, h+30, 0, 0, h+30, l, f"{l:.0f}")
+        self._draw_dimension(w + 30, 0, 0, w + 30, h, 0, f"{h:.0f}")
+        self._draw_dimension(0, h + 30, 0, 0, h + 30, l, f"{l:.0f}")
         self._center_view(w, h, l)
 
     def _draw_round_duct(self, product):
         d, l = product.width, product.length
         r = d / 2
         self._add_cylinder(r, l, color_key="round_duct")
-        self._draw_dimension(-r, -r-40, 0, r, -r-40, 0, f"Ø{d:.0f}")
-        self._draw_dimension(r+30, 0, 0, r+30, 0, l, f"{l:.0f}")
+        self._draw_dimension(-r, -r - 40, 0, r, -r - 40, 0, f"Ø{d:.0f}")
+        self._draw_dimension(r + 30, 0, 0, r + 30, 0, l, f"{l:.0f}")
         self._center_view(d, d, l)
 
     def _draw_flange(self, product):
         w, h = product.width, product.height
         p = getattr(product, "profile", 30)
-        outer_w, outer_h = w + 2*p, h + 2*p
+        outer_w, outer_h = w + 2 * p, h + 2 * p
         self._add_box(outer_w, outer_h, 5, color_key="flange")
         hole_x = (outer_w - w) / 2
         hole_y = (outer_h - h) / 2
         self._add_box(w, h, 5, cx=hole_x, cy=hole_y, cz=0, color_key="generic")
         self._draw_dimension(0, -30, 0, outer_w, -30, 0, f"{outer_w:.0f}")
-        self._draw_dimension(outer_w+20, 0, 0, outer_w+20, outer_h, 0, f"{outer_h:.0f}")
+        self._draw_dimension(outer_w + 20, 0, 0, outer_w + 20, outer_h, 0, f"{outer_h:.0f}")
         self._center_view(outer_w, outer_h, 80)
 
     def _draw_round_flange(self, product):
@@ -263,14 +311,14 @@ class ProductPreview3D:
         # Отвір — циліндр "всередині" з іншим кольором
         hole_r = d / 2
         self._add_cylinder(hole_r, 5, color_key="generic")
-        self._draw_dimension(-outer_r, -outer_r-40, 0, outer_r, -outer_r-40, 0, f"Ø{d:.0f}")
-        self._center_view(outer_r*2, outer_r*2, 50)
+        self._draw_dimension(-outer_r, -outer_r - 40, 0, outer_r, -outer_r - 40, 0, f"Ø{d:.0f}")
+        self._center_view(outer_r * 2, outer_r * 2, 50)
 
     def _draw_cap(self, product):
         w, h = product.width, product.height
         self._add_box(w, h, 30, color_key="cap")
         self._draw_dimension(0, -30, 0, w, -30, 0, f"{w:.0f}")
-        self._draw_dimension(w+20, 0, 0, w+20, h, 0, f"{h:.0f}")
+        self._draw_dimension(w + 20, 0, 0, w + 20, h, 0, f"{h:.0f}")
         self._center_view(w, h, 100)
 
     def _draw_round_cap(self, product):
@@ -279,7 +327,7 @@ class ProductPreview3D:
         depth = getattr(product, "depth", 30)
         self._add_cylinder(r, depth, color_key="cap")
         self._add_sphere_cap(r, color_key="cap")
-        self._draw_dimension(-r, -r-40, 0, r, -r-40, 0, f"Ø{d:.0f}")
+        self._draw_dimension(-r, -r - 40, 0, r, -r - 40, 0, f"Ø{d:.0f}")
         self._center_view(d, d, depth + r)
 
     def _draw_elbow(self, product):
@@ -290,40 +338,45 @@ class ProductPreview3D:
 
         theta = np.radians(np.linspace(0, angle, 40))
         offsets = [(0, 0), (w, 0), (w, h), (0, h)]
-        for (ox, oy) in offsets:
+        for ox, oy in offsets:
             r_eff = radius + ox
             x = r_eff * np.cos(theta)
             z = r_eff * np.sin(theta)
             y = np.full_like(theta, oy)
             self.ax.plot3D(x, y, z, color=color["edge"], lw=2.5)
 
-        for th in np.radians(np.arange(0, angle+1, 15)):
+        for th in np.radians(np.arange(0, angle + 1, 15)):
             pts = []
-            for (ox, oy) in offsets:
+            for ox, oy in offsets:
                 r_eff = radius + ox
                 x = r_eff * np.cos(th)
                 z = r_eff * np.sin(th)
                 pts.append([x, oy, z])
             pts.append(pts[0])
             arr = np.array(pts)
-            self.ax.plot3D(arr[:,0], arr[:,1], arr[:,2], color=color["edge"], lw=1.0)
+            self.ax.plot3D(arr[:, 0], arr[:, 1], arr[:, 2], color=color["edge"], lw=1.0)
 
         for th in [0, np.radians(angle)]:
             face_pts = []
-            for (ox, oy) in offsets:
+            for ox, oy in offsets:
                 r_eff = radius + ox
                 x = r_eff * np.cos(th)
                 z = r_eff * np.sin(th)
                 face_pts.append([x, oy, z])
-            poly = Poly3DCollection([np.array(face_pts)], facecolors=color["face"],
-                                    edgecolors=color["edge"], linewidths=0.5,
-                                    alpha=color["alpha"], shade=True)
+            poly = Poly3DCollection(
+                [np.array(face_pts)],
+                facecolors=color["face"],
+                edgecolors=color["edge"],
+                linewidths=0.5,
+                alpha=color["alpha"],
+                shade=True,
+            )
             self.ax.add_collection3d(poly)
 
-        self._draw_dimension(radius, -30, 0, radius+w, -30, 0, f"{w:.0f}")
-        self._draw_dimension(radius+w+20, 0, 0, radius+w+20, h, 0, f"{h:.0f}")
+        self._draw_dimension(radius, -30, 0, radius + w, -30, 0, f"{w:.0f}")
+        self._draw_dimension(radius + w + 20, 0, 0, radius + w + 20, h, 0, f"{h:.0f}")
         self._draw_dimension(0, -30, 0, radius, -30, 0, f"R{radius:.0f}")
-        self._center_view(radius*2 + w, h, radius*2 + w)
+        self._center_view(radius * 2 + w, h, radius * 2 + w)
 
     def _draw_round_elbow(self, product):
         """Круглий відвід — частина тора."""
@@ -334,9 +387,9 @@ class ProductPreview3D:
 
         self._add_torus_segment(radius, r, angle, color_key="elbow")
 
-        self._draw_dimension(radius, -r-40, 0, radius+d, -r-40, 0, f"Ø{d:.0f}")
-        self._draw_dimension(0, -r-40, 0, radius, -r-40, 0, f"R{radius:.0f}")
-        self._center_view(radius*2 + d, d, radius*2 + d)
+        self._draw_dimension(radius, -r - 40, 0, radius + d, -r - 40, 0, f"Ø{d:.0f}")
+        self._draw_dimension(0, -r - 40, 0, radius, -r - 40, 0, f"R{radius:.0f}")
+        self._center_view(radius * 2 + d, d, radius * 2 + d)
 
     def _draw_transition(self, product):
         w1, h1 = product.width, product.height
@@ -345,11 +398,18 @@ class ProductPreview3D:
         l = product.length
         color = COLORS["transition"]
 
-        verts = np.array([
-            [0, 0, 0], [w1, 0, 0], [w1, h1, 0], [0, h1, 0],
-            [(w1-ew)/2, (h1-eh)/2, l], [(w1+ew)/2, (h1-eh)/2, l],
-            [(w1+ew)/2, (h1+eh)/2, l], [(w1-ew)/2, (h1+eh)/2, l],
-        ])
+        verts = np.array(
+            [
+                [0, 0, 0],
+                [w1, 0, 0],
+                [w1, h1, 0],
+                [0, h1, 0],
+                [(w1 - ew) / 2, (h1 - eh) / 2, l],
+                [(w1 + ew) / 2, (h1 - eh) / 2, l],
+                [(w1 + ew) / 2, (h1 + eh) / 2, l],
+                [(w1 - ew) / 2, (h1 + eh) / 2, l],
+            ]
+        )
         faces = [
             [verts[0], verts[1], verts[2], verts[3]],
             [verts[4], verts[5], verts[6], verts[7]],
@@ -358,12 +418,18 @@ class ProductPreview3D:
             [verts[1], verts[2], verts[6], verts[5]],
             [verts[0], verts[3], verts[7], verts[4]],
         ]
-        poly3d = Poly3DCollection(faces, facecolors=color["face"], edgecolors=color["edge"],
-                                   linewidths=0.6, alpha=color["alpha"], shade=True)
+        poly3d = Poly3DCollection(
+            faces,
+            facecolors=color["face"],
+            edgecolors=color["edge"],
+            linewidths=0.6,
+            alpha=color["alpha"],
+            shade=True,
+        )
         self.ax.add_collection3d(poly3d)
         self._draw_dimension(0, -30, 0, w1, -30, 0, f"{w1:.0f}")
-        self._draw_dimension(w1+20, 0, 0, w1+20, h1, 0, f"{h1:.0f}")
-        self._draw_dimension(0, h1+30, 0, 0, h1+30, l, f"{l:.0f}")
+        self._draw_dimension(w1 + 20, 0, 0, w1 + 20, h1, 0, f"{h1:.0f}")
+        self._draw_dimension(0, h1 + 30, 0, 0, h1 + 30, l, f"{l:.0f}")
         self._center_view(max(w1, ew), max(h1, eh), l)
 
     def _draw_round_transition(self, product):
@@ -374,9 +440,9 @@ class ProductPreview3D:
         r1, r2 = d1 / 2, d2 / 2
 
         self._add_cone_frustum(r1, r2, l, color_key="transition")
-        self._draw_dimension(-r1, -r1-40, 0, r1, -r1-40, 0, f"Ø{d1:.0f}")
-        self._draw_dimension(-r2, -r2-40, l, r2, -r2-40, l, f"Ø{d2:.0f}")
-        self._draw_dimension(r1+30, 0, 0, r1+30, 0, l, f"{l:.0f}")
+        self._draw_dimension(-r1, -r1 - 40, 0, r1, -r1 - 40, 0, f"Ø{d1:.0f}")
+        self._draw_dimension(-r2, -r2 - 40, l, r2, -r2 - 40, l, f"Ø{d2:.0f}")
+        self._draw_dimension(r1 + 30, 0, 0, r1 + 30, 0, l, f"{l:.0f}")
         self._center_view(max(d1, d2), max(d1, d2), l)
 
     def _draw_tee(self, product):
@@ -409,15 +475,21 @@ class ProductPreview3D:
             [verts[0], verts[3], verts[7], verts[4]],
             [verts[4], verts[5], verts[6], verts[7]],
         ]
-        poly3d = Poly3DCollection(faces, facecolors=color["face"], edgecolors=color["edge"],
-                                   linewidths=0.5, alpha=color["alpha"], shade=True)
+        poly3d = Poly3DCollection(
+            faces,
+            facecolors=color["face"],
+            edgecolors=color["edge"],
+            linewidths=0.5,
+            alpha=color["alpha"],
+            shade=True,
+        )
         self.ax.add_collection3d(poly3d)
 
         self._draw_dimension(0, -50, 0, w, -50, 0, f"{w:.0f}")
-        self._draw_dimension(w+30, 0, 0, w+30, h, 0, f"{h:.0f}")
-        self._draw_dimension(0, h+30, 0, 0, h+30, l, f"{l:.0f}")
-        self._draw_dimension(offset_x, -50, l+bl, offset_x+bw, -50, l+bl, f"{bw:.0f}")
-        self._draw_dimension(w+30, offset_y, l+bl, w+30, offset_y+bh, l+bl, f"{bh:.0f}")
+        self._draw_dimension(w + 30, 0, 0, w + 30, h, 0, f"{h:.0f}")
+        self._draw_dimension(0, h + 30, 0, 0, h + 30, l, f"{l:.0f}")
+        self._draw_dimension(offset_x, -50, l + bl, offset_x + bw, -50, l + bl, f"{bw:.0f}")
+        self._draw_dimension(w + 30, offset_y, l + bl, w + 30, offset_y + bh, l + bl, f"{bh:.0f}")
         self._center_view(max(w, bw), max(h, bh), l + bl)
 
     def _draw_round_tee(self, product):
@@ -431,9 +503,9 @@ class ProductPreview3D:
         self._add_cylinder(r, l, axis="z", color_key="tee")
         self._add_cylinder(br, bl, cx=0, cy=-br, cz=l, axis="y", color_key="tee")
 
-        self._draw_dimension(-r, -r-40, 0, r, -r-40, 0, f"Ø{d:.0f}")
-        self._draw_dimension(r+30, 0, 0, r+30, 0, l, f"{l:.0f}")
-        self._draw_dimension(-br, -br-bl, l, br, -br-bl, l, f"Ø{bd:.0f}")
+        self._draw_dimension(-r, -r - 40, 0, r, -r - 40, 0, f"Ø{d:.0f}")
+        self._draw_dimension(r + 30, 0, 0, r + 30, 0, l, f"{l:.0f}")
+        self._draw_dimension(-br, -br - bl, l, br, -br - bl, l, f"Ø{bd:.0f}")
         self._center_view(max(d, bd), max(d, bl), l + bl)
 
     def _draw_flexible(self, product):
@@ -444,18 +516,26 @@ class ProductPreview3D:
         for i in range(segments):
             z = i * seg_len
             scale = 1.0 if i % 2 == 0 else 0.92
-            self._add_box(w*scale, h*scale, seg_len, cx=(w-w*scale)/2, cy=(h-h*scale)/2, cz=z, color_key="flexible")
+            self._add_box(
+                w * scale,
+                h * scale,
+                seg_len,
+                cx=(w - w * scale) / 2,
+                cy=(h - h * scale) / 2,
+                cz=z,
+                color_key="flexible",
+            )
         self._draw_dimension(0, -30, 0, w, -30, 0, f"{w:.0f}")
-        self._draw_dimension(w+20, 0, 0, w+20, h, 0, f"{h:.0f}")
-        self._draw_dimension(0, h+30, 0, 0, h+30, l, f"{l:.0f}")
+        self._draw_dimension(w + 20, 0, 0, w + 20, h, 0, f"{h:.0f}")
+        self._draw_dimension(0, h + 30, 0, 0, h + 30, l, f"{l:.0f}")
         self._center_view(w, h, l)
 
     def _draw_generic_box(self, product):
         w, h, l = product.width, product.height, product.length
         self._add_box(w, h, l, color_key="generic")
         self._draw_dimension(0, -30, 0, w, -30, 0, f"{w:.0f}")
-        self._draw_dimension(w+20, 0, 0, w+20, h, 0, f"{h:.0f}")
-        self._draw_dimension(0, h+30, 0, 0, h+30, l, f"{l:.0f}")
+        self._draw_dimension(w + 20, 0, 0, w + 20, h, 0, f"{h:.0f}")
+        self._draw_dimension(0, h + 30, 0, 0, h + 30, l, f"{l:.0f}")
         self._center_view(w, h, l)
 
     # ─────────────────────────────────────────────────────────
@@ -464,7 +544,7 @@ class ProductPreview3D:
 
     def _draw_dimension(self, x1, y1, z1, x2, y2, z2, text: str):
         self.ax.plot3D([x1, x2], [y1, y2], [z1, z2], color="#37474F", lw=1.0)
-        mx, my, mz = (x1+x2)/2, (y1+y2)/2, (z1+z2)/2
+        mx, my, mz = (x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2
         self.ax.text(mx, my, mz, text, color="#C62828", fontsize=8, fontweight="bold")
 
     def _center_view(self, w, h, l):

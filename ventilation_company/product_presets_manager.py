@@ -10,10 +10,22 @@ from dataclasses import asdict
 from pathlib import Path
 
 from ventilation_company.standard_products import (
-    RectDuct, RoundDuct, RectElbow, RoundElbow,
-    RectFlange, RoundFlange, RectTee, RoundTee,
-    RectTransition, RoundTransition, RectCap, RoundCap,
-    FlexibleConnector, MaterialType, Thickness, StandardProduct,
+    RectDuct,
+    RoundDuct,
+    RectElbow,
+    RoundElbow,
+    RectFlange,
+    RoundFlange,
+    RectTee,
+    RoundTee,
+    RectTransition,
+    RoundTransition,
+    RectCap,
+    RoundCap,
+    FlexibleConnector,
+    MaterialType,
+    Thickness,
+    StandardProduct,
 )
 
 # Мапінг типів виробів на класи
@@ -56,6 +68,7 @@ _UA_TO_EN = {
 def _product_to_dict(product: StandardProduct) -> dict:
     """Серіалізувати продукт у dict (JSON-safe)."""
     from decimal import Decimal
+
     data = product.to_dict()
     # Конвертуємо Decimal → float для JSON
     for key in list(data.keys()):
@@ -97,6 +110,7 @@ class PresetsManager:
                 print(f"[PresetsManager] Помилка завантаження: {e}")
         # Якщо файлу немає — завантажуємо вбудовані
         from ventilation_company.product_presets import get_all_presets
+
         self._presets = get_all_presets()
         self._save()
 
@@ -175,5 +189,6 @@ class PresetsManager:
     def reset_to_defaults(self):
         """Скинути до вбудованих пресетів."""
         from ventilation_company.product_presets import get_all_presets
+
         self._presets = get_all_presets()
         self._save()

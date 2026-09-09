@@ -42,14 +42,17 @@ class ProjectDocumentRepository:
             if doc_type:
                 q = q.filter(ProjectDocument.doc_type == doc_type)
             docs = q.order_by(ProjectDocument.created_at.desc()).all()
-            return [{
-                "id": d.id,
-                "project_id": d.project_id,
-                "doc_type": d.doc_type,
-                "filename": d.filename,
-                "file_size": d.file_size,
-                "created_at": d.created_at,
-            } for d in docs]
+            return [
+                {
+                    "id": d.id,
+                    "project_id": d.project_id,
+                    "doc_type": d.doc_type,
+                    "filename": d.filename,
+                    "file_size": d.file_size,
+                    "created_at": d.created_at,
+                }
+                for d in docs
+            ]
 
     @staticmethod
     def get_by_id(doc_id: int) -> dict | None:

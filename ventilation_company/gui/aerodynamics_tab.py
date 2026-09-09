@@ -46,42 +46,68 @@ class AerodynamicsTab:
         # Тип системи
         ttk.Label(left, text="Тип системи:").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.system_type_var = tk.StringVar(value="припливна")
-        ttk.Combobox(left, textvariable=self.system_type_var,
-                     values=["припливна", "витяжна", "димовидалення"],
-                     state="readonly", width=19).grid(row=1, column=1, pady=2)
+        ttk.Combobox(
+            left,
+            textvariable=self.system_type_var,
+            values=["припливна", "витяжна", "димовидалення"],
+            state="readonly",
+            width=19,
+        ).grid(row=1, column=1, pady=2)
 
         # Повітряний потік
-        ttk.Label(left, text="Повітряний потік (м³/год):").grid(row=2, column=0, sticky=tk.W, pady=2)
+        ttk.Label(left, text="Повітряний потік (м³/год):").grid(
+            row=2, column=0, sticky=tk.W, pady=2
+        )
         self.air_flow_var = tk.DoubleVar(value=2000)
-        ttk.Spinbox(left, from_=100, to=50000, textvariable=self.air_flow_var, width=15).grid(row=2, column=1, pady=2)
+        ttk.Spinbox(left, from_=100, to=50000, textvariable=self.air_flow_var, width=15).grid(
+            row=2, column=1, pady=2
+        )
 
         # Форма перерізу
         ttk.Label(left, text="Форма перерізу:").grid(row=3, column=0, sticky=tk.W, pady=2)
         self.shape_var = tk.StringVar(value="прямокутний")
-        ttk.Combobox(left, textvariable=self.shape_var,
-                     values=["прямокутний", "круглий"],
-                     state="readonly", width=19).grid(row=3, column=1, pady=2)
+        ttk.Combobox(
+            left,
+            textvariable=self.shape_var,
+            values=["прямокутний", "круглий"],
+            state="readonly",
+            width=19,
+        ).grid(row=3, column=1, pady=2)
 
         # Розміри
         ttk.Label(left, text="Ширина / D (мм):").grid(row=4, column=0, sticky=tk.W, pady=2)
         self.width_var = tk.DoubleVar(value=300)
-        ttk.Spinbox(left, from_=50, to=2000, textvariable=self.width_var, width=15).grid(row=4, column=1, pady=2)
+        ttk.Spinbox(left, from_=50, to=2000, textvariable=self.width_var, width=15).grid(
+            row=4, column=1, pady=2
+        )
 
         ttk.Label(left, text="Висота (мм):").grid(row=5, column=0, sticky=tk.W, pady=2)
         self.height_var = tk.DoubleVar(value=200)
-        ttk.Spinbox(left, from_=50, to=2000, textvariable=self.height_var, width=15).grid(row=5, column=1, pady=2)
+        ttk.Spinbox(left, from_=50, to=2000, textvariable=self.height_var, width=15).grid(
+            row=5, column=1, pady=2
+        )
 
         # Довжина
         ttk.Label(left, text="Довжина траси (м):").grid(row=6, column=0, sticky=tk.W, pady=2)
         self.length_var = tk.DoubleVar(value=15)
-        ttk.Spinbox(left, from_=1, to=500, textvariable=self.length_var, width=15).grid(row=6, column=1, pady=2)
+        ttk.Spinbox(left, from_=1, to=500, textvariable=self.length_var, width=15).grid(
+            row=6, column=1, pady=2
+        )
 
-        ttk.Separator(left, orient=tk.HORIZONTAL).grid(row=7, column=0, columnspan=2, sticky=tk.EW, pady=10)
+        ttk.Separator(left, orient=tk.HORIZONTAL).grid(
+            row=7, column=0, columnspan=2, sticky=tk.EW, pady=10
+        )
 
         # Кнопки
-        ttk.Button(left, text="➕ Додати ділянку", command=self._add_section).grid(row=8, column=0, columnspan=2, pady=3, sticky=tk.EW)
-        ttk.Button(left, text="📊 Розрахувати", command=self._calculate).grid(row=9, column=0, columnspan=2, pady=5, sticky=tk.EW)
-        ttk.Button(left, text="🔄 Очистити", command=self._clear).grid(row=10, column=0, columnspan=2, pady=3, sticky=tk.EW)
+        ttk.Button(left, text="➕ Додати ділянку", command=self._add_section).grid(
+            row=8, column=0, columnspan=2, pady=3, sticky=tk.EW
+        )
+        ttk.Button(left, text="📊 Розрахувати", command=self._calculate).grid(
+            row=9, column=0, columnspan=2, pady=5, sticky=tk.EW
+        )
+        ttk.Button(left, text="🔄 Очистити", command=self._clear).grid(
+            row=10, column=0, columnspan=2, pady=3, sticky=tk.EW
+        )
 
         # ═══════════════════════════════════════════
         # ── Середня панель: ділянки та фітинги ──
@@ -98,7 +124,17 @@ class AerodynamicsTab:
         sec_frame.columnconfigure(0, weight=1)
         sec_frame.rowconfigure(0, weight=1)
 
-        sec_cols = ("№", "Назва", "L (м)", "Шир (мм)", "Вис (мм)", "Форма", "Q (м³/год)", "V (м/с)", "Δp (Па)")
+        sec_cols = (
+            "№",
+            "Назва",
+            "L (м)",
+            "Шир (мм)",
+            "Вис (мм)",
+            "Форма",
+            "Q (м³/год)",
+            "V (м/с)",
+            "Δp (Па)",
+        )
         self.sec_tree = ttk.Treeview(sec_frame, columns=sec_cols, show="headings", height=5)
         for c in sec_cols:
             self.sec_tree.heading(c, text=c)
@@ -121,20 +157,30 @@ class AerodynamicsTab:
 
         ttk.Label(fit_input, text="Тип:").pack(side=tk.LEFT, padx=2)
         self.fit_type_var = tk.StringVar(value="відвід 90°")
-        ttk.Combobox(fit_input, textvariable=self.fit_type_var,
-                     values=get_fitting_types(), state="readonly", width=16).pack(side=tk.LEFT, padx=2)
+        ttk.Combobox(
+            fit_input,
+            textvariable=self.fit_type_var,
+            values=get_fitting_types(),
+            state="readonly",
+            width=16,
+        ).pack(side=tk.LEFT, padx=2)
 
         ttk.Label(fit_input, text="К-ть:").pack(side=tk.LEFT, padx=(8, 2))
         self.fit_qty_var = tk.IntVar(value=1)
-        ttk.Spinbox(fit_input, from_=1, to=50, textvariable=self.fit_qty_var, width=5).pack(side=tk.LEFT, padx=2)
+        ttk.Spinbox(fit_input, from_=1, to=50, textvariable=self.fit_qty_var, width=5).pack(
+            side=tk.LEFT, padx=2
+        )
 
         ttk.Label(fit_input, text="Ділянка:").pack(side=tk.LEFT, padx=(8, 2))
         self.fit_section_var = tk.StringVar(value="1")
-        self.fit_section_combo = ttk.Combobox(fit_input, textvariable=self.fit_section_var,
-                                               values=["1"], state="readonly", width=5)
+        self.fit_section_combo = ttk.Combobox(
+            fit_input, textvariable=self.fit_section_var, values=["1"], state="readonly", width=5
+        )
         self.fit_section_combo.pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(fit_input, text="➕ Додати", command=self._add_fitting).pack(side=tk.LEFT, padx=(8, 2))
+        ttk.Button(fit_input, text="➕ Додати", command=self._add_fitting).pack(
+            side=tk.LEFT, padx=(8, 2)
+        )
 
         # Таблиця фітингів
         fit_cols = ("№", "Тип", "ζ", "К-ть", "Ділянка", "Δp (Па)")
@@ -166,41 +212,66 @@ class AerodynamicsTab:
             ("total_loss_mm", "Втрати тиску:", "мм вод.ст."),
         ]
         for i, (key, text, unit) in enumerate(result_fields):
-            ttk.Label(right, text=text, font=("Arial", 9)).grid(row=i, column=0, sticky=tk.W, pady=2)
+            ttk.Label(right, text=text, font=("Arial", 9)).grid(
+                row=i, column=0, sticky=tk.W, pady=2
+            )
             lbl = ttk.Label(right, text="—", font=("Arial", 10, "bold"))
             lbl.grid(row=i, column=1, sticky=tk.W, pady=2, padx=3)
-            ttk.Label(right, text=unit, font=("Arial", 8), foreground="#666").grid(row=i, column=2, sticky=tk.W, pady=2)
+            ttk.Label(right, text=unit, font=("Arial", 8), foreground="#666").grid(
+                row=i, column=2, sticky=tk.W, pady=2
+            )
             self.result_labels[key] = lbl
 
-        ttk.Separator(right, orient=tk.HORIZONTAL).grid(row=len(result_fields), column=0, columnspan=3, sticky=tk.EW, pady=8)
+        ttk.Separator(right, orient=tk.HORIZONTAL).grid(
+            row=len(result_fields), column=0, columnspan=3, sticky=tk.EW, pady=8
+        )
 
         # ── Підбір вентилятора ──
         fan_frame = ttk.LabelFrame(right, text="Підбір вентилятора", padding=5)
-        fan_frame.grid(row=len(result_fields)+1, column=0, columnspan=3, sticky=tk.EW, pady=5)
+        fan_frame.grid(row=len(result_fields) + 1, column=0, columnspan=3, sticky=tk.EW, pady=5)
 
         fan_input = ttk.Frame(fan_frame)
         fan_input.grid(row=0, column=0, columnspan=3, sticky="ew")
 
         ttk.Label(fan_input, text="Тип:").pack(side=tk.LEFT, padx=2)
         self.fan_type_var = tk.StringVar(value="будь-який")
-        ttk.Combobox(fan_input, textvariable=self.fan_type_var,
-                     values=["будь-який"] + get_all_fan_types(), state="readonly", width=12).pack(side=tk.LEFT, padx=2)
-        ttk.Button(fan_input, text="🔍 Підібрати", command=self._select_fan).pack(side=tk.LEFT, padx=5)
+        ttk.Combobox(
+            fan_input,
+            textvariable=self.fan_type_var,
+            values=["будь-який"] + get_all_fan_types(),
+            state="readonly",
+            width=12,
+        ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(fan_input, text="🔍 Підібрати", command=self._select_fan).pack(
+            side=tk.LEFT, padx=5
+        )
 
         self.fan_result_var = tk.StringVar(value="Вентилятор не підібрано")
-        ttk.Label(fan_frame, textvariable=self.fan_result_var, font=("Arial", 9, "bold"),
-                  foreground="#0066cc", wraplength=180).grid(row=1, column=0, columnspan=3, pady=3, sticky="ew")
+        ttk.Label(
+            fan_frame,
+            textvariable=self.fan_result_var,
+            font=("Arial", 9, "bold"),
+            foreground="#0066cc",
+            wraplength=180,
+        ).grid(row=1, column=0, columnspan=3, pady=3, sticky="ew")
 
         self.fan_details_var = tk.StringVar(value="")
-        ttk.Label(fan_frame, textvariable=self.fan_details_var, font=("Arial", 8),
-                  foreground="#666", wraplength=180).grid(row=2, column=0, columnspan=3, sticky="ew")
+        ttk.Label(
+            fan_frame,
+            textvariable=self.fan_details_var,
+            font=("Arial", 8),
+            foreground="#666",
+            wraplength=180,
+        ).grid(row=2, column=0, columnspan=3, sticky="ew")
 
         # ── Підказка ──
         hint = ttk.Label(
             self.frame,
             text="💡 Введіть параметри траси → додайте ділянки → додайте фітинги → натисніть «Розрахувати». "
-                 "Потім підберіть вентилятор. ζ — коефіцієнт місцевого опору.",
-            foreground="#666", font=("Arial", 8), wraplength=900
+            "Потім підберіть вентилятор. ζ — коефіцієнт місцевого опору.",
+            foreground="#666",
+            font=("Arial", 8),
+            wraplength=900,
         )
         hint.grid(row=1, column=0, columnspan=3, sticky="w", padx=5, pady=2)
 
@@ -225,17 +296,21 @@ class AerodynamicsTab:
         self.sections.append(section)
 
         # Оновити таблицю
-        self.sec_tree.insert("", tk.END, values=(
-            len(self.sections),
-            name,
-            section.length,
-            section.width,
-            section.height if shape == DuctShape.RECTANGULAR else section.width,
-            shape.value,
-            section.air_flow,
-            f"{section.velocity:.1f}",
-            f"{section.friction_loss():.1f}",
-        ))
+        self.sec_tree.insert(
+            "",
+            tk.END,
+            values=(
+                len(self.sections),
+                name,
+                section.length,
+                section.width,
+                section.height if shape == DuctShape.RECTANGULAR else section.width,
+                shape.value,
+                section.air_flow,
+                f"{section.velocity:.1f}",
+                f"{section.friction_loss():.1f}",
+            ),
+        )
 
         # Оновити список ділянок для фітингів
         self.fit_section_combo["values"] = [str(i + 1) for i in range(len(self.sections))]
@@ -272,14 +347,18 @@ class AerodynamicsTab:
         )
         self.fittings.append(fitting)
 
-        self.fit_tree.insert("", tk.END, values=(
-            len(self.fittings),
-            fit_type.value,
-            f"{fitting.zeta:.2f}",
-            qty,
-            section.name,
-            f"{fitting.local_loss():.1f}",
-        ))
+        self.fit_tree.insert(
+            "",
+            tk.END,
+            values=(
+                len(self.fittings),
+                fit_type.value,
+                f"{fitting.zeta:.2f}",
+                qty,
+                section.name,
+                f"{fitting.local_loss():.1f}",
+            ),
+        )
 
     def _calculate(self):
         """Розрахувати втрати тиску."""
@@ -305,37 +384,47 @@ class AerodynamicsTab:
             self.result_labels["dyn_pressure"].config(text=f"{dp:.1f}")
         self.result_labels["friction_loss"].config(text=f"{s['friction_loss_pa']:.1f}")
         self.result_labels["local_loss"].config(text=f"{s['local_loss_pa']:.1f}")
-        self.result_labels["total_loss_pa"].config(text=f"{s['total_loss_pa']:.1f}", foreground="#cc0000")
+        self.result_labels["total_loss_pa"].config(
+            text=f"{s['total_loss_pa']:.1f}", foreground="#cc0000"
+        )
         self.result_labels["total_loss_mm"].config(text=f"{s['total_loss_mm']:.2f}")
 
         # Оновити таблицю ділянок з розрахованими втратами
         for item in self.sec_tree.get_children():
             self.sec_tree.delete(item)
         for i, sec in enumerate(self.sections):
-            self.sec_tree.insert("", tk.END, values=(
-                i + 1,
-                sec.name,
-                sec.length,
-                sec.width,
-                sec.height if sec.shape == DuctShape.RECTANGULAR else sec.width,
-                sec.shape.value,
-                sec.air_flow,
-                f"{sec.velocity:.1f}",
-                f"{sec.friction_loss():.1f}",
-            ))
+            self.sec_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    i + 1,
+                    sec.name,
+                    sec.length,
+                    sec.width,
+                    sec.height if sec.shape == DuctShape.RECTANGULAR else sec.width,
+                    sec.shape.value,
+                    sec.air_flow,
+                    f"{sec.velocity:.1f}",
+                    f"{sec.friction_loss():.1f}",
+                ),
+            )
 
         # Оновити таблицю фітингів
         for item in self.fit_tree.get_children():
             self.fit_tree.delete(item)
         for i, fit in enumerate(self.fittings):
-            self.fit_tree.insert("", tk.END, values=(
-                i + 1,
-                fit.fitting_type.value,
-                f"{fit.zeta:.2f}",
-                fit.quantity,
-                fit.section.name,
-                f"{fit.local_loss():.1f}",
-            ))
+            self.fit_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    i + 1,
+                    fit.fitting_type.value,
+                    f"{fit.zeta:.2f}",
+                    fit.quantity,
+                    fit.section.name,
+                    f"{fit.local_loss():.1f}",
+                ),
+            )
 
     def _select_fan(self):
         """Підібрати вентилятор."""

@@ -27,6 +27,7 @@ HAVE_OPENPYXL = False
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
     HAVE_OPENPYXL = True
 except ImportError:
     pass
@@ -67,7 +68,6 @@ except ImportError:
 
 from ventilation_company.gui.price_list_tab.models import PriceItem
 
-
 PRICE_LIST_FILE = "data/price_list.json"
 ARCHIVE_DIR = "data/archive"
 
@@ -80,33 +80,82 @@ class PriceListExporter:
         output = io.StringIO()
         writer = csv.writer(output)
         if internal:
-            writer.writerow([
-                "№", "Назва", "Категорія", "Тип", "Розміри", "Матеріал", "Товщ.",
-                "Од.", "К-ть", "Собівартість", "Роботи", "Накладні", "Націнка%",
-                "Ціна за од.", "Загальна", "Прибуток", "Постачальник", "Примітки"
-            ])
+            writer.writerow(
+                [
+                    "№",
+                    "Назва",
+                    "Категорія",
+                    "Тип",
+                    "Розміри",
+                    "Матеріал",
+                    "Товщ.",
+                    "Од.",
+                    "К-ть",
+                    "Собівартість",
+                    "Роботи",
+                    "Накладні",
+                    "Націнка%",
+                    "Ціна за од.",
+                    "Загальна",
+                    "Прибуток",
+                    "Постачальник",
+                    "Примітки",
+                ]
+            )
             for i, item in enumerate(items, 1):
-                writer.writerow([
-                    i, item.name, item.category, item.product_type, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier, item.notes_internal,
-                ])
+                writer.writerow(
+                    [
+                        i,
+                        item.name,
+                        item.category,
+                        item.product_type,
+                        item.dimensions,
+                        item.material,
+                        item.thickness,
+                        item.unit,
+                        item.quantity,
+                        f"{item.cost_price:.2f}",
+                        f"{item.labor_cost:.2f}",
+                        f"{item.overhead_cost:.2f}",
+                        f"{item.markup_percent:.1f}",
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        f"{item.profit:.2f}",
+                        item.supplier,
+                        item.notes_internal,
+                    ]
+                )
         else:
             # === ЗАМОВНИК: без "Тип", назва = display_name ===
-            writer.writerow([
-                "№", "Назва", "Розміри", "Матеріал", "Товщ.",
-                "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
-            ])
+            writer.writerow(
+                [
+                    "№",
+                    "Назва",
+                    "Розміри",
+                    "Матеріал",
+                    "Товщ.",
+                    "Од.",
+                    "К-ть",
+                    "Ціна за од.",
+                    "Загальна",
+                    "Примітки",
+                ]
+            )
             for i, item in enumerate(items, 1):
-                writer.writerow([
-                    i, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    item.notes_public,
-                ])
+                writer.writerow(
+                    [
+                        i,
+                        item.display_name,
+                        item.dimensions,
+                        item.material,
+                        item.thickness,
+                        item.unit,
+                        item.quantity,
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        item.notes_public,
+                    ]
+                )
         return output.getvalue()
 
     @staticmethod
@@ -120,20 +169,45 @@ class PriceListExporter:
         header_fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
         header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         thin_border = Border(
-            left=Side(style="thin"), right=Side(style="thin"),
-            top=Side(style="thin"), bottom=Side(style="thin")
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
         )
         if internal:
             headers = [
-                "№", "Назва", "Категорія", "Тип", "Розміри", "Матеріал", "Товщ. (мм)",
-                "Од.", "К-ть", "Собівартість", "Роботи", "Накладні", "Націнка %",
-                "Ціна за од.", "Загальна", "Прибуток", "Постачальник", "Примітки"
+                "№",
+                "Назва",
+                "Категорія",
+                "Тип",
+                "Розміри",
+                "Матеріал",
+                "Товщ. (мм)",
+                "Од.",
+                "К-ть",
+                "Собівартість",
+                "Роботи",
+                "Накладні",
+                "Націнка %",
+                "Ціна за од.",
+                "Загальна",
+                "Прибуток",
+                "Постачальник",
+                "Примітки",
             ]
         else:
             # === ЗАМОВНИК: без "Тип", назва = display_name ===
             headers = [
-                "№", "Назва", "Розміри", "Матеріал", "Товщ. (мм)",
-                "Од.", "К-ть", "Ціна за од.", "Загальна", "Примітки"
+                "№",
+                "Назва",
+                "Розміри",
+                "Матеріал",
+                "Товщ. (мм)",
+                "Од.",
+                "К-ть",
+                "Ціна за од.",
+                "Загальна",
+                "Примітки",
             ]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -144,17 +218,37 @@ class PriceListExporter:
         for row, item in enumerate(items, 2):
             if internal:
                 values = [
-                    row - 1, item.name, item.category, item.product_type,
-                    item.dimensions, item.material, item.thickness,
-                    item.unit, item.quantity, item.cost_price, item.labor_cost,
-                    item.overhead_cost, item.markup_percent, item.unit_price,
-                    item.total_price, item.profit, item.supplier, item.notes_internal,
+                    row - 1,
+                    item.name,
+                    item.category,
+                    item.product_type,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    item.cost_price,
+                    item.labor_cost,
+                    item.overhead_cost,
+                    item.markup_percent,
+                    item.unit_price,
+                    item.total_price,
+                    item.profit,
+                    item.supplier,
+                    item.notes_internal,
                 ]
             else:
                 values = [
-                    row - 1, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    item.unit_price, item.total_price, item.notes_public,
+                    row - 1,
+                    item.display_name,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    item.unit_price,
+                    item.total_price,
+                    item.notes_public,
                 ]
             for col, value in enumerate(values, 1):
                 cell = ws.cell(row=row, column=col, value=value)
@@ -174,81 +268,140 @@ class PriceListExporter:
         total_row = len(items) + 3
         ws.cell(row=total_row, column=1, value="ВСЬОГО:").font = Font(bold=True)
         if internal:
-            ws.cell(row=total_row, column=15, value=sum(i.total_price for i in items)).font = Font(bold=True)
-            ws.cell(row=total_row, column=16, value=sum(i.profit for i in items)).font = Font(bold=True)
+            ws.cell(row=total_row, column=15, value=sum(i.total_price for i in items)).font = Font(
+                bold=True
+            )
+            ws.cell(row=total_row, column=16, value=sum(i.profit for i in items)).font = Font(
+                bold=True
+            )
         else:
-            ws.cell(row=total_row, column=9, value=sum(i.total_price for i in items)).font = Font(bold=True)
+            ws.cell(row=total_row, column=9, value=sum(i.total_price for i in items)).font = Font(
+                bold=True
+            )
         wb.save(filepath)
 
     @staticmethod
-    def to_pdf(items: list[PriceItem], filepath: str, internal: bool = True, title: str = "Прайс-лист"):
+    def to_pdf(
+        items: list[PriceItem], filepath: str, internal: bool = True, title: str = "Прайс-лист"
+    ):
         if not HAVE_REPORTLAB:
             raise ImportError("Встановіть reportlab: pip install reportlab")
         doc = SimpleDocTemplate(
-            filepath, pagesize=A4, rightMargin=10 * mm, leftMargin=10 * mm,
-            topMargin=15 * mm, bottomMargin=15 * mm
+            filepath,
+            pagesize=A4,
+            rightMargin=10 * mm,
+            leftMargin=10 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
         )
         styles = getSampleStyleSheet()
         story = []
         title_style = ParagraphStyle(
-            "CustomTitle", parent=styles["Heading1"], fontSize=16,
-            alignment=1, spaceAfter=12, textColor=colors.HexColor("#1565C0"),
-            fontName=_PDF_FONT_NAME
+            "CustomTitle",
+            parent=styles["Heading1"],
+            fontSize=16,
+            alignment=1,
+            spaceAfter=12,
+            textColor=colors.HexColor("#1565C0"),
+            fontName=_PDF_FONT_NAME,
         )
         normal_style = ParagraphStyle(
             "CustomNormal", parent=styles["Normal"], fontName=_PDF_FONT_NAME
         )
         story.append(Paragraph(f"<b>{title}</b>", title_style))
-        story.append(Paragraph(
-            f"Дата формування: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-            normal_style
-        ))
+        story.append(
+            Paragraph(f"Дата формування: {datetime.now().strftime('%d.%m.%Y %H:%M')}", normal_style)
+        )
         story.append(Spacer(1, 10))
         if internal:
             # === ВНУТРІШНІЙ: повні колонки з роботами, накладними, прибутком ===
-            headers = ["№", "Назва", "Кат.", "Тип", "Розміри", "Мат.", "Товщ.", "К-ть",
-                       "Собіварт.", "Роботи", "Накладні", "Націнка%", "Ціна", "Сума", "Прибуток", "Постач."]
+            headers = [
+                "№",
+                "Назва",
+                "Кат.",
+                "Тип",
+                "Розміри",
+                "Мат.",
+                "Товщ.",
+                "К-ть",
+                "Собіварт.",
+                "Роботи",
+                "Накладні",
+                "Націнка%",
+                "Ціна",
+                "Сума",
+                "Прибуток",
+                "Постач.",
+            ]
             data = [headers]
             for i, item in enumerate(items, 1):
-                data.append([
-                    str(i), item.name[:22], item.category[:8], item.product_type[:10],
-                    item.dimensions[:12], item.material[:8], str(item.thickness),
-                    str(item.quantity), f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}%",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier[:8] or "—",
-                ])
+                data.append(
+                    [
+                        str(i),
+                        item.name[:22],
+                        item.category[:8],
+                        item.product_type[:10],
+                        item.dimensions[:12],
+                        item.material[:8],
+                        str(item.thickness),
+                        str(item.quantity),
+                        f"{item.cost_price:.2f}",
+                        f"{item.labor_cost:.2f}",
+                        f"{item.overhead_cost:.2f}",
+                        f"{item.markup_percent:.1f}%",
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                        f"{item.profit:.2f}",
+                        item.supplier[:8] or "—",
+                    ]
+                )
             col_widths = [18, 75, 35, 45, 45, 38, 28, 25, 40, 35, 35, 32, 38, 38, 38, 38]
         else:
             # === ЗАМОВНИК: без "Тип", назва = display_name ===
             headers = ["№", "Назва", "Розміри", "Матеріал", "Товщ.", "К-ть", "Ціна", "Сума"]
             data = [headers]
             for i, item in enumerate(items, 1):
-                data.append([
-                    str(i), item.display_name[:30], item.dimensions[:18],
-                    item.material[:12], str(item.thickness), str(item.quantity),
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                ])
+                data.append(
+                    [
+                        str(i),
+                        item.display_name[:30],
+                        item.dimensions[:18],
+                        item.material[:12],
+                        str(item.thickness),
+                        str(item.quantity),
+                        f"{item.unit_price:.2f}",
+                        f"{item.total_price:.2f}",
+                    ]
+                )
             col_widths = [22, 110, 70, 60, 35, 35, 55, 55]
         table = Table(data, colWidths=col_widths, repeatRows=1)
-        table_style = TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1565C0")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("ALIGN", (1, 1), (1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, 0), _PDF_FONT_NAME + "-Bold" if _PDF_FONT_NAME != "Helvetica" else "Helvetica-Bold"),
-            ("FONTNAME", (0, 1), (-1, -1), _PDF_FONT_NAME),
-            ("FONTSIZE", (0, 0), (-1, 0), 8),
-            ("FONTSIZE", (0, 1), (-1, -1), 7),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ])
+        table_style = TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1565C0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("ALIGN", (1, 1), (1, -1), "LEFT"),
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    _PDF_FONT_NAME + "-Bold" if _PDF_FONT_NAME != "Helvetica" else "Helvetica-Bold",
+                ),
+                ("FONTNAME", (0, 1), (-1, -1), _PDF_FONT_NAME),
+                ("FONTSIZE", (0, 0), (-1, 0), 8),
+                ("FONTSIZE", (0, 1), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
         table.setStyle(table_style)
         story.append(table)
         story.append(Spacer(1, 10))
         total = sum(i.total_price for i in items)
-        total_style = ParagraphStyle("TotalStyle", parent=styles["Heading3"], fontName=_PDF_FONT_NAME)
+        total_style = ParagraphStyle(
+            "TotalStyle", parent=styles["Heading3"], fontName=_PDF_FONT_NAME
+        )
         story.append(Paragraph(f"<b>Всього: {total:,.2f} грн</b>", total_style))
         doc.build(story)
 

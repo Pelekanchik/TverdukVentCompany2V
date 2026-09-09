@@ -105,7 +105,7 @@ class SafeFormulaEvaluator:
         """Рекурсивно обчислює вузол AST."""
 
         # ── Числа ──
-        if isinstance(node, ast.Constant):          # Python ≥3.8
+        if isinstance(node, ast.Constant):  # Python ≥3.8
             if isinstance(node.value, (int, float, complex)):
                 return node.value
             if isinstance(node.value, str):
@@ -148,10 +148,7 @@ class SafeFormulaEvaluator:
                 if func_name not in self._ALLOWED_FUNCTIONS:
                     raise ValueError(f"Функція '{func_name}' не дозволена у формулі")
                 args = [self._eval_node(arg, variables) for arg in node.args]
-                kwargs = {
-                    kw.arg: self._eval_node(kw.value, variables)
-                    for kw in node.keywords
-                }
+                kwargs = {kw.arg: self._eval_node(kw.value, variables) for kw in node.keywords}
                 return self._ALLOWED_FUNCTIONS[func_name](*args, **kwargs)
 
             # Дозволяємо math.func(arg)

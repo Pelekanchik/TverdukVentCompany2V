@@ -36,6 +36,7 @@ def _extract_float(notes: str | None, key: str) -> float:
         return 0.0
     try:
         import json
+
         data = json.loads(notes)
         val = data.get(key, 0)
         return float(val) if val else 0.0
@@ -107,7 +108,13 @@ class ProductRepository:
             return True
 
     @staticmethod
-    def search(query: str = "", product_type: str = "", material: str = "", thickness: str = "", project_id: int = None) -> List[dict]:
+    def search(
+        query: str = "",
+        product_type: str = "",
+        material: str = "",
+        thickness: str = "",
+        project_id: int = None,
+    ) -> List[dict]:
         with get_db() as session:
             q = session.query(ProductItem)
             if project_id:

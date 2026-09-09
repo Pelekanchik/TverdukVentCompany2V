@@ -42,6 +42,7 @@ def _init_db_tables():
         import ventilation_company.database.models
         from ventilation_company.database.base import Base
         from ventilation_company.database.db import engine
+
         Base.metadata.create_all(bind=engine)
         logger.info("[DB] Таблиці SQLAlchemy створено/оновлено (без Alembic)")
     except Exception as e:
@@ -52,9 +53,11 @@ def run_gui():
     _init_db_tables()
     try:
         from ventilation_company.gui.main_window import main as gui_main
+
         gui_main()
     except ImportError as e:
         from ventilation_company.utils.logging_config import get_logger
+
         log = get_logger("main")
         log.error("Помилка запуску GUI: %s", e)
         raise

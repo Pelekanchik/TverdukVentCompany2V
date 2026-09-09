@@ -111,9 +111,7 @@ class ProductionScheduler:
         candidates.sort(key=lambda e: self._equipment_busy_until.get(e.id, after))
         return candidates[0]
 
-    def _calc_duration(
-        self, op_type: OperationType, area_m2: float, quantity: int
-    ) -> float:
+    def _calc_duration(self, op_type: OperationType, area_m2: float, quantity: int) -> float:
         """Розрахувати тривалість операції в хвилинах."""
         norm = self.norms.get(op_type)
         if norm is None:

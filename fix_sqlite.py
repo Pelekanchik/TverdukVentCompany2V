@@ -20,7 +20,7 @@ print("✅ .env оновлено → SQLite")
 
 # 2. Перезаписуємо db.py
 db_path = os.path.join(BASE, "ventilation_company", "database", "db.py")
-db_code = """"""Підключення до БД (SQLite)."""
+db_code = '''"""Підключення до БД (SQLite)."""
 
 import os
 import logging
@@ -73,7 +73,7 @@ def get_calc_db():
     """Зворотна сумісність."""
     import sqlite3
     return sqlite3.connect(DB_PATH)
-"""
+'''
 
 with open(db_path, "w", encoding="utf-8") as f:
     f.write(db_code)
@@ -81,7 +81,7 @@ print("✅ db.py оновлено → SQLite")
 
 # 3. Перезаписуємо migrations/env.py
 env_py_path = os.path.join(BASE, "migrations", "env.py")
-env_py_code = """"""Alembic env.py для SQLite."""
+env_py_code = '''"""Alembic env.py для SQLite."""
 
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
@@ -132,7 +132,7 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-"""
+'''
 
 with open(env_py_path, "w", encoding="utf-8") as f:
     f.write(env_py_code)

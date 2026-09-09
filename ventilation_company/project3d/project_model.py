@@ -11,8 +11,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from ventilation_company.project3d.vent_system import (
-    VentilationSystem, VentilationTrunk, DuctSegment, Fitting, Equipment,
-    Point3D, DuctType,
+    VentilationSystem,
+    VentilationTrunk,
+    DuctSegment,
+    Fitting,
+    Equipment,
+    Point3D,
+    DuctType,
 )
 from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor, Wall, Opening
 from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor
@@ -21,6 +26,7 @@ from ventilation_company.project3d.arch_context import ArchitecturalContext, Flo
 @dataclass
 class VentProject:
     """Повний проєкт вентиляції з архітектурним контекстом."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Новий проєкт"
     client: str = ""
@@ -68,14 +74,16 @@ class VentProject:
     def add_drawing(self, filepath: str, floor: str = "", drawing_type: str = "план") -> None:
         """Додати 2D-креслення до проєкту."""
         ext = os.path.splitext(filepath)[1].lower().replace(".", "")
-        self.drawing_files.append({
-            "id": str(uuid.uuid4())[:8],
-            "path": filepath,
-            "floor": floor,
-            "type": drawing_type,
-            "format": ext,
-            "added_at": datetime.now().isoformat(),
-        })
+        self.drawing_files.append(
+            {
+                "id": str(uuid.uuid4())[:8],
+                "path": filepath,
+                "floor": floor,
+                "type": drawing_type,
+                "format": ext,
+                "added_at": datetime.now().isoformat(),
+            }
+        )
         self.updated_at = datetime.now().isoformat()
 
     def remove_drawing(self, drawing_id: str) -> bool:
@@ -111,7 +119,9 @@ class VentProject:
             created_at=d.get("created_at", datetime.now().isoformat()),
             updated_at=d.get("updated_at", datetime.now().isoformat()),
             arch_context=ArchitecturalContext.from_dict(d.get("arch_context", {})),
-            ventilation_systems=[VentilationSystem.from_dict(vs) for vs in d.get("ventilation_systems", [])],
+            ventilation_systems=[
+                VentilationSystem.from_dict(vs) for vs in d.get("ventilation_systems", [])
+            ],
             drawing_files=d.get("drawing_files", []),
             units=d.get("units", "мм"),
             notes=d.get("notes", ""),
@@ -132,7 +142,7 @@ class VentProject:
     def create_sample_project(self) -> None:
         """Створити демо-проєкт для тестування."""
         self.name = "Демо: Офісна будівля"
-        self.client = "ТОВ \"БудІнвест\""
+        self.client = 'ТОВ "БудІнвест"'
         self.address = "м. Київ, вул. Хрещатик, 1"
 
         # Створюємо архітектурний контекст
@@ -142,14 +152,56 @@ class VentProject:
             level=3000,
             height=3000,
             walls=[
-                Wall(id="w1", name="Північна", start=Point3D(0, 0, 0), end=Point3D(10000, 0, 0), height=3000, thickness=250),
-                Wall(id="w2", name="Південна", start=Point3D(0, 8000, 0), end=Point3D(10000, 8000, 0), height=3000, thickness=250),
-                Wall(id="w3", name="Східна", start=Point3D(10000, 0, 0), end=Point3D(10000, 8000, 0), height=3000, thickness=250),
-                Wall(id="w4", name="Західна", start=Point3D(0, 0, 0), end=Point3D(0, 8000, 0), height=3000, thickness=250),
-                Wall(id="w5", name="Перегородка", start=Point3D(5000, 0, 0), end=Point3D(5000, 8000, 0), height=3000, thickness=150),
+                Wall(
+                    id="w1",
+                    name="Північна",
+                    start=Point3D(0, 0, 0),
+                    end=Point3D(10000, 0, 0),
+                    height=3000,
+                    thickness=250,
+                ),
+                Wall(
+                    id="w2",
+                    name="Південна",
+                    start=Point3D(0, 8000, 0),
+                    end=Point3D(10000, 8000, 0),
+                    height=3000,
+                    thickness=250,
+                ),
+                Wall(
+                    id="w3",
+                    name="Східна",
+                    start=Point3D(10000, 0, 0),
+                    end=Point3D(10000, 8000, 0),
+                    height=3000,
+                    thickness=250,
+                ),
+                Wall(
+                    id="w4",
+                    name="Західна",
+                    start=Point3D(0, 0, 0),
+                    end=Point3D(0, 8000, 0),
+                    height=3000,
+                    thickness=250,
+                ),
+                Wall(
+                    id="w5",
+                    name="Перегородка",
+                    start=Point3D(5000, 0, 0),
+                    end=Point3D(5000, 8000, 0),
+                    height=3000,
+                    thickness=150,
+                ),
             ],
             openings=[
-                Opening(id="o1", name="Отвір ПВ1", wall_id="w1", position=Point3D(5000, 0, 2500), width=400, height=300),
+                Opening(
+                    id="o1",
+                    name="Отвір ПВ1",
+                    wall_id="w1",
+                    position=Point3D(5000, 0, 2500),
+                    width=400,
+                    height=300,
+                ),
             ],
         )
         self.arch_context = ArchitecturalContext(
@@ -164,16 +216,65 @@ class VentProject:
             floor=1,
             duct_type=DuctType.SUPPLY,
             segments=[
-                DuctSegment(id="s1", start=Point3D(2000, 1000, 2500), end=Point3D(8000, 1000, 2500), width=400, height=250, length=6000),
-                DuctSegment(id="s2", start=Point3D(8000, 1000, 2500), end=Point3D(8000, 6000, 2500), width=400, height=250, length=5000),
-                DuctSegment(id="s3", start=Point3D(8000, 6000, 2500), end=Point3D(2000, 6000, 2500), width=315, height=200, length=6000),
+                DuctSegment(
+                    id="s1",
+                    start=Point3D(2000, 1000, 2500),
+                    end=Point3D(8000, 1000, 2500),
+                    width=400,
+                    height=250,
+                    length=6000,
+                ),
+                DuctSegment(
+                    id="s2",
+                    start=Point3D(8000, 1000, 2500),
+                    end=Point3D(8000, 6000, 2500),
+                    width=400,
+                    height=250,
+                    length=5000,
+                ),
+                DuctSegment(
+                    id="s3",
+                    start=Point3D(8000, 6000, 2500),
+                    end=Point3D(2000, 6000, 2500),
+                    width=315,
+                    height=200,
+                    length=6000,
+                ),
             ],
             fittings=[
-                Fitting(id="f1", position=Point3D(8000, 1000, 2500), fitting_type="відвід", width_in=400, height_in=250, width_out=400, height_out=250, angle=90),
-                Fitting(id="f2", position=Point3D(8000, 6000, 2500), fitting_type="відвід", width_in=400, height_in=250, width_out=315, height_out=200, angle=90),
+                Fitting(
+                    id="f1",
+                    position=Point3D(8000, 1000, 2500),
+                    fitting_type="відвід",
+                    width_in=400,
+                    height_in=250,
+                    width_out=400,
+                    height_out=250,
+                    angle=90,
+                ),
+                Fitting(
+                    id="f2",
+                    position=Point3D(8000, 6000, 2500),
+                    fitting_type="відвід",
+                    width_in=400,
+                    height_in=250,
+                    width_out=315,
+                    height_out=200,
+                    angle=90,
+                ),
             ],
             equipment=[
-                Equipment(id="e1", name="Вентилятор ВКП", position=Point3D(1500, 1000, 2500), width=600, height=500, length=800, air_flow=5000, pressure=450, power=2.2),
+                Equipment(
+                    id="e1",
+                    name="Вентилятор ВКП",
+                    position=Point3D(1500, 1000, 2500),
+                    width=600,
+                    height=500,
+                    length=800,
+                    air_flow=5000,
+                    pressure=450,
+                    power=2.2,
+                ),
             ],
             air_flow=5000,
         )
@@ -186,5 +287,3 @@ class VentProject:
             trunks=[trunk],
         )
         self.ventilation_systems = [system]
-
-

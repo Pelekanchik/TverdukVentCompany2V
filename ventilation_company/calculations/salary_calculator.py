@@ -20,12 +20,14 @@ class SalaryCalculator:
 
     def add_employee(self, full_name: str, position: str):
         pos_data = POSITIONS.get(position, {"ставка": 0, "премія_%": 0})
-        self.employees.append({
-            "full_name": full_name,
-            "position": position,
-            "base_salary": pos_data["ставка"],
-            "bonus_percent": pos_data["премія_%"],
-        })
+        self.employees.append(
+            {
+                "full_name": full_name,
+                "position": position,
+                "base_salary": pos_data["ставка"],
+                "bonus_percent": pos_data["премія_%"],
+            }
+        )
 
     def calculate_employee_net(self, gross_salary: float) -> dict:
         gross = float(gross_salary)

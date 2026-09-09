@@ -61,6 +61,7 @@ def clear_cache() -> None:
 # DTO для результату розрахунку
 # ═══════════════════════════════════════════════════════════
 
+
 @dataclass
 class CostBreakdown:
     """Детальний розбив собівартості."""
@@ -176,6 +177,7 @@ class CostBreakdown:
 # CostEngine
 # ═══════════════════════════════════════════════════════════
 
+
 class CostEngine:
     """Двигун розрахунку собівартості та ціни."""
 
@@ -233,9 +235,27 @@ class CostEngine:
             return factors.get("rect_duct", 0.0)
         elif "повітропровід круглий" in pt:
             return factors.get("round_duct", 0.0)
-        elif any(k in pt for k in ["фланець прямокутний", "трійник прямокутний", "перехід прямокутний", "відвід прямокутний", "заглушка прямокутна"]):
+        elif any(
+            k in pt
+            for k in [
+                "фланець прямокутний",
+                "трійник прямокутний",
+                "перехід прямокутний",
+                "відвід прямокутний",
+                "заглушка прямокутна",
+            ]
+        ):
             return factors.get("rect_fitting", 0.0)
-        elif any(k in pt for k in ["фланець круглий", "трійник круглий", "перехід круглий", "відвід круглий", "заглушка кругла"]):
+        elif any(
+            k in pt
+            for k in [
+                "фланець круглий",
+                "трійник круглий",
+                "перехід круглий",
+                "відвід круглий",
+                "заглушка кругла",
+            ]
+        ):
             return factors.get("round_fitting", 0.0)
         return 0.0
 
@@ -299,7 +319,9 @@ class CostEngine:
         labor_rate, labor_difficulty = self._get_labor_rate(product_type)
         result.labor_rate_per_m2 = labor_rate
         result.labor_difficulty_percent = labor_difficulty
-        result.labor_cost = surface_area_m2 * labor_rate * (1 + labor_difficulty / 100) * quantity  # FIX v2.1: уніфікація з Виробництвом (surface_area)
+        result.labor_cost = (
+            surface_area_m2 * labor_rate * (1 + labor_difficulty / 100) * quantity
+        )  # FIX v2.1: уніфікація з Виробництвом (surface_area)
 
         # ── 3. Фланці ──
         result.flange_cost = flange_count * flange_price * quantity
@@ -333,7 +355,11 @@ class CostEngine:
         )
 
         # ── 7. Нцінка і прибуток ──
-        result.markup_percent = custom_markup_percent if custom_markup_percent is not None else self._get_markup_percent()
+        result.markup_percent = (
+            custom_markup_percent
+            if custom_markup_percent is not None
+            else self._get_markup_percent()
+        )
         result.profit = result.base_cost * result.markup_percent / 100
 
         # ── 8. Ціна без ПДВ ──

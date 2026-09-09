@@ -2,9 +2,7 @@
 
 import sys
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget
-)
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.sidebar import Sidebar

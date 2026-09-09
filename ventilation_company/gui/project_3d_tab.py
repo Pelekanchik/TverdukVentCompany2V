@@ -9,6 +9,8 @@
     • Імпорт/експорт IFC, DXF, STEP
 """
 
+from typing import Optional
+
 import math
 import os
 from datetime import datetime
@@ -16,9 +18,15 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from ventilation_company.project3d import (
-    VentProject, ProjectConverter,
+    VentProject,
+    ProjectConverter,
     Project3DPreview,
-    VentilationSystem, VentilationTrunk, DuctSegment, Fitting, Equipment, Point3D,
+    VentilationSystem,
+    VentilationTrunk,
+    DuctSegment,
+    Fitting,
+    Equipment,
+    Point3D,
     Wall,
 )
 from ventilation_company.project3d.preview_2d import Project2DPreview
@@ -51,7 +59,9 @@ class Project3DTab:
         tbar1 = ttk.Frame(toolbar_wrap)
         tbar1.pack(fill=tk.X)
 
-        ttk.Label(tbar1, text="🏗️ Проєкти 3D / Креслення", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        ttk.Label(tbar1, text="🏗️ Проєкти 3D / Креслення", font=("Arial", 12, "bold")).pack(
+            side=tk.LEFT
+        )
         ttk.Separator(tbar1, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
         ttk.Button(tbar1, text="📂 Новий", command=self._new_project).pack(side=tk.LEFT, padx=2)
@@ -72,22 +82,38 @@ class Project3DTab:
         self.import_btn.pack(side=tk.LEFT, padx=2)
         import_menu = tk.Menu(self.import_btn, tearoff=0)
         import_menu.add_command(label="🏗️ З Revit (IFC)", command=lambda: self._import_file("ifc"))
-        import_menu.add_command(label="📐 З AutoCAD (DXF/DWG)", command=lambda: self._import_file("dxf"))
-        import_menu.add_command(label="🔧 З Solidworks (STEP)", command=lambda: self._import_file("step"))
-        import_menu.add_command(label="🆓 З FreeCAD (FCStd)", command=lambda: self._import_file("fcstd"))
+        import_menu.add_command(
+            label="📐 З AutoCAD (DXF/DWG)", command=lambda: self._import_file("dxf")
+        )
+        import_menu.add_command(
+            label="🔧 З Solidworks (STEP)", command=lambda: self._import_file("step")
+        )
+        import_menu.add_command(
+            label="🆓 З FreeCAD (FCStd)", command=lambda: self._import_file("fcstd")
+        )
         import_menu.add_separator()
-        import_menu.add_command(label="📋 З VentProject", command=lambda: self._import_file("ventproj"))
+        import_menu.add_command(
+            label="📋 З VentProject", command=lambda: self._import_file("ventproj")
+        )
         self.import_btn["menu"] = import_menu
 
         self.export_btn = ttk.Menubutton(tbar1, text="📤 Експорт", direction="below")
         self.export_btn.pack(side=tk.LEFT, padx=2)
         export_menu = tk.Menu(self.export_btn, tearoff=0)
         export_menu.add_command(label="🏗️ У Revit (IFC)", command=lambda: self._export_file("ifc"))
-        export_menu.add_command(label="📐 У AutoCAD (DXF)", command=lambda: self._export_file("dxf"))
-        export_menu.add_command(label="🔧 У Solidworks (STEP)", command=lambda: self._export_file("step"))
-        export_menu.add_command(label="🆓 У FreeCAD (FCStd)", command=lambda: self._export_file("fcstd"))
+        export_menu.add_command(
+            label="📐 У AutoCAD (DXF)", command=lambda: self._export_file("dxf")
+        )
+        export_menu.add_command(
+            label="🔧 У Solidworks (STEP)", command=lambda: self._export_file("step")
+        )
+        export_menu.add_command(
+            label="🆓 У FreeCAD (FCStd)", command=lambda: self._export_file("fcstd")
+        )
         export_menu.add_separator()
-        export_menu.add_command(label="📋 У VentProject", command=lambda: self._export_file("ventproj"))
+        export_menu.add_command(
+            label="📋 У VentProject", command=lambda: self._export_file("ventproj")
+        )
         export_menu.add_separator()
         export_menu.add_command(label="🖼️ Зберегти 3D (PNG)", command=self._export_image_3d)
         export_menu.add_separator()
@@ -99,9 +125,13 @@ class Project3DTab:
         tbar2 = ttk.Frame(toolbar_wrap)
         tbar2.pack(fill=tk.X, pady=(3, 0))
 
-        ttk.Button(tbar2, text="⚠️ Перевірити зіткнення", command=self._check_collisions).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="⚠️ Перевірити зіткнення", command=self._check_collisions).pack(
+            side=tk.LEFT, padx=2
+        )
         ttk.Separator(tbar2, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=8)
-        ttk.Button(tbar2, text="📄 КП (PDF)", command=self._generate_proposal).pack(side=tk.LEFT, padx=2)
+        ttk.Button(tbar2, text="📄 КП (PDF)", command=self._generate_proposal).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # ═══════════════════════════════════════════
         #  ГОЛОВНИЙ PANED WINDOW
@@ -142,7 +172,9 @@ class Project3DTab:
         info_frame = ttk.LabelFrame(left, text="Інформація про проєкт", padding=5)
         info_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        self.info_label = ttk.Label(info_frame, text="Новий проєкт", foreground="#666", wraplength=280, justify=tk.LEFT)
+        self.info_label = ttk.Label(
+            info_frame, text="Новий проєкт", foreground="#666", wraplength=280, justify=tk.LEFT
+        )
         self.info_label.pack(anchor=tk.W)
 
         # ── ПРАВА ПАНЕЛЬ — тільки 3D ──
@@ -154,8 +186,12 @@ class Project3DTab:
         self.preview_3d = Project3DPreview(self.view3d_frame)
 
         # Статус
-        self.status = ttk.Label(self.frame, text="Готово | Натисніть «📐 Відкрити план 2D» для креслення", 
-                               relief=tk.SUNKEN, anchor=tk.W)
+        self.status = ttk.Label(
+            self.frame,
+            text="Готово | Натисніть «📐 Відкрити план 2D» для креслення",
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+        )
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
 
     # ═════════════════════════════════════════════════════════════════
@@ -188,7 +224,9 @@ class Project3DTab:
         paned.add(left_frame, weight=0)
         left_frame.pack_propagate(False)
 
-        ttk.Label(left_frame, text="📋 Властивості", font=("Arial", 11, "bold")).pack(anchor=tk.W, padx=5, pady=5)
+        ttk.Label(left_frame, text="📋 Властивості", font=("Arial", 11, "bold")).pack(
+            anchor=tk.W, padx=5, pady=5
+        )
 
         self.cad_props_text = tk.Text(left_frame, height=20, wrap=tk.WORD, font=("Consolas", 10))
         self.cad_props_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -196,7 +234,9 @@ class Project3DTab:
 
         ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Label(left_frame, text="🎨 Кольори:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
+        ttk.Label(left_frame, text="🎨 Кольори:", font=("Arial", 9, "bold")).pack(
+            anchor=tk.W, padx=5
+        )
         colors_info = (
             "🧱 Стіни — темно-сірий\n"
             "🕳️ Отвори — червоний (штрих)\n"
@@ -205,11 +245,15 @@ class Project3DTab:
             "🔥 Димовидалення — оранжевий\n"
             "⭐ Вибраний — червоний + точки"
         )
-        ttk.Label(left_frame, text=colors_info, foreground="#555", justify=tk.LEFT).pack(anchor=tk.W, padx=5, pady=2)
+        ttk.Label(left_frame, text=colors_info, foreground="#555", justify=tk.LEFT).pack(
+            anchor=tk.W, padx=5, pady=2
+        )
 
         ttk.Separator(left_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
 
-        ttk.Label(left_frame, text="⌨️ Гарячі клавіші:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
+        ttk.Label(left_frame, text="⌨️ Гарячі клавіші:", font=("Arial", 9, "bold")).pack(
+            anchor=tk.W, padx=5
+        )
         hotkeys = (
             "Delete — видалити вибране\n"
             "Ctrl+Z — скасувати\n"
@@ -217,18 +261,21 @@ class Project3DTab:
             "Shift+ЛКМ — панорама\n"
             "Ortho — тільки 90°"
         )
-        ttk.Label(left_frame, text=hotkeys, foreground="#555", justify=tk.LEFT).pack(anchor=tk.W, padx=5, pady=2)
+        ttk.Label(left_frame, text=hotkeys, foreground="#555", justify=tk.LEFT).pack(
+            anchor=tk.W, padx=5, pady=2
+        )
 
         # Кнопка закриття
-        ttk.Button(left_frame, text="❌ Закрити вікно", command=self._cad_window.destroy).pack(fill=tk.X, padx=5, pady=10)
+        ttk.Button(left_frame, text="❌ Закрити вікно", command=self._cad_window.destroy).pack(
+            fill=tk.X, padx=5, pady=10
+        )
 
         # Права панель — CAD-редактор
         right_frame = ttk.Frame(paned)
         paned.add(right_frame, weight=1)
 
         self.cad_preview = Project2DPreview(
-            right_frame,
-            on_select_callback=self._on_cad_object_selected
+            right_frame, on_select_callback=self._on_cad_object_selected
         )
         self.cad_preview.set_project(self.project)
 
@@ -244,13 +291,16 @@ class Project3DTab:
         if text:
             self.cad_props_text.insert(tk.END, text)
         else:
-            self.cad_props_text.insert(tk.END, "Виберіть об'єкт на плані інструментом 🖱️ Вибір\n\n"
+            self.cad_props_text.insert(
+                tk.END,
+                "Виберіть об'єкт на плані інструментом 🖱️ Вибір\n\n"
                 "АБО почніть малювати:\n"
                 "• ━━ Стіна — 2 кліки (початок → кінець)\n"
                 "• ☐ Отвір — 1 клік (центр)\n"
                 "• ══ Повітр. — 2 кліки + профіль\n"
                 "• ⬛ Прямок. — 2 кліки (кути)\n"
-                "• 📏 Вимір. — 2 кліки (відстань)")
+                "• 📏 Вимір. — 2 кліки (відстань)",
+            )
         self.cad_props_text.config(state=tk.DISABLED)
 
         # Оновити дерево в головному вікні
@@ -274,6 +324,7 @@ class Project3DTab:
         collision_ids = set()
         try:
             from ventilation_company.project3d.collision_detection import CollisionDetector
+
             detector = CollisionDetector(self.project)
             detector.check_all()
             collision_ids = detector.get_colliding_ids()
@@ -286,53 +337,91 @@ class Project3DTab:
         if not self.project:
             return
 
-        root = self.tree.insert("", tk.END, text=f"📁 {self.project.name}", values=("project",), open=True)
+        root = self.tree.insert(
+            "", tk.END, text=f"📁 {self.project.name}", values=("project",), open=True
+        )
 
-        arch_node = self.tree.insert(root, tk.END, text="🏛️ Архітектура", values=("arch",), open=True)
+        arch_node = self.tree.insert(
+            root, tk.END, text="🏛️ Архітектура", values=("arch",), open=True
+        )
         for floor in self.project.arch_context.floors:
-            floor_node = self.tree.insert(arch_node, tk.END,
-                                          text=f"🏢 {floor.name} (рівень {floor.level:.0f} мм)",
-                                          values=("floor", floor.id), open=True)
+            floor_node = self.tree.insert(
+                arch_node,
+                tk.END,
+                text=f"🏢 {floor.name} (рівень {floor.level:.0f} мм)",
+                values=("floor", floor.id),
+                open=True,
+            )
             for wall in floor.walls:
-                self.tree.insert(floor_node, tk.END,
-                                 text=f"🧱 {wall.name} ({wall.length:.0f} мм)",
-                                 values=("wall", wall.id))
+                self.tree.insert(
+                    floor_node,
+                    tk.END,
+                    text=f"🧱 {wall.name} ({wall.length:.0f} мм)",
+                    values=("wall", wall.id),
+                )
             for opening in floor.openings:
-                self.tree.insert(floor_node, tk.END,
-                                 text=f"🕳️ {opening.name} ({opening.width:.0f}×{opening.height:.0f})",
-                                 values=("opening", opening.id))
+                self.tree.insert(
+                    floor_node,
+                    tk.END,
+                    text=f"🕳️ {opening.name} ({opening.width:.0f}×{opening.height:.0f})",
+                    values=("opening", opening.id),
+                )
 
-        vent_node = self.tree.insert(root, tk.END, text="💨 Вентиляція", values=("vent",), open=True)
+        vent_node = self.tree.insert(
+            root, tk.END, text="💨 Вентиляція", values=("vent",), open=True
+        )
         for system in self.project.ventilation_systems:
-            sys_node = self.tree.insert(vent_node, tk.END,
-                                        text=f"🌬️ {system.name} ({system.system_type})",
-                                        values=("system", system.id), open=True)
+            sys_node = self.tree.insert(
+                vent_node,
+                tk.END,
+                text=f"🌬️ {system.name} ({system.system_type})",
+                values=("system", system.id),
+                open=True,
+            )
             for trunk in system.trunks:
-                trunk_node = self.tree.insert(sys_node, tk.END,
-                                              text=f"📏 {trunk.name} (L={trunk.total_length:.0f} мм)",
-                                              values=("trunk", trunk.id), open=True)
+                trunk_node = self.tree.insert(
+                    sys_node,
+                    tk.END,
+                    text=f"📏 {trunk.name} (L={trunk.total_length:.0f} мм)",
+                    values=("trunk", trunk.id),
+                    open=True,
+                )
                 for seg in trunk.segments:
                     coll_mark = " ⚠️" if seg.id in collision_ids else ""
-                    self.tree.insert(trunk_node, tk.END,
-                                     text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f} мм{coll_mark}",
-                                     values=("segment", seg.id))
+                    self.tree.insert(
+                        trunk_node,
+                        tk.END,
+                        text=f"➡️ Сегмент {seg.width:.0f}×{seg.height:.0f} L={seg.length:.0f} мм{coll_mark}",
+                        values=("segment", seg.id),
+                    )
                 for fitting in trunk.fittings:
                     coll_mark = " ⚠️" if fitting.id in collision_ids else ""
-                    self.tree.insert(trunk_node, tk.END,
-                                     text=f"🔀 {fitting.fitting_type}{coll_mark}",
-                                     values=("fitting", fitting.id))
+                    self.tree.insert(
+                        trunk_node,
+                        tk.END,
+                        text=f"🔀 {fitting.fitting_type}{coll_mark}",
+                        values=("fitting", fitting.id),
+                    )
                 for eq in trunk.equipment:
                     coll_mark = " ⚠️" if eq.id in collision_ids else ""
-                    self.tree.insert(trunk_node, tk.END,
-                                     text=f"⚙️ {eq.name}{coll_mark}",
-                                     values=("equipment", eq.id))
+                    self.tree.insert(
+                        trunk_node,
+                        tk.END,
+                        text=f"⚙️ {eq.name}{coll_mark}",
+                        values=("equipment", eq.id),
+                    )
 
         if self.project.drawing_files:
-            draw_node = self.tree.insert(root, tk.END, text="📋 Креслення", values=("drawings",), open=True)
+            draw_node = self.tree.insert(
+                root, tk.END, text="📋 Креслення", values=("drawings",), open=True
+            )
             for d in self.project.drawing_files:
-                self.tree.insert(draw_node, tk.END,
-                                 text=f"📄 {os.path.basename(d['path'])} ({d['type']})",
-                                 values=("drawing", d.get("id", "")))
+                self.tree.insert(
+                    draw_node,
+                    tk.END,
+                    text=f"📄 {os.path.basename(d['path'])} ({d['type']})",
+                    values=("drawing", d.get("id", "")),
+                )
 
         self._update_info()
 
@@ -465,12 +554,14 @@ class Project3DTab:
 
     def _on_tree_double_click(self, event=None):
         pass
+
     def _on_tree_right_click(self, event=None):
         pass
 
     def _check_collisions(self):
         try:
             from ventilation_company.project3d.collision_detection import CollisionDetector
+
             detector = CollisionDetector(self.project)
             collisions = detector.check_all()
         except Exception as e:
@@ -484,9 +575,17 @@ class Project3DTab:
             self.preview_3d.set_project(self.project)
             return
 
-        seg_collisions = [c for c in collisions if c.object_a_type == "segment" or c.object_b_type == "segment"]
-        fit_collisions = [c for c in collisions if c.object_a_type == "fitting" or c.object_b_type == "fitting"]
-        eq_collisions = [c for c in collisions if c.object_a_type == "equipment" or c.object_b_type == "equipment"]
+        seg_collisions = [
+            c for c in collisions if c.object_a_type == "segment" or c.object_b_type == "segment"
+        ]
+        fit_collisions = [
+            c for c in collisions if c.object_a_type == "fitting" or c.object_b_type == "fitting"
+        ]
+        eq_collisions = [
+            c
+            for c in collisions
+            if c.object_a_type == "equipment" or c.object_b_type == "equipment"
+        ]
 
         report = [f"⚠️ Виявлено {len(collisions)} зіткнень:\n"]
         if seg_collisions:
@@ -525,6 +624,7 @@ class Project3DTab:
 
     def _calc_duct_price(self, seg) -> float:
         from ventilation_company.calculations.pricing import PricingEngine
+
         perimeter_mm = 2 * (seg.width + seg.height)
         area_per_meter = perimeter_mm / 1000.0
         length_m = seg.length / 1000.0
@@ -538,6 +638,7 @@ class Project3DTab:
         area_m2 = (fit.width_in * fit.height_in) / 1_000_000.0 * 1.5
         base_cost = area_m2 * 1500.0
         from ventilation_company.calculations.pricing import PricingEngine
+
         engine = PricingEngine(base_cost=base_cost, markup_percent=30.0)
         result = engine.cost_plus_pricing()
         return result["price_without_vat"]
@@ -545,6 +646,7 @@ class Project3DTab:
     def _calc_equipment_price(self, eq) -> float:
         base_cost = max(eq.power * 5000.0, 3000.0) if eq.power else 5000.0
         from ventilation_company.calculations.pricing import PricingEngine
+
         engine = PricingEngine(base_cost=base_cost, markup_percent=20.0)
         result = engine.cost_plus_pricing()
         return result["price_without_vat"]
@@ -571,28 +673,34 @@ class Project3DTab:
                 for seg in trunk.segments:
                     price_per_m = self._calc_duct_price(seg)
                     qty = seg.length / 1000.0
-                    items.append({
-                        "name": f"Повітропровід {seg.width:.0f}×{seg.height:.0f} мм ({seg.duct_type.value})",
-                        "quantity": qty,
-                        "unit": "м.п.",
-                        "price": round(price_per_m, 2),
-                    })
+                    items.append(
+                        {
+                            "name": f"Повітропровід {seg.width:.0f}×{seg.height:.0f} мм ({seg.duct_type.value})",
+                            "quantity": qty,
+                            "unit": "м.п.",
+                            "price": round(price_per_m, 2),
+                        }
+                    )
                 for eq in trunk.equipment:
                     price = self._calc_equipment_price(eq)
-                    items.append({
-                        "name": eq.name or "Обладнання",
-                        "quantity": 1,
-                        "unit": "шт",
-                        "price": round(price, 2),
-                    })
+                    items.append(
+                        {
+                            "name": eq.name or "Обладнання",
+                            "quantity": 1,
+                            "unit": "шт",
+                            "price": round(price, 2),
+                        }
+                    )
                 for fit in trunk.fittings:
                     price = self._calc_fitting_price(fit)
-                    items.append({
-                        "name": f"{fit.fitting_type} {fit.width_in:.0f}×{fit.height_in:.0f} мм",
-                        "quantity": 1,
-                        "unit": "шт",
-                        "price": round(price, 2),
-                    })
+                    items.append(
+                        {
+                            "name": f"{fit.fitting_type} {fit.width_in:.0f}×{fit.height_in:.0f} мм",
+                            "quantity": 1,
+                            "unit": "шт",
+                            "price": round(price, 2),
+                        }
+                    )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".pdf",
@@ -611,7 +719,9 @@ class Project3DTab:
 
     def _new_project(self):
         if self._modified:
-            if messagebox.askyesno("Зберегти?", "Проєкт змінено. Зберегти перед створенням нового?"):
+            if messagebox.askyesno(
+                "Зберегти?", "Проєкт змінено. Зберегти перед створенням нового?"
+            ):
                 self._save_project()
         self.project = VentProject()
         self._current_file = ""
@@ -685,7 +795,13 @@ class Project3DTab:
         filetypes = []
         for name, pattern in formats:
             filetypes.append((name, pattern))
-        ext_map = {"ifc": ".ifc", "dxf": ".dxf", "step": ".step", "fcstd": ".fcstd", "ventproj": ".ventproj"}
+        ext_map = {
+            "ifc": ".ifc",
+            "dxf": ".dxf",
+            "step": ".step",
+            "fcstd": ".fcstd",
+            "ventproj": ".ventproj",
+        }
         default_ext = ext_map.get(format_hint, ".ventproj")
         filepath = filedialog.asksaveasfilename(
             defaultextension=default_ext, filetypes=filetypes, title="Експорт"
@@ -701,7 +817,8 @@ class Project3DTab:
 
     def _export_image_3d(self):
         filepath = filedialog.asksaveasfilename(
-            defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти 3D-вигляд")
+            defaultextension=".png", filetypes=(("PNG", "*.png"),), title="Зберегти 3D-вигляд"
+        )
         if filepath:
             self.preview_3d.export_image(filepath)
             self.status.config(text=f"Зображення 3D: {filepath}")

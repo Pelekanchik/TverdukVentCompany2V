@@ -14,6 +14,7 @@
 import sys
 import subprocess
 
+
 def install_package(pkg):
     """Встановлює пакет, якщо його немає."""
     try:
@@ -21,6 +22,7 @@ def install_package(pkg):
     except ImportError:
         print(f"Встановлюємо {pkg}...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
 
 install_package("psycopg2-binary")
 install_package("sqlalchemy")
@@ -34,11 +36,15 @@ import os
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = "ventcompany"
 DB_USER = "vent"
+
+
 def _generate_password(length: int = 20) -> str:
     import secrets
     import string
+
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*()_+-=[]{}|;:,.<>?"
     return "".join(secrets.choice(alphabet) for _ in range(length))
+
 
 DB_PASS = os.environ.get("VENT_DB_PASSWORD") or _generate_password()
 DB_HOST = "localhost"
@@ -61,11 +67,7 @@ if not admin_password:
 print("\n[2/5] Підключення до PostgreSQL як адміністратор...")
 try:
     conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        database="postgres",
-        user="postgres",
-        password=admin_password
+        host=DB_HOST, port=DB_PORT, database="postgres", user="postgres", password=admin_password
     )
     conn.autocommit = True
     cur = conn.cursor()
@@ -91,19 +93,27 @@ else:
 print("\n[4/5] Налаштування користувача 'vent'...")
 cur.execute(f"SELECT 1 FROM pg_roles WHERE rolname = '{DB_USER}'")
 if not cur.fetchone():
-    cur.execute(sql.SQL("CREATE USER {} WITH PASSWORD %s").format(sql.Identifier(DB_USER)), (DB_PASS,))
+    cur.execute(
+        sql.SQL("CREATE USER {} WITH PASSWORD %s").format(sql.Identifier(DB_USER)), (DB_PASS,)
+    )
     print("  ✅ Користувач 'vent' створений")
 else:
-    cur.execute(sql.SQL("ALTER USER {} WITH PASSWORD %s").format(sql.Identifier(DB_USER)), (DB_PASS,))
+    cur.execute(
+        sql.SQL("ALTER USER {} WITH PASSWORD %s").format(sql.Identifier(DB_USER)), (DB_PASS,)
+    )
     print("  ℹ️  Користувач 'vent' оновлений")
 
 # Даємо права
-cur.execute(sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}").format(
-    sql.Identifier(DB_NAME), sql.Identifier(DB_USER)
-))
-cur.execute(sql.SQL("ALTER DATABASE {} OWNER TO {}").format(
-    sql.Identifier(DB_NAME), sql.Identifier(DB_USER)
-))
+cur.execute(
+    sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}").format(
+        sql.Identifier(DB_NAME), sql.Identifier(DB_USER)
+    )
+)
+cur.execute(
+    sql.SQL("ALTER DATABASE {} OWNER TO {}").format(
+        sql.Identifier(DB_NAME), sql.Identifier(DB_USER)
+    )
+)
 print("  ✅ Права надані")
 
 cur.close()
@@ -122,6 +132,7 @@ try:
 
     # Перевизначаємо engine з правильним URL
     from sqlalchemy import create_engine
+
     engine = create_engine(database_url, echo=False, future=True)
 
     if not check_db_connection():
@@ -138,6 +149,7 @@ try:
 except Exception as e:
     print(f"  ❌ Помилка створення таблиць: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 

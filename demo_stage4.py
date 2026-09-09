@@ -44,9 +44,11 @@ def demo():
     plan = summary["plan"]
     print(f"\n3. ДЕТАЛІЗАЦІЯ ПО ЛИСТАХ ({len(plan['sheets'])} листів)")
     for i, sheet in enumerate(plan["sheets"], 1):
-        print(f"   Лист {i}: {sheet['sheet_size']} | "
-              f"деталей: {sheet['details_count']} | "
-              f"використання: {sheet['utilization_percent']}%")
+        print(
+            f"   Лист {i}: {sheet['sheet_size']} | "
+            f"деталей: {sheet['details_count']} | "
+            f"використання: {sheet['utilization_percent']}%"
+        )
 
     print("\n✅ Демо Етапу 4 завершено.")
 

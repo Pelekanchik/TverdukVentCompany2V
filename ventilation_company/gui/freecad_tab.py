@@ -16,6 +16,7 @@ from ventilation_company.freecad_models import (
 # Preview module
 try:
     from ventilation_company.freecad_preview import FreeCADPreview
+
     PREVIEW_AVAILABLE = True
 except ImportError:
     PREVIEW_AVAILABLE = False
@@ -26,10 +27,10 @@ class FreeCADTab:
 
     EXPORT_FORMATS = {
         "fcstd": ("FreeCAD Document", ".FCStd"),
-        "step":  ("STEP", ".step"),
-        "stl":   ("STL (3D друк)", ".stl"),
-        "obj":   ("Wavefront OBJ", ".obj"),
-        "iges":  ("IGES", ".igs"),
+        "step": ("STEP", ".step"),
+        "stl": ("STL (3D друк)", ".stl"),
+        "obj": ("Wavefront OBJ", ".obj"),
+        "iges": ("IGES", ".igs"),
     }
 
     def __init__(self, parent, get_products_callback):
@@ -72,25 +73,38 @@ class FreeCADTab:
 
         ttk.Label(ctrl, text="Формат:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.fmt_var = tk.StringVar(value="step")
-        fmt_combo = ttk.Combobox(ctrl, textvariable=self.fmt_var,
-                                  values=list(self.EXPORT_FORMATS.keys()),
-                                  state="readonly", width=18)
+        fmt_combo = ttk.Combobox(
+            ctrl,
+            textvariable=self.fmt_var,
+            values=list(self.EXPORT_FORMATS.keys()),
+            state="readonly",
+            width=18,
+        )
         fmt_combo.grid(row=0, column=1, sticky=tk.W, pady=2, padx=5)
         fmt_combo.bind("<<ComboboxSelected>>", self._on_format_change)
 
-        ttk.Label(ctrl, text="Відстань між виробами (мм):").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Label(ctrl, text="Відстань між виробами (мм):").grid(
+            row=1, column=0, sticky=tk.W, pady=2
+        )
         self.spacing_var = tk.DoubleVar(value=50)
-        ttk.Spinbox(ctrl, from_=0, to=500, increment=10,
-                    textvariable=self.spacing_var, width=8).grid(row=1, column=1, sticky=tk.W, pady=2, padx=5)
+        ttk.Spinbox(
+            ctrl, from_=0, to=500, increment=10, textvariable=self.spacing_var, width=8
+        ).grid(row=1, column=1, sticky=tk.W, pady=2, padx=5)
 
         btn_frame = ttk.Frame(ctrl)
         btn_frame.grid(row=2, column=0, columnspan=2, pady=10)
 
-        ttk.Button(btn_frame, text="📦 Експорт усіх", command=self._export_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="📁 Пакетний експорт", command=self._export_batch).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="📦 Експорт усіх", command=self._export_all).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="📁 Пакетний експорт", command=self._export_batch).pack(
+            side=tk.LEFT, padx=2
+        )
 
         if PREVIEW_AVAILABLE:
-            ttk.Button(btn_frame, text="🔍 Попередній перегляд", command=self._show_preview).pack(side=tk.LEFT, padx=2)
+            ttk.Button(btn_frame, text="🔍 Попередній перегляд", command=self._show_preview).pack(
+                side=tk.LEFT, padx=2
+            )
 
         # Progress bar
         self.progress = ttk.Progressbar(ctrl, variable=self._progress_var, maximum=100)
@@ -133,10 +147,14 @@ class FreeCADTab:
         else:
             info_frame = ttk.LabelFrame(right, text="Попередній перегляд", padding=20)
             info_frame.pack(fill=tk.BOTH, expand=True)
-            ttk.Label(info_frame, text="🔍 Для попереднього перегляду встановіть matplotlib:",
-                      foreground="#666").pack(pady=5)
-            ttk.Label(info_frame, text="pip install matplotlib", foreground="blue",
-                      font=("Consolas", 10)).pack()
+            ttk.Label(
+                info_frame,
+                text="🔍 Для попереднього перегляду встановіть matplotlib:",
+                foreground="#666",
+            ).pack(pady=5)
+            ttk.Label(
+                info_frame, text="pip install matplotlib", foreground="blue", font=("Consolas", 10)
+            ).pack()
             self.preview = None
 
         self._refresh_list()
@@ -162,7 +180,7 @@ class FreeCADTab:
         products = self._get_products()
         for i, p in enumerate(products):
             name = getattr(p, "name", p.get("name", "—"))
-            
+
             # FIX: правильно отримуємо тип для об'єкта і dict
             if isinstance(p, dict):
                 ptype = p.get("product_type", p.get("type", "—"))
@@ -186,7 +204,7 @@ class FreeCADTab:
                 bl = getattr(p, "branch_length", 0)
                 ew = getattr(p, "end_width", getattr(p, "end_diameter", 0))
                 eh = getattr(p, "end_height", 0)
-            
+
             # FIX: адаптивні розміри залежно від типу виробу
             ptype_lower = str(ptype).lower()
             if "elbow" in ptype_lower:
@@ -197,7 +215,7 @@ class FreeCADTab:
                 dims = f"{w:.0f}×{h:.0f}→{ew:.0f}×{eh:.0f}"
             else:
                 dims = f"{w:.0f}×{h:.0f}×{length:.0f}"
-            
+
             self.tree.insert("", tk.END, iid=str(i), values=("☐", name, ptype, dims, "▶ Експорт"))
 
     def _on_tree_click(self, event):
@@ -230,10 +248,12 @@ class FreeCADTab:
             for fmt_key, (fmt_name, _) in self.EXPORT_FORMATS.items():
                 menu.add_command(
                     label=f"Експорт {fmt_name}",
-                    command=lambda f=fmt_key, idx=int(item): self._export_single(idx, f)
+                    command=lambda f=fmt_key, idx=int(item): self._export_single(idx, f),
                 )
             menu.add_separator()
-            menu.add_command(label="Попередній перегляд", command=lambda: self._preview_single(int(item)))
+            menu.add_command(
+                label="Попередній перегляд", command=lambda: self._preview_single(int(item))
+            )
             menu.post(event.x_root, event.y_root)
 
     def _on_format_change(self, event=None):

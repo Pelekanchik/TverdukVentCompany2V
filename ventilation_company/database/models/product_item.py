@@ -12,6 +12,7 @@ from ventilation_company.database.base import Base
 
 class ProductItem(Base):
     """Виріб у бібліотеці."""
+
     __tablename__ = "product_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -28,5 +29,9 @@ class ProductItem(Base):
     total_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     discounted_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)  # ← v2.4 НОВЕ
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    project_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("projects.id"), nullable=True)
-    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now, nullable=True)
+    project_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("projects.id"), nullable=True
+    )
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, default=datetime.now, nullable=True
+    )

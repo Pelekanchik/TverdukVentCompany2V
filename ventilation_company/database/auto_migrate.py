@@ -19,7 +19,13 @@ _logger = logging.getLogger("auto_migrate")
 def _sqlite_type(col_type) -> str:
     """Отримати SQLite-тип для SQLAlchemy-типу."""
     from sqlalchemy import (
-        Boolean, DateTime, Float, Integer, Numeric, String, Text,
+        Boolean,
+        DateTime,
+        Float,
+        Integer,
+        Numeric,
+        String,
+        Text,
     )
 
     if isinstance(col_type, (String,)):
@@ -75,10 +81,14 @@ def auto_add_missing_columns() -> None:
                     conn.commit()
                 _logger.info(
                     "[auto_migrate] Додано колонку %s.%s (%s)",
-                    table_name, col.name, sqlite_type,
+                    table_name,
+                    col.name,
+                    sqlite_type,
                 )
             except Exception as exc:
                 _logger.warning(
                     "[auto_migrate] Не вдалося додати %s.%s: %s",
-                    table_name, col.name, exc,
+                    table_name,
+                    col.name,
+                    exc,
                 )

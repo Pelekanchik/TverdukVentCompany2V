@@ -71,9 +71,10 @@ def check_db_connection() -> bool:
 def get_calc_db():
     """Зворотна сумісність: повертає raw PostgreSQL connection."""
     import warnings
+
     warnings.warn(
         "get_calc_db() застаріло. Використовуйте get_db() або SQLAlchemy ORM.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return engine.raw_connection()

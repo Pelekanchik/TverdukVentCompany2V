@@ -344,12 +344,24 @@ class MetalCutter:
 
         elif "фланець" in ptype and "прямокутний" in ptype:
             border = product.get("flange_border", 30)
-            return Detail(name=name, width=w + 2 * border, height=h + 2 * border, quantity=qty, product_type=ptype)
+            return Detail(
+                name=name,
+                width=w + 2 * border,
+                height=h + 2 * border,
+                quantity=qty,
+                product_type=ptype,
+            )
 
         elif "фланець" in ptype and "круглий" in ptype:
             border = product.get("flange_width", 30)
             d = h
-            return Detail(name=name, width=d + 2 * border, height=d + 2 * border, quantity=qty, product_type=ptype)
+            return Detail(
+                name=name,
+                width=d + 2 * border,
+                height=d + 2 * border,
+                quantity=qty,
+                product_type=ptype,
+            )
 
         elif "трійник" in ptype and "прямокутний" in ptype:
             bw = product.get("branch_width", w)
@@ -357,7 +369,13 @@ class MetalCutter:
             bl = product.get("branch_length", l)
             main_perim = 2 * (w + h)
             branch_perim = 2 * (bw + bh)
-            return Detail(name=name, width=max(main_perim, branch_perim), height=l + bl, quantity=qty, product_type=ptype)
+            return Detail(
+                name=name,
+                width=max(main_perim, branch_perim),
+                height=l + bl,
+                quantity=qty,
+                product_type=ptype,
+            )
 
         elif "перехід" in ptype and "прямокутний" in ptype:
             ew = product.get("end_width", w)
@@ -375,12 +393,20 @@ class MetalCutter:
 
         elif "заглушка" in ptype and "прямокутна" in ptype:
             border = product.get("flange_border", 25)
-            return Detail(name=name, width=w + 2 * border, height=h + 2 * border, quantity=qty, product_type=ptype)
+            return Detail(
+                name=name,
+                width=w + 2 * border,
+                height=h + 2 * border,
+                quantity=qty,
+                product_type=ptype,
+            )
 
         elif "заглушка" in ptype and "кругла" in ptype:
             depth = product.get("depth", 30)
             d = h
-            return Detail(name=name, width=math.pi * d, height=d / 2 + depth, quantity=qty, product_type=ptype)
+            return Detail(
+                name=name, width=math.pi * d, height=d / 2 + depth, quantity=qty, product_type=ptype
+            )
 
         else:
             return Detail(name=name, width=w, height=h, quantity=qty, product_type=ptype)
@@ -408,19 +434,27 @@ class MetalCutter:
 
             # 1. Площа ↓ + Bottom-Left
             candidates.append(
-                self._run_strategy(details, sort_by="area", heuristic="bottom_left", allow_rotation=allow_rotation)
+                self._run_strategy(
+                    details, sort_by="area", heuristic="bottom_left", allow_rotation=allow_rotation
+                )
             )
             # 2. Площа ↓ + Best-Fit
             candidates.append(
-                self._run_strategy(details, sort_by="area", heuristic="best_fit", allow_rotation=allow_rotation)
+                self._run_strategy(
+                    details, sort_by="area", heuristic="best_fit", allow_rotation=allow_rotation
+                )
             )
             # 3. Ширина ↓ + Best-Fit
             candidates.append(
-                self._run_strategy(details, sort_by="width", heuristic="best_fit", allow_rotation=allow_rotation)
+                self._run_strategy(
+                    details, sort_by="width", heuristic="best_fit", allow_rotation=allow_rotation
+                )
             )
             # 4. Висота ↓ + Best-Fit
             candidates.append(
-                self._run_strategy(details, sort_by="height", heuristic="best_fit", allow_rotation=allow_rotation)
+                self._run_strategy(
+                    details, sort_by="height", heuristic="best_fit", allow_rotation=allow_rotation
+                )
             )
 
             # Вибираємо найкращу: мінімум листів, потім максимум utilization
@@ -502,12 +536,16 @@ class MetalCutter:
 
         return plan
 
-    def calculate_from_products(self, products: list[dict], allow_rotation: bool = True) -> CuttingPlan:
+    def calculate_from_products(
+        self, products: list[dict], allow_rotation: bool = True
+    ) -> CuttingPlan:
         """Повний конвеєр: вироби (dict) → деталі → план розкрою."""
         details = self.create_details_from_products(products)
         return self.calculate_cutting(details, allow_rotation=allow_rotation)
 
-    def calculate_from_standard_products(self, products: list, allow_rotation: bool = True) -> CuttingPlan:
+    def calculate_from_standard_products(
+        self, products: list, allow_rotation: bool = True
+    ) -> CuttingPlan:
         """Повний конвеєр: StandardProduct → деталі → план розкрою (Етап 4)."""
         details = self.create_details_from_standard_products(products)
         return self.calculate_cutting(details, allow_rotation=allow_rotation)

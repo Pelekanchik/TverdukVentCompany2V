@@ -5,9 +5,7 @@
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGridLayout
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGridLayout
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
@@ -117,9 +115,9 @@ class DashboardTab(QWidget):
         try:
             with get_db() as session:
                 # 1. Завершені проєкти
-                done_projects = session.query(Project).filter(
-                    Project.status.in_(self.DONE_STATUSES)
-                ).all()
+                done_projects = (
+                    session.query(Project).filter(Project.status.in_(self.DONE_STATUSES)).all()
+                )
 
                 done_count = len(done_projects)
                 self.card_projects.findChild(QLabel, "stat_value").setText(str(done_count))
@@ -145,25 +143,45 @@ class DashboardTab(QWidget):
                 self.card_profit.findChild(QLabel, "stat_value").setText(f"₴ {profit:,.0f}")
 
                 # 3. Унікальних клієнтів (тільки у завершених проєктів)
-                clients = session.query(Project.client).filter(
-                    Project.status.in_(self.DONE_STATUSES),
-                    Project.client != None
-                ).distinct().count()
+                clients = (
+                    session.query(Project.client)
+                    .filter(Project.status.in_(self.DONE_STATUSES), Project.client != None)
+                    .distinct()
+                    .count()
+                )
                 self.card_clients.findChild(QLabel, "stat_value").setText(str(clients))
 
                 # 4. Графік — динаміка завершених проєктів по місяцях
-                monthly = session.query(
-                    extract('month', Project.created_at).label('month'),
-                    func.count(Project.id).label('cnt'),
-                    func.sum(Project.customer_price).label('sum')
-                ).filter(
-                    Project.status.in_(self.DONE_STATUSES)
-                ).group_by('month').order_by('month').all()
+                monthly = (
+                    session.query(
+                        extract("month", Project.created_at).label("month"),
+                        func.count(Project.id).label("cnt"),
+                        func.sum(Project.customer_price).label("sum"),
+                    )
+                    .filter(Project.status.in_(self.DONE_STATUSES))
+                    .group_by("month")
+                    .order_by("month")
+                    .all()
+                )
 
                 if monthly:
                     lines = []
                     for m, c, s in monthly:
-                        month_name = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"][int(m)]
+                        month_name = [
+                            "",
+                            "Січ",
+                            "Лют",
+                            "Бер",
+                            "Кві",
+                            "Тра",
+                            "Чер",
+                            "Лип",
+                            "Сер",
+                            "Вер",
+                            "Жов",
+                            "Лис",
+                            "Гру",
+                        ][int(m)]
                         lines.append(f"{month_name}: {int(c)} проєктів, ₴ {float(s or 0):,.0f}")
                     self.lbl_chart_value.setText("\n".join(lines))
                 else:

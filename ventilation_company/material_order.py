@@ -26,14 +26,15 @@ from ventilation_company.config import MATERIALS, COMPONENTS
 @dataclass
 class MaterialItem:
     """Один рядок заявки на матеріали."""
-    category: str           # "Листовий метал", "Ущільнювачі", "Кріплення", "Ізоляція", "Комплектуючі"
-    name: str             # Назва матеріалу
-    specification: str    # Специфікація (товщина, розмір, тип)
-    unit: str             # Одиниці виміру
-    quantity: float       # Кількість
-    price_per_unit: float = 0.0   # Ціна за одиницю (опціонально)
-    supplier: str = ""   # Постачальник
-    notes: str = ""       # Примітки
+
+    category: str  # "Листовий метал", "Ущільнювачі", "Кріплення", "Ізоляція", "Комплектуючі"
+    name: str  # Назва матеріалу
+    specification: str  # Специфікація (товщина, розмір, тип)
+    unit: str  # Одиниці виміру
+    quantity: float  # Кількість
+    price_per_unit: float = 0.0  # Ціна за одиницю (опціонально)
+    supplier: str = ""  # Постачальник
+    notes: str = ""  # Примітки
 
     @property
     def total_price(self) -> float:
@@ -43,6 +44,7 @@ class MaterialItem:
 @dataclass
 class MaterialOrder:
     """Повна заявка на матеріали."""
+
     project_name: str
     order_date: datetime = field(default_factory=datetime.now)
     items: list[MaterialItem] = field(default_factory=list)
@@ -69,9 +71,9 @@ class MaterialCalculator:
     GASKET_PER_FLANGE_M = 1.2
 
     # Болтів на один фланець (залежить від розміру)
-    BOLTS_SMALL = 4    # для фланців < 400 мм
-    BOLTS_MEDIUM = 6   # для фланців 400-800 мм
-    BOLTS_LARGE = 8    # для фланців > 800 мм
+    BOLTS_SMALL = 4  # для фланців < 400 мм
+    BOLTS_MEDIUM = 6  # для фланців 400-800 мм
+    BOLTS_LARGE = 8  # для фланців > 800 мм
 
     # Ізоляція: коефіцієнт на втрати при монтажі
     INSULATION_WASTE_FACTOR = 1.15
@@ -106,7 +108,7 @@ class MaterialCalculator:
         self.items = []
 
         # Агрегація по металу
-        metal_summary = {}   # (material, thickness) -> (total_area_m2, count)
+        metal_summary = {}  # (material, thickness) -> (total_area_m2, count)
         flange_summary = {}  # (width, height) -> count
         insulation_m2 = 0.0
         components_needed = {}  # component_name -> quantity
@@ -165,15 +167,17 @@ class MaterialCalculator:
             material_key = f"{material.replace(' ', '_')}_{thickness}"
             price = MATERIALS.get(material_key, {}).get("ціна_за_м2", 0)
 
-            self.items.append(MaterialItem(
-                category="Листовий метал",
-                name=f"{material} {thickness} мм",
-                specification=f"Лист {sheet_size} мм",
-                unit="шт",
-                quantity=sheets_needed,
-                price_per_unit=round(price * sheet_area_m2, 2) if price else 0,
-                notes=f"Площа виробів: {area:.2f} м², виробів: {count} шт",
-            ))
+            self.items.append(
+                MaterialItem(
+                    category="Листовий метал",
+                    name=f"{material} {thickness} мм",
+                    specification=f"Лист {sheet_size} мм",
+                    unit="шт",
+                    quantity=sheets_needed,
+                    price_per_unit=round(price * sheet_area_m2, 2) if price else 0,
+                    notes=f"Площа виробів: {area:.2f} м², виробів: {count} шт",
+                )
+            )
 
         # 2. Ущільнювачі для фланців
         total_gasket_m = 0
@@ -191,107 +195,127 @@ class MaterialCalculator:
             total_washers += bolt_count * 2  # 2 шайби на болт
 
         if total_gasket_m > 0:
-            self.items.append(MaterialItem(
-                category="Ущільнювачі",
-                name="Ущільнювальний профіль EPDM",
-                specification="Профіль 10×15 мм для фланців",
-                unit="м.п.",
-                quantity=round(total_gasket_m, 1),
-                price_per_unit=25.0,
-                notes=f"Фланців: {sum(flange_summary.values())} шт",
-            ))
+            self.items.append(
+                MaterialItem(
+                    category="Ущільнювачі",
+                    name="Ущільнювальний профіль EPDM",
+                    specification="Профіль 10×15 мм для фланців",
+                    unit="м.п.",
+                    quantity=round(total_gasket_m, 1),
+                    price_per_unit=25.0,
+                    notes=f"Фланців: {sum(flange_summary.values())} шт",
+                )
+            )
 
         # 3. Кріплення
         if total_bolts > 0:
-            self.items.append(MaterialItem(
-                category="Кріплення",
-                name="Болт з шестигранною головкою",
-                specification="М8×30 мм, оцинкований, DIN 933",
-                unit="шт",
-                quantity=total_bolts,
-                price_per_unit=3.5,
-            ))
-            self.items.append(MaterialItem(
-                category="Кріплення",
-                name="Гайка шестигранна",
-                specification="М8, оцинкована, DIN 934",
-                unit="шт",
-                quantity=total_nuts,
-                price_per_unit=1.2,
-            ))
-            self.items.append(MaterialItem(
-                category="Кріплення",
-                name="Шайба плоска",
-                specification="М8, оцинкована, DIN 125",
-                unit="шт",
-                quantity=total_washers,
-                price_per_unit=0.5,
-            ))
+            self.items.append(
+                MaterialItem(
+                    category="Кріплення",
+                    name="Болт з шестигранною головкою",
+                    specification="М8×30 мм, оцинкований, DIN 933",
+                    unit="шт",
+                    quantity=total_bolts,
+                    price_per_unit=3.5,
+                )
+            )
+            self.items.append(
+                MaterialItem(
+                    category="Кріплення",
+                    name="Гайка шестигранна",
+                    specification="М8, оцинкована, DIN 934",
+                    unit="шт",
+                    quantity=total_nuts,
+                    price_per_unit=1.2,
+                )
+            )
+            self.items.append(
+                MaterialItem(
+                    category="Кріплення",
+                    name="Шайба плоска",
+                    specification="М8, оцинкована, DIN 125",
+                    unit="шт",
+                    quantity=total_washers,
+                    price_per_unit=0.5,
+                )
+            )
 
         # 4. Ізоляція
         if insulation_m2 > 0:
             insulated_m2 = insulation_m2 * self.INSULATION_WASTE_FACTOR
-            self.items.append(MaterialItem(
-                category="Ізоляція",
-                name="Мінеральна вата",
-                specification="ISOVER Венті 50 мм, 1000×600 мм",
-                unit="м²",
-                quantity=round(insulated_m2, 1),
-                price_per_unit=MATERIALS.get("ізоляція_мінвата", {}).get("ціна_за_м2", 180),
-                notes="З урахуванням 15% відходів",
-            ))
-            self.items.append(MaterialItem(
-                category="Ізоляція",
-                name="Склотканина",
-                specification="Алюмінізована, 50 мм",
-                unit="м²",
-                quantity=round(insulated_m2, 1),
-                price_per_unit=45.0,
-                notes="Для обгортки ізоляції",
-            ))
+            self.items.append(
+                MaterialItem(
+                    category="Ізоляція",
+                    name="Мінеральна вата",
+                    specification="ISOVER Венті 50 мм, 1000×600 мм",
+                    unit="м²",
+                    quantity=round(insulated_m2, 1),
+                    price_per_unit=MATERIALS.get("ізоляція_мінвата", {}).get("ціна_за_м2", 180),
+                    notes="З урахуванням 15% відходів",
+                )
+            )
+            self.items.append(
+                MaterialItem(
+                    category="Ізоляція",
+                    name="Склотканина",
+                    specification="Алюмінізована, 50 мм",
+                    unit="м²",
+                    quantity=round(insulated_m2, 1),
+                    price_per_unit=45.0,
+                    notes="Для обгортки ізоляції",
+                )
+            )
 
         # 5. Комплектуючі
         for comp_name, qty in components_needed.items():
             comp_key = comp_name.lower().replace(" ", "_")
             price = COMPONENTS.get(comp_key, {}).get("ціна", 0)
             unit = COMPONENTS.get(comp_key, {}).get("одиниця", "шт")
-            self.items.append(MaterialItem(
-                category="Комплектуючі",
-                name=comp_name,
-                specification="Згідно специфікації проєкту",
-                unit=unit,
-                quantity=qty,
-                price_per_unit=price,
-            ))
+            self.items.append(
+                MaterialItem(
+                    category="Комплектуючі",
+                    name=comp_name,
+                    specification="Згідно специфікації проєкту",
+                    unit=unit,
+                    quantity=qty,
+                    price_per_unit=price,
+                )
+            )
 
         # 6. Загальні матеріали (завжди додаємо)
-        self.items.append(MaterialItem(
-            category="Розхідні матеріали",
-            name="Електроди зварювальні",
-            specification="ОЗЛ-6, d=3 мм",
-            unit="кг",
-            quantity=5.0,
-            price_per_unit=85.0,
-            notes="Приблизна потреба",
-        ))
-        self.items.append(MaterialItem(
-            category="Розхідні матеріали",
-            name="Фарба алкідна",
-            specification="ПФ-115, сіра, 2.5 кг",
-            unit="шт",
-            quantity=2,
-            price_per_unit=320.0,
-            notes="Для фарбування виробів",
-        ))
-        self.items.append(MaterialItem(
-            category="Розхідні матеріали",
-            name="Герметик силіконовий",
-            specification="Нейтральний, 300 мл, прозорий",
-            unit="шт",
-            quantity=5,
-            price_per_unit=65.0,
-            notes="Для ущільнення з'єднань",
-        ))
+        self.items.append(
+            MaterialItem(
+                category="Розхідні матеріали",
+                name="Електроди зварювальні",
+                specification="ОЗЛ-6, d=3 мм",
+                unit="кг",
+                quantity=5.0,
+                price_per_unit=85.0,
+                notes="Приблизна потреба",
+            )
+        )
+        self.items.append(
+            MaterialItem(
+                category="Розхідні матеріали",
+                name="Фарба алкідна",
+                specification="ПФ-115, сіра, 2.5 кг",
+                unit="шт",
+                quantity=2,
+                price_per_unit=320.0,
+                notes="Для фарбування виробів",
+            )
+        )
+        self.items.append(
+            MaterialItem(
+                category="Розхідні матеріали",
+                name="Герметик силіконовий",
+                specification="Нейтральний, 300 мл, прозорий",
+                unit="шт",
+                quantity=5,
+                price_per_unit=65.0,
+                notes="Для ущільнення з'єднань",
+            )
+        )
 
         return MaterialOrder(
             project_name="Заявка на матеріали",
@@ -385,7 +409,16 @@ class MaterialOrderExporter:
         row = 4
 
         # ── ЗАГОЛОВКИ КОЛОНОК ──
-        headers = ["№", "Категорія", "Найменування", "Специфікація", "Од. вим.", "Кількість", "Ціна", "Сума"]
+        headers = [
+            "№",
+            "Категорія",
+            "Найменування",
+            "Специфікація",
+            "Од. вим.",
+            "Кількість",
+            "Ціна",
+            "Сума",
+        ]
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=row, column=col, value=h)
             cell.style = "table_header"

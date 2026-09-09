@@ -44,9 +44,9 @@ class DocumentsTab:
 
         self.doc_type_var = tk.StringVar(value="Рахунок-фактура")
         for name in self.DOC_TYPES:
-            ttk.Radiobutton(
-                type_frame, text=name, variable=self.doc_type_var, value=name
-            ).pack(side=tk.LEFT, padx=10)
+            ttk.Radiobutton(type_frame, text=name, variable=self.doc_type_var, value=name).pack(
+                side=tk.LEFT, padx=10
+            )
 
         # ── Реквізити клієнта ──────────────────────────────────
         client_frame = ttk.LabelFrame(self.frame, text="Реквізити замовника", padding=10)
@@ -64,10 +64,14 @@ class DocumentsTab:
         for i, (key, label, width) in enumerate(fields):
             row = i // 2
             col = (i % 2) * 2
-            ttk.Label(client_frame, text=f"{label}:").grid(row=row, column=col, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(client_frame, text=f"{label}:").grid(
+                row=row, column=col, sticky=tk.W, padx=5, pady=2
+            )
             var = tk.StringVar()
             self.client_vars[key] = var
-            ttk.Entry(client_frame, textvariable=var, width=width).grid(row=row, column=col + 1, sticky=tk.W, padx=5, pady=2)
+            ttk.Entry(client_frame, textvariable=var, width=width).grid(
+                row=row, column=col + 1, sticky=tk.W, padx=5, pady=2
+            )
 
         # ── Товари / послуги ───────────────────────────────────
         items_frame = ttk.LabelFrame(self.frame, text="Позиції", padding=10)
@@ -76,9 +80,15 @@ class DocumentsTab:
         # Кнопки
         btn_frame = ttk.Frame(items_frame)
         btn_frame.pack(fill=tk.X, pady=(0, 5))
-        ttk.Button(btn_frame, text="➕ Додати позицію", command=self._add_item).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._remove_item).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="📥 З прайсу", command=self._load_from_price_list).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="➕ Додати позицію", command=self._add_item).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._remove_item).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="📥 З прайсу", command=self._load_from_price_list).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # Таблиця
         self.tree = ttk.Treeview(
@@ -130,13 +140,21 @@ class DocumentsTab:
         }
 
         ttk.Label(dialog, text="Назва:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
-        ttk.Entry(dialog, textvariable=vars_dict["name"], width=30).grid(row=0, column=1, padx=5, pady=2)
+        ttk.Entry(dialog, textvariable=vars_dict["name"], width=30).grid(
+            row=0, column=1, padx=5, pady=2
+        )
         ttk.Label(dialog, text="Од.:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
-        ttk.Entry(dialog, textvariable=vars_dict["unit"], width=10).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(dialog, textvariable=vars_dict["unit"], width=10).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=2
+        )
         ttk.Label(dialog, text="К-ть:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
-        ttk.Entry(dialog, textvariable=vars_dict["qty"], width=10).grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(dialog, textvariable=vars_dict["qty"], width=10).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=2
+        )
         ttk.Label(dialog, text="Ціна:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
-        ttk.Entry(dialog, textvariable=vars_dict["price"], width=10).grid(row=3, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(dialog, textvariable=vars_dict["price"], width=10).grid(
+            row=3, column=1, sticky=tk.W, padx=5, pady=2
+        )
 
         def save():
             try:
@@ -146,12 +164,18 @@ class DocumentsTab:
                 if not name:
                     return
                 total = qty * price
-                self.tree.insert("", tk.END, values=(name, vars_dict["unit"].get(), qty, f"{price:.2f}", f"{total:.2f}"))
+                self.tree.insert(
+                    "",
+                    tk.END,
+                    values=(name, vars_dict["unit"].get(), qty, f"{price:.2f}", f"{total:.2f}"),
+                )
                 dialog.destroy()
             except ValueError:
                 pass
 
-        ttk.Button(dialog, text="Зберегти", command=save).grid(row=4, column=0, columnspan=2, pady=10)
+        ttk.Button(dialog, text="Зберегти", command=save).grid(
+            row=4, column=0, columnspan=2, pady=10
+        )
 
     def _remove_item(self):
         """Видалити вибрану позицію."""
@@ -185,21 +209,25 @@ class DocumentsTab:
         client = CompanyInfo(**client_data)
         errors = client.validate()
         if errors:
-            messagebox.showwarning("Увага", f"Заповніть обов'язкові поля:\n" + "\n".join(f"  • {e}" for e in errors))
+            messagebox.showwarning(
+                "Увага", f"Заповніть обов'язкові поля:\n" + "\n".join(f"  • {e}" for e in errors)
+            )
             return
 
         # Зібрати позиції
         items = []
         for child in self.tree.get_children():
             vals = self.tree.item(child)["values"]
-            items.append({
-                "name": vals[0],
-                "unit": vals[1],
-                "qty": float(vals[2]),
-                "price": float(vals[3]),
-                "total": float(vals[4]),
-                "weight_kg": 0.0,  # TODO: отримувати з виробу при синхронізації
-            })
+            items.append(
+                {
+                    "name": vals[0],
+                    "unit": vals[1],
+                    "qty": float(vals[2]),
+                    "price": float(vals[3]),
+                    "total": float(vals[4]),
+                    "weight_kg": 0.0,  # TODO: отримувати з виробу при синхронізації
+                }
+            )
 
         if not items:
             messagebox.showwarning("Увага", "Додайте хоча б одну позицію")
@@ -230,10 +258,12 @@ class DocumentsTab:
 
             # Відкрити в браузері / переглядачі
             import platform
+
             if platform.system() == "Windows":
                 os.startfile(filepath)
             else:
                 import subprocess
+
                 subprocess.run(["xdg-open", filepath])
 
         except Exception as e:

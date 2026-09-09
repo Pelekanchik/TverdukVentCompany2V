@@ -5,14 +5,34 @@
 
 from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QComboBox, QMessageBox, QAbstractItemView,
-    QSplitter, QSpinBox, QDoubleSpinBox, QLineEdit,
-    QDialog, QFormLayout, QDialogButtonBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QComboBox,
+    QMessageBox,
+    QAbstractItemView,
+    QSplitter,
+    QSpinBox,
+    QDoubleSpinBox,
+    QLineEdit,
+    QDialog,
+    QFormLayout,
+    QDialogButtonBox,
 )
 from PySide6.QtGui import (
-    QStandardItemModel, QStandardItem, QPainter, QPen, QBrush,
-    QColor, QFont, QFontMetrics, QWheelEvent, QMouseEvent
+    QStandardItemModel,
+    QStandardItem,
+    QPainter,
+    QPen,
+    QBrush,
+    QColor,
+    QFont,
+    QFontMetrics,
+    QWheelEvent,
+    QMouseEvent,
 )
 
 from ventilation_company.gui_pyside6.theme import Theme
@@ -38,20 +58,22 @@ class AddProductDialog(QDialog):
         layout.addRow("Назва", self.edit_name)
 
         self.combo_type = QComboBox()
-        self.combo_type.addItems([
-            "повітропровід прямокутний",
-            "повітропровід круглий",
-            "відвод прямокутний",
-            "відвод круглий",
-            "трійник прямокутний",
-            "трійник круглий",
-            "перехід прямокутний",
-            "перехід круглий",
-            "фланець прямокутний",
-            "фланець круглий",
-            "заглушка прямокутна",
-            "заглушка кругла",
-        ])
+        self.combo_type.addItems(
+            [
+                "повітропровід прямокутний",
+                "повітропровід круглий",
+                "відвод прямокутний",
+                "відвод круглий",
+                "трійник прямокутний",
+                "трійник круглий",
+                "перехід прямокутний",
+                "перехід круглий",
+                "фланець прямокутний",
+                "фланець круглий",
+                "заглушка прямокутна",
+                "заглушка кругла",
+            ]
+        )
         layout.addRow("Тип", self.combo_type)
 
         sizes = QHBoxLayout()
@@ -110,9 +132,18 @@ class CuttingCanvas(QWidget):
     """Канвас для візуалізації плану розкрою."""
 
     DETAIL_COLORS = [
-        "#89b4fa", "#a6e3a1", "#f9e2af", "#f38ba8",
-        "#cba6f7", "#74c7ec", "#fab387", "#94e2d5",
-        "#b4befe", "#f5e0dc", "#a6adc8", "#f2cdcd",
+        "#89b4fa",
+        "#a6e3a1",
+        "#f9e2af",
+        "#f38ba8",
+        "#cba6f7",
+        "#74c7ec",
+        "#fab387",
+        "#94e2d5",
+        "#b4befe",
+        "#f5e0dc",
+        "#a6adc8",
+        "#f2cdcd",
     ]
 
     def __init__(self, parent=None):
@@ -244,7 +275,11 @@ class CuttingCanvas(QWidget):
         font_info = QFont("Segoe UI", 9)
         painter.setFont(font_info)
         painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.drawText(10, self.height() - 10, f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб")
+        painter.drawText(
+            10,
+            self.height() - 10,
+            f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб",
+        )
         painter.end()
 
     def wheelEvent(self, event: QWheelEvent):
@@ -388,19 +423,27 @@ class CuttingTab(QWidget):
         order_right.addWidget(lbl_res)
 
         self.lbl_sheets = QLabel("Листів: —")
-        self.lbl_sheets.setStyleSheet(f"color: {Theme.TEXT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_sheets.setStyleSheet(
+            f"color: {Theme.TEXT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         order_right.addWidget(self.lbl_sheets)
 
         self.lbl_util = QLabel("Використання: — %")
-        self.lbl_util.setStyleSheet(f"color: {Theme.SUCCESS}; font-weight: bold; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_util.setStyleSheet(
+            f"color: {Theme.SUCCESS}; font-weight: bold; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         order_right.addWidget(self.lbl_util)
 
         self.lbl_waste = QLabel("Відходи: — %")
-        self.lbl_waste.setStyleSheet(f"color: {Theme.WARNING}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_waste.setStyleSheet(
+            f"color: {Theme.WARNING}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         order_right.addWidget(self.lbl_waste)
 
         self.lbl_area = QLabel("Площа деталей: — м²")
-        self.lbl_area.setStyleSheet(f"color: {Theme.ACCENT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_area.setStyleSheet(
+            f"color: {Theme.ACCENT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         order_right.addWidget(self.lbl_area)
 
         order_right.addStretch()
@@ -483,12 +526,59 @@ class CuttingTab(QWidget):
 
     def _load_default_products(self):
         self._products = [
-            {"name": "Повітропровід 400×200×500", "type": "повітропровід прямокутний", "width": 400, "height": 200, "length": 500, "quantity": 4},
-            {"name": "Відвод 400×200 90°", "type": "відвод прямокутний", "width": 400, "height": 200, "length": 0, "quantity": 2},
-            {"name": "Трійник 400×200", "type": "трійник прямокутний", "width": 400, "height": 200, "length": 300, "quantity": 1, "branch_width": 200, "branch_height": 200, "branch_length": 200},
-            {"name": "Фланець 400×200", "type": "фланець прямокутний", "width": 400, "height": 200, "length": 0, "quantity": 8, "flange_border": 30},
-            {"name": "Заглушка 400×200", "type": "заглушка прямокутна", "width": 400, "height": 200, "length": 0, "quantity": 2, "flange_border": 25},
-            {"name": "Повітропровід Ø315×500", "type": "повітропровід круглий", "width": 315, "height": 315, "length": 500, "quantity": 2},
+            {
+                "name": "Повітропровід 400×200×500",
+                "type": "повітропровід прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 500,
+                "quantity": 4,
+            },
+            {
+                "name": "Відвод 400×200 90°",
+                "type": "відвод прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 2,
+            },
+            {
+                "name": "Трійник 400×200",
+                "type": "трійник прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 300,
+                "quantity": 1,
+                "branch_width": 200,
+                "branch_height": 200,
+                "branch_length": 200,
+            },
+            {
+                "name": "Фланець 400×200",
+                "type": "фланець прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 8,
+                "flange_border": 30,
+            },
+            {
+                "name": "Заглушка 400×200",
+                "type": "заглушка прямокутна",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 2,
+                "flange_border": 25,
+            },
+            {
+                "name": "Повітропровід Ø315×500",
+                "type": "повітропровід круглий",
+                "width": 315,
+                "height": 315,
+                "length": 500,
+                "quantity": 2,
+            },
         ]
         self._refresh_order_table()
 

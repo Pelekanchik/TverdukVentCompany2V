@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Development / CI
+pytest>=8.0.0
+ruff>=0.6.0
+black>=24.0.0
+isort>=5.13.0

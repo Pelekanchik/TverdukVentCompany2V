@@ -20,8 +20,9 @@ import math
 # Fix Windows console encoding
 try:
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 except Exception:
     pass
 
@@ -29,6 +30,7 @@ try:
     import FreeCAD
     import Part
     import Draft
+
     FREECAD_OK = True
 except ImportError:
     FREECAD_OK = False
@@ -40,17 +42,74 @@ except ImportError:
 # UTILITIES
 # ═══════════════════════════════════════════════════════════
 
+
 def safe_name(name):
     """Transliterate Ukrainian/Russian to ASCII for FreeCAD object names."""
     translit = {
-        'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','є':'ye','ж':'zh','з':'z',
-        'и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o',
-        'п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch',
-        'ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya',
-        'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Є':'Ye','Ж':'Zh','З':'Z',
-        'И':'Y','І':'I','Ї':'Yi','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O',
-        'П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch',
-        'Ш':'Sh','Щ':'Shch','Ь':'','Ю':'Yu','Я':'Ya',
+        "а": "a",
+        "б": "b",
+        "в": "v",
+        "г": "g",
+        "д": "d",
+        "е": "e",
+        "є": "ye",
+        "ж": "zh",
+        "з": "z",
+        "и": "y",
+        "і": "i",
+        "ї": "yi",
+        "й": "y",
+        "к": "k",
+        "л": "l",
+        "м": "m",
+        "н": "n",
+        "о": "o",
+        "п": "p",
+        "р": "r",
+        "с": "s",
+        "т": "t",
+        "у": "u",
+        "ф": "f",
+        "х": "kh",
+        "ц": "ts",
+        "ч": "ch",
+        "ш": "sh",
+        "щ": "shch",
+        "ь": "",
+        "ю": "yu",
+        "я": "ya",
+        "А": "A",
+        "Б": "B",
+        "В": "V",
+        "Г": "G",
+        "Д": "D",
+        "Е": "E",
+        "Є": "Ye",
+        "Ж": "Zh",
+        "З": "Z",
+        "И": "Y",
+        "І": "I",
+        "Ї": "Yi",
+        "Й": "Y",
+        "К": "K",
+        "Л": "L",
+        "М": "M",
+        "Н": "N",
+        "О": "O",
+        "П": "P",
+        "Р": "R",
+        "С": "S",
+        "Т": "T",
+        "У": "U",
+        "Ф": "F",
+        "Х": "Kh",
+        "Ц": "Ts",
+        "Ч": "Ch",
+        "Ш": "Sh",
+        "Щ": "Shch",
+        "Ь": "",
+        "Ю": "Yu",
+        "Я": "Ya",
     }
     result = ""
     for c in str(name):
@@ -94,20 +153,20 @@ def detect_type(product_data):
 
 
 TYPE_COLORS = {
-    "rect_duct":    (0.50, 0.75, 0.90),
-    "round_duct":   (0.50, 0.75, 0.90),
-    "rect_elbow":   (0.90, 0.55, 0.55),
-    "round_elbow":  (0.90, 0.55, 0.55),
-    "rect_tee":     (0.55, 0.90, 0.55),
-    "round_tee":    (0.55, 0.90, 0.55),
+    "rect_duct": (0.50, 0.75, 0.90),
+    "round_duct": (0.50, 0.75, 0.90),
+    "rect_elbow": (0.90, 0.55, 0.55),
+    "round_elbow": (0.90, 0.55, 0.55),
+    "rect_tee": (0.55, 0.90, 0.55),
+    "round_tee": (0.55, 0.90, 0.55),
     "rect_transition": (0.90, 0.85, 0.40),
     "round_transition": (0.90, 0.85, 0.40),
-    "rect_flange":  (0.60, 0.60, 0.60),
+    "rect_flange": (0.60, 0.60, 0.60),
     "round_flange": (0.60, 0.60, 0.60),
-    "rect_cap":     (0.80, 0.50, 0.80),
-    "round_cap":    (0.80, 0.50, 0.80),
-    "flexible":     (0.90, 0.65, 0.35),
-    "default":      (0.70, 0.70, 0.70),
+    "rect_cap": (0.80, 0.50, 0.80),
+    "round_cap": (0.80, 0.50, 0.80),
+    "flexible": (0.90, 0.65, 0.35),
+    "default": (0.70, 0.70, 0.70),
 }
 
 
@@ -122,6 +181,7 @@ def set_color(obj, color):
 # GEOMETRY BUILDERS
 # ═══════════════════════════════════════════════════════════
 
+
 def build_rect_duct(doc, name, width, height, length, thickness=0.7):
     """Hollow rectangular duct."""
     w = float(width)
@@ -130,13 +190,13 @@ def build_rect_duct(doc, name, width, height, length, thickness=0.7):
     t = float(thickness)
 
     outer = Part.makeBox(w, h, l)
-    outer.translate(FreeCAD.Vector(-w/2, -h/2, 0))
+    outer.translate(FreeCAD.Vector(-w / 2, -h / 2, 0))
 
     if t > 0 and t < min(w, h) / 2:
-        iw = w - 2*t
-        ih = h - 2*t
+        iw = w - 2 * t
+        ih = h - 2 * t
         inner = Part.makeBox(iw, ih, l + 2)
-        inner.translate(FreeCAD.Vector(-iw/2, -ih/2, -1))
+        inner.translate(FreeCAD.Vector(-iw / 2, -ih / 2, -1))
         shape = outer.cut(inner)
     else:
         shape = outer
@@ -209,7 +269,7 @@ def build_rect_elbow(doc, name, width, height, angle=90, radius=150, thickness=0
 
         # Box oriented along tangent
         box = Part.makeBox(w, h, seg_len + 0.5)
-        box.translate(FreeCAD.Vector(-w/2, -h/2, 0))
+        box.translate(FreeCAD.Vector(-w / 2, -h / 2, 0))
 
         # Rotate around Y axis by am, then translate to position
         box.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 1, 0), math.degrees(am))
@@ -258,14 +318,14 @@ def build_rect_flange(doc, name, width, height, profile=30, thickness=0.7):
     p = float(profile)
     t = float(thickness)
 
-    ow = w + 2*p
-    oh = h + 2*p
+    ow = w + 2 * p
+    oh = h + 2 * p
 
     outer = Part.makeBox(ow, oh, p)
-    outer.translate(FreeCAD.Vector(-ow/2, -oh/2, 0))
+    outer.translate(FreeCAD.Vector(-ow / 2, -oh / 2, 0))
 
     inner = Part.makeBox(w, h, p + 2)
-    inner.translate(FreeCAD.Vector(-w/2, -h/2, -1))
+    inner.translate(FreeCAD.Vector(-w / 2, -h / 2, -1))
 
     shape = outer.cut(inner)
 
@@ -281,8 +341,8 @@ def build_rect_flange(doc, name, width, height, profile=30, thickness=0.7):
         for j in range(num_y):
             # Only place bolts at corners and edges, not inside
             if i == 0 or i == num_x - 1 or j == 0 or j == num_y - 1:
-                bx = -w/2 + (w / max(1, num_x - 1)) * i
-                by = -h/2 + (h / max(1, num_y - 1)) * j
+                bx = -w / 2 + (w / max(1, num_x - 1)) * i
+                by = -h / 2 + (h / max(1, num_y - 1)) * j
                 hole = Part.makeCylinder(bolt_r, bolt_h)
                 hole.translate(FreeCAD.Vector(bx, by, -1))
                 shape = shape.cut(hole)
@@ -324,9 +384,18 @@ def build_round_flange(doc, name, diameter, profile=30, thickness=0.7):
     return obj
 
 
-def build_rect_tee(doc, name, width, height, length,
-                   branch_width=200, branch_height=200,
-                   branch_length=400, branch_offset=300, thickness=0.7):
+def build_rect_tee(
+    doc,
+    name,
+    width,
+    height,
+    length,
+    branch_width=200,
+    branch_height=200,
+    branch_length=400,
+    branch_offset=300,
+    thickness=0.7,
+):
     """Rectangular tee — main duct + perpendicular branch."""
     w = float(width)
     h = float(height)
@@ -338,20 +407,22 @@ def build_rect_tee(doc, name, width, height, length,
 
     # Main duct
     main = Part.makeBox(w, h, l)
-    main.translate(FreeCAD.Vector(-w/2, -h/2, 0))
+    main.translate(FreeCAD.Vector(-w / 2, -h / 2, 0))
 
-    if t > 0 and t < min(w, h)/2:
-        main_inner = Part.makeBox(w - 2*t, h - 2*t, l + 2)
-        main_inner.translate(FreeCAD.Vector(-(w-2*t)/2, -(h-2*t)/2, -1))
+    if t > 0 and t < min(w, h) / 2:
+        main_inner = Part.makeBox(w - 2 * t, h - 2 * t, l + 2)
+        main_inner.translate(FreeCAD.Vector(-(w - 2 * t) / 2, -(h - 2 * t) / 2, -1))
         main = main.cut(main_inner)
 
     # Branch duct (along Y axis, centered on main)
     branch = Part.makeBox(bw, bl, bh)
-    branch.translate(FreeCAD.Vector(-bw/2, -bl/2, branch_offset - bh/2))
+    branch.translate(FreeCAD.Vector(-bw / 2, -bl / 2, branch_offset - bh / 2))
 
-    if t > 0 and t < min(bw, bh)/2:
-        branch_inner = Part.makeBox(bw - 2*t, bl + 2, bh - 2*t)
-        branch_inner.translate(FreeCAD.Vector(-(bw-2*t)/2, -bl/2 - 1, branch_offset - (bh-2*t)/2))
+    if t > 0 and t < min(bw, bh) / 2:
+        branch_inner = Part.makeBox(bw - 2 * t, bl + 2, bh - 2 * t)
+        branch_inner.translate(
+            FreeCAD.Vector(-(bw - 2 * t) / 2, -bl / 2 - 1, branch_offset - (bh - 2 * t) / 2)
+        )
         branch = branch.cut(branch_inner)
 
     shape = main.fuse(branch)
@@ -362,9 +433,16 @@ def build_rect_tee(doc, name, width, height, length,
     return obj
 
 
-def build_round_tee(doc, name, diameter, length,
-                    branch_diameter=200, branch_length=400,
-                    branch_offset=300, thickness=0.7):
+def build_round_tee(
+    doc,
+    name,
+    diameter,
+    length,
+    branch_diameter=200,
+    branch_length=400,
+    branch_offset=300,
+    thickness=0.7,
+):
     """Round tee — main duct + perpendicular branch."""
     d = float(diameter)
     l = float(length)
@@ -384,12 +462,12 @@ def build_round_tee(doc, name, diameter, length,
     # Branch (along Y)
     branch = Part.makeCylinder(br, bl)
     branch.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(1, 0, 0), 90)
-    branch.translate(FreeCAD.Vector(0, -bl/2, branch_offset))
+    branch.translate(FreeCAD.Vector(0, -bl / 2, branch_offset))
 
     if t > 0 and t < br:
         branch_inner = Part.makeCylinder(br - t, bl + 2)
         branch_inner.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(1, 0, 0), 90)
-        branch_inner.translate(FreeCAD.Vector(0, -bl/2 - 1, branch_offset))
+        branch_inner.translate(FreeCAD.Vector(0, -bl / 2 - 1, branch_offset))
         branch = branch.cut(branch_inner)
 
     shape = main.fuse(branch)
@@ -400,8 +478,9 @@ def build_round_tee(doc, name, diameter, length,
     return obj
 
 
-def build_rect_transition(doc, name, width, height, length,
-                          end_width=300, end_height=150, thickness=0.7):
+def build_rect_transition(
+    doc, name, width, height, length, end_width=300, end_height=150, thickness=0.7
+):
     """Rectangular transition — built as a simple tapered extrusion."""
     w1 = float(width)
     h1 = float(height)
@@ -422,17 +501,17 @@ def build_rect_transition(doc, name, width, height, length,
         frac1 = i / segments
         frac2 = (i + 1) / segments
 
-        cw1 = w1/2 + (w2/2 - w1/2) * frac1
-        ch1 = h1/2 + (h2/2 - h1/2) * frac1
-        cw2 = w1/2 + (w2/2 - w1/2) * frac2
-        ch2 = h1/2 + (h2/2 - h1/2) * frac2
+        cw1 = w1 / 2 + (w2 / 2 - w1 / 2) * frac1
+        ch1 = h1 / 2 + (h2 / 2 - h1 / 2) * frac1
+        cw2 = w1 / 2 + (w2 / 2 - w1 / 2) * frac2
+        ch2 = h1 / 2 + (h2 / 2 - h1 / 2) * frac2
 
         # Average dimensions for this segment
         cw = (cw1 + cw2) / 2
         ch = (ch1 + ch2) / 2
         seg_len = z2 - z1 + 0.1
 
-        box = Part.makeBox(2*cw, 2*ch, seg_len)
+        box = Part.makeBox(2 * cw, 2 * ch, seg_len)
         box.translate(FreeCAD.Vector(-cw, -ch, z1))
         shapes.append(box)
 
@@ -443,7 +522,7 @@ def build_rect_transition(doc, name, width, height, length,
         # shape = shape.removeSplitter()  # skipped for compatibility
     else:
         shape = Part.makeBox(w1, h1, l)
-        shape.translate(FreeCAD.Vector(-w1/2, -h1/2, 0))
+        shape.translate(FreeCAD.Vector(-w1 / 2, -h1 / 2, 0))
 
     # Hollow
     if t > 0 and t < min(w1, h1, w2, h2) / 2:
@@ -454,16 +533,16 @@ def build_rect_transition(doc, name, width, height, length,
             frac1 = i / segments
             frac2 = (i + 1) / segments
 
-            cw1 = (w1 - 2*t)/2 + ((w2 - 2*t)/2 - (w1 - 2*t)/2) * frac1
-            ch1 = (h1 - 2*t)/2 + ((h2 - 2*t)/2 - (h1 - 2*t)/2) * frac1
-            cw2 = (w1 - 2*t)/2 + ((w2 - 2*t)/2 - (w1 - 2*t)/2) * frac2
-            ch2 = (h1 - 2*t)/2 + ((h2 - 2*t)/2 - (h1 - 2*t)/2) * frac2
+            cw1 = (w1 - 2 * t) / 2 + ((w2 - 2 * t) / 2 - (w1 - 2 * t) / 2) * frac1
+            ch1 = (h1 - 2 * t) / 2 + ((h2 - 2 * t) / 2 - (h1 - 2 * t) / 2) * frac1
+            cw2 = (w1 - 2 * t) / 2 + ((w2 - 2 * t) / 2 - (w1 - 2 * t) / 2) * frac2
+            ch2 = (h1 - 2 * t) / 2 + ((h2 - 2 * t) / 2 - (h1 - 2 * t) / 2) * frac2
 
             cw = (cw1 + cw2) / 2
             ch = (ch1 + ch2) / 2
             seg_len = z2 - z1 + 0.2
 
-            box = Part.makeBox(2*cw, 2*ch, seg_len)
+            box = Part.makeBox(2 * cw, 2 * ch, seg_len)
             box.translate(FreeCAD.Vector(-cw, -ch, z1 - 0.1))
             inner_shapes.append(box)
 
@@ -479,8 +558,7 @@ def build_rect_transition(doc, name, width, height, length,
     return obj
 
 
-def build_round_transition(doc, name, diameter, length,
-                           end_diameter=300, thickness=0.7):
+def build_round_transition(doc, name, diameter, length, end_diameter=300, thickness=0.7):
     """Round transition — approximated as a truncated cone."""
     d1 = float(diameter)
     l = float(length)
@@ -514,15 +592,15 @@ def build_rect_cap(doc, name, width, height, profile=30, depth=30, thickness=0.7
     p = float(profile)
     d = float(depth)
     t = float(thickness)
-    ow = w + 2*p
-    oh = h + 2*p
+    ow = w + 2 * p
+    oh = h + 2 * p
 
     outer = Part.makeBox(ow, oh, d)
-    outer.translate(FreeCAD.Vector(-ow/2, -oh/2, 0))
+    outer.translate(FreeCAD.Vector(-ow / 2, -oh / 2, 0))
 
-    if t > 0 and t < min(ow, oh)/2:
-        inner = Part.makeBox(ow - 2*t, oh - 2*t, d + 2)
-        inner.translate(FreeCAD.Vector(-(ow-2*t)/2, -(oh-2*t)/2, -1))
+    if t > 0 and t < min(ow, oh) / 2:
+        inner = Part.makeBox(ow - 2 * t, oh - 2 * t, d + 2)
+        inner.translate(FreeCAD.Vector(-(ow - 2 * t) / 2, -(oh - 2 * t) / 2, -1))
         shape = outer.cut(inner)
     else:
         shape = outer
@@ -563,7 +641,7 @@ def build_flexible(doc, name, width, height, length):
     for i in range(segments):
         z = l * i / segments
         seg_len = l / segments + 0.5
-        r = w/2 + 3 * math.sin(2 * math.pi * i / segments * 3)
+        r = w / 2 + 3 * math.sin(2 * math.pi * i / segments * 3)
         cyl = Part.makeCylinder(r, seg_len)
         cyl.translate(FreeCAD.Vector(0, 0, z))
         shapes.append(cyl)
@@ -574,7 +652,7 @@ def build_flexible(doc, name, width, height, length):
             shape = shape.fuse(s)
         # shape = shape.removeSplitter()  # skipped for compatibility
     else:
-        shape = Part.makeCylinder(w/2, l)
+        shape = Part.makeCylinder(w / 2, l)
 
     obj = doc.addObject("Part::Feature", safe_name(name))
     obj.Shape = shape
@@ -587,7 +665,7 @@ def build_default(doc, name, width, height, length, thickness=0.7):
     h = float(height) if height else 100
     l = float(length) if length else 100
     box = Part.makeBox(w, h, l)
-    box.translate(FreeCAD.Vector(-w/2, -h/2, 0))
+    box.translate(FreeCAD.Vector(-w / 2, -h / 2, 0))
     obj = doc.addObject("Part::Feature", safe_name(name))
     obj.Shape = box
     return obj
@@ -596,6 +674,7 @@ def build_default(doc, name, width, height, length, thickness=0.7):
 # ═══════════════════════════════════════════════════════════
 # POSITIONING
 # ═══════════════════════════════════════════════════════════
+
 
 def get_bounds(product_data):
     """Get bounding box depth for positioning."""
@@ -655,12 +734,12 @@ def build_product(doc, product_data, index=0, z_offset=0):
         bw = product_data.get("branch_width", 200)
         bh = product_data.get("branch_height", 200)
         bl = product_data.get("branch_length", 400)
-        bo = product_data.get("branch_offset", length/2)
+        bo = product_data.get("branch_offset", length / 2)
         obj = build_rect_tee(doc, name, width, height, length, bw, bh, bl, bo, thickness)
     elif pt == "round_tee":
         bd = product_data.get("branch_diameter", 200)
         bl = product_data.get("branch_length", 400)
-        bo = product_data.get("branch_offset", length/2)
+        bo = product_data.get("branch_offset", length / 2)
         obj = build_round_tee(doc, name, width, length, bd, bl, bo, thickness)
     elif pt == "rect_transition":
         ew = product_data.get("end_width", 300)
@@ -682,10 +761,7 @@ def build_product(doc, product_data, index=0, z_offset=0):
         obj = build_default(doc, name, width, height, length, thickness)
 
     # Apply positioning
-    obj.Placement = FreeCAD.Placement(
-        FreeCAD.Vector(0, 0, z_offset),
-        FreeCAD.Rotation()
-    )
+    obj.Placement = FreeCAD.Placement(FreeCAD.Vector(0, 0, z_offset), FreeCAD.Rotation())
 
     # Apply color
     color = TYPE_COLORS.get(pt, TYPE_COLORS["default"])
@@ -698,21 +774,25 @@ def build_product(doc, product_data, index=0, z_offset=0):
 # DIMENSIONS
 # ═══════════════════════════════════════════════════════════
 
+
 def add_dimension(doc, p1, p2, text, offset=20):
     """Add a dimension line between two points."""
     try:
-        line = Draft.makeWire([FreeCAD.Vector(p1[0], p1[1], p1[2]),
-                                FreeCAD.Vector(p2[0], p2[1], p2[2])])
+        line = Draft.makeWire(
+            [FreeCAD.Vector(p1[0], p1[1], p1[2]), FreeCAD.Vector(p2[0], p2[1], p2[2])]
+        )
         if hasattr(line, "ViewObject"):
             line.ViewObject.DrawStyle = "Dash"
             line.ViewObject.LineColor = (0.3, 0.3, 0.3)
 
-        mid = [(p1[i] + p2[i])/2 for i in range(3)]
+        mid = [(p1[i] + p2[i]) / 2 for i in range(3)]
         # Offset text perpendicular to line (simplified: just offset in Y)
-        label = Draft.makeText([text], placement=FreeCAD.Placement(
-            FreeCAD.Vector(mid[0], mid[1] + offset, mid[2]),
-            FreeCAD.Rotation()
-        ))
+        label = Draft.makeText(
+            [text],
+            placement=FreeCAD.Placement(
+                FreeCAD.Vector(mid[0], mid[1] + offset, mid[2]), FreeCAD.Rotation()
+            ),
+        )
         if hasattr(label, "ViewObject"):
             label.ViewObject.FontSize = 8
             label.ViewObject.TextColor = (0.2, 0.2, 0.2)
@@ -728,27 +808,37 @@ def add_product_dimensions(doc, product_data, z_offset):
     l = float(product_data.get("length", 1000))
 
     # Overall length dimension
-    add_dimension(doc,
-                  (0, -h/2 - 30, z_offset),
-                  (0, -h/2 - 30, z_offset + l),
-                  str(int(l)) + " мм", offset=10)
+    add_dimension(
+        doc,
+        (0, -h / 2 - 30, z_offset),
+        (0, -h / 2 - 30, z_offset + l),
+        str(int(l)) + " мм",
+        offset=10,
+    )
 
     # Width/height at start
     if ptype.startswith("rect"):
-        add_dimension(doc,
-                      (-w/2, -h/2 - 30, z_offset),
-                      (w/2, -h/2 - 30, z_offset),
-                      str(int(w)) + "x" + str(int(h)), offset=10)
+        add_dimension(
+            doc,
+            (-w / 2, -h / 2 - 30, z_offset),
+            (w / 2, -h / 2 - 30, z_offset),
+            str(int(w)) + "x" + str(int(h)),
+            offset=10,
+        )
     elif ptype.startswith("round"):
-        add_dimension(doc,
-                      (-w/2, -h/2 - 30, z_offset),
-                      (w/2, -h/2 - 30, z_offset),
-                      "D=" + str(int(w)), offset=10)
+        add_dimension(
+            doc,
+            (-w / 2, -h / 2 - 30, z_offset),
+            (w / 2, -h / 2 - 30, z_offset),
+            "D=" + str(int(w)),
+            offset=10,
+        )
 
 
 # ═══════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════
+
 
 def main():
     if len(sys.argv) < 4:
@@ -760,6 +850,7 @@ def main():
     fmt = sys.argv[3].lower()
 
     import tempfile
+
     log_path = os.path.join(tempfile.gettempdir(), "freecad_export.log")
 
     if not os.path.exists(json_path):
@@ -778,12 +869,19 @@ def main():
     for i, product in enumerate(products):
         try:
             obj = build_product(doc, product, i, z_offset)
-            print("  Built: " + str(product.get("name", "Unknown")) +
-                  " [" + detect_type(product) + "] at Z=" + str(round(z_offset, 1)))
+            print(
+                "  Built: "
+                + str(product.get("name", "Unknown"))
+                + " ["
+                + detect_type(product)
+                + "] at Z="
+                + str(round(z_offset, 1))
+            )
             z_offset += get_bounds(product) + spacing
         except Exception as e:
             print("  ERROR building " + str(product.get("name", "Unknown")) + ": " + str(e))
             import traceback
+
             traceback.print_exc()
 
     try:
@@ -793,6 +891,7 @@ def main():
 
     # ═══ EXPORT ═══
     log_lines = []
+
     def _log(msg):
         line = str(msg)
         log_lines.append(line)
@@ -833,6 +932,7 @@ def main():
     elif fmt in ("step", "stp"):
         try:
             import Import
+
             _log("Trying Import.export(objects)...")
             Import.export(export_objects, output_path)
             success = os.path.exists(output_path) and os.path.getsize(output_path) > 0
@@ -863,6 +963,7 @@ def main():
     elif fmt == "stl":
         try:
             import Mesh
+
             meshes = []
             for obj in export_objects:
                 try:

@@ -8,6 +8,8 @@
   • Власний формат .ventproj
 """
 
+from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
+
 import os
 import json
 import tempfile
@@ -18,18 +20,28 @@ from datetime import datetime
 
 from ventilation_company.project3d.project_model import VentProject
 from ventilation_company.project3d.vent_system import (
-    Point3D, DuctSegment, DuctShape, DuctType, VentilationTrunk, VentilationSystem,
-    Fitting, Equipment,
+    Point3D,
+    DuctSegment,
+    DuctShape,
+    DuctType,
+    VentilationTrunk,
+    VentilationSystem,
+    Fitting,
+    Equipment,
 )
 from ventilation_company.project3d.arch_context import (
-    ArchitecturalContext, Floor, Wall, WallMaterial, Opening,
+    ArchitecturalContext,
+    Floor,
+    Wall,
+    WallMaterial,
+    Opening,
 )
-
 
 # ── Перевірка доступності бібліотек ──
 IFC_AVAILABLE = False
 try:
     import ifcopenshell
+
     IFC_AVAILABLE = True
 except ImportError:
     pass
@@ -37,6 +49,7 @@ except ImportError:
 DXF_AVAILABLE = False
 try:
     import ezdxf
+
     DXF_AVAILABLE = True
 except ImportError:
     pass
@@ -69,6 +82,7 @@ class BaseConverter(ABC):
 # ═══════════════════════════════════════════════════════════════
 # IFC Converter (Revit, ArchiCAD, FreeCAD)
 # ═══════════════════════════════════════════════════════════════
+
 
 class IFCConverter(BaseConverter):
     """Конвертер IFC файлів (покращений 2D/3D імпорт)."""
@@ -152,7 +166,9 @@ class IFCConverter(BaseConverter):
             pass
         return "оцинкована сталь"
 
-    def _get_placement(self, element, scale: float = 1000.0) -> Tuple[Point3D, Optional[Tuple[float, float, float]]]:
+    def _get_placement(
+        self, element, scale: float = 1000.0
+    ) -> Tuple[Point3D, Optional[Tuple[float, float, float]]]:
         """Отримати розташування та напрямок елемента."""
         try:
             placement = element.ObjectPlacement
@@ -182,9 +198,15 @@ class IFCConverter(BaseConverter):
                     else:
                         ref = getattr(rel, "RefDirection", None)
                         if ref and hasattr(ref, "DirectionRatios"):
-                            dx = float(ref.DirectionRatios[0]) if len(ref.DirectionRatios) > 0 else 1
-                            dy = float(ref.DirectionRatios[1]) if len(ref.DirectionRatios) > 1 else 0
-                            dz = float(ref.DirectionRatios[2]) if len(ref.DirectionRatios) > 2 else 0
+                            dx = (
+                                float(ref.DirectionRatios[0]) if len(ref.DirectionRatios) > 0 else 1
+                            )
+                            dy = (
+                                float(ref.DirectionRatios[1]) if len(ref.DirectionRatios) > 1 else 0
+                            )
+                            dz = (
+                                float(ref.DirectionRatios[2]) if len(ref.DirectionRatios) > 2 else 0
+                            )
                             direction = (dx, dy, dz)
                         else:
                             direction = (1, 0, 0)
@@ -193,7 +215,9 @@ class IFCConverter(BaseConverter):
                     parent = getattr(pl, "PlacementRelTo", None)
                     if parent:
                         parent_pos, _ = get_absolute_coords(parent)
-                        pos = Point3D(pos.x + parent_pos.x, pos.y + parent_pos.y, pos.z + parent_pos.z)
+                        pos = Point3D(
+                            pos.x + parent_pos.x, pos.y + parent_pos.y, pos.z + parent_pos.z
+                        )
 
                     return pos, direction
 
@@ -202,7 +226,9 @@ class IFCConverter(BaseConverter):
             pass
         return Point3D(0, 0, 0), (1, 0, 0)
 
-    def _extract_duct_geometry(self, element, scale: float = 1000.0) -> Optional[Tuple[Point3D, Point3D, float, float, float, str]]:
+    def _extract_duct_geometry(
+        self, element, scale: float = 1000.0
+    ) -> Optional[Tuple[Point3D, Point3D, float, float, float, str]]:
         """
         Витягти геометрію повітропроводу: (start, end, width, height, diameter, shape).
         Повертає None, якщо не вдалося.
@@ -241,17 +267,35 @@ class IFCConverter(BaseConverter):
                         # Початкова точка
                         if position and position.is_a("IfcAxis2Placement3D"):
                             loc = position.Location
-                            sx = float(loc.Coordinates[0]) * scale if len(loc.Coordinates) > 0 else 0
-                            sy = float(loc.Coordinates[1]) * scale if len(loc.Coordinates) > 1 else 0
-                            sz = float(loc.Coordinates[2]) * scale if len(loc.Coordinates) > 2 else 0
+                            sx = (
+                                float(loc.Coordinates[0]) * scale if len(loc.Coordinates) > 0 else 0
+                            )
+                            sy = (
+                                float(loc.Coordinates[1]) * scale if len(loc.Coordinates) > 1 else 0
+                            )
+                            sz = (
+                                float(loc.Coordinates[2]) * scale if len(loc.Coordinates) > 2 else 0
+                            )
                             start = Point3D(sx, sy, sz)
 
                             # Напрямок екструзії
                             axis = getattr(position, "Axis", None)
                             if axis and hasattr(axis, "DirectionRatios"):
-                                dx = float(axis.DirectionRatios[0]) if len(axis.DirectionRatios) > 0 else 0
-                                dy = float(axis.DirectionRatios[1]) if len(axis.DirectionRatios) > 1 else 0
-                                dz = float(axis.DirectionRatios[2]) if len(axis.DirectionRatios) > 2 else 0
+                                dx = (
+                                    float(axis.DirectionRatios[0])
+                                    if len(axis.DirectionRatios) > 0
+                                    else 0
+                                )
+                                dy = (
+                                    float(axis.DirectionRatios[1])
+                                    if len(axis.DirectionRatios) > 1
+                                    else 0
+                                )
+                                dz = (
+                                    float(axis.DirectionRatios[2])
+                                    if len(axis.DirectionRatios) > 2
+                                    else 0
+                                )
                             else:
                                 # Беремо напрямок з extruded direction
                                 ext_dir = item.ExtrudedDirection
@@ -332,11 +376,13 @@ class IFCConverter(BaseConverter):
                         if placement and placement.is_a("IfcLocalPlacement"):
                             coords = placement.RelativePlacement.Location.Coordinates
                             if len(coords) >= 3:
-                                ports.append(Point3D(
-                                    float(coords[0]) * scale,
-                                    float(coords[1]) * scale,
-                                    float(coords[2]) * scale,
-                                ))
+                                ports.append(
+                                    Point3D(
+                                        float(coords[0]) * scale,
+                                        float(coords[1]) * scale,
+                                        float(coords[2]) * scale,
+                                    )
+                                )
         except Exception:
             pass
         return ports
@@ -569,7 +615,9 @@ class IFCConverter(BaseConverter):
                 props = self._get_all_properties(elem)
                 air_flow = 0
                 for key, val in props.items():
-                    if any(k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]):
+                    if any(
+                        k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]
+                    ):
                         try:
                             air_flow = float(val)
                         except (ValueError, TypeError):
@@ -609,7 +657,9 @@ class IFCConverter(BaseConverter):
                 pass
 
         # Створюємо системи вентиляції
-        all_systems = set(system_segments.keys()) | set(system_fittings.keys()) | set(system_equipment.keys())
+        all_systems = (
+            set(system_segments.keys()) | set(system_fittings.keys()) | set(system_equipment.keys())
+        )
         for sys_name in all_systems:
             segments = system_segments.get(sys_name, [])
             fittings = system_fittings.get(sys_name, [])
@@ -697,6 +747,8 @@ class IFCConverter(BaseConverter):
                     )
 
         ifc_file.write(filepath)
+
+
 class DXFConverter(BaseConverter):
     """Конвертер DXF/DWG файлів."""
 
@@ -773,7 +825,9 @@ class DXFConverter(BaseConverter):
         elif ext == ".dwg":
             # DWG — бінарний формат AutoCAD. ezdxf не підтримує читання DWG.
             # Використовуємо ODA File Converter або Teigha як зовнішній інструмент.
-            project.notes = "DWG файл додано як довідковий. Для імпорту геометрії конвертуйте у DXF."
+            project.notes = (
+                "DWG файл додано як довідковий. Для імпорту геометрії конвертуйте у DXF."
+            )
             project.add_drawing(filepath, floor="Поверх 1", drawing_type="план")
 
         return project
@@ -818,6 +872,7 @@ class DXFConverter(BaseConverter):
 # STEP Converter (Solidworks, КОМПАС, FreeCAD)
 # ═══════════════════════════════════════════════════════════════
 
+
 class STEPConverter(BaseConverter):
     """Конвертер STEP файлів (AP203/AP214/AP242)."""
 
@@ -840,6 +895,7 @@ class STEPConverter(BaseConverter):
 
         # Шукаємо CARTESIAN_POINT
         import re
+
         points = []
         for match in re.finditer(r"CARTESIAN_POINT\s*'[^']*'\s*\(([^)]+)\)", content):
             coords_str = match.group(1)
@@ -852,11 +908,13 @@ class STEPConverter(BaseConverter):
 
         # Групуємо точки у лінії (по 2)
         for i in range(0, len(points) - 1, 2):
-            entities.append({
-                "type": "line",
-                "start": points[i],
-                "end": points[i + 1],
-            })
+            entities.append(
+                {
+                    "type": "line",
+                    "start": points[i],
+                    "end": points[i + 1],
+                }
+            )
 
         return entities
 
@@ -896,7 +954,9 @@ class STEPConverter(BaseConverter):
 
             result = subprocess.run(
                 [FREECAD_CMD, script_path],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"Помилка FreeCAD STEP-експорту: {result.stderr}")
@@ -936,9 +996,13 @@ class STEPConverter(BaseConverter):
         for system in project.ventilation_systems:
             for trunk in system.trunks:
                 for seg in trunk.segments:
-                    lines.append(f"#{entity_id}=CARTESIAN_POINT('',({seg.start.x},{seg.start.y},{seg.start.z}));")
+                    lines.append(
+                        f"#{entity_id}=CARTESIAN_POINT('',({seg.start.x},{seg.start.y},{seg.start.z}));"
+                    )
                     entity_id += 1
-                    lines.append(f"#{entity_id}=CARTESIAN_POINT('',({seg.end.x},{seg.end.y},{seg.end.z}));")
+                    lines.append(
+                        f"#{entity_id}=CARTESIAN_POINT('',({seg.end.x},{seg.end.y},{seg.end.z}));"
+                    )
                     entity_id += 1
         lines.extend(["ENDSEC;", "END-ISO-10303-21;"])
         with open(filepath, "w", encoding="utf-8") as f:
@@ -948,6 +1012,7 @@ class STEPConverter(BaseConverter):
 # ═══════════════════════════════════════════════════════════════
 # FreeCAD Converter
 # ═══════════════════════════════════════════════════════════════
+
 
 class FreeCADConverter(BaseConverter):
     """Конвертер FreeCAD (.FCStd) файлів."""
@@ -994,7 +1059,9 @@ doc.close()
 
             result = subprocess.run(
                 [FREECAD_CMD, script_path],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
 
             json_path = os.path.join(tempfile.gettempdir(), "vent_fc_import.json")
@@ -1029,7 +1096,9 @@ doc.close()
 
         result = subprocess.run(
             [FREECAD_CMD, script_path],
-            capture_output=True, text=True, timeout=180,
+            capture_output=True,
+            text=True,
+            timeout=180,
         )
         if result.returncode != 0:
             raise RuntimeError(f"Помилка FreeCAD-експорту: {result.stderr}")
@@ -1063,6 +1132,7 @@ doc.close()
 # ═══════════════════════════════════════════════════════════════
 # Project Converter Hub
 # ═══════════════════════════════════════════════════════════════
+
 
 class ProjectConverter:
     """Головний хаб для конвертації проєктів."""

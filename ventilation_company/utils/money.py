@@ -8,10 +8,10 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 # Контекст для всіх грошових операцій
-MONEY_CONTEXT = Decimal('0.01')  # точність до копійки
+MONEY_CONTEXT = Decimal("0.01")  # точність до копійки
 
 
-def to_decimal(value, default=Decimal('0')) -> Decimal:
+def to_decimal(value, default=Decimal("0")) -> Decimal:
     """Безпечне перетворення в Decimal.
 
     Приймає: str, int, float, Decimal, None
@@ -27,7 +27,7 @@ def to_decimal(value, default=Decimal('0')) -> Decimal:
     if isinstance(value, int):
         return Decimal(value)
     if isinstance(value, str):
-        value = value.strip().replace(',', '.').replace(' ', '')
+        value = value.strip().replace(",", ".").replace(" ", "")
         if not value:
             return default
         try:
@@ -40,7 +40,7 @@ def to_decimal(value, default=Decimal('0')) -> Decimal:
 def money_round(value: Decimal | float | str, places: int = 2) -> Decimal:
     """Округлити до вказаної кількості знаків (за замовчуванням 2 — копійки)."""
     d = to_decimal(value)
-    quantize_str = '0.' + '0' * places
+    quantize_str = "0." + "0" * places
     return d.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
 
 
@@ -49,16 +49,16 @@ def money_format(value: Decimal | float | str, places: int = 2) -> str:
     d = money_round(value, places)
     # Розділяємо тисячі пробілом
     s = str(d)
-    if '.' in s:
-        int_part, frac_part = s.split('.')
+    if "." in s:
+        int_part, frac_part = s.split(".")
     else:
-        int_part, frac_part = s, ''
+        int_part, frac_part = s, ""
 
     # Додаємо пробіли для тисяч
-    int_part = f"{int(int_part):,}".replace(',', ' ')
+    int_part = f"{int(int_part):,}".replace(",", " ")
 
     if places > 0:
-        frac_part = (frac_part + '0' * places)[:places]
+        frac_part = (frac_part + "0" * places)[:places]
         return f"{int_part}.{frac_part}"
     return int_part
 

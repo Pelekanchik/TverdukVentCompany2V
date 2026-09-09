@@ -46,12 +46,18 @@ class LoginWindow:
         lbl_icon = tk.Label(card, text="🏭", font=("Segoe UI", 42), bg="#18181b", fg="#f97316")
         lbl_icon.pack(pady=(10, 2))
 
-        lbl_title = tk.Label(card, text="VentCompany", font=("Segoe UI", 20, "bold"),
-                             bg="#18181b", fg="#e4e4e7")
+        lbl_title = tk.Label(
+            card, text="VentCompany", font=("Segoe UI", 20, "bold"), bg="#18181b", fg="#e4e4e7"
+        )
         lbl_title.pack()
 
-        lbl_sub = tk.Label(card, text="Система управління вентиляційними проєктами",
-                           font=("Segoe UI", 9), bg="#18181b", fg="#71717a")
+        lbl_sub = tk.Label(
+            card,
+            text="Система управління вентиляційними проєктами",
+            font=("Segoe UI", 9),
+            bg="#18181b",
+            fg="#71717a",
+        )
         lbl_sub.pack(pady=(0, 10))
 
         # ── Тільки 2 таби: Вхід / Реєстрація ──
@@ -66,35 +72,57 @@ class LoginWindow:
         self.tabs.add(self.tab_register, text=" 📝 Реєстрація ")
         self._build_register_tab(self.tab_register)
 
-        self.lbl_status = tk.Label(card, text="", font=("Segoe UI", 9),
-                                   bg="#18181b", fg="#ef4444")
+        self.lbl_status = tk.Label(card, text="", font=("Segoe UI", 9), bg="#18181b", fg="#ef4444")
         self.lbl_status.pack(pady=(5, 0))
 
         # Підказка без паролів — тільки загальна інформація
-        hint = tk.Label(card,
-                        text="Якщо ви вперше запускаєте програму,\n"
-                             "з'явиться вікно з тимчасовим паролем адміністратора.",
-                        font=("Segoe UI", 8), bg="#18181b", fg="#52525b", justify="center")
+        hint = tk.Label(
+            card,
+            text="Якщо ви вперше запускаєте програму,\n"
+            "з'явиться вікно з тимчасовим паролем адміністратора.",
+            font=("Segoe UI", 8),
+            bg="#18181b",
+            fg="#52525b",
+            justify="center",
+        )
         hint.pack(side=tk.BOTTOM, pady=5)
 
     def _styled_entry(self, parent, show=None, width=32):
-        ent = tk.Entry(parent, font=("Segoe UI", 11),
-                       bg="#3f3f46", fg="#e4e4e7",
-                       insertbackground="#f97316",
-                       relief="flat", highlightthickness=1,
-                       highlightcolor="#f97316", highlightbackground="#52525b",
-                       show=show, width=width)
+        ent = tk.Entry(
+            parent,
+            font=("Segoe UI", 11),
+            bg="#3f3f46",
+            fg="#e4e4e7",
+            insertbackground="#f97316",
+            relief="flat",
+            highlightthickness=1,
+            highlightcolor="#f97316",
+            highlightbackground="#52525b",
+            show=show,
+            width=width,
+        )
         return ent
 
     def _styled_label(self, parent, text):
-        return tk.Label(parent, text=text, font=("Segoe UI", 10),
-                        bg="#18181b", fg="#a1a1aa", anchor="w")
+        return tk.Label(
+            parent, text=text, font=("Segoe UI", 10), bg="#18181b", fg="#a1a1aa", anchor="w"
+        )
 
     def _styled_btn(self, parent, text, command, bg="#f97316", fg="#18181b"):
-        return tk.Button(parent, text=text, font=("Segoe UI", 11, "bold"),
-                         bg=bg, fg=fg, activebackground="#fb923c",
-                         activeforeground="#18181b", relief="flat",
-                         cursor="hand2", command=command, padx=20, pady=8)
+        return tk.Button(
+            parent,
+            text=text,
+            font=("Segoe UI", 11, "bold"),
+            bg=bg,
+            fg=fg,
+            activebackground="#fb923c",
+            activeforeground="#18181b",
+            relief="flat",
+            cursor="hand2",
+            command=command,
+            padx=20,
+            pady=8,
+        )
 
     def _build_login_tab(self, parent):
         frm = tk.Frame(parent, bg="#18181b", padx=25, pady=15)
@@ -112,8 +140,7 @@ class LoginWindow:
         self.entry_pass.bind("<Return>", lambda e: self._do_login())
         self.entry_user.bind("<Return>", lambda e: self.entry_pass.focus())
 
-        self._styled_btn(frm, "Увійти в систему", self._do_login).pack(
-            fill=tk.X, pady=(25, 5))
+        self._styled_btn(frm, "Увійти в систему", self._do_login).pack(fill=tk.X, pady=(25, 5))
 
     def _build_register_tab(self, parent):
         frm = tk.Frame(parent, bg="#18181b", padx=25, pady=10)
@@ -136,14 +163,16 @@ class LoginWindow:
         self.reg_pass2.pack(fill=tk.X, ipady=4)
 
         self._styled_label(frm, "🛡️ Посада *").pack(fill=tk.X, pady=(8, 2))
-        self.reg_role = ttk.Combobox(frm, values=[
-            "Директор", "Інженер", "Бухгалтер", "Монтажник"
-        ], state="readonly", font=("Segoe UI", 10))
+        self.reg_role = ttk.Combobox(
+            frm,
+            values=["Директор", "Інженер", "Бухгалтер", "Монтажник"],
+            state="readonly",
+            font=("Segoe UI", 10),
+        )
         self.reg_role.set("Монтажник")
         self.reg_role.pack(fill=tk.X, pady=(2, 0))
 
-        self._styled_btn(frm, "Зареєструватися", self._do_register).pack(
-            fill=tk.X, pady=(18, 5))
+        self._styled_btn(frm, "Зареєструватися", self._do_register).pack(fill=tk.X, pady=(18, 5))
 
     def _do_login(self):
         username = self.entry_user.get().strip()
@@ -179,8 +208,12 @@ class LoginWindow:
             self.lbl_status.config(text="❌ Пароль мінімум 4 символи", fg="#ef4444")
             return
 
-        role_map = {"Директор": "director", "Інженер": "engineer",
-                    "Бухгалтер": "accountant", "Монтажник": "monter"}
+        role_map = {
+            "Директор": "director",
+            "Інженер": "engineer",
+            "Бухгалтер": "accountant",
+            "Монтажник": "monter",
+        }
         role = role_map.get(role_label, "monter")
 
         try:
@@ -224,31 +257,70 @@ def _show_first_run_dialog(parent):
     dialog.minsize(400, 300)
     dialog.resizable(True, True)
 
-    tk.Label(dialog, text="🏭 VentCompany", font=("Segoe UI", 18, "bold"),
-             bg="#18181b", fg="#f97316").pack(pady=(15, 5))
+    tk.Label(
+        dialog, text="🏭 VentCompany", font=("Segoe UI", 18, "bold"), bg="#18181b", fg="#f97316"
+    ).pack(pady=(15, 5))
 
-    tk.Label(dialog, text="Створено обліковий запис адміністратора",
-             font=("Segoe UI", 11), bg="#18181b", fg="#e4e4e7").pack()
+    tk.Label(
+        dialog,
+        text="Створено обліковий запис адміністратора",
+        font=("Segoe UI", 11),
+        bg="#18181b",
+        fg="#e4e4e7",
+    ).pack()
 
-    tk.Label(dialog, text="Збережіть ці дані — їх більше не буде показано!",
-             font=("Segoe UI", 9, "bold"), bg="#18181b", fg="#ef4444").pack(pady=(10, 5))
+    tk.Label(
+        dialog,
+        text="Збережіть ці дані — їх більше не буде показано!",
+        font=("Segoe UI", 9, "bold"),
+        bg="#18181b",
+        fg="#ef4444",
+    ).pack(pady=(10, 5))
 
     # Логін
     frm_user = tk.Frame(dialog, bg="#18181b")
     frm_user.pack(fill=tk.X, padx=30, pady=3)
-    tk.Label(frm_user, text="Логін:", font=("Segoe UI", 10), bg="#18181b",
-             fg="#a1a1aa", width=10, anchor="w").pack(side=tk.LEFT)
-    lbl_user = tk.Label(frm_user, text=creds["username"], font=("Consolas", 11, "bold"),
-                        bg="#27272a", fg="#84cc16", padx=10, pady=3)
+    tk.Label(
+        frm_user,
+        text="Логін:",
+        font=("Segoe UI", 10),
+        bg="#18181b",
+        fg="#a1a1aa",
+        width=10,
+        anchor="w",
+    ).pack(side=tk.LEFT)
+    lbl_user = tk.Label(
+        frm_user,
+        text=creds["username"],
+        font=("Consolas", 11, "bold"),
+        bg="#27272a",
+        fg="#84cc16",
+        padx=10,
+        pady=3,
+    )
     lbl_user.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     # Пароль
     frm_pass = tk.Frame(dialog, bg="#18181b")
     frm_pass.pack(fill=tk.X, padx=30, pady=3)
-    tk.Label(frm_pass, text="Пароль:", font=("Segoe UI", 10), bg="#18181b",
-             fg="#a1a1aa", width=10, anchor="w").pack(side=tk.LEFT)
-    lbl_pass = tk.Label(frm_pass, text=creds["password"], font=("Consolas", 11, "bold"),
-                        bg="#27272a", fg="#f97316", padx=10, pady=3)
+    tk.Label(
+        frm_pass,
+        text="Пароль:",
+        font=("Segoe UI", 10),
+        bg="#18181b",
+        fg="#a1a1aa",
+        width=10,
+        anchor="w",
+    ).pack(side=tk.LEFT)
+    lbl_pass = tk.Label(
+        frm_pass,
+        text=creds["password"],
+        font=("Consolas", 11, "bold"),
+        bg="#27272a",
+        fg="#f97316",
+        padx=10,
+        pady=3,
+    )
     lbl_pass.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def _copy_and_close():
@@ -257,13 +329,25 @@ def _show_first_run_dialog(parent):
         parent.update()
         dialog.destroy()
 
-    tk.Button(dialog, text="📋 Копіювати пароль і закрити",
-              font=("Segoe UI", 10, "bold"), bg="#f97316", fg="#18181b",
-              activebackground="#fb923c", relief="flat", cursor="hand2",
-              command=_copy_and_close).pack(pady=(20, 5), ipadx=10, ipady=5)
+    tk.Button(
+        dialog,
+        text="📋 Копіювати пароль і закрити",
+        font=("Segoe UI", 10, "bold"),
+        bg="#f97316",
+        fg="#18181b",
+        activebackground="#fb923c",
+        relief="flat",
+        cursor="hand2",
+        command=_copy_and_close,
+    ).pack(pady=(20, 5), ipadx=10, ipady=5)
 
-    tk.Label(dialog, text="Рекомендується одразу змінити пароль у вкладці «Мій кабінет»",
-             font=("Segoe UI", 8), bg="#18181b", fg="#52525b").pack(pady=(5, 10))
+    tk.Label(
+        dialog,
+        text="Рекомендується одразу змінити пароль у вкладці «Мій кабінет»",
+        font=("Segoe UI", 8),
+        bg="#18181b",
+        fg="#52525b",
+    ).pack(pady=(5, 10))
 
     parent.wait_window(dialog)
 

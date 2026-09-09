@@ -45,6 +45,7 @@ DENSITIES = {
 @dataclass
 class PriceRecord:
     """Один запис ціни з файлу постачальника."""
+
     material: str = ""
     thickness: float = 0.0
     price_per_kg: float = 0.0
@@ -53,7 +54,11 @@ class PriceRecord:
     supplier: str = ""
 
     def is_valid(self) -> bool:
-        return bool(self.material) and self.thickness > 0 and (self.price_per_m2 > 0 or self.price_per_kg > 0)
+        return (
+            bool(self.material)
+            and self.thickness > 0
+            and (self.price_per_m2 > 0 or self.price_per_kg > 0)
+        )
 
 
 class PriceImporter:
@@ -101,7 +106,9 @@ class PriceImporter:
         if isinstance(value, (int, float)):
             return float(value)
         if isinstance(value, str):
-            value = value.replace(" ", "").replace("грн", "").replace("₴", "").replace(",", ".").strip()
+            value = (
+                value.replace(" ", "").replace("грн", "").replace("₴", "").replace(",", ".").strip()
+            )
             try:
                 return float(value)
             except ValueError:
@@ -209,9 +216,12 @@ class PriceImporter:
             record.thickness = self._parse_thickness(
                 row.get("Товщина", row.get("Thickness", row.get("товщина", 0)))
             )
-            record.price_per_m2 = self._parse_price(
-                row.get("Ціна за м²", row.get("Price per m2", row.get("ціна за м²", None)))
-            ) or None
+            record.price_per_m2 = (
+                self._parse_price(
+                    row.get("Ціна за м²", row.get("Price per m2", row.get("ціна за м²", None)))
+                )
+                or None
+            )
             record.price_per_kg = self._parse_price(
                 row.get("Ціна за кг", row.get("Price per kg", row.get("ціна за кг", 0)))
             )
@@ -260,13 +270,19 @@ class PriceImporter:
                 change_pct = ((price_to_save - old_price) / old_price) * 100
                 _logger.info(
                     "💰 Оновлено: %s %.1fмм | %.2f → %.2f грн/м² (%+.1f%%)",
-                    record.material, record.thickness, old_price, price_to_save, change_pct
+                    record.material,
+                    record.thickness,
+                    old_price,
+                    price_to_save,
+                    change_pct,
                 )
                 self.updated_count += 1
             else:
                 _logger.info(
                     "➕ Новий: %s %.1fмм | %.2f грн/м²",
-                    record.material, record.thickness, price_to_save
+                    record.material,
+                    record.thickness,
+                    price_to_save,
                 )
                 self.updated_count += 1
 
@@ -283,7 +299,9 @@ class PriceImporter:
 
         _logger.info(
             "✅ Імпорт завершено: оновлено %d, пропущено %d, помилок %d",
-            self.updated_count, self.skipped_count, len(self.errors)
+            self.updated_count,
+            self.skipped_count,
+            len(self.errors),
         )
 
         return self.updated_count, self.skipped_count, self.errors

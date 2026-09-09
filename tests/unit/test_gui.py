@@ -10,6 +10,7 @@ class TestPresetDialog:
     def test_dialog_import(self):
         """Імпорт діалогу не падає."""
         from ventilation_company.gui.preset_dialog import PresetDialog
+
         assert PresetDialog is not None
 
 
@@ -19,6 +20,7 @@ class TestProductsTab:
     def test_library_creation(self):
         """Бібліотека створюється порожньою."""
         from ventilation_company.standard_products import ProductLibrary
+
         lib = ProductLibrary()
         assert len(lib.products) == 0
 
@@ -38,6 +40,7 @@ class TestSettingsTab:
     def test_pricing_settings_singleton(self):
         """PricingSettings — singleton."""
         from ventilation_company.gui.settings_tab import PricingSettings
+
         s1 = PricingSettings.get_instance()
         s2 = PricingSettings.get_instance()
         assert s1 is s2

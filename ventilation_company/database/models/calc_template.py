@@ -14,6 +14,7 @@ from ventilation_company.database.base import Base
 
 class CalcTemplate(Base):
     """Шаблони розрахунків (зворотна сумісність з template_repo)."""
+
     __tablename__ = "calc_templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

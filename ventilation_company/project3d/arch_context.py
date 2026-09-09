@@ -23,6 +23,7 @@ class WallMaterial(Enum):
 @dataclass
 class Wall:
     """Архітектурна стіна."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Стіна"
     start: Point3D = field(default_factory=Point3D)
@@ -113,6 +114,7 @@ class Wall:
 @dataclass
 class Opening:
     """Отвір у стіні або перекритті (для повітропроводу)."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Отвір"
     wall_id: Optional[str] = None
@@ -157,6 +159,7 @@ class Opening:
 @dataclass
 class Floor:
     """Поверх будівлі."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Поверх 1"
     level: float = 0.0  # відмітка верху перекриття, мм
@@ -165,7 +168,9 @@ class Floor:
     openings: List[Opening] = field(default_factory=list)
     notes: str = ""
     # Підкладка (DXF/DWG)
-    background: Optional[Dict[str, Any]] = None  # {"path": str, "scale": float, "offset_x": float, "offset_y": float, "rotation": float, "lines": List}
+    background: Optional[Dict[str, Any]] = (
+        None  # {"path": str, "scale": float, "offset_x": float, "offset_y": float, "rotation": float, "lines": List}
+    )
 
     @property
     def floor_z(self) -> float:
@@ -216,6 +221,7 @@ class Floor:
 @dataclass
 class ArchitecturalContext:
     """Повний архітектурний контекст проєкту."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     project_name: str = "Архітектурний проєкт"
     floors: List[Floor] = field(default_factory=list)
@@ -268,7 +274,11 @@ class ArchitecturalContext:
             "id": self.id,
             "project_name": self.project_name,
             "floors": [f.to_dict() for f in self.floors],
-            "reference_point": {"x": self.reference_point.x, "y": self.reference_point.y, "z": self.reference_point.z},
+            "reference_point": {
+                "x": self.reference_point.x,
+                "y": self.reference_point.y,
+                "z": self.reference_point.z,
+            },
             "units": self.units,
             "notes": self.notes,
         }

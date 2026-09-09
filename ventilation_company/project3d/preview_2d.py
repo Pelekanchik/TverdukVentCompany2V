@@ -17,6 +17,7 @@ from PIL import Image
 
 try:
     import fitz
+
     HAS_PYMUPDF = True
 except ImportError:
     HAS_PYMUPDF = False
@@ -108,8 +109,8 @@ class CADCanvas(tk.Canvas):
         self._scale = max(0.001, min(10.0, self._scale))
 
         # Зберегти позицію миші
-        self._offset_x = wx - (mx - self.winfo_width()/2) / self._scale
-        self._offset_y = wy - (self.winfo_height()/2 - my) / self._scale
+        self._offset_x = wx - (mx - self.winfo_width() / 2) / self._scale
+        self._offset_y = wy - (self.winfo_height() / 2 - my) / self._scale
 
         self.event_generate("<<CanvasZoom>>")
 
@@ -190,40 +191,62 @@ class Project2DPreview:
             ("measure", "📏 Вимір.", DrawingTool.MEASURE),
         ]
         for key, label, tool in tools:
-            btn = tk.Button(tf, text=label, width=10, relief=tk.RAISED, font=("Arial", 9),
-                          command=lambda t=tool, k=key: self._set_tool(t, k))
+            btn = tk.Button(
+                tf,
+                text=label,
+                width=10,
+                relief=tk.RAISED,
+                font=("Arial", 9),
+                command=lambda t=tool, k=key: self._set_tool(t, k),
+            )
             btn.pack(side=tk.LEFT, padx=1)
             self.tool_btns[key] = btn
         self._hl_tool("select")
 
         # Налаштування
         sf = ttk.LabelFrame(toolbar, text="Налаштування", padding=2)
-        sf.pack(side=tk.LEFT, padx=(8,2))
+        sf.pack(side=tk.LEFT, padx=(8, 2))
         tk.Label(sf, text="Snap:", font=("Arial", 9)).pack(side=tk.LEFT)
         self.snap_var = tk.DoubleVar(value=50)
-        ttk.Combobox(sf, textvariable=self.snap_var, values=[10,25,50,100,250,500], 
-                    state="readonly", width=5).pack(side=tk.LEFT, padx=2)
+        ttk.Combobox(
+            sf,
+            textvariable=self.snap_var,
+            values=[10, 25, 50, 100, 250, 500],
+            state="readonly",
+            width=5,
+        ).pack(side=tk.LEFT, padx=2)
         self.snap_var.trace_add("write", lambda *a: setattr(self, "snap_grid", self.snap_var.get()))
         self.ortho_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(sf, text="Ortho", variable=self.ortho_var, font=("Arial", 9),
-                      command=lambda: setattr(self, "ortho_mode", self.ortho_var.get())).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(
+            sf,
+            text="Ortho",
+            variable=self.ortho_var,
+            font=("Arial", 9),
+            command=lambda: setattr(self, "ortho_mode", self.ortho_var.get()),
+        ).pack(side=tk.LEFT, padx=5)
         tk.Button(sf, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=5)
         tk.Button(sf, text="↩️ Скасувати", command=self._undo).pack(side=tk.LEFT, padx=2)
 
         # Фон
         bf = ttk.LabelFrame(toolbar, text="Фон", padding=2)
-        bf.pack(side=tk.LEFT, padx=(8,2))
+        bf.pack(side=tk.LEFT, padx=(8, 2))
         tk.Button(bf, text="📁 Завантажити", command=self._load_bg).pack(side=tk.LEFT, padx=1)
         tk.Button(bf, text="📐 Калібрувати", command=self._calibrate).pack(side=tk.LEFT, padx=1)
         tk.Button(bf, text="❌ Прибрати", command=self._remove_bg).pack(side=tk.LEFT, padx=1)
 
         # Шари
         lf = ttk.LabelFrame(toolbar, text="Шари", padding=2)
-        lf.pack(side=tk.LEFT, padx=(8,2))
-        for key, label in [("walls","Стіни"),("openings","Отвори"),("ducts","Повітр."),
-                           ("grid","Сітка"),("dimensions","Розміри")]:
-            tk.Checkbutton(lf, text=label, variable=self.layers[key], font=("Arial", 8),
-                          command=self.refresh).pack(side=tk.LEFT, padx=2)
+        lf.pack(side=tk.LEFT, padx=(8, 2))
+        for key, label in [
+            ("walls", "Стіни"),
+            ("openings", "Отвори"),
+            ("ducts", "Повітр."),
+            ("grid", "Сітка"),
+            ("dimensions", "Розміри"),
+        ]:
+            tk.Checkbutton(
+                lf, text=label, variable=self.layers[key], font=("Arial", 8), command=self.refresh
+            ).pack(side=tk.LEFT, padx=2)
 
         # Навігація
         nf = ttk.Frame(toolbar)
@@ -247,8 +270,13 @@ class Project2DPreview:
         self.canvas.bind("<Motion>", self._on_hover, add="+")
 
         # Підказка
-        self.hint = tk.Label(self.parent, text="🖱️ Вибір: клік — вибрати | ━━ Стіна: 2 кліки | Колесо — масштаб | ЛКМ+drag — панорама",
-                            fg="#666", font=("Arial", 8), anchor=tk.W)
+        self.hint = tk.Label(
+            self.parent,
+            text="🖱️ Вибір: клік — вибрати | ━━ Стіна: 2 кліки | Колесо — масштаб | ЛКМ+drag — панорама",
+            fg="#666",
+            font=("Arial", 8),
+            anchor=tk.W,
+        )
         self.hint.pack(fill=tk.X, padx=5)
 
         # Масштаб за замовчуванням
@@ -278,12 +306,12 @@ class Project2DPreview:
 
     def _snap(self, x, y):
         g = self.snap_grid
-        return (round(x/g)*g, round(y/g)*g)
+        return (round(x / g) * g, round(y / g) * g)
 
     def _ortho(self, x1, y1, x2, y2):
         if not self.ortho_mode:
             return (x2, y2)
-        dx, dy = abs(x2-x1), abs(y2-y1)
+        dx, dy = abs(x2 - x1), abs(y2 - y1)
         return (x2, y1) if dx > dy else (x1, y2)
 
     def _on_canvas_move(self, event):
@@ -322,11 +350,25 @@ class Project2DPreview:
             c = self.COLORS["duct_supply"]
         sx1, sy1 = self.canvas.world_to_screen(x1, y1)
         sx2, sy2 = self.canvas.world_to_screen(x2, y2)
-        self.canvas.create_line(sx1, sy1, sx2, sy2, fill=c, width=2, dash=(8,4), tags="temp")
-        self.canvas.create_oval(sx2-4, sy2-4, sx2+4, sy2+4, fill=self.COLORS["snap_point"], outline="", tags="temp")
-        dist = math.hypot(x2-x1, y2-y1)
-        self.canvas.create_text((sx1+sx2)/2, (sy1+sy2)/2-15, text=f"{dist:.0f} мм", 
-                               fill=c, font=("Arial", 8), tags="temp")
+        self.canvas.create_line(sx1, sy1, sx2, sy2, fill=c, width=2, dash=(8, 4), tags="temp")
+        self.canvas.create_oval(
+            sx2 - 4,
+            sy2 - 4,
+            sx2 + 4,
+            sy2 + 4,
+            fill=self.COLORS["snap_point"],
+            outline="",
+            tags="temp",
+        )
+        dist = math.hypot(x2 - x1, y2 - y1)
+        self.canvas.create_text(
+            (sx1 + sx2) / 2,
+            (sy1 + sy2) / 2 - 15,
+            text=f"{dist:.0f} мм",
+            fill=c,
+            font=("Arial", 8),
+            tags="temp",
+        )
 
     def _do_select(self, x, y):
         obj, otype = self._find_nearest(x, y)
@@ -378,7 +420,7 @@ class Project2DPreview:
             self.p1 = (x, y)
             self.drawing_state = "p1"
         else:
-            dist = math.hypot(x-self.p1[0], y-self.p1[1])
+            dist = math.hypot(x - self.p1[0], y - self.p1[1])
             messagebox.showinfo("Вимірювання", f"Відстань: {dist:.1f} мм = {dist/1000:.2f} м")
             self.drawing_state = None
             self.p1 = None
@@ -401,18 +443,29 @@ class Project2DPreview:
         floor = self._get_floor()
         if not floor:
             return
-        t = simpledialog.askinteger("Товщина", "Товщина стіни (мм):", initialvalue=200, minvalue=50, maxvalue=1000)
+        t = simpledialog.askinteger(
+            "Товщина", "Товщина стіни (мм):", initialvalue=200, minvalue=50, maxvalue=1000
+        )
         if t is None:
             return
-        h = simpledialog.askinteger("Висота", "Висота стіни (мм):", initialvalue=int(floor.height), minvalue=1000, maxvalue=10000)
+        h = simpledialog.askinteger(
+            "Висота",
+            "Висота стіни (мм):",
+            initialvalue=int(floor.height),
+            minvalue=1000,
+            maxvalue=10000,
+        )
         if h is None:
             h = floor.height
-        floor.walls.append(Wall(
-            name=f"Стіна {len(floor.walls)+1}",
-            start=Point3D(x1, y1, floor.floor_z),
-            end=Point3D(x2, y2, floor.floor_z),
-            height=float(h), thickness=float(t)
-        ))
+        floor.walls.append(
+            Wall(
+                name=f"Стіна {len(floor.walls)+1}",
+                start=Point3D(x1, y1, floor.floor_z),
+                end=Point3D(x2, y2, floor.floor_z),
+                height=float(h),
+                thickness=float(t),
+            )
+        )
         self.refresh()
         self._push_undo()
 
@@ -420,32 +473,44 @@ class Project2DPreview:
         floor = self._get_floor()
         if not floor:
             return
-        w = simpledialog.askinteger("Ширина", "Ширина отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000)
+        w = simpledialog.askinteger(
+            "Ширина", "Ширина отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000
+        )
         if w is None:
             return
-        h = simpledialog.askinteger("Висота", "Висота отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000)
+        h = simpledialog.askinteger(
+            "Висота", "Висота отвору (мм):", initialvalue=400, minvalue=50, maxvalue=5000
+        )
         if h is None:
             return
-        floor.openings.append(Opening(
-            name=f"Отвір {len(floor.openings)+1}",
-            position=Point3D(x, y, floor.floor_z+1000),
-            width=float(w), height=float(h)
-        ))
+        floor.openings.append(
+            Opening(
+                name=f"Отвір {len(floor.openings)+1}",
+                position=Point3D(x, y, floor.floor_z + 1000),
+                width=float(w),
+                height=float(h),
+            )
+        )
         self.refresh()
         self._push_undo()
 
     def _make_duct(self, x1, y1, x2, y2):
         if not self.project:
             return
-        w = simpledialog.askinteger("Ширина", "Ширина каналу (мм):", initialvalue=300, minvalue=50, maxvalue=2000)
+        w = simpledialog.askinteger(
+            "Ширина", "Ширина каналу (мм):", initialvalue=300, minvalue=50, maxvalue=2000
+        )
         if w is None:
             return
-        h = simpledialog.askinteger("Висота", "Висота каналу (мм):", initialvalue=200, minvalue=50, maxvalue=2000)
+        h = simpledialog.askinteger(
+            "Висота", "Висота каналу (мм):", initialvalue=200, minvalue=50, maxvalue=2000
+        )
         if h is None:
             return
 
         if not self.project.ventilation_systems:
             from ventilation_company.project3d.vent_system import VentilationSystem
+
             s = VentilationSystem(name="Система 1", system_type="припливно-витяжна")
             self.project.ventilation_systems.append(s)
         else:
@@ -453,6 +518,7 @@ class Project2DPreview:
 
         if not s.trunks:
             from ventilation_company.project3d.vent_system import VentilationTrunk
+
             t = VentilationTrunk(name="Траса 1")
             s.trunks.append(t)
         else:
@@ -461,11 +527,16 @@ class Project2DPreview:
         floor = self._get_floor()
         z = floor.floor_z + 2500 if floor else 2500
 
-        t.segments.append(DuctSegment(
-            start=Point3D(x1, y1, z), end=Point3D(x2, y2, z),
-            width=float(w), height=float(h),
-            shape=DuctShape.RECT, duct_type=DuctType.SUPPLY
-        ))
+        t.segments.append(
+            DuctSegment(
+                start=Point3D(x1, y1, z),
+                end=Point3D(x2, y2, z),
+                width=float(w),
+                height=float(h),
+                shape=DuctShape.RECT,
+                duct_type=DuctType.SUPPLY,
+            )
+        )
         self.refresh()
         self._push_undo()
 
@@ -473,17 +544,27 @@ class Project2DPreview:
         floor = self._get_floor()
         if not floor:
             return
-        t = simpledialog.askinteger("Товщина", "Товщина стін (мм):", initialvalue=200, minvalue=50, maxvalue=1000)
+        t = simpledialog.askinteger(
+            "Товщина", "Товщина стін (мм):", initialvalue=200, minvalue=50, maxvalue=1000
+        )
         if t is None:
             return
         h = floor.height
-        for wx1, wy1, wx2, wy2 in [(x1,y1,x2,y1),(x2,y1,x2,y2),(x2,y2,x1,y2),(x1,y2,x1,y1)]:
-            floor.walls.append(Wall(
-                name=f"Стіна {len(floor.walls)+1}",
-                start=Point3D(wx1, wy1, floor.floor_z),
-                end=Point3D(wx2, wy2, floor.floor_z),
-                height=h, thickness=float(t)
-            ))
+        for wx1, wy1, wx2, wy2 in [
+            (x1, y1, x2, y1),
+            (x2, y1, x2, y2),
+            (x2, y2, x1, y2),
+            (x1, y2, x1, y1),
+        ]:
+            floor.walls.append(
+                Wall(
+                    name=f"Стіна {len(floor.walls)+1}",
+                    start=Point3D(wx1, wy1, floor.floor_z),
+                    end=Point3D(wx2, wy2, floor.floor_z),
+                    height=h,
+                    thickness=float(t),
+                )
+            )
         self.refresh()
         self._push_undo()
 
@@ -499,7 +580,7 @@ class Project2DPreview:
                     bd, bo, bt = d, w, "wall"
         if self.layers["openings"].get():
             for o in floor.openings:
-                d = math.hypot(x-o.position.x, y-o.position.y)
+                d = math.hypot(x - o.position.x, y - o.position.y)
                 if d < bd:
                     bd, bo, bt = d, o, "opening"
         if self.layers["ducts"].get():
@@ -512,26 +593,42 @@ class Project2DPreview:
         return bo, bt
 
     def _seg_dist(self, px, py, x1, y1, x2, y2):
-        dx, dy = x2-x1, y2-y1
-        l2 = dx*dx + dy*dy
+        dx, dy = x2 - x1, y2 - y1
+        l2 = dx * dx + dy * dy
         if l2 == 0:
-            return math.hypot(px-x1, py-y1)
-        t = max(0, min(1, ((px-x1)*dx + (py-y1)*dy) / l2))
-        return math.hypot(px - (x1+t*dx), py - (y1+t*dy))
+            return math.hypot(px - x1, py - y1)
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / l2))
+        return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
     def _show_props(self, obj, otype):
         lines = []
         if otype == "wall":
-            lines = [f"Тип: Стіна", f"Назва: {obj.name}", f"Довжина: {obj.length:.1f} мм",
-                    f"Товщина: {obj.thickness:.0f} мм", f"Висота: {obj.height:.0f} мм",
-                    f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})", f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})"]
+            lines = [
+                f"Тип: Стіна",
+                f"Назва: {obj.name}",
+                f"Довжина: {obj.length:.1f} мм",
+                f"Товщина: {obj.thickness:.0f} мм",
+                f"Висота: {obj.height:.0f} мм",
+                f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})",
+                f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})",
+            ]
         elif otype == "opening":
-            lines = [f"Тип: Отвір", f"Назва: {obj.name}", f"Ширина: {obj.width:.0f} мм",
-                    f"Висота: {obj.height:.0f} мм", f"Позиція: ({obj.position.x:.0f}, {obj.position.y:.0f})"]
+            lines = [
+                f"Тип: Отвір",
+                f"Назва: {obj.name}",
+                f"Ширина: {obj.width:.0f} мм",
+                f"Висота: {obj.height:.0f} мм",
+                f"Позиція: ({obj.position.x:.0f}, {obj.position.y:.0f})",
+            ]
         elif otype == "segment":
-            lines = [f"Тип: Сегмент", f"Ширина: {obj.width:.0f} мм", f"Висота: {obj.height:.0f} мм",
-                    f"Довжина: {obj.length:.0f} мм", f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})",
-                    f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})"]
+            lines = [
+                f"Тип: Сегмент",
+                f"Ширина: {obj.width:.0f} мм",
+                f"Висота: {obj.height:.0f} мм",
+                f"Довжина: {obj.length:.0f} мм",
+                f"Початок: ({obj.start.x:.0f}, {obj.start.y:.0f})",
+                f"Кінець: ({obj.end.x:.0f}, {obj.end.y:.0f})",
+            ]
         if self.on_select_callback:
             self.on_select_callback(obj, otype, "\n".join(lines))
 
@@ -565,6 +662,7 @@ class Project2DPreview:
         if not hasattr(self, "_undo_stack"):
             self._undo_stack = []
         import json
+
         try:
             state = json.dumps(self.project.to_dict())
             self._undo_stack.append(state)
@@ -578,6 +676,7 @@ class Project2DPreview:
             messagebox.showinfo("Скасувати", "Немає дій для скасування")
             return
         import json
+
         try:
             state = self._undo_stack.pop()
             data = json.loads(state)
@@ -587,8 +686,13 @@ class Project2DPreview:
             messagebox.showerror("Помилка", f"Не вдалося скасувати: {e}")
 
     def _load_bg(self):
-        filetypes = [("Зображення", "*.png *.jpg *.jpeg *.bmp *.tiff"), ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"),
-                     ("PDF", "*.pdf"), ("Всі файли", "*.*")]
+        filetypes = [
+            ("Зображення", "*.png *.jpg *.jpeg *.bmp *.tiff"),
+            ("PNG", "*.png"),
+            ("JPEG", "*.jpg *.jpeg"),
+            ("PDF", "*.pdf"),
+            ("Всі файли", "*.*"),
+        ]
         fp = filedialog.askopenfilename(title="Архітектурний план", filetypes=filetypes)
         if not fp:
             return
@@ -607,8 +711,10 @@ class Project2DPreview:
             mx = 3000
             if max(img.size) > mx:
                 r = mx / max(img.size)
-                img = img.resize((int(img.width*r), int(img.height*r)), Image.LANCZOS)
-            self.background = BackgroundImage(filepath=fp, pil_image=img, scale=1.0, opacity=0.45, visible=True)
+                img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
+            self.background = BackgroundImage(
+                filepath=fp, pil_image=img, scale=1.0, opacity=0.45, visible=True
+            )
             self.layers["background"].set(True)
             self.refresh()
             messagebox.showinfo("Успіх", f"Фон завантажено:\n{os.path.basename(fp)}")
@@ -635,10 +741,12 @@ class Project2DPreview:
         tk.Label(d, text="Кількість пікселів:").pack(pady=5)
         pv = tk.DoubleVar(value=1000)
         tk.Spinbox(d, from_=1, to=10000, textvariable=pv, width=12).pack()
+
         def apply():
             self.background.scale = dv.get() / pv.get()
             d.destroy()
             self.refresh()
+
         tk.Button(d, text="✅ Застосувати", command=apply).pack(pady=10)
 
     def refresh(self):
@@ -656,13 +764,13 @@ class Project2DPreview:
         # Стіни
         if self.layers["walls"].get() and floor:
             for w in floor.walls:
-                sel = (self.selected_object == w and self.selected_type == "wall")
+                sel = self.selected_object == w and self.selected_type == "wall"
                 self._draw_wall(w, sel)
 
         # Отвори
         if self.layers["openings"].get() and floor:
             for o in floor.openings:
-                sel = (self.selected_object == o and self.selected_type == "opening")
+                sel = self.selected_object == o and self.selected_type == "opening"
                 self._draw_opening(o, sel)
 
         # Повітропроводи
@@ -671,7 +779,7 @@ class Project2DPreview:
                 c = self._sys_color(sys.system_type)
                 for t in sys.trunks:
                     for seg in t.segments:
-                        sel = (self.selected_object == seg and self.selected_type == "segment")
+                        sel = self.selected_object == seg and self.selected_type == "segment"
                         self._draw_duct(seg, c, sel)
 
         # Масштабна лінійка
@@ -685,12 +793,15 @@ class Project2DPreview:
         sx2, sy2 = self.canvas.world_to_screen(bg.offset_x + wmm, bg.offset_y)
         # Конвертуємо PIL в PhotoImage
         from PIL import ImageTk
+
         # Масштабуємо під екран
-        sw, sh = int(abs(sx2-sx1)), int(abs(sy2-sy1))
+        sw, sh = int(abs(sx2 - sx1)), int(abs(sy2 - sy1))
         if sw > 1 and sh > 1:
             resized = bg.pil_image.resize((sw, sh), Image.LANCZOS)
             self.bg_photo = ImageTk.PhotoImage(resized)
-            self.canvas.create_image(min(sx1,sx2), min(sy1,sy2), anchor=tk.NW, image=self.bg_photo, tags="bg")
+            self.canvas.create_image(
+                min(sx1, sx2), min(sy1, sy2), anchor=tk.NW, image=self.bg_photo, tags="bg"
+            )
 
     def _draw_grid(self):
         w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
@@ -701,92 +812,141 @@ class Project2DPreview:
 
         # Дрібна сітка
         step = 100
-        start_x = math.floor(min(x1,x2) / step) * step
-        end_x = math.ceil(max(x1,x2) / step) * step
-        start_y = math.floor(min(y1,y2) / step) * step
-        end_y = math.ceil(max(y1,y2) / step) * step
+        start_x = math.floor(min(x1, x2) / step) * step
+        end_x = math.ceil(max(x1, x2) / step) * step
+        start_y = math.floor(min(y1, y2) / step) * step
+        end_y = math.ceil(max(y1, y2) / step) * step
 
-        for x in range(int(start_x), int(end_x)+1, step):
+        for x in range(int(start_x), int(end_x) + 1, step):
             sx, _ = self.canvas.world_to_screen(x, 0)
-            self.canvas.create_line(sx, 0, sx, h, fill=self.COLORS["grid_minor"], width=0.5, tags="grid")
-        for y in range(int(start_y), int(end_y)+1, step):
+            self.canvas.create_line(
+                sx, 0, sx, h, fill=self.COLORS["grid_minor"], width=0.5, tags="grid"
+            )
+        for y in range(int(start_y), int(end_y) + 1, step):
             _, sy = self.canvas.world_to_screen(0, y)
-            self.canvas.create_line(0, sy, w, sy, fill=self.COLORS["grid_minor"], width=0.5, tags="grid")
+            self.canvas.create_line(
+                0, sy, w, sy, fill=self.COLORS["grid_minor"], width=0.5, tags="grid"
+            )
 
         # Основна сітка + підписи
         major = 1000
-        start_x = math.floor(min(x1,x2) / major) * major
-        end_x = math.ceil(max(x1,x2) / major) * major
-        start_y = math.floor(min(y1,y2) / major) * major
-        end_y = math.ceil(max(y1,y2) / major) * major
+        start_x = math.floor(min(x1, x2) / major) * major
+        end_x = math.ceil(max(x1, x2) / major) * major
+        start_y = math.floor(min(y1, y2) / major) * major
+        end_y = math.ceil(max(y1, y2) / major) * major
 
-        for x in range(int(start_x), int(end_x)+1, major):
+        for x in range(int(start_x), int(end_x) + 1, major):
             sx, _ = self.canvas.world_to_screen(x, 0)
-            self.canvas.create_line(sx, 0, sx, h, fill=self.COLORS["grid_major"], width=1, tags="grid")
-            self.canvas.create_text(sx+3, h-10, text=f"{x:.0f}", anchor=tk.W, font=("Arial", 7), fill="#999", tags="grid")
-        for y in range(int(start_y), int(end_y)+1, major):
+            self.canvas.create_line(
+                sx, 0, sx, h, fill=self.COLORS["grid_major"], width=1, tags="grid"
+            )
+            self.canvas.create_text(
+                sx + 3,
+                h - 10,
+                text=f"{x:.0f}",
+                anchor=tk.W,
+                font=("Arial", 7),
+                fill="#999",
+                tags="grid",
+            )
+        for y in range(int(start_y), int(end_y) + 1, major):
             _, sy = self.canvas.world_to_screen(0, y)
-            self.canvas.create_line(0, sy, w, sy, fill=self.COLORS["grid_major"], width=1, tags="grid")
-            self.canvas.create_text(5, sy-3, text=f"{y:.0f}", anchor=tk.SW, font=("Arial", 7), fill="#999", tags="grid")
+            self.canvas.create_line(
+                0, sy, w, sy, fill=self.COLORS["grid_major"], width=1, tags="grid"
+            )
+            self.canvas.create_text(
+                5,
+                sy - 3,
+                text=f"{y:.0f}",
+                anchor=tk.SW,
+                font=("Arial", 7),
+                fill="#999",
+                tags="grid",
+            )
 
     def _draw_wall(self, wall, selected=False):
         dx = wall.end.x - wall.start.x
         dy = wall.end.y - wall.start.y
-        L = math.sqrt(dx*dx + dy*dy)
+        L = math.sqrt(dx * dx + dy * dy)
         if L == 0:
             return
-        nx, ny = dx/L, dy/L
+        nx, ny = dx / L, dy / L
         px, py = -ny, nx
         hw = wall.thickness / 2
 
         pts = [
-            (wall.start.x + px*hw, wall.start.y + py*hw),
-            (wall.start.x - px*hw, wall.start.y - py*hw),
-            (wall.end.x - px*hw, wall.end.y - py*hw),
-            (wall.end.x + px*hw, wall.end.y + py*hw),
+            (wall.start.x + px * hw, wall.start.y + py * hw),
+            (wall.start.x - px * hw, wall.start.y - py * hw),
+            (wall.end.x - px * hw, wall.end.y - py * hw),
+            (wall.end.x + px * hw, wall.end.y + py * hw),
         ]
 
         scr = [self.canvas.world_to_screen(p[0], p[1]) for p in pts]
         flat = [c for p in scr for c in p]
 
         if selected:
-            self.canvas.create_polygon(flat, fill=self.COLORS["wall_selected"], outline="#cc0000", width=2, tags="wall")
-            self.canvas.create_oval(scr[0][0]-5, scr[0][1]-5, scr[0][0]+5, scr[0][1]+5, fill="green", tags="wall")
-            self.canvas.create_oval(scr[2][0]-5, scr[2][1]-5, scr[2][0]+5, scr[2][1]+5, fill="red", tags="wall")
+            self.canvas.create_polygon(
+                flat, fill=self.COLORS["wall_selected"], outline="#cc0000", width=2, tags="wall"
+            )
+            self.canvas.create_oval(
+                scr[0][0] - 5,
+                scr[0][1] - 5,
+                scr[0][0] + 5,
+                scr[0][1] + 5,
+                fill="green",
+                tags="wall",
+            )
+            self.canvas.create_oval(
+                scr[2][0] - 5, scr[2][1] - 5, scr[2][0] + 5, scr[2][1] + 5, fill="red", tags="wall"
+            )
         else:
             fc = self.COLORS["wall_fill"] if wall.is_load_bearing else "#d0d0d0"
-            self.canvas.create_polygon(flat, fill=fc, outline=self.COLORS["wall_edge"], width=1.5, tags="wall")
+            self.canvas.create_polygon(
+                flat, fill=fc, outline=self.COLORS["wall_edge"], width=1.5, tags="wall"
+            )
 
     def _draw_opening(self, op, selected=False):
         cx, cy = op.position.x, op.position.y
-        w, h = op.width/2, op.height/2
-        pts = [(cx-w, cy-h), (cx+w, cy-h), (cx+w, cy+h), (cx-w, cy+h)]
+        w, h = op.width / 2, op.height / 2
+        pts = [(cx - w, cy - h), (cx + w, cy - h), (cx + w, cy + h), (cx - w, cy + h)]
         scr = [self.canvas.world_to_screen(p[0], p[1]) for p in pts]
         flat = [c for p in scr for c in p]
         c = self.COLORS["wall_selected"] if selected else self.COLORS["opening"]
-        self.canvas.create_polygon(flat, fill=self.COLORS["opening_fill"], outline=c, width=2, tags="opening")
+        self.canvas.create_polygon(
+            flat, fill=self.COLORS["opening_fill"], outline=c, width=2, tags="opening"
+        )
         # Діагоналі
-        self.canvas.create_line(scr[0][0], scr[0][1], scr[2][0], scr[2][1], fill=c, width=1, dash=(4,2), tags="opening")
-        self.canvas.create_line(scr[1][0], scr[1][1], scr[3][0], scr[3][1], fill=c, width=1, dash=(4,2), tags="opening")
-        self.canvas.create_text((scr[0][0]+scr[2][0])/2, scr[0][1]-10, text=op.name, 
-                               fill=c, font=("Arial", 7, "bold"), tags="opening")
+        self.canvas.create_line(
+            scr[0][0], scr[0][1], scr[2][0], scr[2][1], fill=c, width=1, dash=(4, 2), tags="opening"
+        )
+        self.canvas.create_line(
+            scr[1][0], scr[1][1], scr[3][0], scr[3][1], fill=c, width=1, dash=(4, 2), tags="opening"
+        )
+        self.canvas.create_text(
+            (scr[0][0] + scr[2][0]) / 2,
+            scr[0][1] - 10,
+            text=op.name,
+            fill=c,
+            font=("Arial", 7, "bold"),
+            tags="opening",
+        )
 
     def _draw_duct(self, seg, color, selected=False):
         x1, y1 = seg.start.x, seg.start.y
         x2, y2 = seg.end.x, seg.end.y
-        dx, dy = x2-x1, y2-y1
+        dx, dy = x2 - x1, y2 - y1
         L = math.hypot(dx, dy)
         if L < 0.1:
             return
-        nx, ny = -dy/L, dx/L
+        nx, ny = -dy / L, dx / L
         hh = seg.height / 2
 
         # 4 точки контуру каналу
-        ox, oy = nx*hh, ny*hh
-        p1 = (x1+ox, y1+oy)
-        p2 = (x2+ox, y2+oy)
-        p3 = (x2-ox, y2-oy)
-        p4 = (x1-ox, y1-oy)
+        ox, oy = nx * hh, ny * hh
+        p1 = (x1 + ox, y1 + oy)
+        p2 = (x2 + ox, y2 + oy)
+        p3 = (x2 - ox, y2 - oy)
+        p4 = (x1 - ox, y1 - oy)
 
         s1 = self.canvas.world_to_screen(*p1)
         s2 = self.canvas.world_to_screen(*p2)
@@ -804,32 +964,55 @@ class Project2DPreview:
 
         # Заливка
         if not selected:
-            self.canvas.create_polygon(s1[0], s1[1], s2[0], s2[1], s3[0], s3[1], s4[0], s4[1],
-                                      fill=c, stipple="gray50", tags="duct")
+            self.canvas.create_polygon(
+                s1[0],
+                s1[1],
+                s2[0],
+                s2[1],
+                s3[0],
+                s3[1],
+                s4[0],
+                s4[1],
+                fill=c,
+                stipple="gray50",
+                tags="duct",
+            )
 
         if selected:
-            self.canvas.create_oval(s1[0]-5, s1[1]-5, s1[0]+5, s1[1]+5, fill="green", tags="duct")
-            self.canvas.create_oval(s2[0]-5, s2[1]-5, s2[0]+5, s2[1]+5, fill="red", tags="duct")
+            self.canvas.create_oval(
+                s1[0] - 5, s1[1] - 5, s1[0] + 5, s1[1] + 5, fill="green", tags="duct"
+            )
+            self.canvas.create_oval(
+                s2[0] - 5, s2[1] - 5, s2[0] + 5, s2[1] + 5, fill="red", tags="duct"
+            )
 
         # Виноска
         if self.layers["dimensions"].get() and seg.length > 500 and not selected:
-            cx, cy = (x1+x2)/2, (y1+y2)/2
-            off_x, off_y = nx*(hh+120), ny*(hh+120)
-            sc = self.canvas.world_to_screen(cx+off_x, cy+off_y)
-            self.canvas.create_text(sc[0], sc[1], text=f"{seg.width:.0f}×{seg.height:.0f}",
-                                   fill=color, font=("Arial", 8, "bold"), tags="duct")
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            off_x, off_y = nx * (hh + 120), ny * (hh + 120)
+            sc = self.canvas.world_to_screen(cx + off_x, cy + off_y)
+            self.canvas.create_text(
+                sc[0],
+                sc[1],
+                text=f"{seg.width:.0f}×{seg.height:.0f}",
+                fill=color,
+                font=("Arial", 8, "bold"),
+                tags="duct",
+            )
 
     def _draw_scalebar(self):
         w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
         x = w * 0.02
         y = h * 0.97
         bar_px = 100
-        self.canvas.create_line(x, y, x+bar_px, y, fill="#333", width=3)
-        self.canvas.create_line(x, y-3, x, y+3, fill="#333", width=2)
-        self.canvas.create_line(x+bar_px, y-3, x+bar_px, y+3, fill="#333", width=2)
+        self.canvas.create_line(x, y, x + bar_px, y, fill="#333", width=3)
+        self.canvas.create_line(x, y - 3, x, y + 3, fill="#333", width=2)
+        self.canvas.create_line(x + bar_px, y - 3, x + bar_px, y + 3, fill="#333", width=2)
         mm = bar_px / self.canvas._scale
         label = f"{mm:.0f} мм" if mm < 1000 else f"{mm/1000:.1f} м"
-        self.canvas.create_text(x+bar_px/2, y-10, text=label, fill="#333", font=("Arial", 8, "bold"))
+        self.canvas.create_text(
+            x + bar_px / 2, y - 10, text=label, fill="#333", font=("Arial", 8, "bold")
+        )
 
     def _sys_color(self, st):
         s = st.lower()
@@ -841,7 +1024,9 @@ class Project2DPreview:
 
     def set_project(self, project):
         self.project = project
-        self.current_floor = project.arch_context.floors[0] if project and project.arch_context.floors else None
+        self.current_floor = (
+            project.arch_context.floors[0] if project and project.arch_context.floors else None
+        )
         self.refresh()
 
     def set_floor(self, name):
@@ -875,13 +1060,14 @@ class Project2DPreview:
     def _print(self):
         try:
             from PIL import ImageGrab
+
             x = self.canvas.winfo_rootx()
             y = self.canvas.winfo_rooty()
             w = self.canvas.winfo_width()
             h = self.canvas.winfo_height()
-            img = ImageGrab.grab(bbox=(x, y, x+w, y+h))
+            img = ImageGrab.grab(bbox=(x, y, x + w, y + h))
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                img.save(tmp.name, dpi=(300,300))
+                img.save(tmp.name, dpi=(300, 300))
                 os.startfile(tmp.name)
             messagebox.showinfo("Друк", "Зображення збережено та відкрито.")
         except Exception as e:
@@ -890,10 +1076,11 @@ class Project2DPreview:
     def export_image(self, filepath):
         try:
             from PIL import ImageGrab
+
             x = self.canvas.winfo_rootx()
             y = self.canvas.winfo_rooty()
             w = self.canvas.winfo_width()
             h = self.canvas.winfo_height()
-            ImageGrab.grab(bbox=(x, y, x+w, y+h)).save(filepath)
+            ImageGrab.grab(bbox=(x, y, x + w, y + h)).save(filepath)
         except Exception as e:
             messagebox.showerror("Помилка", str(e))

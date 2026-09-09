@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 class Client(Base):
     """Картка клієнта."""
+
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -28,7 +29,9 @@ class Client(Base):
     edrpou: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
 
     # Relationships
     interactions: Mapped[list["Interaction"]] = relationship(
@@ -38,10 +41,14 @@ class Client(Base):
         back_populates="client", cascade="all, delete-orphan", order_by="Payment.date.desc()"
     )
     projects: Mapped[list["ClientProject"]] = relationship(
-        back_populates="client", cascade="all, delete-orphan", order_by="ClientProject.start_date.desc()"
+        back_populates="client",
+        cascade="all, delete-orphan",
+        order_by="ClientProject.start_date.desc()",
     )
     reminders: Mapped[list["WarrantyReminder"]] = relationship(
-        back_populates="client", cascade="all, delete-orphan", order_by="WarrantyReminder.reminder_date.asc()"
+        back_populates="client",
+        cascade="all, delete-orphan",
+        order_by="WarrantyReminder.reminder_date.asc()",
     )
 
     def __repr__(self) -> str:
@@ -50,12 +57,15 @@ class Client(Base):
 
 class Interaction(Base):
     """Взаємодія з клієнтом (дзвінок, зустріч, лист, замітка)."""
+
     __tablename__ = "interactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False)
     date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    interaction_type: Mapped[str] = mapped_column(String, default="дзвінок")  # дзвінок, зустріч, лист, замітка, email
+    interaction_type: Mapped[str] = mapped_column(
+        String, default="дзвінок"
+    )  # дзвінок, зустріч, лист, замітка, email
     subject: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     result: Mapped[str | None] = mapped_column(String, nullable=True)  # позитив, негатив, у процесі
@@ -68,6 +78,7 @@ class Interaction(Base):
 
 class Payment(Base):
     """Платіж від/до клієнта."""
+
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -85,6 +96,7 @@ class Payment(Base):
 
 class ClientProject(Base):
     """Проєкт клієнта (історія замовлень)."""
+
     __tablename__ = "client_projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -93,7 +105,9 @@ class ClientProject(Base):
     project_number: Mapped[str | None] = mapped_column(String, nullable=True)
     start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    status: Mapped[str] = mapped_column(String, default="в роботі")  # в роботі, завершено, гарантія, закрито
+    status: Mapped[str] = mapped_column(
+        String, default="в роботі"
+    )  # в роботі, завершено, гарантія, закрито
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)
     warranty_months: Mapped[int] = mapped_column(Integer, default=24)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -103,11 +117,14 @@ class ClientProject(Base):
 
 class WarrantyReminder(Base):
     """Нагадування про гарантійне обслуговування."""
+
     __tablename__ = "warranty_reminders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False)
-    client_project_id: Mapped[int | None] = mapped_column(ForeignKey("client_projects.id"), nullable=True)
+    client_project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("client_projects.id"), nullable=True
+    )
     project_name: Mapped[str] = mapped_column(String, nullable=False)
     reminder_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

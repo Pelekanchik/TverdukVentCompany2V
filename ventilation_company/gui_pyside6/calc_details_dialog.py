@@ -6,9 +6,17 @@
 from copy import deepcopy
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFormLayout, QDoubleSpinBox, QGroupBox, QMessageBox, QWidget,
-    QScrollArea
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QFormLayout,
+    QDoubleSpinBox,
+    QGroupBox,
+    QMessageBox,
+    QWidget,
+    QScrollArea,
 )
 
 from ventilation_company.gui_pyside6.theme import Theme
@@ -18,11 +26,24 @@ from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdo
 class CalcDetailsDialog(QDialog):
     """Діалог з детальним розбивом розрахунку та редагуванням коефіцієнтів."""
 
-    def __init__(self, product_type, material, thickness,
-                 width, height, length,
-                 qty, surface, blank, material_area,
-                 with_flanges, flange_count, flange_price,
-                 markup_name, parent=None):
+    def __init__(
+        self,
+        product_type,
+        material,
+        thickness,
+        width,
+        height,
+        length,
+        qty,
+        surface,
+        blank,
+        material_area,
+        with_flanges,
+        flange_count,
+        flange_price,
+        markup_name,
+        parent=None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("📊 Деталі розрахунку вартості")
         self.setMinimumWidth(700)
@@ -45,6 +66,7 @@ class CalcDetailsDialog(QDialog):
         self._markup_name = markup_name
 
         from ventilation_company.gui_pyside6.pricing_tab import load_settings
+
         self._settings = load_settings()
 
         self._engine = CostEngine()
@@ -86,7 +108,10 @@ class CalcDetailsDialog(QDialog):
         self.spin_depreciation.setRange(0, 100)
         self.spin_depreciation.setSuffix(" %")
         dep = self._settings.get("depreciation", {})
-        total_dep = sum(dep.get(k, 0) for k in ["guillotine_percent", "bending_percent", "welding_percent", "plasma_percent"])
+        total_dep = sum(
+            dep.get(k, 0)
+            for k in ["guillotine_percent", "bending_percent", "welding_percent", "plasma_percent"]
+        )
         self.spin_depreciation.setValue(total_dep)
         coeffs_layout.addRow("Амортизація обладнання:", self.spin_depreciation)
 
@@ -94,7 +119,11 @@ class CalcDetailsDialog(QDialog):
         self.spin_markup.setRange(0, 500)
         self.spin_markup.setSuffix(" %")
         matrix = self._settings.get("markup_matrix", {})
-        base_name = self._markup_name.replace(" (", "").split("%")[0].strip() if "(" in self._markup_name else self._markup_name
+        base_name = (
+            self._markup_name.replace(" (", "").split("%")[0].strip()
+            if "(" in self._markup_name
+            else self._markup_name
+        )
         markup_val = matrix.get(base_name, 30.0)
         self.spin_markup.setValue(markup_val)
         coeffs_layout.addRow("Націнка прибутку:", self.spin_markup)
@@ -168,19 +197,63 @@ class CalcDetailsDialog(QDialog):
             return
 
         steps = [
-            ("1. Площа поверхні", f"{r.surface_area_m2:.4f} м²", "Площа готового виробу (без припусків)"),
-            ("2. Площа заготовки", f"{r.blank_area_m2:.4f} м²", f"{r.surface_area_m2:.4f} x 1.15 (припуск на обробку)"),
-            ("3. Площа матеріалу", f"{r.material_area_m2:.4f} м²", f"{r.blank_area_m2:.4f} x 1.05 (KIM + припуски)"),
-            ("4. Ціна матеріалу", f"₴ {r.material_cost:.2f}", f"{r.material_area_m2:.4f} м² x {r.material_price_per_m2:.2f} ₴/м²"),
-            ("5. Вартість роботи", f"₴ {r.labor_cost:.2f}", f"{r.surface_area_m2:.4f} м² x {r.labor_rate_per_m2:.2f} ₴/м² x (1 + {r.labor_difficulty_percent:.1f}%)"),
-            ("6. Фланці", f"₴ {r.flange_cost:.2f}", f"{self._flange_count} шт x {self._flange_price:.2f} ₴" if self._flange_count else "—"),
-            ("7. Накладні витрати", f"₴ {r.overhead_cost:.2f}", f"(матеріал + робота + фланці) x {r.overhead_percent:.1f}%"),
-            ("8. Амортизація", f"₴ {r.depreciation_cost:.2f}", f"(матеріал + робота + фланці) x {r.depreciation_percent:.1f}%"),
-            ("9. Базова собівартість", f"₴ {r.base_cost:.2f}", "матеріал + робота + фланці + накладні + амортизація"),
+            (
+                "1. Площа поверхні",
+                f"{r.surface_area_m2:.4f} м²",
+                "Площа готового виробу (без припусків)",
+            ),
+            (
+                "2. Площа заготовки",
+                f"{r.blank_area_m2:.4f} м²",
+                f"{r.surface_area_m2:.4f} x 1.15 (припуск на обробку)",
+            ),
+            (
+                "3. Площа матеріалу",
+                f"{r.material_area_m2:.4f} м²",
+                f"{r.blank_area_m2:.4f} x 1.05 (KIM + припуски)",
+            ),
+            (
+                "4. Ціна матеріалу",
+                f"₴ {r.material_cost:.2f}",
+                f"{r.material_area_m2:.4f} м² x {r.material_price_per_m2:.2f} ₴/м²",
+            ),
+            (
+                "5. Вартість роботи",
+                f"₴ {r.labor_cost:.2f}",
+                f"{r.surface_area_m2:.4f} м² x {r.labor_rate_per_m2:.2f} ₴/м² x (1 + {r.labor_difficulty_percent:.1f}%)",
+            ),
+            (
+                "6. Фланці",
+                f"₴ {r.flange_cost:.2f}",
+                (
+                    f"{self._flange_count} шт x {self._flange_price:.2f} ₴"
+                    if self._flange_count
+                    else "—"
+                ),
+            ),
+            (
+                "7. Накладні витрати",
+                f"₴ {r.overhead_cost:.2f}",
+                f"(матеріал + робота + фланці) x {r.overhead_percent:.1f}%",
+            ),
+            (
+                "8. Амортизація",
+                f"₴ {r.depreciation_cost:.2f}",
+                f"(матеріал + робота + фланці) x {r.depreciation_percent:.1f}%",
+            ),
+            (
+                "9. Базова собівартість",
+                f"₴ {r.base_cost:.2f}",
+                "матеріал + робота + фланці + накладні + амортизація",
+            ),
             ("10. Прибуток", f"₴ {r.profit:.2f}", f"{r.base_cost:.2f} x {r.markup_percent:.1f}%"),
             ("11. Ціна без ПДВ", f"₴ {r.price_no_vat:.2f}", f"{r.base_cost:.2f} + {r.profit:.2f}"),
             ("12. ПДВ", f"₴ {r.vat_amount:.2f}", f"{r.price_no_vat:.2f} x {r.vat_rate:.1f}%"),
-            ("13. КІНЦЕВА ЦІНА", f"₴ {r.final_price:.2f}", f"{r.price_no_vat:.2f} + {r.vat_amount:.2f}"),
+            (
+                "13. КІНЦЕВА ЦІНА",
+                f"₴ {r.final_price:.2f}",
+                f"{r.price_no_vat:.2f} + {r.vat_amount:.2f}",
+            ),
         ]
 
         for title, value, formula in steps:
@@ -194,7 +267,7 @@ class CalcDetailsDialog(QDialog):
             lbl_value.setMinimumWidth(120)
             row.addWidget(lbl_value)
 
-            lbl_formula = QLabel(f"<span style=\'color: {Theme.TEXT_MUTED};\'>{formula}</span>")
+            lbl_formula = QLabel(f"<span style='color: {Theme.TEXT_MUTED};'>{formula}</span>")
             lbl_formula.setWordWrap(True)
             row.addWidget(lbl_formula, 1)
 
@@ -203,9 +276,13 @@ class CalcDetailsDialog(QDialog):
             container.setStyleSheet("padding: 4px; border-bottom: 1px solid #333;")
             self.result_layout.addWidget(container)
 
-        total = QLabel(f"<h2>💰 Кінцева ціна: ₴ {r.final_price:.2f}</h2>"
-                       f"<br><small>За 1 шт: ₴ {r.per_unit().final_price:.2f} | Кількість: {r.quantity}</small>")
-        total.setStyleSheet(f"color: {Theme.SUCCESS}; padding: 12px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        total = QLabel(
+            f"<h2>💰 Кінцева ціна: ₴ {r.final_price:.2f}</h2>"
+            f"<br><small>За 1 шт: ₴ {r.per_unit().final_price:.2f} | Кількість: {r.quantity}</small>"
+        )
+        total.setStyleSheet(
+            f"color: {Theme.SUCCESS}; padding: 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         total.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.result_layout.addWidget(total)
 

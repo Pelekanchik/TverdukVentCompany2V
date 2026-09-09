@@ -62,6 +62,7 @@ def products_to_details(products: list[StandardProduct]) -> list[Detail]:
 # BLANK DIMENSIONS (точні розміри заготовок в мм)
 # ═══════════════════════════════════════════════════════════
 
+
 def _get_blank_dimensions(product: StandardProduct) -> tuple[float, float]:
     """Повертає (width_mm, height_mm) заготовки для розкрою."""
     if isinstance(product, RectDuct):
@@ -144,7 +145,13 @@ def _round_elbow_blank(p: RoundElbow) -> tuple[float, float]:
     strip_width = math.pi * d_mm
     mean_r = r_mm + d_mm / 2
     arc = mean_r * angle_rad
-    total_len = p.top_extension + p.bottom_extension + arc + 2 * params.cut_allowance_mm + params.bend_allowance_mm
+    total_len = (
+        p.top_extension
+        + p.bottom_extension
+        + arc
+        + 2 * params.cut_allowance_mm
+        + params.bend_allowance_mm
+    )
     return strip_width, total_len
 
 
@@ -196,7 +203,9 @@ def _rect_transition_blank(p: RectTransition) -> tuple[float, float]:
     t = p._thickness_float()
     base = p.calculate_surface_area()
     seam = seam_allowance_for_thickness(params.seam_allowance_mm, t, factor=20.0)
-    factor = 1 + (seam + params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (p.width + p.height + 1)
+    factor = 1 + (seam + params.cut_allowance_mm * 2 + params.bend_allowance_mm) / (
+        p.width + p.height + 1
+    )
     blank_m2 = base * factor
     area_mm2 = blank_m2 * 1_000_000
     p1 = 2 * (p.width + p.height)

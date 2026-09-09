@@ -8,11 +8,13 @@ from typing import List, Dict, Any, Optional, Tuple
 
 try:
     import matplotlib
+
     matplotlib.use("TkAgg")
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
     from matplotlib.figure import Figure
     from mpl_toolkits.mplot3d import Axes3D
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
     MATPLOTLIB_OK = True
 except ImportError:
     MATPLOTLIB_OK = False
@@ -63,23 +65,32 @@ class FreeCADPreview:
 
         ttk.Label(ctrl, text="Відстань:").pack(side=tk.LEFT)
         self.spacing_var = tk.DoubleVar(value=self._spacing)
-        spin = ttk.Spinbox(ctrl, from_=0, to=500, increment=10,
-                           textvariable=self.spacing_var, width=6)
+        spin = ttk.Spinbox(
+            ctrl, from_=0, to=500, increment=10, textvariable=self.spacing_var, width=6
+        )
         spin.pack(side=tk.LEFT, padx=2)
         spin.bind("<Return>", lambda e: self.refresh())
 
         ttk.Button(ctrl, text="🔄 Оновити", command=self.refresh).pack(side=tk.LEFT, padx=5)
-        ttk.Button(ctrl, text="⬆️ Зверху", command=lambda: self._set_view(90, -90)).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="➡️ Збоку", command=lambda: self._set_view(0, -90)).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="↗️ Ізометрія", command=lambda: self._set_view(30, -60)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(ctrl, text="⬆️ Зверху", command=lambda: self._set_view(90, -90)).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(ctrl, text="➡️ Збоку", command=lambda: self._set_view(0, -90)).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(ctrl, text="↗️ Ізометрія", command=lambda: self._set_view(30, -60)).pack(
+            side=tk.LEFT, padx=2
+        )
 
         self.wire_var = tk.BooleanVar(value=self._wireframe_only)
-        ttk.Checkbutton(ctrl, text="Каркас", variable=self.wire_var,
-                        command=self.refresh).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(ctrl, text="Каркас", variable=self.wire_var, command=self.refresh).pack(
+            side=tk.LEFT, padx=5
+        )
 
         self.labels_var = tk.BooleanVar(value=self._show_labels)
-        ttk.Checkbutton(ctrl, text="Підписи", variable=self.labels_var,
-                        command=self.refresh).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(ctrl, text="Підписи", variable=self.labels_var, command=self.refresh).pack(
+            side=tk.LEFT, padx=5
+        )
 
         # 3D Canvas
         self.figure = Figure(figsize=(8, 6), dpi=100, facecolor="#f5f5f5")
@@ -117,8 +128,9 @@ class FreeCADPreview:
         self.ax.set_facecolor("#f5f5f5")
 
         if not hasattr(self, "_products") or not self._products:
-            self.ax.text(0, 0, 0, "Немає виробів для відображення",
-                         fontsize=14, ha="center", color="#999")
+            self.ax.text(
+                0, 0, 0, "Немає виробів для відображення", fontsize=14, ha="center", color="#999"
+            )
             self.ax.set_xlim(-100, 100)
             self.ax.set_ylim(-100, 100)
             self.ax.set_zlim(-100, 100)
@@ -155,8 +167,12 @@ class FreeCADPreview:
                     if e[0] < len(verts) and e[1] < len(verts):
                         v1, v2 = verts[e[0]], verts[e[1]]
                         self.ax.plot3D(
-                            [v1[0], v2[0]], [v1[1], v2[1]], [v1[2], v2[2]],
-                            color=color, linewidth=1.2, alpha=0.8
+                            [v1[0], v2[0]],
+                            [v1[1], v2[1]],
+                            [v1[2], v2[2]],
+                            color=color,
+                            linewidth=1.2,
+                            alpha=0.8,
                         )
             else:
                 # Draw faces as semi-transparent polygons
@@ -167,10 +183,9 @@ class FreeCADPreview:
                         if len(fv) >= 3:
                             face_verts.append(fv)
                     if face_verts:
-                        poly3d = Poly3DCollection(face_verts, alpha=0.4,
-                                                  facecolor=color,
-                                                  edgecolor=color,
-                                                  linewidth=0.5)
+                        poly3d = Poly3DCollection(
+                            face_verts, alpha=0.4, facecolor=color, edgecolor=color, linewidth=0.5
+                        )
                         self.ax.add_collection3d(poly3d)
                 else:
                     # Fallback to wireframe if no faces
@@ -178,8 +193,12 @@ class FreeCADPreview:
                         if e[0] < len(verts) and e[1] < len(verts):
                             v1, v2 = verts[e[0]], verts[e[1]]
                             self.ax.plot3D(
-                                [v1[0], v2[0]], [v1[1], v2[1]], [v1[2], v2[2]],
-                                color=color, linewidth=1.0, alpha=0.6
+                                [v1[0], v2[0]],
+                                [v1[1], v2[1]],
+                                [v1[2], v2[2]],
+                                color=color,
+                                linewidth=1.0,
+                                alpha=0.6,
                             )
 
             # Product label at center
@@ -188,13 +207,16 @@ class FreeCADPreview:
                 cy = sum(v[1] for v in verts) / len(verts)
                 cz = max(v[2] for v in verts) + 20
                 short_name = mesh.name[:20] if len(mesh.name) <= 20 else mesh.name[:17] + "..."
-                self.ax.text(cx, cy, cz, short_name, fontsize=7, color="#333",
-                             ha="center", va="bottom")
+                self.ax.text(
+                    cx, cy, cz, short_name, fontsize=7, color="#333", ha="center", va="bottom"
+                )
 
         # Auto-scale
         if all_x and all_y and all_z:
-            margin = max(max(all_x) - min(all_x), max(all_y) - min(all_y),
-                         max(all_z) - min(all_z)) * 0.1 + 50
+            margin = (
+                max(max(all_x) - min(all_x), max(all_y) - min(all_y), max(all_z) - min(all_z)) * 0.1
+                + 50
+            )
             self.ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
             self.ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
             self.ax.set_zlim(min(all_z) - margin, max(all_z) + margin)
@@ -215,8 +237,9 @@ class FreeCADPreview:
     def export_image(self, filepath: str):
         """Export current view as PNG."""
         if self.figure:
-            self.figure.savefig(filepath, dpi=150, bbox_inches="tight",
-                                facecolor=self.figure.get_facecolor())
+            self.figure.savefig(
+                filepath, dpi=150, bbox_inches="tight", facecolor=self.figure.get_facecolor()
+            )
 
 
 def show_preview_dialog(parent: tk.Tk, products: List[Any]):

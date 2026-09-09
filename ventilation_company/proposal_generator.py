@@ -27,10 +27,14 @@ _FONT_CANDIDATES = [
 ]
 
 _FONT_CANDIDATES_LINUX = [
-    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-    ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
+    (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ),
+    (
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ),
 ]
 
 
@@ -50,6 +54,7 @@ def _clean(text) -> str:
 @dataclass
 class ProposalItem:
     """Один рядок у таблиці КП."""
+
     name: str
     description: str = ""
     quantity: float = 1.0
@@ -61,6 +66,7 @@ class ProposalItem:
 @dataclass
 class ProposalData:
     """Дані для КП."""
+
     # Фірма
     company_name: str = "ТОВ «ВентКомпані»"
     company_address: str = "м. Київ, вул. Промислова, 15"
@@ -81,7 +87,9 @@ class ProposalData:
     project_number: str = ""
     proposal_number: str = ""
     date: str = field(default_factory=lambda: datetime.now().strftime("%d.%m.%Y"))
-    valid_until: str = field(default_factory=lambda: (datetime.now() + timedelta(days=30)).strftime("%d.%m.%Y"))
+    valid_until: str = field(
+        default_factory=lambda: (datetime.now() + timedelta(days=30)).strftime("%d.%m.%Y")
+    )
 
     # Зміст
     items: List[ProposalItem] = field(default_factory=list)
@@ -170,7 +178,13 @@ class ProposalPDF(FPDF):
 
         self._set_regular(10)
         self._color(100, 100, 100)
-        self.cell(0, 6, f"№ {_clean(self.data.proposal_number)} від {_clean(self.data.date)}", align="C", ln=True)
+        self.cell(
+            0,
+            6,
+            f"№ {_clean(self.data.proposal_number)} від {_clean(self.data.date)}",
+            align="C",
+            ln=True,
+        )
         self.cell(0, 6, f"Дійсна до: {_clean(self.data.valid_until)}", align="C", ln=True)
         self.ln(4)
 
@@ -365,7 +379,12 @@ class ProposalPDF(FPDF):
         self.set_y(-15)
         self._set_regular(8)
         self._color(128, 128, 128)
-        self.cell(0, 10, f"Сторінка {self.page_no()}  |  {_clean(self.data.company_name)}  |  {_clean(self.data.company_phone)}", align="C")
+        self.cell(
+            0,
+            10,
+            f"Сторінка {self.page_no()}  |  {_clean(self.data.company_name)}  |  {_clean(self.data.company_phone)}",
+            align="C",
+        )
 
     def save(self, output_path: str) -> str:
         self.output(output_path)
@@ -381,7 +400,9 @@ def generate_proposal(project_data: dict, items: List[dict], output_path: str) -
     prop.project_number = project_data.get("project_number", "")
     prop.client_name = project_data.get("client", "")
     prop.client_address = project_data.get("address", "")
-    prop.proposal_number = project_data.get("proposal_number", f"KP-{datetime.now().strftime("%Y%m%d")}-001")
+    prop.proposal_number = project_data.get(
+        "proposal_number", f"KP-{datetime.now().strftime('%Y%m%d')}-001"
+    )
 
     # Позиції
     prop.items = []
@@ -391,14 +412,16 @@ def generate_proposal(project_data: dict, items: List[dict], output_path: str) -
         price = float(it.get("price", 0))
         total = qty * price
         subtotal += total
-        prop.items.append(ProposalItem(
-            name=it.get("name", ""),
-            description=it.get("description", ""),
-            quantity=qty,
-            unit=it.get("unit", "шт"),
-            price_per_unit=price,
-            total=total,
-        ))
+        prop.items.append(
+            ProposalItem(
+                name=it.get("name", ""),
+                description=it.get("description", ""),
+                quantity=qty,
+                unit=it.get("unit", "шт"),
+                price_per_unit=price,
+                total=total,
+            )
+        )
 
     prop.subtotal = round(subtotal, 2)
     prop.vat_amount = round(subtotal * prop.vat_percent / 100, 2)

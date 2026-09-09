@@ -15,6 +15,7 @@ from ventilation_company.gui.settings_tab import PricingSettings
 def temp_db():
     """Тимчасова БД для тестів."""
     from ventilation_company.db_integration import ProjectDatabase
+
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     db = ProjectDatabase(path)

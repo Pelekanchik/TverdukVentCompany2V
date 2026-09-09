@@ -1,5 +1,7 @@
 """Головне вікно додатку VentCompany — Compact Header Edition."""
 
+from ventilation_company.services.project_service import ProjectService
+
 import json
 import os
 import sys
@@ -35,7 +37,7 @@ class MainWindow:
             return
 
         self.current_user = auth.current_user
-        self.is_director = (self.current_user.role == "director")
+        self.is_director = self.current_user.role == "director"
 
         self.root = tk.Tk()
         self.root.title(
@@ -117,8 +119,11 @@ class MainWindow:
         dialog.minsize(400, 300)
         dialog.resizable(True, True)
         dialog.transient(self.root)
-        ttk.Label(dialog, text=f"Проєкт: {self.spec_tab.project_name_var.get()}",
-                  font=("Segoe UI", 11, "bold")).pack(pady=5)
+        ttk.Label(
+            dialog,
+            text=f"Проєкт: {self.spec_tab.project_name_var.get()}",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(pady=5)
         cols = ("date", "filename")
         tree = ttk.Treeview(dialog, columns=cols, show="headings", height=12)
         tree.heading("date", text="Дата та час")
@@ -132,6 +137,7 @@ class MainWindow:
                 tree.insert("", tk.END, values=(dt.strftime("%d.%m.%Y %H:%M:%S"), v))
             except Exception:
                 tree.insert("", tk.END, values=("—", v))
+
         def on_restore():
             sel = tree.selection()
             if not sel:
@@ -139,28 +145,33 @@ class MainWindow:
                 return
             filename = tree.item(sel[0])["values"][1]
             filepath = os.path.join(versions_dir, filename)
-            if not messagebox.askyesno("Підтвердження",
-                                       f"Відновити версію \"{filename}\"?\n\nПоточні незбережені зміни будуть втрачені!"):
+            if not messagebox.askyesno(
+                "Підтвердження",
+                f'Відновити версію "{filename}"?\n\nПоточні незбережені зміни будуть втрачені!',
+            ):
                 return
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 from ventilation_company.models.product import Product
+
                 products = [Product.from_dict(p) for p in data.get("products", [])]
                 self._set_products(products)
                 self.status_bar.config(text=f"✅ Відновлено версію: {filename}")
-                messagebox.showinfo("Успіх", f"Версію \"{filename}\" відновлено!")
+                messagebox.showinfo("Успіх", f'Версію "{filename}" відновлено!')
                 dialog.destroy()
             except Exception as e:
                 messagebox.showerror("Помилка", f"Не вдалося відновити:\n{e}")
+
         def on_delete():
             sel = tree.selection()
             if not sel:
                 return
             filename = tree.item(sel[0])["values"][1]
-            if messagebox.askyesno("Підтвердження", f"Видалити версію \"{filename}\"?"):
+            if messagebox.askyesno("Підтвердження", f'Видалити версію "{filename}"?'):
                 os.remove(os.path.join(versions_dir, filename))
                 tree.delete(sel[0])
+
         btn_frm = ttk.Frame(dialog)
         btn_frm.pack(pady=10)
         ttk.Button(btn_frm, text="🔄 Відновити", command=on_restore).pack(side=tk.LEFT, padx=5)
@@ -178,14 +189,31 @@ class MainWindow:
         hdr.pack_propagate(False)
 
         role_label = get_role_label(self.current_user.role)
-        role_color = theme["accent"] if self.current_user.role == "director" else theme["accent2"] if self.current_user.role == "engineer" else theme["accent3"] if self.current_user.role == "accountant" else theme["warning"]
+        role_color = (
+            theme["accent"]
+            if self.current_user.role == "director"
+            else (
+                theme["accent2"]
+                if self.current_user.role == "engineer"
+                else (
+                    theme["accent3"] if self.current_user.role == "accountant" else theme["warning"]
+                )
+            )
+        )
 
-        tk.Label(hdr, text=f"🏭 {self.current_user.full_name} • {role_label}",
-                 font=("Segoe UI", 9), bg=theme["bg"], fg=theme["fg"]).pack(side=tk.LEFT)
-        tk.Label(hdr, text="|", font=("Segoe UI", 9),
-                 bg=theme["bg"], fg=theme["border"]).pack(side=tk.LEFT, padx=6)
-        self.project_label = tk.Label(hdr, text="📁 Новий проєкт",
-                                      font=("Segoe UI", 9), bg=theme["bg"], fg=theme["fg_muted"])
+        tk.Label(
+            hdr,
+            text=f"🏭 {self.current_user.full_name} • {role_label}",
+            font=("Segoe UI", 9),
+            bg=theme["bg"],
+            fg=theme["fg"],
+        ).pack(side=tk.LEFT)
+        tk.Label(hdr, text="|", font=("Segoe UI", 9), bg=theme["bg"], fg=theme["border"]).pack(
+            side=tk.LEFT, padx=6
+        )
+        self.project_label = tk.Label(
+            hdr, text="📁 Новий проєкт", font=("Segoe UI", 9), bg=theme["bg"], fg=theme["fg_muted"]
+        )
         self.project_label.pack(side=tk.LEFT)
 
     def _logout(self):
@@ -201,7 +229,9 @@ class MainWindow:
         menubar.add_cascade(label="Проєкт", menu=project_menu)
         project_menu.add_command(label="💾 Зберегти в БД", command=self._save_project)
         project_menu.add_command(label="📂 Відкрити проєкт", command=self._load_project)
-        project_menu.add_command(label="🔄 Перерахувати ціни", command=self._recalculate_current_project)
+        project_menu.add_command(
+            label="🔄 Перерахувати ціни", command=self._recalculate_current_project
+        )
         project_menu.add_separator()
         project_menu.add_command(label="🚪 Вихід", command=self.root.quit)
         export_menu = tk.Menu(menubar, tearoff=0)
@@ -224,8 +254,13 @@ class MainWindow:
         self.sidebar.pack_propagate(False)
 
         # Логотип / заголовок сайдбару
-        tk.Label(self.sidebar, text="🏭 VentCompany", font=("Segoe UI", 13, "bold"),
-                 bg=theme["sidebar_bg"], fg=theme["accent"]).pack(pady=(10, 5), padx=10, anchor="w")
+        tk.Label(
+            self.sidebar,
+            text="🏭 VentCompany",
+            font=("Segoe UI", 13, "bold"),
+            bg=theme["sidebar_bg"],
+            fg=theme["accent"],
+        ).pack(pady=(10, 5), padx=10, anchor="w")
 
         # Роздільник
         tk.Frame(self.sidebar, bg=theme["border"], height=1).pack(fill=tk.X, padx=10, pady=5)
@@ -237,21 +272,39 @@ class MainWindow:
         def _cat(text, items):
             """Додати розділ-категорію з підпунктами."""
             cat_btn = tk.Button(
-                self.sidebar, text=text, font=("Segoe UI", 10, "bold"),
-                bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
-                activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
-                relief="flat", anchor="w", padx=10, pady=5, cursor="hand2"
+                self.sidebar,
+                text=text,
+                font=("Segoe UI", 10, "bold"),
+                bg=theme["sidebar_bg"],
+                fg=theme["sidebar_fg"],
+                activebackground=theme["sidebar_hover"],
+                activeforeground=theme["sidebar_fg"],
+                relief="flat",
+                anchor="w",
+                padx=10,
+                pady=5,
+                cursor="hand2",
             )
             cat_btn.pack(fill=tk.X, padx=5, pady=(5, 0))
             sub_frame = tk.Frame(self.sidebar, bg=theme["sidebar_bg"])
             sub_frame.pack(fill=tk.X, padx=5)
             for emoji, label, target_nb, target_idx in items:
                 sub = tk.Button(
-                    sub_frame, text=f"  {emoji} {label}", font=("Segoe UI", 9),
-                    bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
-                    activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
-                    relief="flat", anchor="w", padx=25, pady=3, cursor="hand2",
-                    command=lambda nb=target_nb, idx=target_idx, btn=None: self._show_tab(nb, idx, btn)
+                    sub_frame,
+                    text=f"  {emoji} {label}",
+                    font=("Segoe UI", 9),
+                    bg=theme["sidebar_bg"],
+                    fg=theme["sidebar_fg"],
+                    activebackground=theme["sidebar_hover"],
+                    activeforeground=theme["sidebar_fg"],
+                    relief="flat",
+                    anchor="w",
+                    padx=25,
+                    pady=3,
+                    cursor="hand2",
+                    command=lambda nb=target_nb, idx=target_idx, btn=None: self._show_tab(
+                        nb, idx, btn
+                    ),
                 )
                 sub.pack(fill=tk.X)
                 self._sidebar_items.append((sub, target_nb, target_idx))
@@ -271,16 +324,24 @@ class MainWindow:
         self.project_nb = ttk.Notebook(self.project_frame, style="HiddenTab.TNotebook")
         self.project_nb.pack(fill=tk.BOTH, expand=True)
 
-        self.products_tab = ProductsTab(self.project_nb, on_products_changed=self._on_products_changed)
+        self.products_tab = ProductsTab(
+            self.project_nb, on_products_changed=self._on_products_changed
+        )
         self.project_nb.add(self.products_tab.frame, text="🔧 Вироби")
 
         self.spec_tab = SpecificationTab(self.project_nb, get_products_callback=self._get_products)
         self.project_nb.add(self.spec_tab.frame, text="📋 Специфікація")
 
-        self.cutting_tab = CuttingTab(self.project_nb, get_products_callback=self._get_products, get_standard_products_callback=self._get_standard_products)
+        self.cutting_tab = CuttingTab(
+            self.project_nb,
+            get_products_callback=self._get_products,
+            get_standard_products_callback=self._get_standard_products,
+        )
         self.project_nb.add(self.cutting_tab.frame, text="✂️ Розкрій")
 
-        self.project_3d_tab = Project3DTab(self.project_nb, get_products_callback=self.products_tab.get_products_data)
+        self.project_3d_tab = Project3DTab(
+            self.project_nb, get_products_callback=self.products_tab.get_products_data
+        )
         self.project_nb.add(self.project_3d_tab.frame, text="🧊 3D")
 
         # 2. ФІНАНСИ
@@ -301,10 +362,14 @@ class MainWindow:
         self.prod_nb = ttk.Notebook(self.prod_frame, style="HiddenTab.TNotebook")
         self.prod_nb.pack(fill=tk.BOTH, expand=True)
 
-        self.production_tab = ProductionTab(self.prod_nb, get_products_callback=self.products_tab.get_products_data)
+        self.production_tab = ProductionTab(
+            self.prod_nb, get_products_callback=self.products_tab.get_products_data
+        )
         self.prod_nb.add(self.production_tab.frame, text="🏭 Виробництво")
 
-        self.material_order_tab = MaterialOrderTab(self.prod_nb, get_products_callback=self.products_tab.get_products_data)
+        self.material_order_tab = MaterialOrderTab(
+            self.prod_nb, get_products_callback=self.products_tab.get_products_data
+        )
         self.prod_nb.add(self.material_order_tab.frame, text="📦 Матеріали")
 
         self.aerodynamics_tab = AerodynamicsTab(self.prod_nb)
@@ -340,41 +405,67 @@ class MainWindow:
         }
 
         # ── Будуємо сайдбар (після створення фреймів, щоб lambda працювали) ──
-        self._project_subs = _cat("📋 Проєкт", [
-            ("🔧", "Вироби", self.project_nb, 0),
-            ("📋", "Специфікація", self.project_nb, 1),
-            ("✂️", "Розкрій", self.project_nb, 2),
-            ("🧊", "3D", self.project_nb, 3),
-        ])
-        self._finance_subs = _cat("💰 Фінанси", [
-            ("💰", "Ціноутворення", self.finance_nb, 0),
-            ("📄", "Документи", self.finance_nb, 1),
-        ])
-        self._prod_subs = _cat("🏭 Виробництво", [
-            ("🏭", "Виробництво", self.prod_nb, 0),
-            ("📦", "Матеріали", self.prod_nb, 1),
-            ("💨", "Аеродинаміка", self.prod_nb, 2),
-        ])
-        self._analytics_subs = _cat("📊 Аналітика", [
-            ("📊", "Дашборд", self.analytics_nb, 0),
-            ("👥", "CRM", self.analytics_nb, 1),
-        ])
+        self._project_subs = _cat(
+            "📋 Проєкт",
+            [
+                ("🔧", "Вироби", self.project_nb, 0),
+                ("📋", "Специфікація", self.project_nb, 1),
+                ("✂️", "Розкрій", self.project_nb, 2),
+                ("🧊", "3D", self.project_nb, 3),
+            ],
+        )
+        self._finance_subs = _cat(
+            "💰 Фінанси",
+            [
+                ("💰", "Ціноутворення", self.finance_nb, 0),
+                ("📄", "Документи", self.finance_nb, 1),
+            ],
+        )
+        self._prod_subs = _cat(
+            "🏭 Виробництво",
+            [
+                ("🏭", "Виробництво", self.prod_nb, 0),
+                ("📦", "Матеріали", self.prod_nb, 1),
+                ("💨", "Аеродинаміка", self.prod_nb, 2),
+            ],
+        )
+        self._analytics_subs = _cat(
+            "📊 Аналітика",
+            [
+                ("📊", "Дашборд", self.analytics_nb, 0),
+                ("👥", "CRM", self.analytics_nb, 1),
+            ],
+        )
 
         # Кабінет — без підпунктів
         cabinet_btn = tk.Button(
-            self.sidebar, text="👤 Кабінет", font=("Segoe UI", 10, "bold"),
-            bg=theme["sidebar_bg"], fg=theme["sidebar_fg"],
-            activebackground=theme["sidebar_hover"], activeforeground=theme["sidebar_fg"],
-            relief="flat", anchor="w", padx=10, pady=5, cursor="hand2",
-            command=lambda: self._show_main_frame("cabinet", None, None)
+            self.sidebar,
+            text="👤 Кабінет",
+            font=("Segoe UI", 10, "bold"),
+            bg=theme["sidebar_bg"],
+            fg=theme["sidebar_fg"],
+            activebackground=theme["sidebar_hover"],
+            activeforeground=theme["sidebar_fg"],
+            relief="flat",
+            anchor="w",
+            padx=10,
+            pady=5,
+            cursor="hand2",
+            command=lambda: self._show_main_frame("cabinet", None, None),
         )
         cabinet_btn.pack(fill=tk.X, padx=5, pady=(5, 0))
 
         # ── Статус-бар ──
         self.status_bar = tk.Label(
-            self.root, text="Готово", relief=tk.SUNKEN, anchor=tk.W,
-            bg=theme["status_bg"], fg=theme["status_fg"],
-            font=("Segoe UI", 9), padx=10, pady=2,
+            self.root,
+            text="Готово",
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+            bg=theme["status_bg"],
+            fg=theme["status_fg"],
+            font=("Segoe UI", 9),
+            padx=10,
+            pady=2,
         )
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
@@ -434,8 +525,13 @@ class MainWindow:
         self._update_theme_button()
         if hasattr(self, "dashboard_tab"):
             self.dashboard_tab._refresh_all()
-        for tab_name in ["products_tab", "project_3d_tab", "cutting_tab",
-                         "price_list_tab", "crm_tab"]:
+        for tab_name in [
+            "products_tab",
+            "project_3d_tab",
+            "cutting_tab",
+            "price_list_tab",
+            "crm_tab",
+        ]:
             if hasattr(self, tab_name):
                 tab = getattr(self, tab_name)
                 if hasattr(tab, "frame"):
@@ -475,6 +571,7 @@ class MainWindow:
         if not products:
             return
         ProjectService.recalculate_products(products)
+
     def _save_project(self):
         """Зберегти проєкт: оновлює існуючий або створює новий."""
         products = self._get_products()
@@ -527,12 +624,14 @@ class MainWindow:
                 fg=self.theme_mgr.get()["status_ok"],
             )
             messagebox.showinfo("Успіх", f"Проєкт збережено!\nID: {project_id}")
-    
-            self.project_3d_tab.set_project({
-                "products": products,
-                "project_id": project_id,
-                "name": project_name,
-            })
+
+            self.project_3d_tab.set_project(
+                {
+                    "products": products,
+                    "project_id": project_id,
+                    "name": project_name,
+                }
+            )
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося зберегти:\n{str(e)}")
 
@@ -550,6 +649,7 @@ class MainWindow:
         projects = self.db.get_all_projects()
         for p in projects:
             listbox.insert(tk.END, f"[{p['id']}] {p['name']} — {p['created_at']}")
+
         def on_select():
             sel = listbox.curselection()
             if sel:
@@ -560,14 +660,17 @@ class MainWindow:
                 # === ЕТАП 7: Оновлюємо 3D-вкладку ===
                 try:
                     products = self._get_products()
-                    self.project_3d_tab.set_project({
-                        "products": products,
-                        "project_id": project_id,
-                    })
+                    self.project_3d_tab.set_project(
+                        {
+                            "products": products,
+                            "project_id": project_id,
+                        }
+                    )
                 except Exception:
                     pass  # якщо ще немає виробів — ігноруємо
                 # =====================================
                 dialog.destroy()
+
         ttk.Button(dialog, text="Відкрити", command=on_select).pack(pady=5)
 
     def _load_project_data(self, project_id: int):
@@ -578,13 +681,14 @@ class MainWindow:
         self.spec_tab.project_name_var.set(project["name"])
         self.project_label.config(text=f"{project['name']} (ID: {project_id})")
         products = self.db.get_project_products(project_id)
-        
+
         # === ПЕРЕРАХУНОК ЦІН ТА ЗАРПЛАТИ при завантаженні ===
         from ventilation_company.gui.settings_tab import PricingSettings
         from ventilation_company.calculations.cost_engine import CostEngine
+
         settings = PricingSettings.get_instance()
         engine = CostEngine(settings)
-        
+
         for p in products:
             # Перераховуємо ціну з актуальними ставками
             try:
@@ -597,7 +701,7 @@ class MainWindow:
             except Exception:
                 pass  # якщо не вдалося перерахувати — залишаємо старі значення
         # =====================================================
-        
+
         self.products_tab.load_products_from_dict(products)
         self.current_project_id = project_id
         self.status_bar.config(text=f"📂 Завантажено проєкт ID: {project_id}")
@@ -613,6 +717,7 @@ class MainWindow:
         self._set_products(products)
         self.status_bar.config(text=f"🔄 Перераховано {updated} виробів")
         messagebox.showinfo("Готово", f"Перераховано {updated} виробів.")
+
     def _open_cutting_for_project(self, project_id: int):
         products = self.db.get_project_products(project_id)
         self._show_tab(self.project_nb, 2, None)

@@ -10,10 +10,7 @@ from typing import List, Dict, Optional
 try:
     from fpdf import FPDF
 except ImportError:
-    raise ImportError(
-        "Бібліотека fpdf2 не встановлена. "
-        "Виконайте: pip install fpdf2"
-    )
+    raise ImportError("Бібліотека fpdf2 не встановлена. " "Виконайте: pip install fpdf2")
 
 _FONT_CANDIDATES = [
     ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
@@ -23,12 +20,18 @@ _FONT_CANDIDATES = [
 ]
 
 _FONT_CANDIDATES_LINUX = [
-    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-    ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
-    ("/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"),
+    (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ),
+    (
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ),
+    (
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    ),
 ]
 
 
@@ -77,7 +80,9 @@ class ProjectPDFReport(FPDF):
         self.cell(0, 10, _clean_text(title), ln=True, align="C")
         self._set_font_regular(9)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 5, f"Сформовано: {datetime.now().strftime('%d.%m.%Y %H:%M')}", ln=True, align="C")
+        self.cell(
+            0, 5, f"Сформовано: {datetime.now().strftime('%d.%m.%Y %H:%M')}", ln=True, align="C"
+        )
         self.ln(3)
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -240,7 +245,17 @@ class ProjectPDFReport(FPDF):
 
     def _draw_products_table(self, products: List[dict]):
         col_widths = [8, 50, 18, 11, 9, 18, 18, 22, 22]
-        headers = ["№", "Найменування", "Матеріал", "Товщ.", "К-ть", "Вага, кг", "Площа, м²", "Ціна за шт", "Ціна за позицію"]
+        headers = [
+            "№",
+            "Найменування",
+            "Матеріал",
+            "Товщ.",
+            "К-ть",
+            "Вага, кг",
+            "Площа, м²",
+            "Ціна за шт",
+            "Ціна за позицію",
+        ]
         aligns = ["C", "L", "L", "C", "C", "R", "R", "R", "R"]
         row_h = 6
 
@@ -275,7 +290,11 @@ class ProjectPDFReport(FPDF):
             area = p.get("metal_area_m2", 0)
             unit_price = float(p.get("unit_price", 0) or 0)
             if unit_price == 0 and p.get("metal_area_m2"):
-                material_prices = {"оцинкована сталь": 120.0, "нержавіюча сталь": 350.0, "алюміній": 200.0}
+                material_prices = {
+                    "оцинкована сталь": 120.0,
+                    "нержавіюча сталь": 350.0,
+                    "алюміній": 200.0,
+                }
                 area_val = float(p.get("metal_area_m2", 0))
                 mat = p.get("material", "оцинкована сталь")
                 price_per_m2 = material_prices.get(mat, 120.0)
@@ -299,9 +318,12 @@ class ProjectPDFReport(FPDF):
         self.ln(3)
 
 
-def generate_project_pdf(project: dict, products: List[dict], output_path: Optional[str] = None) -> str:
+def generate_project_pdf(
+    project: dict, products: List[dict], output_path: Optional[str] = None
+) -> str:
     if output_path is None:
         import tempfile
+
         fd, output_path = tempfile.mkstemp(suffix=".pdf", prefix="project_report_")
         os.close(fd)
     report = ProjectPDFReport()

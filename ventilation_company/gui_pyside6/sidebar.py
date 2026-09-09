@@ -1,9 +1,7 @@
 """Бічна панель навігації (PySide6)."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QFrame, QVBoxLayout, QPushButton, QLabel
-)
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.auth_service import AuthUser
@@ -49,14 +47,18 @@ class Sidebar(QFrame):
 
     def _build_ui(self):
         self.setFixedWidth(220)
-        self.setStyleSheet(f"background-color: {Theme.SIDEBAR_BG}; border-right: 1px solid {Theme.BORDER};")
+        self.setStyleSheet(
+            f"background-color: {Theme.SIDEBAR_BG}; border-right: 1px solid {Theme.BORDER};"
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 16, 12, 16)
         layout.setSpacing(4)
 
         lbl_logo = QLabel("VentCompany")
-        lbl_logo.setStyleSheet(f"color: {Theme.ACCENT}; font-size: 15px; font-weight: bold; padding: 4px;")
+        lbl_logo.setStyleSheet(
+            f"color: {Theme.ACCENT}; font-size: 15px; font-weight: bold; padding: 4px;"
+        )
         layout.addWidget(lbl_logo)
 
         lbl_user = QLabel(f"{self.user.full_name}")
@@ -71,7 +73,9 @@ class Sidebar(QFrame):
 
         # РОБОТА
         lbl_work = QLabel("РОБОТА")
-        lbl_work.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
+        lbl_work.setStyleSheet(
+            f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
+        )
         layout.addWidget(lbl_work)
 
         self._add_item("📊", "Дашборд", "dashboard")
@@ -84,7 +88,9 @@ class Sidebar(QFrame):
 
         # ФІНАНСИ
         lbl_fin = QLabel("ФІНАНСИ")
-        lbl_fin.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
+        lbl_fin.setStyleSheet(
+            f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
+        )
         layout.addWidget(lbl_fin)
 
         self._add_item("💰", "Ціноутворення", "pricing")
@@ -94,7 +100,9 @@ class Sidebar(QFrame):
 
         # АНАЛІТИКА
         lbl_an = QLabel("АНАЛІТИКА")
-        lbl_an.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;")
+        lbl_an.setStyleSheet(
+            f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
+        )
         layout.addWidget(lbl_an)
 
         self._add_item("👥", "CRM", "crm")
@@ -133,9 +141,12 @@ class Sidebar(QFrame):
 
     def _on_logout(self):
         from PySide6.QtWidgets import QMessageBox
+
         reply = QMessageBox.question(
-            self, "Вихід", "Вийти з системи?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            self,
+            "Вихід",
+            "Вийти з системи?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.window().close()

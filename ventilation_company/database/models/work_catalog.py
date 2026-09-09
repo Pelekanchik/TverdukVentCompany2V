@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """ORM-РјРѕРґРµР»СЊ РґР»СЏ РєР°С‚Р°Р»РѕРіСѓ СЂРѕР±С–С‚."""
 
 from decimal import Decimal

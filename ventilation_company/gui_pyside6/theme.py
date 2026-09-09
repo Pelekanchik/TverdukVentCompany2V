@@ -14,25 +14,25 @@ class Theme:
     """Catppuccin Mocha — сучасна темна тема."""
 
     # Кольори
-    BG = "#1e1e2e"           # Фон вікна
-    BG_DARK = "#11111b"      # Темніший фон
-    BG_CARD = "#181825"      # Фон карток/панелей
-    BG_HOVER = "#313244"     # Hover ефект
-    BG_ACTIVE = "#45475a"    # Активний елемент
+    BG = "#1e1e2e"  # Фон вікна
+    BG_DARK = "#11111b"  # Темніший фон
+    BG_CARD = "#181825"  # Фон карток/панелей
+    BG_HOVER = "#313244"  # Hover ефект
+    BG_ACTIVE = "#45475a"  # Активний елемент
 
-    TEXT = "#cdd6f4"         # Основний текст
-    TEXT_MUTED = "#6c7086"   # Приглушений текст
+    TEXT = "#cdd6f4"  # Основний текст
+    TEXT_MUTED = "#6c7086"  # Приглушений текст
     TEXT_BRIGHT = "#f5e0dc"  # Яскравий текст
 
-    ACCENT = "#89b4fa"       # Основний акцент (синій)
-    ACCENT_HOVER = "#b4befe" # Акцент hover
-    SUCCESS = "#a6e3a1"      # Зелений
-    WARNING = "#f9e2af"      # Жовтий
-    DANGER = "#f38ba8"       # Червоний
-    INFO = "#74c7ec"         # Блакитний
+    ACCENT = "#89b4fa"  # Основний акцент (синій)
+    ACCENT_HOVER = "#b4befe"  # Акцент hover
+    SUCCESS = "#a6e3a1"  # Зелений
+    WARNING = "#f9e2af"  # Жовтий
+    DANGER = "#f38ba8"  # Червоний
+    INFO = "#74c7ec"  # Блакитний
 
-    BORDER = "#313244"       # Рамки
-    BORDER_LIGHT = "#45475a" # Світлі рамки
+    BORDER = "#313244"  # Рамки
+    BORDER_LIGHT = "#45475a"  # Світлі рамки
 
     SIDEBAR_BG = "#181825"
     SIDEBAR_ACTIVE = "#313244"

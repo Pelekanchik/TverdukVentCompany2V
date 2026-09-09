@@ -5,15 +5,23 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QComboBox, QMessageBox, QGridLayout
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QComboBox,
+    QMessageBox,
+    QGridLayout,
 )
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
-from ventilation_company.database.repositories.project_document_repo import ProjectDocumentRepository
+from ventilation_company.database.repositories.project_document_repo import (
+    ProjectDocumentRepository,
+)
 
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
@@ -63,32 +71,42 @@ class DocumentsTab(QWidget):
 
         self.btn_spec = QPushButton("📋 Специфікація\nдля замовника")
         self.btn_spec.setMinimumHeight(80)
-        self.btn_spec.setStyleSheet(f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;")
+        self.btn_spec.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
         self.btn_spec.clicked.connect(lambda: self._generate("spec"))
         docs_grid.addWidget(self.btn_spec, 0, 0)
 
         self.btn_calc = QPushButton("🧮 Калькуляція\nсобівартості")
         self.btn_calc.setMinimumHeight(80)
-        self.btn_calc.setStyleSheet(f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;")
+        self.btn_calc.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
         self.btn_calc.clicked.connect(lambda: self._generate("calc"))
         docs_grid.addWidget(self.btn_calc, 0, 1)
 
         self.btn_metal = QPushButton("🔩 Замовлення\nна метал")
         self.btn_metal.setMinimumHeight(80)
-        self.btn_metal.setStyleSheet(f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;")
+        self.btn_metal.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
         self.btn_metal.clicked.connect(lambda: self._generate("metal"))
         docs_grid.addWidget(self.btn_metal, 1, 0)
 
         self.btn_order = QPushButton("🏭 Наряд на\nвиробництво")
         self.btn_order.setMinimumHeight(80)
-        self.btn_order.setStyleSheet(f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;")
+        self.btn_order.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
         self.btn_order.clicked.connect(lambda: self._generate("order"))
         docs_grid.addWidget(self.btn_order, 1, 1)
 
         layout.addLayout(docs_grid)
 
-        info = QLabel("💡 Документи зберігаються в базі даних PostgreSQL\n"
-                      "Перегляньте їх у картці проєкту (вкладка 'Проєкти' → двічі клікніть на проєкт)")
+        info = QLabel(
+            "💡 Документи зберігаються в базі даних PostgreSQL\n"
+            "Перегляньте їх у картці проєкту (вкладка 'Проєкти' → двічі клікніть на проєкт)"
+        )
         info.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 8px;")
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -153,7 +171,9 @@ class DocumentsTab(QWidget):
         try:
             # Генеруємо Excel у пам'ять
             buffer = io.BytesIO()
-            filename = f"{doc_type}_{project['project_number']}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            filename = (
+                f"{doc_type}_{project['project_number']}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            )
 
             if doc_type == "spec":
                 self._gen_spec(project, products, buffer)
@@ -174,18 +194,26 @@ class DocumentsTab(QWidget):
                 content=content,
             )
 
-            QMessageBox.information(self, "Успіх",
+            QMessageBox.information(
+                self,
+                "Успіх",
                 f"Документ збережено в базі даних!\n\n"
                 f"Файл: {filename}\n"
                 f"Розмір: {len(content) / 1024:.1f} КБ\n\n"
-                f"Перегляньте у картці проєкту (вкладка 'Проєкти').")
+                f"Перегляньте у картці проєкту (вкладка 'Проєкти').",
+            )
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося згенерувати документ: {e}")
 
     def _style_header(self, ws, row, headers, fill_color="4472C4"):
         fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
         font = Font(bold=True, color="FFFFFF")
-        border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+        border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=row, column=col, value=header)
             cell.fill = fill
@@ -212,10 +240,24 @@ class DocumentsTab(QWidget):
             h = item.get("height", 0) or 0
             l = item.get("length", 0) or 0
             dims = f"Ø{w:.0f} x {l:.0f}" if h == 0 else f"{w:.0f}x{h:.0f}x{l:.0f}"
-            row_data = [i, item.get("name"), item.get("product_type"), dims, item.get("material"), item.get("quantity", 1), item.get("unit_price", 0), item.get("total_price", 0)]
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("product_type"),
+                dims,
+                item.get("material"),
+                item.get("quantity", 1),
+                item.get("unit_price", 0),
+                item.get("total_price", 0),
+            ]
             for col, val in enumerate(row_data, 1):
-                cell = ws.cell(row=4+i, column=col, value=val)
-                cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+                cell = ws.cell(row=4 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
             total += item.get("total_price", 0)
         row = 4 + len(products) + 1
         ws.merge_cells(f"A{row}:G{row}")
@@ -243,10 +285,22 @@ class DocumentsTab(QWidget):
         for i, item in enumerate(products, 1):
             cost = item.get("unit_price", 0) * 0.7
             price = item.get("total_price", 0)
-            row_data = [i, item.get("name"), item.get("material"), item.get("quantity", 1), round(cost, 2), price]
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("material"),
+                item.get("quantity", 1),
+                round(cost, 2),
+                price,
+            ]
             for col, val in enumerate(row_data, 1):
-                cell = ws.cell(row=3+i, column=col, value=val)
-                cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
             total_cost += cost
             total_price += price
         row = 3 + len(products) + 1
@@ -288,8 +342,13 @@ class DocumentsTab(QWidget):
         for i, (key, data) in enumerate(metal_summary.items(), 1):
             row_data = [i, key, round(data["area"], 2), round(data["weight"], 2), data["qty"]]
             for col, val in enumerate(row_data, 1):
-                cell = ws.cell(row=3+i, column=col, value=val)
-                cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
             total_area += data["area"]
             total_weight += data["weight"]
         row = 3 + len(metal_summary) + 1
@@ -314,10 +373,23 @@ class DocumentsTab(QWidget):
             h = item.get("height", 0) or 0
             l = item.get("length", 0) or 0
             dims = f"Ø{w:.0f} x {l:.0f}" if h == 0 else f"{w:.0f}x{h:.0f}x{l:.0f}"
-            row_data = [i, item.get("name"), item.get("product_type"), dims, item.get("material"), item.get("thickness", "—"), item.get("quantity", 1)]
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("product_type"),
+                dims,
+                item.get("material"),
+                item.get("thickness", "—"),
+                item.get("quantity", 1),
+            ]
             for col, val in enumerate(row_data, 1):
-                cell = ws.cell(row=3+i, column=col, value=val)
-                cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
         wb.save(buffer)
 
     def refresh(self):

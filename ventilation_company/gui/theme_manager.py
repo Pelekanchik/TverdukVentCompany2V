@@ -5,6 +5,8 @@
 - Покращені стилі: rounded кнопки, hover-ефекти, кольорові KPI, zebra-таблиці
 """
 
+import tkinter as tk
+
 import json
 import os
 from tkinter import ttk
@@ -17,13 +19,13 @@ _THEME_FILE = os.path.join("data", "theme.json")
 INDUSTRIAL_THEME = {
     "name": "industrial",
     # ── Базові ──
-    "bg": "#18181b",           # Головний фон
-    "fg": "#e4e4e7",           # Основний текст
-    "fg_secondary": "#a1a1aa", # Вторинний текст
-    "fg_muted": "#71717a",     # Приглушений текст
+    "bg": "#18181b",  # Головний фон
+    "fg": "#e4e4e7",  # Основний текст
+    "fg_secondary": "#a1a1aa",  # Вторинний текст
+    "fg_muted": "#71717a",  # Приглушений текст
     # ── Фрейми / картки ──
-    "frame_bg": "#27272a",     # Фон карток
-    "frame_bg_alt": "#3f3f46", # Альтернативний фон
+    "frame_bg": "#27272a",  # Фон карток
+    "frame_bg_alt": "#3f3f46",  # Альтернативний фон
     "card_bg": "#27272a",
     "card_border": "#3f3f46",
     # ── Поля вводу ──
@@ -42,13 +44,13 @@ INDUSTRIAL_THEME = {
     "button_active": "#f97316",
     "button_active_fg": "#18181b",
     # ── Акценти ──
-    "accent": "#f97316",       # Помаранчевий
+    "accent": "#f97316",  # Помаранчевий
     "accent_soft": "#fb923c",  # Світліший
     "accent_dark": "#c2410c",  # Темніший
-    "accent2": "#84cc16",      # Лайм (позитив)
-    "accent3": "#06b6d4",      # Бірюзовий (інфо)
-    "danger": "#ef4444",       # Червоний (небезпека)
-    "warning": "#f59e0b",      # Жовтий (попередження)
+    "accent2": "#84cc16",  # Лайм (позитив)
+    "accent3": "#06b6d4",  # Бірюзовий (інфо)
+    "danger": "#ef4444",  # Червоний (небезпека)
+    "warning": "#f59e0b",  # Жовтий (попередження)
     # ── Дерево / таблиці ──
     "tree_bg": "#27272a",
     "tree_fg": "#e4e4e7",
@@ -253,42 +255,42 @@ class ThemeManager:
         # ═══════════════════════════════════════════════════════════════
 
         # ── Глобальні налаштування tk ──
-        root.option_add('*Background', t["bg"])
-        root.option_add('*Foreground', t["fg"])
-        root.option_add('*Entry.background', t["entry_bg"])
-        root.option_add('*Entry.foreground', t["entry_fg"])
-        root.option_add('*Entry.insertBackground', t["accent"])
-        root.option_add('*Text.background', t["entry_bg"])
-        root.option_add('*Text.foreground', t["entry_fg"])
-        root.option_add('*Text.insertBackground', t["accent"])
-        root.option_add('*Listbox.background', t["entry_bg"])
-        root.option_add('*Listbox.foreground', t["entry_fg"])
-        root.option_add('*Listbox.selectBackground', t["select_bg"])
-        root.option_add('*Listbox.selectForeground', t["select_fg"])
-        root.option_add('*Menu.background', t["bg"])
-        root.option_add('*Menu.foreground', t["fg"])
-        root.option_add('*Menu.activeBackground', t["select_bg"])
-        root.option_add('*Menu.activeForeground', t["select_fg"])
-        root.option_add('*Labelframe.background', t["bg"])
-        root.option_add('*Labelframe.foreground', t["fg"])
-        root.option_add('*Label.background', t["bg"])
-        root.option_add('*Label.foreground', t["fg"])
-        root.option_add('*Button.background', t["button_bg"])
-        root.option_add('*Button.foreground', t["button_fg"])
-        root.option_add('*Button.activeBackground', t["button_active"])
-        root.option_add('*Button.activeForeground', t["button_active_fg"])
-        root.option_add('*Checkbutton.background', t["bg"])
-        root.option_add('*Checkbutton.foreground', t["fg"])
-        root.option_add('*Checkbutton.selectColor', t["entry_bg"])
-        root.option_add('*Radiobutton.background', t["bg"])
-        root.option_add('*Radiobutton.foreground', t["fg"])
-        root.option_add('*Radiobutton.selectColor', t["entry_bg"])
-        root.option_add('*Scale.background', t["bg"])
-        root.option_add('*Scale.troughColor', t["button_bg"])
-        root.option_add('*Scrollbar.background', t["scrollbar_bg"])
-        root.option_add('*Scrollbar.troughColor', t["scrollbar_trough"])
-        root.option_add('*TCombobox*Listbox.background', t["entry_bg"])
-        root.option_add('*TCombobox*Listbox.foreground', t["entry_fg"])
+        root.option_add("*Background", t["bg"])
+        root.option_add("*Foreground", t["fg"])
+        root.option_add("*Entry.background", t["entry_bg"])
+        root.option_add("*Entry.foreground", t["entry_fg"])
+        root.option_add("*Entry.insertBackground", t["accent"])
+        root.option_add("*Text.background", t["entry_bg"])
+        root.option_add("*Text.foreground", t["entry_fg"])
+        root.option_add("*Text.insertBackground", t["accent"])
+        root.option_add("*Listbox.background", t["entry_bg"])
+        root.option_add("*Listbox.foreground", t["entry_fg"])
+        root.option_add("*Listbox.selectBackground", t["select_bg"])
+        root.option_add("*Listbox.selectForeground", t["select_fg"])
+        root.option_add("*Menu.background", t["bg"])
+        root.option_add("*Menu.foreground", t["fg"])
+        root.option_add("*Menu.activeBackground", t["select_bg"])
+        root.option_add("*Menu.activeForeground", t["select_fg"])
+        root.option_add("*Labelframe.background", t["bg"])
+        root.option_add("*Labelframe.foreground", t["fg"])
+        root.option_add("*Label.background", t["bg"])
+        root.option_add("*Label.foreground", t["fg"])
+        root.option_add("*Button.background", t["button_bg"])
+        root.option_add("*Button.foreground", t["button_fg"])
+        root.option_add("*Button.activeBackground", t["button_active"])
+        root.option_add("*Button.activeForeground", t["button_active_fg"])
+        root.option_add("*Checkbutton.background", t["bg"])
+        root.option_add("*Checkbutton.foreground", t["fg"])
+        root.option_add("*Checkbutton.selectColor", t["entry_bg"])
+        root.option_add("*Radiobutton.background", t["bg"])
+        root.option_add("*Radiobutton.foreground", t["fg"])
+        root.option_add("*Radiobutton.selectColor", t["entry_bg"])
+        root.option_add("*Scale.background", t["bg"])
+        root.option_add("*Scale.troughColor", t["button_bg"])
+        root.option_add("*Scrollbar.background", t["scrollbar_bg"])
+        root.option_add("*Scrollbar.troughColor", t["scrollbar_trough"])
+        root.option_add("*TCombobox*Listbox.background", t["entry_bg"])
+        root.option_add("*TCombobox*Listbox.foreground", t["entry_fg"])
 
         # ── ttk Style — покращені стилі ──
         style.configure(".", background=t["bg"], foreground=t["fg"], fieldbackground=t["entry_bg"])
@@ -296,30 +298,35 @@ class ThemeManager:
         style.configure("TLabel", background=t["bg"], foreground=t["fg"])
 
         # Кнопки — rounded, hover
-        style.configure("TButton",
+        style.configure(
+            "TButton",
             background=t["button_bg"],
             foreground=t["button_fg"],
             font=("Segoe UI", 10),
             padding=(12, 6),
         )
-        style.map("TButton",
+        style.map(
+            "TButton",
             background=[("active", t["button_active"]), ("pressed", t["button_active"])],
             foreground=[("active", t["button_active_fg"]), ("pressed", t["button_active_fg"])],
         )
 
         # Accent кнопка (головна дія)
-        style.configure("Accent.TButton",
+        style.configure(
+            "Accent.TButton",
             background=t["accent"],
             foreground=t["button_active_fg"],
             font=("Segoe UI", 10, "bold"),
             padding=(16, 8),
         )
-        style.map("Accent.TButton",
+        style.map(
+            "Accent.TButton",
             background=[("active", t["accent_soft"]), ("pressed", t["accent_dark"])],
         )
 
         # Danger кнопка (видалення)
-        style.configure("Danger.TButton",
+        style.configure(
+            "Danger.TButton",
             background=t["danger"],
             foreground="#ffffff",
             font=("Segoe UI", 10),
@@ -331,89 +338,107 @@ class ThemeManager:
         style.configure("TRadiobutton", background=t["bg"], foreground=t["fg"])
 
         # Поля вводу — КЛЮЧОВЕ ВИПРАВЛЕННЯ
-        style.configure("TEntry",
+        style.configure(
+            "TEntry",
             fieldbackground=t["entry_bg"],
             foreground=t["entry_fg"],
             insertcolor=t["accent"],
             padding=(8, 4),
         )
-        style.map("TEntry",
+        style.map(
+            "TEntry",
             fieldbackground=[("readonly", t["entry_bg"]), ("disabled", t["frame_bg"])],
             foreground=[("readonly", t["entry_fg"]), ("disabled", t["fg_muted"])],
         )
 
-        style.configure("TCombobox",
+        style.configure(
+            "TCombobox",
             fieldbackground=t["entry_bg"],
             foreground=t["entry_fg"],
             padding=(8, 4),
         )
-        style.map("TCombobox",
+        style.map(
+            "TCombobox",
             fieldbackground=[("readonly", t["entry_bg"]), ("disabled", t["frame_bg"])],
             foreground=[("readonly", t["entry_fg"]), ("disabled", t["fg_muted"])],
             selectbackground=[("readonly", t["select_bg"])],
             selectforeground=[("readonly", t["select_fg"])],
         )
-        style.configure("TSpinbox",
+        style.configure(
+            "TSpinbox",
             fieldbackground=t["entry_bg"],
             foreground=t["entry_fg"],
             padding=(8, 4),
         )
-        style.map("TSpinbox",
+        style.map(
+            "TSpinbox",
             fieldbackground=[("readonly", t["entry_bg"]), ("disabled", t["frame_bg"])],
             foreground=[("readonly", t["entry_fg"]), ("disabled", t["fg_muted"])],
         )
 
         # Ноутбук / вкладки
         style.configure("TNotebook", background=t["notebook_bg"], tabmargins=(2, 5, 2, 0))
-        style.configure("TNotebook.Tab",
+        style.configure(
+            "TNotebook.Tab",
             background=t["tab_bg"],
             foreground=t["tab_fg"],
             font=("Segoe UI", 10),
             padding=(14, 6),
         )
-        style.map("TNotebook.Tab",
+        style.map(
+            "TNotebook.Tab",
             background=[("selected", t["tab_active_bg"]), ("active", t["tab_hover_bg"])],
             foreground=[("selected", t["tab_active_fg"]), ("active", t["fg"])],
             expand=[("selected", (2, 2, 2, 0))],
         )
 
         # Progressbar
-        style.configure("Horizontal.TProgressbar", background=t["accent"], troughcolor=t["button_bg"])
+        style.configure(
+            "Horizontal.TProgressbar", background=t["accent"], troughcolor=t["button_bg"]
+        )
         style.configure("Vertical.TProgressbar", background=t["accent"], troughcolor=t["button_bg"])
 
         # Scale
         style.configure("TScale", background=t["bg"])
 
         # Scrollbar
-        style.configure("TScrollbar",
+        style.configure(
+            "TScrollbar",
             background=t["scrollbar_bg"],
             troughcolor=t["scrollbar_trough"],
             arrowcolor=t["fg"],
         )
 
         # Treeview — покращений
-        style.configure("Treeview",
+        style.configure(
+            "Treeview",
             background=t["tree_bg"],
             foreground=t["tree_fg"],
             fieldbackground=t["tree_bg"],
             font=("Segoe UI", 10),
             rowheight=28,
         )
-        style.configure("Treeview.Heading",
+        style.configure(
+            "Treeview.Heading",
             background=t["button_bg"],
             foreground=t["button_fg"],
             font=("Segoe UI", 10, "bold"),
             padding=(8, 6),
         )
-        style.map("Treeview",
+        style.map(
+            "Treeview",
             background=[("selected", t["tree_sel_bg"])],
             foreground=[("selected", t["tree_sel_fg"])],
         )
 
         # Labelframe
         style.configure("TLabelframe", background=t["bg"])
-        style.configure("TLabelframe.Label", background=t["bg"], foreground=t["fg"],
-                        font=("Segoe UI", 10, "bold"))
+        style.configure(
+            "TLabelframe.Label",
+            background=t["bg"],
+            foreground=t["fg"],
+            font=("Segoe UI", 10, "bold"),
+        )
 
         # Separator
         style.configure("TSeparator", background=t["separator"])
@@ -422,7 +447,8 @@ class ThemeManager:
         style.configure("TPanedwindow", background=t["bg"])
 
         # MenuButton
-        style.configure("TMenubutton",
+        style.configure(
+            "TMenubutton",
             background=t["button_bg"],
             foreground=t["button_fg"],
             padding=(8, 4),

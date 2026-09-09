@@ -8,12 +8,26 @@
   Прибуток = ціна (зі знижкою) − собівартість − роботи − витрати
 """
 
+from PySide6.QtGui import QBrush, QColor
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QTableView, QAbstractItemView, QMessageBox,
-    QFileDialog, QFormLayout, QWidget, QLineEdit, QDoubleSpinBox,
-    QSpinBox, QDialogButtonBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTabWidget,
+    QTableView,
+    QAbstractItemView,
+    QMessageBox,
+    QFileDialog,
+    QFormLayout,
+    QWidget,
+    QLineEdit,
+    QDoubleSpinBox,
+    QSpinBox,
+    QDialogButtonBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
@@ -21,7 +35,9 @@ from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
-from ventilation_company.database.repositories.project_document_repo import ProjectDocumentRepository
+from ventilation_company.database.repositories.project_document_repo import (
+    ProjectDocumentRepository,
+)
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 
@@ -53,7 +69,9 @@ class WorkEditDialog(QDialog):
         self.spin_price.setDecimals(2)
         self.spin_price.setValue(work_data.get("unit_price", 0) if work_data else 0)
         layout.addRow("Ціна за од.", self.spin_price)
-        btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        btn = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addRow(btn)
@@ -98,7 +116,9 @@ class ExpenseEditDialog(QDialog):
         self.spin_price.setDecimals(2)
         self.spin_price.setValue(expense_data.get("unit_price", 0) if expense_data else 0)
         layout.addRow("Ціна за од.", self.spin_price)
-        btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        btn = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addRow(btn)
@@ -140,10 +160,16 @@ class ProjectCardDialog(QDialog):
             self._expenses = ProjectExpenseRepository.get_all(project_id=self.project_id)
 
             # Рахуємо з виробів (з урахуванням знижки на виріб)
-            cost_from_products = sum(p.get("cost_price", 0) * p.get("quantity", 1) for p in self._products)
+            cost_from_products = sum(
+                p.get("cost_price", 0) * p.get("quantity", 1) for p in self._products
+            )
             # ← v2.4: використовуємо discounted_price, якщо вона вказана
             price_from_products = sum(
-                (p.get("discounted_price", 0) if p.get("discounted_price", 0) > 0 else p.get("total_price", 0))
+                (
+                    p.get("discounted_price", 0)
+                    if p.get("discounted_price", 0) > 0
+                    else p.get("total_price", 0)
+                )
                 for p in self._products
             )
 
@@ -264,7 +290,20 @@ class ProjectCardDialog(QDialog):
         layout.addWidget(self.products_table)
         model = QStandardItemModel()
         # ← v2.4: додано колонку "Зі знижкою"
-        model.setHorizontalHeaderLabels(["№", "Назва", "Тип", "Розміри", "Матеріал", "К-ть", "Собіварт.", "Ціна", "Зі знижкою", "Сума"])
+        model.setHorizontalHeaderLabels(
+            [
+                "№",
+                "Назва",
+                "Тип",
+                "Розміри",
+                "Матеріал",
+                "К-ть",
+                "Собіварт.",
+                "Ціна",
+                "Зі знижкою",
+                "Сума",
+            ]
+        )
         self.products_table.setModel(model)
         for i, item in enumerate(self._products, 1):
             w = item.get("width", 0) or 0
@@ -339,7 +378,12 @@ class ProjectCardDialog(QDialog):
 
     def _populate_documents(self):
         self.docs_model.removeRows(0, self.docs_model.rowCount())
-        type_names = {"spec": "Специфікація", "calc": "Калькуляція", "metal": "Метал", "order": "Наряд"}
+        type_names = {
+            "spec": "Специфікація",
+            "calc": "Калькуляція",
+            "metal": "Метал",
+            "order": "Наряд",
+        }
         for doc in self._documents:
             row = [
                 QStandardItem(str(doc["id"])),
@@ -376,8 +420,7 @@ class ProjectCardDialog(QDialog):
             QMessageBox.warning(self, "Увага", "Документ не знайдено")
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Зберегти документ", doc["filename"],
-            "Excel files (*.xlsx);;All files (*.*)"
+            self, "Зберегти документ", doc["filename"], "Excel files (*.xlsx);;All files (*.*)"
         )
         if path:
             try:
@@ -392,8 +435,12 @@ class ProjectCardDialog(QDialog):
         if not doc_id:
             QMessageBox.warning(self, "Увага", "Виберіть документ для видалення")
             return
-        reply = QMessageBox.question(self, "Видалення", "Видалити документ з бази даних?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Видалення",
+            "Видалити документ з бази даних?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 ProjectDocumentRepository.delete(doc_id)
@@ -420,7 +467,9 @@ class ProjectCardDialog(QDialog):
         self.works_table.verticalHeader().setVisible(False)
         layout.addWidget(self.works_table)
         self.works_model = QStandardItemModel()
-        self.works_model.setHorizontalHeaderLabels(["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""])
+        self.works_model.setHorizontalHeaderLabels(
+            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
+        )
         self.works_table.setModel(self.works_model)
         self.works_table.setColumnWidth(0, 40)
         self.works_table.setColumnWidth(1, 200)
@@ -498,8 +547,12 @@ class ProjectCardDialog(QDialog):
         row = idx.row()
         if row < 0 or row >= len(self._works):
             return
-        reply = QMessageBox.question(self, "Видалення", "Видалити роботу?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Видалення",
+            "Видалити роботу?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 ProjectWorkRepository.delete(self._works[row]["id"])
@@ -526,7 +579,9 @@ class ProjectCardDialog(QDialog):
         self.expenses_table.verticalHeader().setVisible(False)
         layout.addWidget(self.expenses_table)
         self.expenses_model = QStandardItemModel()
-        self.expenses_model.setHorizontalHeaderLabels(["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""])
+        self.expenses_model.setHorizontalHeaderLabels(
+            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
+        )
         self.expenses_table.setModel(self.expenses_model)
         self.expenses_table.setColumnWidth(0, 40)
         self.expenses_table.setColumnWidth(1, 200)
@@ -604,8 +659,12 @@ class ProjectCardDialog(QDialog):
         row = idx.row()
         if row < 0 or row >= len(self._expenses):
             return
-        reply = QMessageBox.question(self, "Видалення", "Видалити витрату?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Видалення",
+            "Видалити витрату?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 ProjectExpenseRepository.delete(self._expenses[row]["id"])

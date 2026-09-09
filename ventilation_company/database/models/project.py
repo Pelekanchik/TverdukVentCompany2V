@@ -7,6 +7,7 @@
 """
 
 from __future__ import annotations
+from .calculation import Calculation
 
 from datetime import datetime
 from decimal import Decimal
@@ -19,7 +20,9 @@ from ventilation_company.database.base import Base
 
 if TYPE_CHECKING:
     from ventilation_company.database.models.unified import (
-        ProjectProduct, Specification, CuttingPlan,
+        ProjectProduct,
+        Specification,
+        CuttingPlan,
     )
 
 
@@ -51,7 +54,7 @@ class Project(Base):
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     drawing_path: Mapped[str | None] = mapped_column(String, nullable=True)
     customer_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    discounted_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)   # ← v2.2
+    discounted_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)  # ← v2.2
     cost_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     salary_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     profit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
@@ -68,7 +71,7 @@ class Project(Base):
     works: Mapped[list["ProjectWork"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    expenses: Mapped[list["ProjectExpense"]] = relationship(   # ← v2.3 НОВЕ
+    expenses: Mapped[list["ProjectExpense"]] = relationship(  # ← v2.3 НОВЕ
         back_populates="project", cascade="all, delete-orphan"
     )
     calculations: Mapped[list["Calculation"]] = relationship(
@@ -127,7 +130,7 @@ class ProjectWork(Base):
     project: Mapped["Project"] = relationship(back_populates="works")
 
 
-class ProjectExpense(Base):   # ← v2.3 НОВЕ
+class ProjectExpense(Base):  # ← v2.3 НОВЕ
     __tablename__ = "project_expenses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

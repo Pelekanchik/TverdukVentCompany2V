@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 """Вкладка "💰 Ціноутворення" для GUI.
 
 Налаштування:
@@ -82,10 +83,10 @@ DEFAULT_DEPRECIATION = {
 }
 
 DEFAULT_CATEGORY_WASTE_FACTORS = {
-    "rect_duct": 0.0,        # прямокутні труби
-    "rect_fitting": 0.0,     # прямокутні фасонні
-    "round_duct": 0.0,       # круглі труби
-    "round_fitting": 0.0,    # круглі фасонні
+    "rect_duct": 0.0,  # прямокутні труби
+    "rect_fitting": 0.0,  # прямокутні фасонні
+    "round_duct": 0.0,  # круглі труби
+    "round_fitting": 0.0,  # круглі фасонні
 }
 
 DEFAULT_MARKUP_PERCENT = 30.0
@@ -114,19 +115,84 @@ DEFAULT_CUSTOM_PARAMS = {
 }
 
 DEFAULT_PRODUCTS = [
-    {"name": "Повітропровід прямокутний", "formula": "metal_area * material_price * 1.15", "labor_hours": 0.15, "description": "Прямокутний канал — розгортка + згин"},
-    {"name": "Повітропровід круглий", "formula": "metal_area * material_price * 1.20", "labor_hours": 0.20, "description": "Спірально-навивна труба"},
-    {"name": "Фланець прямокутний", "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5", "labor_hours": 0.25, "description": "Розкрій + свердління отворів"},
-    {"name": "Фланець круглий", "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5", "labor_hours": 0.25, "description": "Токарка + свердління"},
-    {"name": "Трійник прямокутний", "formula": "metal_area * material_price * 1.50", "labor_hours": 0.80, "description": "Розкрій + врізка + згин"},
-    {"name": "Трійник круглий", "formula": "metal_area * material_price * 1.55", "labor_hours": 0.90, "description": "Врізка в трубу + зварка"},
-    {"name": "Перехід прямокутний", "formula": "metal_area * material_price * 1.40", "labor_hours": 0.60, "description": "Трапецієподібна розгортка"},
-    {"name": "Перехід круглий", "formula": "metal_area * material_price * 1.45", "labor_hours": 0.70, "description": "Конусна розгортка"},
-    {"name": "Відвід прямокутний", "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*math.pi/180/1000) * material_price * 1.60", "labor_hours": 1.00, "description": "Сегментне коліно"},
-    {"name": "Відвід круглий", "formula": "(math.pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*math.pi/180/1000) * material_price * 1.65", "labor_hours": 1.10, "description": "Гнуте коліно"},
-    {"name": "Заглушка прямокутна", "formula": "metal_area * material_price * 1.25", "labor_hours": 0.20, "description": "Дно + фальци"},
-    {"name": "Заглушка кругла", "formula": "metal_area * material_price * 1.25", "labor_hours": 0.20, "description": "Витиск + фальци"},
-    {"name": "Гнучка вставка", "formula": "metal_area * 35.0 + 25.0", "labor_hours": 0.10, "description": "Тканина + обжим"},
+    {
+        "name": "Повітропровід прямокутний",
+        "formula": "metal_area * material_price * 1.15",
+        "labor_hours": 0.15,
+        "description": "Прямокутний канал — розгортка + згин",
+    },
+    {
+        "name": "Повітропровід круглий",
+        "formula": "metal_area * material_price * 1.20",
+        "labor_hours": 0.20,
+        "description": "Спірально-навивна труба",
+    },
+    {
+        "name": "Фланець прямокутний",
+        "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5",
+        "labor_hours": 0.25,
+        "description": "Розкрій + свердління отворів",
+    },
+    {
+        "name": "Фланець круглий",
+        "formula": "metal_area * material_price * 1.30 + bolt_count * 2.5",
+        "labor_hours": 0.25,
+        "description": "Токарка + свердління",
+    },
+    {
+        "name": "Трійник прямокутний",
+        "formula": "metal_area * material_price * 1.50",
+        "labor_hours": 0.80,
+        "description": "Розкрій + врізка + згин",
+    },
+    {
+        "name": "Трійник круглий",
+        "formula": "metal_area * material_price * 1.55",
+        "labor_hours": 0.90,
+        "description": "Врізка в трубу + зварка",
+    },
+    {
+        "name": "Перехід прямокутний",
+        "formula": "metal_area * material_price * 1.40",
+        "labor_hours": 0.60,
+        "description": "Трапецієподібна розгортка",
+    },
+    {
+        "name": "Перехід круглий",
+        "formula": "metal_area * material_price * 1.45",
+        "labor_hours": 0.70,
+        "description": "Конусна розгортка",
+    },
+    {
+        "name": "Відвід прямокутний",
+        "formula": "(2*(A+B)/1000) * ((D+E)/1000 + (F+B/2)*C*math.pi/180/1000) * material_price * 1.60",
+        "labor_hours": 1.00,
+        "description": "Сегментне коліно",
+    },
+    {
+        "name": "Відвід круглий",
+        "formula": "(math.pi*A/1000) * ((D+E)/1000 + (F+A/2)*C*math.pi/180/1000) * material_price * 1.65",
+        "labor_hours": 1.10,
+        "description": "Гнуте коліно",
+    },
+    {
+        "name": "Заглушка прямокутна",
+        "formula": "metal_area * material_price * 1.25",
+        "labor_hours": 0.20,
+        "description": "Дно + фальци",
+    },
+    {
+        "name": "Заглушка кругла",
+        "formula": "metal_area * material_price * 1.25",
+        "labor_hours": 0.20,
+        "description": "Витиск + фальци",
+    },
+    {
+        "name": "Гнучка вставка",
+        "formula": "metal_area * 35.0 + 25.0",
+        "labor_hours": 0.10,
+        "description": "Тканина + обжим",
+    },
 ]
 
 
@@ -156,9 +222,7 @@ class PriceBreakdown:
         """Серіалізація у формат колишнього calculate_product_price_detailed."""
         return {
             "formula": self.formula,
-            "steps": [
-                {"name": s.name, "calc": s.calc, "value": s.value} for s in self.steps
-            ],
+            "steps": [{"name": s.name, "calc": s.calc, "value": s.value} for s in self.steps],
             "total": self.total,
         }
 
@@ -249,7 +313,9 @@ class PricingSettings:
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
             self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
-            self.category_waste_factors = data.get("category_waste_factors", DEFAULT_CATEGORY_WASTE_FACTORS.copy())
+            self.category_waste_factors = data.get(
+                "category_waste_factors", DEFAULT_CATEGORY_WASTE_FACTORS.copy()
+            )
             self.sync_labor_rates()
             self.save()
         else:
@@ -288,7 +354,7 @@ class PricingSettings:
     def get_labor_rate(self, product_type: str) -> dict:
         """Отримати ставку зарплати та %% важкості для типу виробу.
 
-        ВИПРАВЛЕНО v2: працює з назвами ("Перехід 400×200→300×150"), 
+        ВИПРАВЛЕНО v2: працює з назвами ("Перехід 400×200→300×150"),
         типами ("rect_transition") та англійськими ключами.
         """
         self.reload()
@@ -374,9 +440,27 @@ class PricingSettings:
             return "rect_duct"
         elif "повітропровід круглий" in pt:
             return "round_duct"
-        elif any(k in pt for k in ["фланець прямокутний", "трійник прямокутний", "перехід прямокутний", "відвід прямокутний", "заглушка прямокутна"]):
+        elif any(
+            k in pt
+            for k in [
+                "фланець прямокутний",
+                "трійник прямокутний",
+                "перехід прямокутний",
+                "відвід прямокутний",
+                "заглушка прямокутна",
+            ]
+        ):
             return "rect_fitting"
-        elif any(k in pt for k in ["фланець круглий", "трійник круглий", "перехід круглий", "відвід круглий", "заглушка кругла"]):
+        elif any(
+            k in pt
+            for k in [
+                "фланець круглий",
+                "трійник круглий",
+                "перехід круглий",
+                "відвід круглий",
+                "заглушка кругла",
+            ]
+        ):
             return "round_fitting"
         else:
             return "rect_duct"  # fallback
@@ -455,10 +539,14 @@ class PricingSettings:
                 break
         try:
             namespace = {
-                "metal_area": metal_area, "metal_area_m2": metal_area,
-                "thickness": thickness, "material_price": material_price,
-                "weight": weight, "weight_kg": weight,
-                "quantity": quantity, "bolt_count": bolt_count,
+                "metal_area": metal_area,
+                "metal_area_m2": metal_area,
+                "thickness": thickness,
+                "material_price": material_price,
+                "weight": weight,
+                "weight_kg": weight,
+                "quantity": quantity,
+                "bolt_count": bolt_count,
                 "length": product_data.get("length", 0),
                 "profile": product_data.get("profile", 30.0),
                 "A": product_data.get("width", 0),
@@ -471,13 +559,21 @@ class PricingSettings:
             }
             namespace.update(self.custom_params)
             for key, value in product_data.items():
-                if key not in namespace and isinstance(value, (int, float)) and not key.startswith("_"):
+                if (
+                    key not in namespace
+                    and isinstance(value, (int, float))
+                    and not key.startswith("_")
+                ):
                     namespace[key] = value
             evaluator = SafeFormulaEvaluator()
             base_price = evaluator.eval(formula, namespace)
         except (ValueError, ZeroDivisionError, TypeError) as exc:
             print(f'[PricingSettings] Помилка формули "{formula}": {exc}. Використано fallback.')
-            base_price = metal_area * material_price * 1.15 if metal_area > 0 else weight * material_price * 1.15
+            base_price = (
+                metal_area * material_price * 1.15
+                if metal_area > 0
+                else weight * material_price * 1.15
+            )
         waste_pct = self.overhead.get("waste_percent", 8)
         waste_mult = 1 + waste_pct / 100
         after_waste = base_price * waste_mult
@@ -494,18 +590,49 @@ class PricingSettings:
         markup_pct = self.get_markup_percent(product_data)
         final_price = after_elec * (1 + markup_pct / 100)
         mat_key, cat_key = classify_product(product_data.get("name", ""), ptype, material)
-        is_std = is_standard_size(product_data.get("width", 0), product_data.get("height", 0), product_data.get("length", 0), product_data.get("diameter", 0))
+        is_std = is_standard_size(
+            product_data.get("width", 0),
+            product_data.get("height", 0),
+            product_data.get("length", 0),
+            product_data.get("diameter", 0),
+        )
         size_label = "стандарт" if is_std else "нестандарт"
         return PriceBreakdown(
             formula=formula,
             steps=[
-                PriceStep("1. Базова ціна (метал)", f"{metal_area:.4f} м² × {material_price:.2f} грн/м² × коеф.", round(base_price, 2)),
-                PriceStep("2. Відходи металу", f"× (1 + {waste_pct:.1f}%) = × {waste_mult:.3f}", round(after_waste, 2)),
-                PriceStep("3. Зарплата робітників", f"{metal_area:.4f} м² × {rate_per_m2:.2f} грн/м² × (1 + {difficulty:.1f}%)", round(labor_cost, 2)),
-                PriceStep("4. Після зарплати", f"{after_waste:.2f} + {labor_cost:.2f}", round(after_labor, 2)),
-                PriceStep("5. Амортизація обладнання", f"× (1 + {depr:.2f}%)", round(after_depr, 2)),
-                PriceStep("6. Електроенергія", f"{weight:.3f} кг × {elec_rate:.2f} грн/кг", round(elec_cost, 2)),
-                PriceStep("7. Процентна націнка", f"× (1 + {markup_pct:.1f}%) — {mat_key} / {PRODUCT_TYPE_LABELS.get(cat_key, cat_key)} / {thickness} мм / {size_label}", round(final_price, 2)),
+                PriceStep(
+                    "1. Базова ціна (метал)",
+                    f"{metal_area:.4f} м² × {material_price:.2f} грн/м² × коеф.",
+                    round(base_price, 2),
+                ),
+                PriceStep(
+                    "2. Відходи металу",
+                    f"× (1 + {waste_pct:.1f}%) = × {waste_mult:.3f}",
+                    round(after_waste, 2),
+                ),
+                PriceStep(
+                    "3. Зарплата робітників",
+                    f"{metal_area:.4f} м² × {rate_per_m2:.2f} грн/м² × (1 + {difficulty:.1f}%)",
+                    round(labor_cost, 2),
+                ),
+                PriceStep(
+                    "4. Після зарплати",
+                    f"{after_waste:.2f} + {labor_cost:.2f}",
+                    round(after_labor, 2),
+                ),
+                PriceStep(
+                    "5. Амортизація обладнання", f"× (1 + {depr:.2f}%)", round(after_depr, 2)
+                ),
+                PriceStep(
+                    "6. Електроенергія",
+                    f"{weight:.3f} кг × {elec_rate:.2f} грн/кг",
+                    round(elec_cost, 2),
+                ),
+                PriceStep(
+                    "7. Процентна націнка",
+                    f"× (1 + {markup_pct:.1f}%) — {mat_key} / {PRODUCT_TYPE_LABELS.get(cat_key, cat_key)} / {thickness} мм / {size_label}",
+                    round(final_price, 2),
+                ),
             ],
             total=round(final_price, 2),
         )
@@ -537,9 +664,15 @@ class SettingsTab:
         # Верхня панель з кнопками
         top = ttk.Frame(self.frame, padding=5)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="💰 Налаштування ціноутворення", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
-        ttk.Button(top, text="💾 Зберегти налаштування", command=self._save_settings).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(top, text="🔄 Скинути за замовчуванням", command=self._reset_defaults).pack(side=tk.RIGHT, padx=5)
+        ttk.Label(top, text="💰 Налаштування ціноутворення", font=("Arial", 14, "bold")).pack(
+            side=tk.LEFT
+        )
+        ttk.Button(top, text="💾 Зберегти налаштування", command=self._save_settings).pack(
+            side=tk.RIGHT, padx=5
+        )
+        ttk.Button(top, text="🔄 Скинути за замовчуванням", command=self._reset_defaults).pack(
+            side=tk.RIGHT, padx=5
+        )
 
         # Notebook для під-вкладок
         self.notebook = ttk.Notebook(self.frame)
@@ -573,14 +706,20 @@ class SettingsTab:
         self._build_waste_tab()
 
     def _build_metal_tab(self):
-        ttk.Label(self.metal_frame, text="Ціни на метал (грн/м²)", font=("Arial", 11, "bold")).pack(pady=5)
+        ttk.Label(self.metal_frame, text="Ціни на метал (грн/м²)", font=("Arial", 11, "bold")).pack(
+            pady=5
+        )
         frame = ttk.Frame(self.metal_frame)
         frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         thicknesses = ["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"]
         materials = ["оцинкована сталь", "нержавіюча сталь", "алюміній"]
-        ttk.Label(frame, text="Матеріал / Товщина", font=("Arial", 9, "bold")).grid(row=0, column=0, padx=5, pady=3)
+        ttk.Label(frame, text="Матеріал / Товщина", font=("Arial", 9, "bold")).grid(
+            row=0, column=0, padx=5, pady=3
+        )
         for j, th in enumerate(thicknesses):
-            ttk.Label(frame, text=f"{th} мм", font=("Arial", 9, "bold")).grid(row=0, column=j + 1, padx=5, pady=3)
+            ttk.Label(frame, text=f"{th} мм", font=("Arial", 9, "bold")).grid(
+                row=0, column=j + 1, padx=5, pady=3
+            )
         self.metal_entries = {}
         for i, mat in enumerate(materials):
             ttk.Label(frame, text=mat).grid(row=i + 1, column=0, padx=5, pady=3, sticky=tk.W)
@@ -637,11 +776,17 @@ class SettingsTab:
     def _build_labor_tab(self):
         top = ttk.Frame(self.labor_frame, padding=5)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="👷 Зарплата робітників (грн/м²)", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
-        ttk.Button(top, text="💾 Зберегти ставки", command=self._save_labor_rates).pack(side=tk.RIGHT, padx=5)
+        ttk.Label(top, text="👷 Зарплата робітників (грн/м²)", font=("Arial", 12, "bold")).pack(
+            side=tk.LEFT
+        )
+        ttk.Button(top, text="💾 Зберегти ставки", command=self._save_labor_rates).pack(
+            side=tk.RIGHT, padx=5
+        )
 
         columns = ("product_type", "rate", "difficulty", "total")
-        self.labor_tree = ttk.Treeview(self.labor_frame, columns=columns, show="headings", height=15)
+        self.labor_tree = ttk.Treeview(
+            self.labor_frame, columns=columns, show="headings", height=15
+        )
         self.labor_tree.heading("product_type", text="Тип виробу")
         self.labor_tree.heading("rate", text="Ставка, грн/м²")
         self.labor_tree.heading("difficulty", text="Важкість, %")
@@ -651,7 +796,9 @@ class SettingsTab:
         self.labor_tree.column("difficulty", width=100, anchor=tk.CENTER)
         self.labor_tree.column("total", width=120, anchor=tk.CENTER)
 
-        scrollbar = ttk.Scrollbar(self.labor_frame, orient=tk.VERTICAL, command=self.labor_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            self.labor_frame, orient=tk.VERTICAL, command=self.labor_tree.yview
+        )
         self.labor_tree.configure(yscrollcommand=scrollbar.set)
         self.labor_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
@@ -663,17 +810,25 @@ class SettingsTab:
 
         ttk.Label(edit_frame, text="Тип виробу:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.labor_type_var = tk.StringVar()
-        ttk.Entry(edit_frame, textvariable=self.labor_type_var, width=35, state="readonly").grid(row=0, column=1, padx=5, pady=2)
+        ttk.Entry(edit_frame, textvariable=self.labor_type_var, width=35, state="readonly").grid(
+            row=0, column=1, padx=5, pady=2
+        )
 
         ttk.Label(edit_frame, text="Ставка (грн/м²):").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.labor_rate_var = tk.StringVar(value="120.0")
-        ttk.Entry(edit_frame, textvariable=self.labor_rate_var, width=12).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(edit_frame, textvariable=self.labor_rate_var, width=12).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=2
+        )
 
         ttk.Label(edit_frame, text="Важкість (%):").grid(row=2, column=0, sticky=tk.W, pady=2)
         self.labor_diff_var = tk.StringVar(value="0.0")
-        ttk.Entry(edit_frame, textvariable=self.labor_diff_var, width=12).grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(edit_frame, textvariable=self.labor_diff_var, width=12).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=2
+        )
 
-        ttk.Button(edit_frame, text="✅ Застосувати", command=self._apply_labor_edit).grid(row=3, column=0, columnspan=2, pady=10)
+        ttk.Button(edit_frame, text="✅ Застосувати", command=self._apply_labor_edit).grid(
+            row=3, column=0, columnspan=2, pady=10
+        )
 
         help_frame = ttk.LabelFrame(self.labor_frame, text="📖 Як рахується зарплата", padding=10)
         help_frame.pack(fill=tk.X, padx=5, pady=5, side=tk.BOTTOM)
@@ -688,7 +843,13 @@ class SettingsTab:
             "  Ставка 250 грн/м², важкість 25%\n"
             "  Зарплата = 2.5 × 250 × 1.25 = 781.25 грн"
         )
-        ttk.Label(help_frame, text=help_text, foreground=self._fg("green"), justify=tk.LEFT, font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(
+            help_frame,
+            text=help_text,
+            foreground=self._fg("green"),
+            justify=tk.LEFT,
+            font=("Consolas", 9),
+        ).pack(anchor=tk.W)
 
     def _refresh_labor_tree(self):
         for item in self.labor_tree.get_children():
@@ -703,7 +864,9 @@ class SettingsTab:
             rate = data.get("rate_per_m2", 0.0)
             diff = data.get("difficulty_percent", 0.0)
             total = rate * (1 + diff / 100)
-            self.labor_tree.insert("", tk.END, values=(display_name, f"{rate:.2f}", f"{diff:.1f}", f"{total:.2f}"))
+            self.labor_tree.insert(
+                "", tk.END, values=(display_name, f"{rate:.2f}", f"{diff:.1f}", f"{total:.2f}")
+            )
 
     def _edit_labor_dialog(self):
         selected = self.labor_tree.selection()
@@ -734,7 +897,10 @@ class SettingsTab:
         except ValueError:
             messagebox.showwarning("Увага", "Ставка та важкість мають бути числами.")
             return
-        self.settings.labor_rates[ptype.lower().strip()] = {"rate_per_m2": rate, "difficulty_percent": diff}
+        self.settings.labor_rates[ptype.lower().strip()] = {
+            "rate_per_m2": rate,
+            "difficulty_percent": diff,
+        }
         self._refresh_labor_tree()
 
     def _save_labor_rates(self):
@@ -745,12 +911,20 @@ class SettingsTab:
     def _build_catalog_tab(self):
         ctrl = ttk.Frame(self.catalog_frame)
         ctrl.pack(fill=tk.X, padx=5, pady=5)
-        ttk.Button(ctrl, text="➕ Додати продукцію", command=self._add_product_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="✏️ Редагувати", command=self._edit_product_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="🗑️ Видалити", command=self._delete_product).pack(side=tk.LEFT, padx=2)
+        ttk.Button(ctrl, text="➕ Додати продукцію", command=self._add_product_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(ctrl, text="✏️ Редагувати", command=self._edit_product_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(ctrl, text="🗑️ Видалити", command=self._delete_product).pack(
+            side=tk.LEFT, padx=2
+        )
 
         columns = ("name", "formula", "labor", "description")
-        self.catalog_tree = ttk.Treeview(self.catalog_frame, columns=columns, show="headings", height=18)
+        self.catalog_tree = ttk.Treeview(
+            self.catalog_frame, columns=columns, show="headings", height=18
+        )
         self.catalog_tree.heading("name", text="Назва виробу")
         self.catalog_tree.heading("formula", text="Формула розрахунку")
         self.catalog_tree.heading("labor", text="Години")
@@ -760,7 +934,9 @@ class SettingsTab:
         self.catalog_tree.column("labor", width=60)
         self.catalog_tree.column("description", width=300)
 
-        scrollbar = ttk.Scrollbar(self.catalog_frame, orient=tk.VERTICAL, command=self.catalog_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            self.catalog_frame, orient=tk.VERTICAL, command=self.catalog_tree.yview
+        )
         self.catalog_tree.configure(yscrollcommand=scrollbar.set)
         self.catalog_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
@@ -770,12 +946,18 @@ class SettingsTab:
     def _build_params_tab(self):
         ctrl = ttk.Frame(self.params_frame)
         ctrl.pack(fill=tk.X, padx=5, pady=5)
-        ttk.Button(ctrl, text="➕ Додати параметр", command=self._add_param_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(ctrl, text="✏️ Редагувати", command=self._edit_param_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(ctrl, text="➕ Додати параметр", command=self._add_param_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(ctrl, text="✏️ Редагувати", command=self._edit_param_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
         ttk.Button(ctrl, text="🗑️ Видалити", command=self._delete_param).pack(side=tk.LEFT, padx=2)
 
         columns = ("name", "value", "description")
-        self.params_tree = ttk.Treeview(self.params_frame, columns=columns, show="headings", height=18)
+        self.params_tree = ttk.Treeview(
+            self.params_frame, columns=columns, show="headings", height=18
+        )
         self.params_tree.heading("name", text="Назва параметра")
         self.params_tree.heading("value", text="Значення")
         self.params_tree.heading("description", text="Опис / використання")
@@ -783,7 +965,9 @@ class SettingsTab:
         self.params_tree.column("value", width=120)
         self.params_tree.column("description", width=400)
 
-        scrollbar = ttk.Scrollbar(self.params_frame, orient=tk.VERTICAL, command=self.params_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            self.params_frame, orient=tk.VERTICAL, command=self.params_tree.yview
+        )
         self.params_tree.configure(yscrollcommand=scrollbar.set)
         self.params_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
@@ -805,7 +989,13 @@ class SettingsTab:
             "  weight, weight_kg, quantity, bolt_count,\n"
             "  width, height, length"
         )
-        ttk.Label(help_frame, text=help_text, foreground=self._fg("green"), justify=tk.LEFT, font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(
+            help_frame,
+            text=help_text,
+            foreground=self._fg("green"),
+            justify=tk.LEFT,
+            font=("Consolas", 9),
+        ).pack(anchor=tk.W)
 
     def _add_param_dialog(self):
         self._param_dialog(None)
@@ -831,21 +1021,27 @@ class SettingsTab:
         if idx is not None:
             name = param_names[idx]
             value = self.settings.custom_params[name]
-            desc = getattr(self, '_param_descriptions', {}).get(name, "")
+            desc = getattr(self, "_param_descriptions", {}).get(name, "")
         else:
             name = ""
             value = 0.0
             desc = ""
 
-        ttk.Label(dialog, text="Назва параметра:").grid(row=0, column=0, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="Назва параметра:").grid(
+            row=0, column=0, sticky=tk.W, padx=10, pady=5
+        )
         name_var = tk.StringVar(value=name)
         ttk.Entry(dialog, textvariable=name_var, width=35).grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Label(dialog, text="Значення:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=5)
         value_var = tk.StringVar(value=str(value))
-        ttk.Entry(dialog, textvariable=value_var, width=15).grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Entry(dialog, textvariable=value_var, width=15).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5
+        )
 
-        ttk.Label(dialog, text="Опис (необов'язково):").grid(row=2, column=0, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="Опис (необов'язково):").grid(
+            row=2, column=0, sticky=tk.W, padx=10, pady=5
+        )
         desc_var = tk.StringVar(value=desc)
         ttk.Entry(dialog, textvariable=desc_var, width=35).grid(row=2, column=1, padx=5, pady=5)
 
@@ -856,9 +1052,13 @@ class SettingsTab:
             "  transport_km — відстань доставки (км)\n"
             "  packing_cost — вартість упаковки (грн)"
         )
-        ttk.Label(dialog, text=examples, foreground=self._fg("fg_muted"), justify=tk.LEFT, font=("Consolas", 9)).grid(
-            row=3, column=0, columnspan=2, padx=10, pady=10, sticky=tk.W
-        )
+        ttk.Label(
+            dialog,
+            text=examples,
+            foreground=self._fg("fg_muted"),
+            justify=tk.LEFT,
+            font=("Consolas", 9),
+        ).grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky=tk.W)
 
         def save():
             new_name = name_var.get().strip()
@@ -866,14 +1066,16 @@ class SettingsTab:
                 messagebox.showwarning("Увага", "Назва параметра не може бути порожньою.")
                 return
             if not new_name.replace("_", "").isalnum():
-                messagebox.showwarning("Увага", "Назва параметра може містити лише латинські літери, цифри та '_' .")
+                messagebox.showwarning(
+                    "Увага", "Назва параметра може містити лише латинські літери, цифри та '_' ."
+                )
                 return
             try:
                 new_value = float(value_var.get())
             except ValueError:
                 messagebox.showwarning("Увага", "Значення має бути числом.")
                 return
-            if not hasattr(self, '_param_descriptions'):
+            if not hasattr(self, "_param_descriptions"):
                 self._param_descriptions = {}
             self._param_descriptions[new_name] = desc_var.get()
             if idx is not None:
@@ -884,7 +1086,9 @@ class SettingsTab:
             self._refresh_params()
             dialog.destroy()
 
-        ttk.Button(dialog, text="Зберегти", command=save).grid(row=4, column=0, columnspan=2, pady=15)
+        ttk.Button(dialog, text="Зберегти", command=save).grid(
+            row=4, column=0, columnspan=2, pady=15
+        )
 
     def _delete_param(self):
         selected = self.params_tree.selection()
@@ -900,7 +1104,7 @@ class SettingsTab:
     def _refresh_params(self):
         for item in self.params_tree.get_children():
             self.params_tree.delete(item)
-        descriptions = getattr(self, '_param_descriptions', {})
+        descriptions = getattr(self, "_param_descriptions", {})
         for name, value in self.settings.custom_params.items():
             desc = descriptions.get(name, "")
             self.params_tree.insert("", tk.END, values=(name, f"{value:.2f}", desc))
@@ -931,13 +1135,19 @@ class SettingsTab:
         name_var = tk.StringVar(value=product.get("name", ""))
         ttk.Entry(dialog, textvariable=name_var, width=40).grid(row=0, column=1, padx=5, pady=5)
 
-        ttk.Label(dialog, text="Формула розрахунку:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=5)
-        formula_var = tk.StringVar(value=product.get("formula", "metal_area * thickness * material_price * 1.15"))
+        ttk.Label(dialog, text="Формула розрахунку:").grid(
+            row=1, column=0, sticky=tk.W, padx=10, pady=5
+        )
+        formula_var = tk.StringVar(
+            value=product.get("formula", "metal_area * thickness * material_price * 1.15")
+        )
         ttk.Entry(dialog, textvariable=formula_var, width=40).grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Label(dialog, text="Години роботи:").grid(row=2, column=0, sticky=tk.W, padx=10, pady=5)
         labor_var = tk.StringVar(value=str(product.get("labor_hours", 0.15)))
-        ttk.Entry(dialog, textvariable=labor_var, width=10).grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Entry(dialog, textvariable=labor_var, width=10).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=5
+        )
 
         ttk.Label(dialog, text="Опис:").grid(row=3, column=0, sticky=tk.W, padx=10, pady=5)
         desc_var = tk.StringVar(value=product.get("description", ""))
@@ -971,7 +1181,9 @@ class SettingsTab:
             "  bolt_diameter — Ø отвору під болт (мм)\n"
             "  bolt_spacing — крок отворів (мм)\n\n"
             "Кастомні параметри (з вкладки 'Параметри формул'):\n"
-            "  " + ", ".join(self.settings.custom_params.keys()) if self.settings.custom_params else "  (немає)"
+            "  " + ", ".join(self.settings.custom_params.keys())
+            if self.settings.custom_params
+            else "  (немає)"
         )
         ttk.Label(dialog, text=param_help, foreground=self._fg("green"), justify=tk.LEFT).grid(
             row=4, column=0, columnspan=2, padx=10, pady=10, sticky=tk.W
@@ -993,7 +1205,9 @@ class SettingsTab:
             self._refresh_catalog()
             dialog.destroy()
 
-        ttk.Button(dialog, text="Зберегти", command=save).grid(row=5, column=0, columnspan=2, pady=15)
+        ttk.Button(dialog, text="Зберегти", command=save).grid(
+            row=5, column=0, columnspan=2, pady=15
+        )
 
     def _delete_product(self):
         selected = self.catalog_tree.selection()
@@ -1026,7 +1240,11 @@ class SettingsTab:
         for item in self.catalog_tree.get_children():
             self.catalog_tree.delete(item)
         for p in self.settings.products:
-            self.catalog_tree.insert("", tk.END, values=(p["name"], p["formula"], p.get("labor_hours", 0), p.get("description", "")))
+            self.catalog_tree.insert(
+                "",
+                tk.END,
+                values=(p["name"], p["formula"], p.get("labor_hours", 0), p.get("description", "")),
+            )
         self.settings.sync_labor_rates()
         self._refresh_labor_tree()
 
@@ -1050,10 +1268,16 @@ class SettingsTab:
         """Вкладка коефіцієнтів запасу на брак/поворот по категоріях."""
         top = ttk.Frame(self.waste_frame, padding=5)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="📦 Коефіцієнти запасу на брак/поворот (%)", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
-        ttk.Button(top, text="💾 Зберегти", command=self._save_waste_factors).pack(side=tk.RIGHT, padx=5)
+        ttk.Label(
+            top, text="📦 Коефіцієнти запасу на брак/поворот (%)", font=("Arial", 12, "bold")
+        ).pack(side=tk.LEFT)
+        ttk.Button(top, text="💾 Зберегти", command=self._save_waste_factors).pack(
+            side=tk.RIGHT, padx=5
+        )
 
-        frame = ttk.LabelFrame(self.waste_frame, text="Налаштування коефіцієнтів по категоріях", padding=10)
+        frame = ttk.LabelFrame(
+            self.waste_frame, text="Налаштування коефіцієнтів по категоріях", padding=10
+        )
         frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.waste_vars = {}
@@ -1064,7 +1288,9 @@ class SettingsTab:
             ("round_fitting", "Круглі фасонні вироби (фланці, трійники, відводи...)"),
         ]
         for i, (key, label) in enumerate(categories):
-            ttk.Label(frame, text=label, font=("Arial", 10)).grid(row=i, column=0, sticky=tk.W, pady=8, padx=5)
+            ttk.Label(frame, text=label, font=("Arial", 10)).grid(
+                row=i, column=0, sticky=tk.W, pady=8, padx=5
+            )
             var = tk.StringVar(value=str(self.settings.category_waste_factors.get(key, 0.0)))
             ent = ttk.Entry(frame, textvariable=var, width=10)
             ent.grid(row=i, column=1, padx=5, pady=8, sticky=tk.W)
@@ -1077,9 +1303,13 @@ class SettingsTab:
             "Приклад: якщо коефіцієнт = 5%, то вартість металу\n"
             "збільшується на 5% для відповідної категорії виробів."
         )
-        ttk.Label(frame, text=help_text, foreground=self._fg("fg_muted"),
-                justify=tk.LEFT, font=("Consolas", 9)).grid(row=len(categories), column=0,
-                columnspan=3, sticky=tk.W, pady=15, padx=5)
+        ttk.Label(
+            frame,
+            text=help_text,
+            foreground=self._fg("fg_muted"),
+            justify=tk.LEFT,
+            font=("Consolas", 9),
+        ).grid(row=len(categories), column=0, columnspan=3, sticky=tk.W, pady=15, padx=5)
 
     def _save_waste_factors(self):
         """Зберегти коефіцієнти запасу."""

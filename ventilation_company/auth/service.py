@@ -33,9 +33,17 @@ _SETUP_FILE = os.path.join(_BASE_DIR, "data", ".setup_credentials.json")
 class User:
     """Проста dataclass-користувач (зворотна сумісність з GUI)."""
 
-    def __init__(self, id: int, username: str, password_hash: str,
-                 full_name: str, role: str, is_active: int = 1,
-                 created_at: str = None, last_login: str = None):
+    def __init__(
+        self,
+        id: int,
+        username: str,
+        password_hash: str,
+        full_name: str,
+        role: str,
+        is_active: int = 1,
+        created_at: str = None,
+        last_login: str = None,
+    ):
         self.id = id
         self.username = username
         self.password_hash = password_hash
@@ -88,8 +96,24 @@ class AuthService:
             full_name=orm.full_name,
             role=orm.role,
             is_active=orm.is_active,
-            created_at=(orm.created_at.isoformat() if hasattr(orm.created_at, "isoformat") else str(orm.created_at)) if orm.created_at else None,
-            last_login=(orm.last_login.isoformat() if hasattr(orm.last_login, "isoformat") else str(orm.last_login)) if orm.last_login else None,
+            created_at=(
+                (
+                    orm.created_at.isoformat()
+                    if hasattr(orm.created_at, "isoformat")
+                    else str(orm.created_at)
+                )
+                if orm.created_at
+                else None
+            ),
+            last_login=(
+                (
+                    orm.last_login.isoformat()
+                    if hasattr(orm.last_login, "isoformat")
+                    else str(orm.last_login)
+                )
+                if orm.last_login
+                else None
+            ),
         )
 
     # ── CRUD користувачів ──
@@ -106,9 +130,7 @@ class AuthService:
 
         session = self._session()
         try:
-            existing = session.query(UserORM).filter(
-                UserORM.username == username
-            ).first()
+            existing = session.query(UserORM).filter(UserORM.username == username).first()
             if existing:
                 raise ValueError(f"Користувач '{username}' вже існує")
 
@@ -137,9 +159,11 @@ class AuthService:
     def get_user_by_username(self, username: str) -> Optional[User]:
         session = self._session()
         try:
-            orm = session.query(UserORM).filter(
-                UserORM.username == username, UserORM.is_active == 1
-            ).first()
+            orm = (
+                session.query(UserORM)
+                .filter(UserORM.username == username, UserORM.is_active == 1)
+                .first()
+            )
             return self._orm_to_user(orm) if orm else None
         finally:
             session.close()
@@ -147,9 +171,7 @@ class AuthService:
     def list_users(self) -> list[User]:
         session = self._session()
         try:
-            rows = session.query(UserORM).filter(
-                UserORM.is_active == 1
-            ).order_by(UserORM.id).all()
+            rows = session.query(UserORM).filter(UserORM.is_active == 1).order_by(UserORM.id).all()
             return [self._orm_to_user(r) for r in rows]
         finally:
             session.close()
@@ -183,11 +205,14 @@ class AuthService:
         """Перевірити логін/пароль і повернути користувача."""
         session = self._session()
         try:
-            orm = session.query(UserORM).filter(
-                UserORM.username == username, UserORM.is_active == 1
-            ).first()
+            orm = (
+                session.query(UserORM)
+                .filter(UserORM.username == username, UserORM.is_active == 1)
+                .first()
+            )
             if orm and self._verify_password(password, orm.password_hash):
                 from datetime import datetime
+
                 orm.last_login = datetime.now()
                 session.commit()
                 self._current_user = self._orm_to_user(orm)

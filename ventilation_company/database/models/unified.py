@@ -12,7 +12,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Float, ForeignKey, Index, Integer, Numeric, String, Text, DateTime, JSON,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    DateTime,
+    JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +32,7 @@ if TYPE_CHECKING:
 
 class ProjectProduct(Base):
     """Вироби в проєкті (раніше project_products у sqlite3)."""
+
     __tablename__ = "project_products"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -52,6 +61,7 @@ class ProjectProduct(Base):
 
 class Specification(Base):
     """Специфікації проєкту."""
+
     __tablename__ = "specifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -73,6 +83,7 @@ class Specification(Base):
 
 class CuttingPlan(Base):
     """Плани розкрою."""
+
     __tablename__ = "cutting_plans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -95,6 +106,7 @@ class CuttingPlan(Base):
 
 class StandardProductLibrary(Base):
     """Бібліотека стандартних виробів."""
+
     __tablename__ = "standard_products_library"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -115,6 +127,7 @@ class StandardProductLibrary(Base):
 
 class MaterialPrice(Base):
     """Ціни на матеріали."""
+
     __tablename__ = "material_prices"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -127,13 +140,12 @@ class MaterialPrice(Base):
         DateTime, default=datetime.now, nullable=True
     )
 
-    __table_args__ = (
-        {"sqlite_autoincrement": True},
-    )
+    __table_args__ = ({"sqlite_autoincrement": True},)
 
 
 class Client(Base):
     """Клієнти."""
+
     __tablename__ = "clients"
 
     __table_args__ = (
@@ -173,6 +185,7 @@ class Client(Base):
 
 class Interaction(Base):
     """Взаємодії з клієнтами."""
+
     __tablename__ = "interactions"
 
     __table_args__ = (
@@ -182,9 +195,7 @@ class Interaction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
-    date: Mapped[datetime | None] = mapped_column(
-        DateTime, default=datetime.now, nullable=True
-    )
+    date: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now, nullable=True)
     interaction_type: Mapped[str] = mapped_column(String, default="дзвінок")
     subject: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -198,6 +209,7 @@ class Interaction(Base):
 
 class Payment(Base):
     """Платежі."""
+
     __tablename__ = "payments"
 
     __table_args__ = (
@@ -207,9 +219,7 @@ class Payment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
-    date: Mapped[datetime | None] = mapped_column(
-        DateTime, default=datetime.now, nullable=True
-    )
+    date: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now, nullable=True)
     amount: Mapped[float] = mapped_column(Float, default=0)
     currency: Mapped[str] = mapped_column(String, default="UAH")
     payment_type: Mapped[str] = mapped_column(String, default="вхідний")
@@ -222,6 +232,7 @@ class Payment(Base):
 
 class ClientProject(Base):
     """Проєкти клієнта (окремі від внутрішніх проєктів)."""
+
     __tablename__ = "client_projects"
 
     __table_args__ = (
@@ -246,6 +257,7 @@ class ClientProject(Base):
 
 class WarrantyReminder(Base):
     """Нагадування про гарантію."""
+
     __tablename__ = "warranty_reminders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -3,10 +3,27 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-
 STANDARD_SIZES = {
-    50, 100, 150, 200, 250, 300, 350, 400, 450, 500,
-    550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
+    50,
+    100,
+    150,
+    200,
+    250,
+    300,
+    350,
+    400,
+    450,
+    500,
+    550,
+    600,
+    650,
+    700,
+    750,
+    800,
+    850,
+    900,
+    950,
+    1000,
     1250,
 }
 
@@ -86,25 +103,33 @@ class MarkupMatrixTab:
     def _build_ui(self):
         top = ttk.Frame(self.frame, padding=5)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="Матриця націнок по категоріях", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
+        ttk.Label(top, text="Матриця націнок по категоріях", font=("Arial", 14, "bold")).pack(
+            side=tk.LEFT
+        )
         ttk.Button(top, text="Зберегти", command=self._save).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(top, text="Скинути за замовчуванням", command=self._reset_defaults).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(top, text="Скинути за замовчуванням", command=self._reset_defaults).pack(
+            side=tk.RIGHT, padx=5
+        )
 
         left = ttk.LabelFrame(self.frame, text="Фільтр", padding=10)
         left.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
 
         ttk.Label(left, text="Матеріал:").grid(row=0, column=0, sticky=tk.W, pady=3)
         self.mat_var = tk.StringVar(value=MATERIALS[0])
-        mat_combo = ttk.Combobox(left, textvariable=self.mat_var, values=MATERIALS, state="readonly", width=15)
+        mat_combo = ttk.Combobox(
+            left, textvariable=self.mat_var, values=MATERIALS, state="readonly", width=15
+        )
         mat_combo.grid(row=0, column=1, padx=5, pady=3)
         mat_combo.bind("<<ComboboxSelected>>", lambda e: self._refresh_tree())
 
         ttk.Label(left, text="Тип виробу:").grid(row=1, column=0, sticky=tk.W, pady=3)
         self.type_var = tk.StringVar(value=PRODUCT_TYPE_LABELS[PRODUCT_TYPES[0]])
         self.type_combo = ttk.Combobox(
-            left, textvariable=self.type_var,
+            left,
+            textvariable=self.type_var,
             values=[PRODUCT_TYPE_LABELS[t] for t in PRODUCT_TYPES],
-            state="readonly", width=30
+            state="readonly",
+            width=30,
         )
         self.type_combo.grid(row=1, column=1, padx=5, pady=3)
         self.type_combo.bind("<<ComboboxSelected>>", lambda e: self._refresh_tree())
@@ -118,13 +143,16 @@ class MarkupMatrixTab:
             "Націнка застосовується:\n"
             "  (вартість виробу) x (1 + націнка%/100)"
         )
-        ttk.Label(left, text=help_text, foreground="#2E7D32", justify=tk.LEFT,
-                  font=("Consolas", 9)).grid(row=2, column=0, columnspan=2, pady=15, sticky=tk.W)
+        ttk.Label(
+            left, text=help_text, foreground="#2E7D32", justify=tk.LEFT, font=("Consolas", 9)
+        ).grid(row=2, column=0, columnspan=2, pady=15, sticky=tk.W)
 
         right = ttk.Frame(self.frame)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        ttk.Label(right, text="Товщина металу -> Націнка (%)", font=("Arial", 11, "bold")).pack(anchor=tk.W, pady=5)
+        ttk.Label(right, text="Товщина металу -> Націнка (%)", font=("Arial", 11, "bold")).pack(
+            anchor=tk.W, pady=5
+        )
 
         columns = ("thickness", "standard", "nonstandard")
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=12)
@@ -147,17 +175,25 @@ class MarkupMatrixTab:
 
         ttk.Label(edit, text="Товщина:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.edit_th_var = tk.StringVar()
-        ttk.Entry(edit, textvariable=self.edit_th_var, width=10, state="readonly").grid(row=0, column=1, padx=5, pady=2)
+        ttk.Entry(edit, textvariable=self.edit_th_var, width=10, state="readonly").grid(
+            row=0, column=1, padx=5, pady=2
+        )
 
         ttk.Label(edit, text="Стандартна націнка (%):").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.edit_std_var = tk.StringVar(value="30.0")
-        ttk.Entry(edit, textvariable=self.edit_std_var, width=10).grid(row=1, column=1, padx=5, pady=2)
+        ttk.Entry(edit, textvariable=self.edit_std_var, width=10).grid(
+            row=1, column=1, padx=5, pady=2
+        )
 
         ttk.Label(edit, text="Нестандартна націнка (%):").grid(row=2, column=0, sticky=tk.W, pady=2)
         self.edit_non_var = tk.StringVar(value="35.0")
-        ttk.Entry(edit, textvariable=self.edit_non_var, width=10).grid(row=2, column=1, padx=5, pady=2)
+        ttk.Entry(edit, textvariable=self.edit_non_var, width=10).grid(
+            row=2, column=1, padx=5, pady=2
+        )
 
-        ttk.Button(edit, text="Застосувати", command=self._apply_edit).grid(row=3, column=0, columnspan=2, pady=10)
+        ttk.Button(edit, text="Застосувати", command=self._apply_edit).grid(
+            row=3, column=0, columnspan=2, pady=10
+        )
 
     def _get_current_keys(self):
         mat = self.mat_var.get()
@@ -181,8 +217,7 @@ class MarkupMatrixTab:
         for th in THICKNESSES:
             vals = data.get(th, {"standard": 30.0, "nonstandard": 35.0})
             self.tree.insert(
-                "", tk.END,
-                values=(th, f"{vals['standard']:.1f}", f"{vals['nonstandard']:.1f}")
+                "", tk.END, values=(th, f"{vals['standard']:.1f}", f"{vals['nonstandard']:.1f}")
             )
 
     def _edit_dialog(self):
@@ -192,7 +227,11 @@ class MarkupMatrixTab:
         idx = self.tree.index(selected[0])
         th = THICKNESSES[idx]
         mat, ptype = self._get_current_keys()
-        vals = self.settings.markup_matrix.get(mat, {}).get(ptype, {}).get(th, {"standard": 30.0, "nonstandard": 35.0})
+        vals = (
+            self.settings.markup_matrix.get(mat, {})
+            .get(ptype, {})
+            .get(th, {"standard": 30.0, "nonstandard": 35.0})
+        )
 
         self.edit_th_var.set(th)
         self.edit_std_var.set(str(vals["standard"]))

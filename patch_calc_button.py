@@ -12,7 +12,10 @@ with open(FILE_PATH, "r", encoding="utf-8") as f:
 # 1. Add import
 if "calc_details_dialog" not in content:
     old_imp = "from ventilation_company.calculations.cost_engine import CostEngine, CostBreakdown"
-    new_imp = old_imp + "\nfrom ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog"
+    new_imp = (
+        old_imp
+        + "\nfrom ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog"
+    )
     if old_imp in content:
         content = content.replace(old_imp, new_imp)
         print("Import added.")
@@ -21,7 +24,10 @@ if "calc_details_dialog" not in content:
 
 # 2. Add button after "Calculate price"
 old_btn = "form.addRow(btn_calc)"
-new_btn = old_btn + "\n\n        btn_details = QPushButton(\"📊 Деталі розрахунку\")\n        btn_details.setMinimumHeight(32)\n        btn_details.clicked.connect(self._on_show_details)\n        form.addRow(btn_details)"
+new_btn = (
+    old_btn
+    + '\n\n        btn_details = QPushButton("📊 Деталі розрахунку")\n        btn_details.setMinimumHeight(32)\n        btn_details.clicked.connect(self._on_show_details)\n        form.addRow(btn_details)'
+)
 if old_btn in content:
     content = content.replace(old_btn, new_btn)
     print("Button added.")

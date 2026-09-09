@@ -29,7 +29,9 @@ class CuttingTab:
 
     THICKNESSES = ["0.5", "0.7", "1.0", "1.2", "1.5", "2.0"]
 
-    def __init__(self, parent: ttk.Notebook, get_products_callback, get_standard_products_callback=None):
+    def __init__(
+        self, parent: ttk.Notebook, get_products_callback, get_standard_products_callback=None
+    ):
         self.frame = ttk.Frame(parent)
 
         self.get_products = get_products_callback
@@ -88,8 +90,12 @@ class CuttingTab:
         # === НОВЕ: Кнопки експорту ===
         export_frame = ttk.LabelFrame(left, text="Експорт для ЧПУ", padding=5)
         export_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=5)
-        ttk.Button(export_frame, text="🔥 G-код (плазма)", command=self._export_gcode).pack(fill=tk.X, pady=2)
-        ttk.Button(export_frame, text="📐 DXF (гільйотина)", command=self._export_dxf).pack(fill=tk.X, pady=2)
+        ttk.Button(export_frame, text="🔥 G-код (плазма)", command=self._export_gcode).pack(
+            fill=tk.X, pady=2
+        )
+        ttk.Button(export_frame, text="📐 DXF (гільйотина)", command=self._export_dxf).pack(
+            fill=tk.X, pady=2
+        )
         # =============================
 
         self.results_frame = ttk.LabelFrame(left, text="Результати", padding=10)
@@ -129,7 +135,9 @@ class CuttingTab:
         legend = ttk.Frame(right)
         legend.pack(fill=tk.X, pady=5)
         ttk.Label(
-            legend, text="[кольоровий] деталь | [сірий] вільне місце | масштаб: 1:4", foreground="#666"
+            legend,
+            text="[кольоровий] деталь | [сірий] вільне місце | масштаб: 1:4",
+            foreground="#666",
         ).pack(side=tk.LEFT)
 
     def _calculate(self):
@@ -142,9 +150,12 @@ class CuttingTab:
             self.run_cutting_for_products(products)
         except Exception as e:
             import traceback
+
             err = traceback.format_exc()
             print(f"[DEBUG] ПОМИЛКА в _calculate: {err}")
-            messagebox.showerror("Помилка", f"Помилка отримання виробів:\n{str(e)}\n\nДеталі в консолі.")
+            messagebox.showerror(
+                "Помилка", f"Помилка отримання виробів:\n{str(e)}\n\nДеталі в консолі."
+            )
 
     def run_cutting_for_products(self, products):
         """Запустити розкрій для конкретного списку виробів (напр. з архіву)."""
@@ -167,19 +178,28 @@ class CuttingTab:
             if self.get_standard_products:
                 standard_products = self.get_standard_products()
                 if standard_products:
-                    self.current_plan = cutter.calculate_from_standard_products(standard_products, allow_rotation=allow_rotation)
+                    self.current_plan = cutter.calculate_from_standard_products(
+                        standard_products, allow_rotation=allow_rotation
+                    )
                 else:
-                    self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
+                    self.current_plan = cutter.calculate_from_products(
+                        products, allow_rotation=allow_rotation
+                    )
             else:
-                self.current_plan = cutter.calculate_from_products(products, allow_rotation=allow_rotation)
+                self.current_plan = cutter.calculate_from_products(
+                    products, allow_rotation=allow_rotation
+                )
             self._update_results()
             self._draw_sheets()
 
         except Exception as e:
             import traceback
+
             err = traceback.format_exc()
             print(err)
-            messagebox.showerror("Помилка", "Помилка розрахунку:\n" + str(e) + "\n\nДеталі в консолі.")
+            messagebox.showerror(
+                "Помилка", "Помилка розрахунку:\n" + str(e) + "\n\nДеталі в консолі."
+            )
 
     def _update_results(self):
         if not self.current_plan:
@@ -241,8 +261,9 @@ class CuttingTab:
                 )
 
                 self.canvas.tag_bind(
-                    rect_id, "<Enter>",
-                    lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s)
+                    rect_id,
+                    "<Enter>",
+                    lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s),
                 )
                 self.canvas.tag_bind(rect_id, "<Leave>", lambda e: self._cancel_tooltip())
 
@@ -256,8 +277,9 @@ class CuttingTab:
                         anchor=tk.CENTER,
                     )
                     self.canvas.tag_bind(
-                        text_id, "<Enter>",
-                        lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s)
+                        text_id,
+                        "<Enter>",
+                        lambda e, p=placed, s=sheet_idx: self._schedule_tooltip(e, p, s),
                     )
                     self.canvas.tag_bind(text_id, "<Leave>", lambda e: self._cancel_tooltip())
 
@@ -278,7 +300,9 @@ class CuttingTab:
     # ── Tooltip ──
     def _schedule_tooltip(self, event, placed, sheet_idx):
         self._cancel_tooltip()
-        self._tooltip_after = self.canvas.after(300, lambda: self._show_tooltip(event, placed, sheet_idx))
+        self._tooltip_after = self.canvas.after(
+            300, lambda: self._show_tooltip(event, placed, sheet_idx)
+        )
 
     def _show_tooltip(self, event, placed, sheet_idx):
         self._cancel_tooltip()
@@ -289,11 +313,14 @@ class CuttingTab:
         area = w * h / 1_000_000
 
         text = (
-            detail.name + "\n" +
-            f"Розмір: {w:.1f} x {h:.1f} мм\n" +
-            f"Площа: {area:.4f} м²\n" +
-            "Повернуто: " + ("Так" if placed.rotated else "Ні") + "\n" +
-            f"Лист: {sheet_idx + 1}"
+            detail.name
+            + "\n"
+            + f"Розмір: {w:.1f} x {h:.1f} мм\n"
+            + f"Площа: {area:.4f} м²\n"
+            + "Повернуто: "
+            + ("Так" if placed.rotated else "Ні")
+            + "\n"
+            + f"Лист: {sheet_idx + 1}"
         )
 
         self._tooltip_win = tk.Toplevel(self.canvas)
@@ -347,6 +374,7 @@ class CuttingTab:
             return
         try:
             from ventilation_company.gcode_exporter import GCodeExporter, PlasmaSettings
+
             settings = PlasmaSettings(
                 feed_rate=1500,
                 rapid_feed=8000,
@@ -377,6 +405,7 @@ class CuttingTab:
             return
         try:
             from ventilation_company.dxf_exporter import DXFExporter, DXFSettings
+
             settings = DXFSettings(
                 layer_details="DETAILS",
                 layer_text="TEXT",

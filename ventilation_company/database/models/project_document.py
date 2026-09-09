@@ -21,7 +21,9 @@ class ProjectDocument(Base):
     __tablename__ = "project_documents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
     doc_type: Mapped[str] = mapped_column(String(20), nullable=False)  # spec, calc, metal, order
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

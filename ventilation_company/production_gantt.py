@@ -1,6 +1,7 @@
 """Візуалізація Gantt-діаграми виробництва через matplotlib."""
 
 import matplotlib
+
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -14,15 +15,14 @@ from ventilation_company.production_models import (
     ScheduledOperation,
 )
 
-
 # Кольори операцій
 OP_COLORS = {
-    OperationType.CUTTING: "#3498db",      # синій
-    OperationType.BENDING: "#f39c12",      # оранжевий
-    OperationType.WELDING: "#e74c3c",      # червоний
-    OperationType.PAINTING: "#9b59b6",     # фіолетовий
-    OperationType.ASSEMBLY: "#2ecc71",     # зелений
-    OperationType.PACKING: "#1abc9c",       # бірюзовий
+    OperationType.CUTTING: "#3498db",  # синій
+    OperationType.BENDING: "#f39c12",  # оранжевий
+    OperationType.WELDING: "#e74c3c",  # червоний
+    OperationType.PAINTING: "#9b59b6",  # фіолетовий
+    OperationType.ASSEMBLY: "#2ecc71",  # зелений
+    OperationType.PACKING: "#1abc9c",  # бірюзовий
 }
 
 # Кольори статусів (обводка)
@@ -62,8 +62,15 @@ class GanttChart:
     def draw(self, show_equipment: bool = True):
         """Намалювати Gantt-діаграму."""
         if not self.plan.operations:
-            self.ax.text(0.5, 0.5, "Немає запланованих операцій",
-                         transform=self.ax.transAxes, ha="center", fontsize=14, color="#999")
+            self.ax.text(
+                0.5,
+                0.5,
+                "Немає запланованих операцій",
+                transform=self.ax.transAxes,
+                ha="center",
+                fontsize=14,
+                color="#999",
+            )
             return
 
         operations = sorted(self.plan.operations, key=lambda o: (o.product_name, o.start_time))
@@ -135,13 +142,20 @@ class GanttChart:
         # Легенда операцій
         op_patches = [
             mpatches.Patch(color=OP_COLORS[ot], label=ot.value)
-            for ot in OperationType if ot in OP_COLORS
+            for ot in OperationType
+            if ot in OP_COLORS
         ]
         # Легенда статусів
         st_patches = [
-            mpatches.Patch(facecolor="white", edgecolor=STATUS_EDGE[s], hatch=STATUS_HATCH[s] or "",
-                           label=s.value, linewidth=1.5)
-            for s in OperationStatus if s in STATUS_EDGE
+            mpatches.Patch(
+                facecolor="white",
+                edgecolor=STATUS_EDGE[s],
+                hatch=STATUS_HATCH[s] or "",
+                label=s.value,
+                linewidth=1.5,
+            )
+            for s in OperationStatus
+            if s in STATUS_EDGE
         ]
 
         self.ax.legend(
@@ -158,9 +172,14 @@ class GanttChart:
             color_dl = "#27ae60" if self.plan.is_on_time else "#cc0000"
             self.ax.axvline(dl_h, color=color_dl, linestyle="--", linewidth=2, alpha=0.7)
             self.ax.text(
-                dl_h, len(y_labels) - 0.5, "ДЕДЛАЙН",
-                color=color_dl, fontsize=8, fontweight="bold",
-                ha="center", va="bottom",
+                dl_h,
+                len(y_labels) - 0.5,
+                "ДЕДЛАЙН",
+                color=color_dl,
+                fontsize=8,
+                fontweight="bold",
+                ha="center",
+                va="bottom",
             )
 
         self.fig.tight_layout()
@@ -187,8 +206,15 @@ class EquipmentLoadChart:
         """Намалювати діаграму завантаження обладнання."""
         load = self.plan.get_equipment_load()
         if not load:
-            self.ax.text(0.5, 0.5, "Немає даних про завантаження",
-                         transform=self.ax.transAxes, ha="center", fontsize=12, color="#999")
+            self.ax.text(
+                0.5,
+                0.5,
+                "Немає даних про завантаження",
+                transform=self.ax.transAxes,
+                ha="center",
+                fontsize=12,
+                color="#999",
+            )
             return
 
         # Розраховуємо загальний робочий час та зайнятий
@@ -247,7 +273,9 @@ class EquipmentLoadChart:
         self.ax.set_ylabel("Завантаження, %", fontsize=10)
         self.ax.set_title("⚙️ Завантаження обладнання", fontsize=11, fontweight="bold")
         self.ax.set_ylim(0, 110)
-        self.ax.axhline(90, color="#cc0000", linestyle="--", linewidth=1, alpha=0.5, label="Перевантаження")
+        self.ax.axhline(
+            90, color="#cc0000", linestyle="--", linewidth=1, alpha=0.5, label="Перевантаження"
+        )
         self.ax.axhline(70, color="#f39c12", linestyle="--", linewidth=1, alpha=0.5, label="Високе")
         self.ax.grid(True, axis="y", linestyle="--", alpha=0.3)
         self.ax.legend(fontsize=8)

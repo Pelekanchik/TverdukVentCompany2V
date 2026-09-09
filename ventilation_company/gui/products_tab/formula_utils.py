@@ -5,12 +5,18 @@ import re
 from typing import Any
 
 from ventilation_company.standard_products import (
-    RectDuct, RoundDuct,
-    RectFlange, RoundFlange,
-    RectTee, RoundTee,
-    RectTransition, RoundTransition,
-    RectElbow, RoundElbow,
-    RectCap, RoundCap,
+    RectDuct,
+    RoundDuct,
+    RectFlange,
+    RoundFlange,
+    RectTee,
+    RoundTee,
+    RectTransition,
+    RoundTransition,
+    RectElbow,
+    RoundElbow,
+    RectCap,
+    RoundCap,
     FlexibleConnector,
 )
 
@@ -68,8 +74,11 @@ def calc_preview_area(
             w2 = get_extra(extra_vars, "width2", width)
             h2 = get_extra(extra_vars, "height2", height)
             product = RectTee(
-                width=width, height=height,
-                width2=w2, height2=h2, length=length,
+                width=width,
+                height=height,
+                width2=w2,
+                height2=h2,
+                length=length,
             )
         elif ptype == "круглий_трійник":
             d2 = get_extra(extra_vars, "diameter2", width)
@@ -78,8 +87,11 @@ def calc_preview_area(
             w2 = get_extra(extra_vars, "width2", width)
             h2 = get_extra(extra_vars, "height2", height)
             product = RectTransition(
-                width=width, height=height,
-                width2=w2, height2=h2, length=length,
+                width=width,
+                height=height,
+                width2=w2,
+                height2=h2,
+                length=length,
             )
         elif ptype == "круглий_перехід":
             d2 = get_extra(extra_vars, "diameter2", width)
@@ -87,13 +99,16 @@ def calc_preview_area(
         elif ptype == "прямокутний_відвід":
             angle = get_extra(extra_vars, "angle", 90)
             product = RectElbow(
-                width=width, height=height,
-                angle=angle, radius=get_extra(extra_vars, "radius", 0),
+                width=width,
+                height=height,
+                angle=angle,
+                radius=get_extra(extra_vars, "radius", 0),
             )
         elif ptype == "круглий_відвід":
             angle = get_extra(extra_vars, "angle", 90)
             product = RoundElbow(
-                diameter=width, angle=angle,
+                diameter=width,
+                angle=angle,
                 radius=get_extra(extra_vars, "radius", 0),
             )
         elif ptype == "прямокутна_заглушка":
@@ -102,7 +117,9 @@ def calc_preview_area(
             product = RoundCap(diameter=width)
         elif ptype == "гнучка_вставка":
             product = FlexibleConnector(
-                width=width, height=height, length=length,
+                width=width,
+                height=height,
+                length=length,
                 material=profile if profile else "поліестер",
             )
         else:

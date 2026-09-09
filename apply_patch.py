@@ -15,6 +15,7 @@ import shutil
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
+
 def patch_main_window():
     """Додати ProgramSettingsTab у main_window.py, якщо ще немає."""
     path = os.path.join(BASE, "ventilation_company", "gui_pyside6", "main_window.py")
@@ -30,7 +31,10 @@ def patch_main_window():
         return True
 
     # Додаємо імпорт
-    if "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab" not in content:
+    if (
+        "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab"
+        not in content
+    ):
         # Знайдемо перший імпорт gui_pyside6 і вставимо після нього
         lines = content.split("\n")
         import_idx = -1
@@ -38,12 +42,18 @@ def patch_main_window():
             if "gui_pyside6" in line and line.strip().startswith("from"):
                 import_idx = i
         if import_idx >= 0:
-            lines.insert(import_idx + 1, "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab")
+            lines.insert(
+                import_idx + 1,
+                "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab",
+            )
         else:
             # Вставимо після останнього from
             for i in range(len(lines) - 1, -1, -1):
                 if lines[i].strip().startswith("from "):
-                    lines.insert(i + 1, "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab")
+                    lines.insert(
+                        i + 1,
+                        "from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab",
+                    )
                     break
 
     # Додаємо "settings" у tabs
@@ -86,7 +96,10 @@ def patch_permissions():
 def copy_files():
     """Скопіювати нові файли."""
     files = [
-        ("gui_pyside6/program_settings_tab.py", "ventilation_company/gui_pyside6/program_settings_tab.py"),
+        (
+            "gui_pyside6/program_settings_tab.py",
+            "ventilation_company/gui_pyside6/program_settings_tab.py",
+        ),
         ("gui_pyside6/__init__.py", "ventilation_company/gui_pyside6/__init__.py"),
     ]
     for src_rel, dst_rel in files:

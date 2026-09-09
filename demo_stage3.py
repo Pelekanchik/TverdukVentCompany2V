@@ -77,7 +77,9 @@ def demo():
     print(f"{'Виріб':<35} {'surface':>10} {'blank':>10} {'material':>10}")
     print("-" * 70)
     for p in [duct, round_duct, elbow]:
-        print(f"{p.name:<35} {p.surface_area:>10.4f} {p.blank_area:>10.4f} {p.material_area:>10.4f}")
+        print(
+            f"{p.name:<35} {p.surface_area:>10.4f} {p.blank_area:>10.4f} {p.material_area:>10.4f}"
+        )
 
     print("\n✅ Демо завершено.")
 

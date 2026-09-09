@@ -18,18 +18,18 @@ from ventilation_company.metal_cutting import CuttingPlan, Sheet, PlacedDetail
 class CNCSettings:
     """Налаштування ЧПУ верстата."""
 
-    machine_type: str = "plasma"          # "plasma" | "laser" | "gas"
-    feed_rate: float = 1500.0             # мм/хв — швидкість різу
-    rapid_feed: float = 8000.0            # мм/хв — швидке переміщення
-    pierce_height: float = 3.0            # мм — висота підпалу
-    cut_height: float = 1.5               # мм — висота різу
-    retract_height: float = 5.0           # мм — висота підйому між деталями
-    pierce_delay: float = 0.5             # с — затримка підпалу
-    lead_in_length: float = 3.0           # мм — довжина підходу
-    lead_out_length: float = 3.0          # мм — довжина відходу
-    kerf_width: float = 1.5               # мм — ширина пропилу (компенсація)
-    use_kerf_compensation: bool = True    # компенсація пропилу
-    units: str = "mm"                     # "mm" | "inch"
+    machine_type: str = "plasma"  # "plasma" | "laser" | "gas"
+    feed_rate: float = 1500.0  # мм/хв — швидкість різу
+    rapid_feed: float = 8000.0  # мм/хв — швидке переміщення
+    pierce_height: float = 3.0  # мм — висота підпалу
+    cut_height: float = 1.5  # мм — висота різу
+    retract_height: float = 5.0  # мм — висота підйому між деталями
+    pierce_delay: float = 0.5  # с — затримка підпалу
+    lead_in_length: float = 3.0  # мм — довжина підходу
+    lead_out_length: float = 3.0  # мм — довжина відходу
+    kerf_width: float = 1.5  # мм — ширина пропилу (компенсація)
+    use_kerf_compensation: bool = True  # компенсація пропилу
+    units: str = "mm"  # "mm" | "inch"
     decimal_places: int = 3
 
     def clone(self) -> "CNCSettings":
@@ -70,9 +70,7 @@ class DXFExporter:
         layers = []
         for i in range(len(self.plan.sheets)):
             color = (i % 6) + 1
-            layers.append(
-                f"  0\nLAYER\n  2\nLIST_{i+1}\n  70\n0\n  62\n{color}\n  6\nCONTINUOUS\n"
-            )
+            layers.append(f"  0\nLAYER\n  2\nLIST_{i+1}\n  70\n0\n  62\n{color}\n  6\nCONTINUOUS\n")
         layers_str = "".join(layers)
         return (
             "  0\nSECTION\n  2\nTABLES\n"
@@ -83,8 +81,8 @@ class DXFExporter:
             "  0\nTABLE\n  2\nLAYER\n"
             f"  70\n{len(self.plan.sheets) + 1}\n"
             "  0\nLAYER\n  2\n0\n  70\n0\n  62\n7\n  6\nCONTINUOUS\n"
-            + layers_str +
-            "  0\nENDTAB\n  0\nENDSEC\n"
+            + layers_str
+            + "  0\nENDTAB\n  0\nENDSEC\n"
         )
 
     def _entities(self) -> str:
@@ -92,38 +90,54 @@ class DXFExporter:
         for sheet_idx, sheet in enumerate(self.plan.sheets):
             layer = f"LIST_{sheet_idx + 1}"
             # Контур листа
-            lines.extend(self._rect_lwpolyline(
-                0, 0, sheet.width, sheet.height, layer, closed=True, color=7
-            ))
+            lines.extend(
+                self._rect_lwpolyline(0, 0, sheet.width, sheet.height, layer, closed=True, color=7)
+            )
             # Деталі
             for placed in sheet.placed_details:
-                lines.extend(self._rect_lwpolyline(
-                    placed.x, placed.y,
-                    placed.x + placed.width, placed.y + placed.height,
-                    layer, closed=True
-                ))
+                lines.extend(
+                    self._rect_lwpolyline(
+                        placed.x,
+                        placed.y,
+                        placed.x + placed.width,
+                        placed.y + placed.height,
+                        layer,
+                        closed=True,
+                    )
+                )
                 # Текстова мітка
                 cx = placed.x + placed.width / 2
                 cy = placed.y + placed.height / 2
-                lines.extend(self._text(
-                    cx, cy, placed.detail.name[:20], layer, height=15
-                ))
+                lines.extend(self._text(cx, cy, placed.detail.name[:20], layer, height=15))
         lines.extend(["  0", "ENDSEC", "  0", "EOF"])
         return "\n".join(lines)
 
     def _rect_lwpolyline(
-        self, x1: float, y1: float, x2: float, y2: float,
-        layer: str, closed: bool = True, color: int = 256
+        self,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        layer: str,
+        closed: bool = True,
+        color: int = 256,
     ) -> list[str]:
         flag = "1" if closed else "0"
         return [
-            "  0", "LWPOLYLINE",
-            "  8", layer,
-            " 62", str(color),
-            " 90", "4",
-            " 70", flag,
-            " 43", "0.0",
-            " 38", "0.0",
+            "  0",
+            "LWPOLYLINE",
+            "  8",
+            layer,
+            " 62",
+            str(color),
+            " 90",
+            "4",
+            " 70",
+            flag,
+            " 43",
+            "0.0",
+            " 38",
+            "0.0",
             f" 10\n{self._fmt(x1)}",
             f" 20\n{self._fmt(y1)}",
             f" 10\n{self._fmt(x2)}",
@@ -137,17 +151,25 @@ class DXFExporter:
     def _text(self, x: float, y: float, text: str, layer: str, height: float = 20) -> list[str]:
         safe = text.replace("\\", "\\\\").replace("\n", "\\P")
         return [
-            "  0", "TEXT",
-            "  8", layer,
-            " 62", "7",
+            "  0",
+            "TEXT",
+            "  8",
+            layer,
+            " 62",
+            "7",
             f" 10\n{self._fmt(x)}",
             f" 20\n{self._fmt(y)}",
             f" 40\n{self._fmt(height)}",
-            "  1", safe,
-            " 50", "0.0",
-            " 72", "1",
-            " 11", self._fmt(x),
-            " 21", self._fmt(y),
+            "  1",
+            safe,
+            " 50",
+            "0.0",
+            " 72",
+            "1",
+            " 11",
+            self._fmt(x),
+            " 21",
+            self._fmt(y),
         ]
 
     def export(self, filepath: str) -> str:
@@ -242,14 +264,24 @@ class GCodeExporter:
         lines.append("M3           ; Увімкнути плазму/лазер")
         if s.pierce_delay > 0:
             lines.append(f"G4 P{self._fmt(s.pierce_delay)}   ; Затримка підпалу")
-        lines.append(f"G1 Z{self._fmt(s.cut_height)} F{self._fmt(s.feed_rate)}   ; Опустити до різу")
+        lines.append(
+            f"G1 Z{self._fmt(s.cut_height)} F{self._fmt(s.feed_rate)}   ; Опустити до різу"
+        )
 
         # Різ по периметру (проти годинникової стрілки)
-        lines.append(f"G1 X{self._fmt(x1)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-in завершення")
-        lines.append(f"G1 X{self._fmt(x1)} Y{self._fmt(y2)} F{self._fmt(s.feed_rate)}   ; Ліва сторона")
+        lines.append(
+            f"G1 X{self._fmt(x1)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-in завершення"
+        )
+        lines.append(
+            f"G1 X{self._fmt(x1)} Y{self._fmt(y2)} F{self._fmt(s.feed_rate)}   ; Ліва сторона"
+        )
         lines.append(f"G1 X{self._fmt(x2)} Y{self._fmt(y2)} F{self._fmt(s.feed_rate)}   ; Верх")
-        lines.append(f"G1 X{self._fmt(x2)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Права сторона")
-        lines.append(f"G1 X{self._fmt(x1 + lo)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-out")
+        lines.append(
+            f"G1 X{self._fmt(x2)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Права сторона"
+        )
+        lines.append(
+            f"G1 X{self._fmt(x1 + lo)} Y{self._fmt(y1)} F{self._fmt(s.feed_rate)}   ; Lead-out"
+        )
 
         lines.append("M5           ; Вимкнути плазму/лазер")
         lines.append(f"G0 Z{self._fmt(s.retract_height)}    ; Підняти головку")
@@ -299,13 +331,16 @@ class GCodeExporter:
 # ФАСАДНІ ФУНКЦІЇ
 # =========================================================
 
+
 def export_to_dxf(plan: CuttingPlan, filepath: str, settings: Optional[CNCSettings] = None) -> str:
     """Експортувати план розкрою в DXF."""
     exporter = DXFExporter(plan, settings)
     return exporter.export(filepath)
 
 
-def export_to_gcode(plan: CuttingPlan, directory: str, settings: Optional[CNCSettings] = None) -> list[str]:
+def export_to_gcode(
+    plan: CuttingPlan, directory: str, settings: Optional[CNCSettings] = None
+) -> list[str]:
     """Експортувати план розкрою в G-code (по файлу на лист)."""
     exporter = GCodeExporter(plan, settings)
     return exporter.export_all(directory)
@@ -339,7 +374,9 @@ def export_summary_text(plan: CuttingPlan, filepath: str) -> str:
     if plan.unplaced_details:
         lines.append("\n--- НЕ РОЗМІЩЕНО ---")
         for d in plan.unplaced_details:
-            lines.append(f"  • {d.name}  {d.total_width:.1f}×{d.total_height:.1f} мм  qty={d.quantity}")
+            lines.append(
+                f"  • {d.name}  {d.total_width:.1f}×{d.total_height:.1f} мм  qty={d.quantity}"
+            )
     lines.append("")
     lines.append("==============================================")
     with open(filepath, "w", encoding="utf-8") as f:

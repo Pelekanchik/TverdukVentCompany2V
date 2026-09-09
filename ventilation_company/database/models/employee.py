@@ -9,9 +9,7 @@ from ventilation_company.database.base import Base
 class Employee(Base):
     __tablename__ = "employees"
 
-    __table_args__ = (
-        Index("idx_emp_position", "position"),
-    )
+    __table_args__ = (Index("idx_emp_position", "position"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String, nullable=False)

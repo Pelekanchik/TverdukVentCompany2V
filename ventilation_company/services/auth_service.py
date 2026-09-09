@@ -24,12 +24,32 @@ from ventilation_company.database.models.user import UserORM
 logger = logging.getLogger(__name__)
 
 ROLE_PERMISSIONS = {
-    "admin":      {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
-    "manager":    {"tabs": ["products", "specification", "price_list", "clients", "projects"], "edit": True, "delete": False, "manage_users": False},
-    "engineer":   {"tabs": ["products", "specification", "cutting", "freecad", "projects"], "edit": True, "delete": False, "manage_users": False},
-    "master":     {"tabs": ["projects", "specification", "cutting"], "edit": True, "delete": False, "manage_users": False},
-    "accountant": {"tabs": ["price_list", "projects", "settings"], "edit": True, "delete": False, "manage_users": False},
-    "viewer":     {"tabs": "*", "edit": False, "delete": False, "manage_users": False},
+    "admin": {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
+    "manager": {
+        "tabs": ["products", "specification", "price_list", "clients", "projects"],
+        "edit": True,
+        "delete": False,
+        "manage_users": False,
+    },
+    "engineer": {
+        "tabs": ["products", "specification", "cutting", "freecad", "projects"],
+        "edit": True,
+        "delete": False,
+        "manage_users": False,
+    },
+    "master": {
+        "tabs": ["projects", "specification", "cutting"],
+        "edit": True,
+        "delete": False,
+        "manage_users": False,
+    },
+    "accountant": {
+        "tabs": ["price_list", "projects", "settings"],
+        "edit": True,
+        "delete": False,
+        "manage_users": False,
+    },
+    "viewer": {"tabs": "*", "edit": False, "delete": False, "manage_users": False},
 }
 
 VALID_ROLES = set(ROLE_PERMISSIONS.keys())
@@ -38,6 +58,7 @@ VALID_ROLES = set(ROLE_PERMISSIONS.keys())
 @dataclass
 class AuthUser:
     """Авторизований користувач (датаклас для GUI)."""
+
     id: int
     username: str
     full_name: str
@@ -73,18 +94,16 @@ class AuthService:
 
     @classmethod
     def verify_password(cls, plain_password: str, hashed_password: str) -> bool:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
     @classmethod
     def authenticate(cls, username: str, password: str) -> Optional[AuthUser]:
         with get_db() as session:
-            user = session.query(UserORM).filter(
-                UserORM.username == username,
-                UserORM.is_active == 1
-            ).first()
+            user = (
+                session.query(UserORM)
+                .filter(UserORM.username == username, UserORM.is_active == 1)
+                .first()
+            )
 
             if not user or not cls.verify_password(password, user.password_hash):
                 return None
@@ -97,7 +116,7 @@ class AuthService:
                 username=user.username,
                 full_name=user.full_name,
                 role=user.role,
-                is_active=bool(user.is_active)
+                is_active=bool(user.is_active),
             )
             cls._current_user = auth_user
             return auth_user

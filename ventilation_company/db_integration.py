@@ -36,12 +36,12 @@ from ventilation_company.database.models.unified import (
     WarrantyReminder,
 )
 
-
 _logger = get_logger("db_integration")
 
 
 class TransactionError(Exception):
     """Помилка транзакції БД."""
+
     pass
 
 
@@ -74,19 +74,26 @@ class ProjectDatabase:
         self.db_path = db_path
         if engine is not None:
             from sqlalchemy.orm import sessionmaker
+
             self._session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         elif db_path != "data/company.db":
             # Тестовий режим: створюємо engine для переданого шляху
             from sqlalchemy import create_engine, event
             from sqlalchemy.orm import sessionmaker
+
             test_engine = create_engine(f"sqlite:///{db_path}", future=True)
+
             # Увімкнути WAL mode для тестів
             @event.listens_for(test_engine, "connect")
             def set_sqlite_pragma(dbapi_conn, connection_record):
                 dbapi_conn.execute("PRAGMA journal_mode=WAL")
+
             from ventilation_company.database.base import Base
+
             Base.metadata.create_all(test_engine)
-            self._session_factory = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+            self._session_factory = sessionmaker(
+                autocommit=False, autoflush=False, bind=test_engine
+            )
         else:
             self._session_factory = SessionLocal
 
@@ -94,6 +101,7 @@ class ProjectDatabase:
     def _get_connection(self):
         """Повертає raw sqlite3 connection (для тестів WAL-режиму)."""
         import sqlite3
+
         conn = sqlite3.connect(self.db_path)
         try:
             yield conn
@@ -180,10 +188,22 @@ class ProjectDatabase:
     def update_project(self, project_id: int, **kwargs) -> bool:
         """Оновити проєкт."""
         allowed = {
-            "name", "description", "client", "status", "metadata",
-            "drawing_path", "customer_price", "cost_price",
-            "salary_total", "profit", "notes", "total_area",
-            "ventilation_type", "air_flow", "pressure", "address",
+            "name",
+            "description",
+            "client",
+            "status",
+            "metadata",
+            "drawing_path",
+            "customer_price",
+            "cost_price",
+            "salary_total",
+            "profit",
+            "notes",
+            "total_area",
+            "ventilation_type",
+            "air_flow",
+            "pressure",
+            "address",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -220,7 +240,7 @@ class ProjectDatabase:
 
             # Новий проєкт
             new_project = Project(
-                project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S-%f")}",
+                project_number=f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}",
                 name=new_name or f"{project.name} (копія)",
                 description=project.description,
                 client=project.client,
@@ -264,13 +284,16 @@ class ProjectDatabase:
     # ── Хелпери для транзакцій (працюють з існуючою сесією) ──
 
     def _create_project_in_conn(
-        self, session: Session, name: str,
-        description: str = "", client: str = "",
+        self,
+        session: Session,
+        name: str,
+        description: str = "",
+        client: str = "",
         metadata: dict | None = None,
     ) -> int:
         """Створити проєкт у межах транзакції."""
         project = Project(
-            project_number=f"PRJ-{datetime.now().strftime("%Y%m%d-%H%M%S-%f")}",
+            project_number=f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}",
             name=name,
             description=description,
             client=client,
@@ -283,9 +306,7 @@ class ProjectDatabase:
         session.flush()
         return project.id
 
-    def _get_project_products_in_conn(
-        self, session: Session, project_id: int
-    ) -> list[dict]:
+    def _get_project_products_in_conn(self, session: Session, project_id: int) -> list[dict]:
         """Отримати вироби проєкту у межах транзакції."""
         rows = (
             session.query(ProjectProduct)
@@ -329,16 +350,17 @@ class ProjectDatabase:
         """Додати виріб до проєкту."""
         # Автоматичний розрахунок зарплати
         from ventilation_company.gui.settings_tab import PricingSettings
+
         settings = PricingSettings.get_instance()
-        ptype = product.get('product_type', '')
-        metal_area = product.get('metal_area_m2', 0) or product.get('surface_area', 0)
+        ptype = product.get("product_type", "")
+        metal_area = product.get("metal_area_m2", 0) or product.get("surface_area", 0)
         if metal_area and ptype:
             labor = settings.get_labor_rate(ptype)
-            rate = labor.get('rate_per_m2', 120.0)
-            difficulty = labor.get('difficulty_percent', 0.0)
+            rate = labor.get("rate_per_m2", 120.0)
+            difficulty = labor.get("difficulty_percent", 0.0)
             salary = metal_area * rate * (1 + difficulty / 100)
-            product['salary_per_unit'] = round(salary, 2)
-            product['salary_total'] = round(salary * product.get('quantity', 1), 2)
+            product["salary_per_unit"] = round(salary, 2)
+            product["salary_total"] = round(salary * product.get("quantity", 1), 2)
 
         with self._session_scope() as session:
             product_id = self._add_product_to_project_in_conn(session, project_id, product)
@@ -355,9 +377,21 @@ class ProjectDatabase:
     def update_product(self, product_id: int, **kwargs) -> bool:
         """Оновити виріб."""
         allowed = {
-            "name", "product_type", "width", "height", "length",
-            "thickness", "material", "quantity", "metal_area_m2", "blank_area_m2", "material_area_m2",
-            "weight_kg", "notes", "unit_price", "total_price",
+            "name",
+            "product_type",
+            "width",
+            "height",
+            "length",
+            "thickness",
+            "material",
+            "quantity",
+            "metal_area_m2",
+            "blank_area_m2",
+            "material_area_m2",
+            "weight_kg",
+            "notes",
+            "unit_price",
+            "total_price",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -387,8 +421,12 @@ class ProjectDatabase:
                 session.query(
                     func.count(ProjectProduct.id).label("total_items"),
                     func.coalesce(func.sum(ProjectProduct.quantity), 0).label("total_quantity"),
-                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
-                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
+                    func.coalesce(
+                        func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0
+                    ).label("total_weight"),
+                    func.coalesce(
+                        func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0
+                    ).label("total_area"),
                 )
                 .filter(ProjectProduct.project_id == project_id)
                 .first()
@@ -413,9 +451,7 @@ class ProjectDatabase:
     ) -> int:
         """Зберегти специфікацію проєкту."""
         content = (
-            spec_data
-            if isinstance(spec_data, str)
-            else json.dumps(spec_data, ensure_ascii=False)
+            spec_data if isinstance(spec_data, str) else json.dumps(spec_data, ensure_ascii=False)
         )
         summary = spec_data.get("summary", {}) if isinstance(spec_data, dict) else {}
 
@@ -462,9 +498,7 @@ class ProjectDatabase:
     # ПЛАНИ РОЗКРОЮ
     # ═══════════════════════════════════════════════════════════════
 
-    def save_cutting_plan(
-        self, project_id: int, plan: dict, name: str = "План розкрою"
-    ) -> int:
+    def save_cutting_plan(self, project_id: int, plan: dict, name: str = "План розкрою") -> int:
         """Зберегти план розкрою."""
         summary = plan.get("summary", {})
 
@@ -563,8 +597,16 @@ class ProjectDatabase:
     def update_standard_product(self, product_id: int, **kwargs) -> bool:
         """Оновити стандартний виріб."""
         allowed = {
-            "name", "product_type", "width", "height", "length",
-            "thickness", "material", "default_quantity", "parameters", "is_active",
+            "name",
+            "product_type",
+            "width",
+            "height",
+            "length",
+            "thickness",
+            "material",
+            "default_quantity",
+            "parameters",
+            "is_active",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -589,8 +631,8 @@ class ProjectDatabase:
         self,
         material: str,
         thickness: float,
-        price_per_kg = None,
-        price_per_m2 = None,
+        price_per_kg=None,
+        price_per_m2=None,
     ) -> int:
         """Встановити/оновити ціну матеріалу."""
         with self._session_scope() as session:
@@ -650,9 +692,15 @@ class ProjectDatabase:
     # ═══════════════════════════════════════════════════════════════
 
     def add_client(
-        self, name: str, contact: str = "", phone: str = "",
-        email: str = "", address: str = "", company_type: str = "",
-        edrpou: str = "", notes: str = "",
+        self,
+        name: str,
+        contact: str = "",
+        phone: str = "",
+        email: str = "",
+        address: str = "",
+        company_type: str = "",
+        edrpou: str = "",
+        notes: str = "",
     ) -> int:
         """Додати клієнта."""
         with self._session_scope() as session:
@@ -674,8 +722,16 @@ class ProjectDatabase:
 
     def update_client(self, client_id: int, **kwargs) -> bool:
         """Оновити клієнта."""
-        allowed = {"name", "contact_person", "phone", "email", "address",
-                   "company_type", "edrpou", "notes"}
+        allowed = {
+            "name",
+            "contact_person",
+            "phone",
+            "email",
+            "address",
+            "company_type",
+            "edrpou",
+            "notes",
+        }
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return False
@@ -701,9 +757,7 @@ class ProjectDatabase:
             if search:
                 like = f"%{search}%"
                 query = query.filter(
-                    Client.name.ilike(like)
-                    | Client.phone.ilike(like)
-                    | Client.email.ilike(like)
+                    Client.name.ilike(like) | Client.phone.ilike(like) | Client.email.ilike(like)
                 )
             return _rows_to_dicts(query.all())
 
@@ -725,9 +779,14 @@ class ProjectDatabase:
     # ═══════════════════════════════════════════════════════════════
 
     def add_interaction(
-        self, client_id: int, interaction_type: str = "дзвінок",
-        subject: str = "", description: str = "", result: str = "",
-        next_action: str = "", next_action_date: str = "",
+        self,
+        client_id: int,
+        interaction_type: str = "дзвінок",
+        subject: str = "",
+        description: str = "",
+        result: str = "",
+        next_action: str = "",
+        next_action_date: str = "",
         created_by: str = "",
     ) -> int:
         """Додати взаємодію."""
@@ -781,9 +840,14 @@ class ProjectDatabase:
     # ═══════════════════════════════════════════════════════════════
 
     def add_payment(
-        self, client_id: int, amount: float, currency: str = "UAH",
-        payment_type: str = "вхідний", purpose: str = "",
-        project_name: str = "", notes: str = "",
+        self,
+        client_id: int,
+        amount: float,
+        currency: str = "UAH",
+        payment_type: str = "вхідний",
+        purpose: str = "",
+        project_name: str = "",
+        notes: str = "",
     ) -> int:
         """Додати платіж."""
         with self._session_scope() as session:
@@ -834,10 +898,15 @@ class ProjectDatabase:
     # ═══════════════════════════════════════════════════════════════
 
     def add_client_project(
-        self, client_id: int, project_name: str,
-        project_number: str = "", start_date: str = "",
-        end_date: str = "", status: str = "в роботі",
-        total_amount = Decimal("0"), warranty_months: int = 24,
+        self,
+        client_id: int,
+        project_name: str,
+        project_number: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        status: str = "в роботі",
+        total_amount=Decimal("0"),
+        warranty_months: int = 24,
         description: str = "",
     ) -> int:
         """Додати проєкт клієнта + нагадування про гарантію."""
@@ -884,7 +953,7 @@ class ProjectDatabase:
                         client_project_id=cp.id,
                         project_name=project_name,
                         reminder_date=reminder_dt,
-                        description=f"Гарантійне обслуговування проєкту \"{project_name}\" (завершено {end_str})",
+                        description=f'Гарантійне обслуговування проєкту "{project_name}" (завершено {end_str})',
                         is_completed=0,
                     )
                     session.add(wr)
@@ -917,9 +986,13 @@ class ProjectDatabase:
     # ═══════════════════════════════════════════════════════════════
 
     def add_warranty_reminder(
-        self, client_id: int, project_name: str,
-        reminder_date: str, description: str = "",
-        client_project_id: int = None, notes: str = "",
+        self,
+        client_id: int,
+        project_name: str,
+        reminder_date: str,
+        description: str = "",
+        client_project_id: int = None,
+        notes: str = "",
     ) -> int:
         """Додати нагадування про гарантію."""
         with self._session_scope() as session:
@@ -936,9 +1009,7 @@ class ProjectDatabase:
             session.flush()
             return wr.id
 
-    def get_warranty_reminders(
-        self, client_id: int = None, upcoming_days: int = 30
-    ) -> list[dict]:
+    def get_warranty_reminders(self, client_id: int = None, upcoming_days: int = 30) -> list[dict]:
         """Отримати нагадування про гарантію."""
         future = (datetime.now() + timedelta(days=upcoming_days)).isoformat()
         now = datetime.now().isoformat()
@@ -1007,9 +1078,7 @@ class ProjectDatabase:
                 .scalar()
             ) or 0
 
-            total_clients = (
-                session.query(func.count(Client.id)).scalar()
-            ) or 0
+            total_clients = (session.query(func.count(Client.id)).scalar()) or 0
 
             return {
                 "total_revenue": money_round(total_revenue),
@@ -1022,26 +1091,25 @@ class ProjectDatabase:
     def get_production_report(self) -> dict:
         """Зведений звіт по виробництву."""
         with self._session_scope() as session:
-            total_projects = (
-                session.query(func.count(Project.id)).scalar()
-            ) or 0
+            total_projects = (session.query(func.count(Project.id)).scalar()) or 0
 
             by_status = {
                 row.status: int(row.cnt)
-                for row in session.query(
-                    Project.status, func.count(Project.id).label("cnt")
-                ).group_by(Project.status).all()
+                for row in session.query(Project.status, func.count(Project.id).label("cnt"))
+                .group_by(Project.status)
+                .all()
             }
 
-            result = (
-                session.query(
-                    func.count(ProjectProduct.id).label("cnt"),
-                    func.coalesce(func.sum(ProjectProduct.quantity), 0).label("total_qty"),
-                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
-                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
-                )
-                .first()
-            )
+            result = session.query(
+                func.count(ProjectProduct.id).label("cnt"),
+                func.coalesce(func.sum(ProjectProduct.quantity), 0).label("total_qty"),
+                func.coalesce(
+                    func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0
+                ).label("total_weight"),
+                func.coalesce(
+                    func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0
+                ).label("total_area"),
+            ).first()
 
             return {
                 "total_projects": int(total_projects),
@@ -1058,7 +1126,7 @@ class ProjectDatabase:
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.to_char(ClientProject.end_date, 'YYYY-MM').label("month"),
+                    func.to_char(ClientProject.end_date, "YYYY-MM").label("month"),
                     func.sum(ClientProject.total_amount).label("amount"),
                 )
                 .filter(
@@ -1075,9 +1143,7 @@ class ProjectDatabase:
         """Кількість проєктів за статусами."""
         with self._session_scope() as session:
             rows = (
-                session.query(
-                    ClientProject.status, func.count(ClientProject.id).label("cnt")
-                )
+                session.query(ClientProject.status, func.count(ClientProject.id).label("cnt"))
                 .group_by(ClientProject.status)
                 .all()
             )
@@ -1087,9 +1153,7 @@ class ProjectDatabase:
         """ТОП клієнтів за сумою замовлень."""
         with self._session_scope() as session:
             rows = (
-                session.query(
-                    Client.name, func.sum(ClientProject.total_amount).label("total")
-                )
+                session.query(Client.name, func.sum(ClientProject.total_amount).label("total"))
                 .join(ClientProject, Client.id == ClientProject.client_id)
                 .group_by(Client.id)
                 .order_by(func.sum(ClientProject.total_amount).desc())
@@ -1104,10 +1168,10 @@ class ProjectDatabase:
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.to_char(ClientProject.start_date, 'YYYY-MM').label("month"),
-                    func.sum(
-                        case((ClientProject.status == "в роботі", 1), else_=0)
-                    ).label("active"),
+                    func.to_char(ClientProject.start_date, "YYYY-MM").label("month"),
+                    func.sum(case((ClientProject.status == "в роботі", 1), else_=0)).label(
+                        "active"
+                    ),
                     func.sum(
                         case(
                             (ClientProject.status.in_(["завершено", "гарантія", "закрито"]), 1),
@@ -1134,7 +1198,7 @@ class ProjectDatabase:
         with self._session_scope() as session:
             rows = (
                 session.query(
-                    func.to_char(ClientProject.end_date, 'YYYY-MM').label("month"),
+                    func.to_char(ClientProject.end_date, "YYYY-MM").label("month"),
                     func.avg(ClientProject.total_amount).label("avg"),
                 )
                 .filter(
@@ -1168,8 +1232,12 @@ class ProjectDatabase:
                     ProjectProduct.material,
                     ProjectProduct.thickness,
                     func.sum(ProjectProduct.quantity).label("total_quantity"),
-                    func.coalesce(func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0).label("total_weight"),
-                    func.coalesce(func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0).label("total_area"),
+                    func.coalesce(
+                        func.sum(ProjectProduct.weight_kg * ProjectProduct.quantity), 0
+                    ).label("total_weight"),
+                    func.coalesce(
+                        func.sum(ProjectProduct.metal_area_m2 * ProjectProduct.quantity), 0
+                    ).label("total_area"),
                     func.count(func.distinct(ProjectProduct.project_id)).label("projects_count"),
                 )
                 .group_by(ProjectProduct.material, ProjectProduct.thickness)
@@ -1193,6 +1261,7 @@ class ProjectDatabase:
 # ФАБРИКА
 # ═══════════════════════════════════════════════════════════════════
 
+
 def get_db(db_path: str = "data/company.db") -> ProjectDatabase:
     """Швидке отримання екземпляру БД."""
     return ProjectDatabase(db_path)
@@ -1201,6 +1270,7 @@ def get_db(db_path: str = "data/company.db") -> ProjectDatabase:
 # ═══════════════════════════════════════════════════════════════════
 # ІНТЕГРАЦІЯ
 # ═══════════════════════════════════════════════════════════════════
+
 
 def save_project_full(
     project_name: str,

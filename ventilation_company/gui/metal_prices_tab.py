@@ -28,7 +28,14 @@ DENSITIES = {
 
 DEFAULT_PRICES = {
     "оцинкована сталь": {0.5: 450.0, 0.7: 580.0, 1.0: 750.0, 1.2: 850.0, 1.5: 950.0, 2.0: 1200.0},
-    "нержавіюча сталь": {0.5: 950.0, 0.7: 1100.0, 1.0: 1200.0, 1.2: 1400.0, 1.5: 1600.0, 2.0: 2000.0},
+    "нержавіюча сталь": {
+        0.5: 950.0,
+        0.7: 1100.0,
+        1.0: 1200.0,
+        1.2: 1400.0,
+        1.5: 1600.0,
+        2.0: 2000.0,
+    },
     "алюміній": {0.5: 320.0, 0.7: 380.0, 1.0: 450.0, 1.2: 500.0, 1.5: 600.0, 2.0: 750.0},
     "пластик ПВХ": {2.0: 35.0, 3.0: 32.0, 4.0: 30.0},
     "ізоляція (базальтова вата)": {50: 25.0, 100: 22.0},
@@ -122,13 +129,15 @@ class MetalPricesManager:
             for thickness, price_m2 in thicknesses.items():
                 price_kg = self.get_price_per_kg(material, thickness)
                 density = DENSITIES.get(material, 7850)
-                entries.append({
-                    "material": material,
-                    "thickness": thickness,
-                    "price_per_m2": price_m2,
-                    "price_per_kg": price_kg,
-                    "density": density,
-                })
+                entries.append(
+                    {
+                        "material": material,
+                        "thickness": thickness,
+                        "price_per_m2": price_m2,
+                        "price_per_kg": price_kg,
+                        "density": density,
+                    }
+                )
         return sorted(entries, key=lambda x: (x["material"], x["thickness"]))
 
     def get_manager(self) -> "MetalPricesManager":
@@ -154,14 +163,22 @@ class MetalPricesTab:
         top.pack(fill=tk.X)
 
         ttk.Label(top, text="🔧 Ціни на метал", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
-        ttk.Label(top, text="(єдине джерело для всієї програми)", font=("Arial", 9),
-                  foreground=self._fg("fg_muted")).pack(side=tk.LEFT, padx=10)
+        ttk.Label(
+            top,
+            text="(єдине джерело для всієї програми)",
+            font=("Arial", 9),
+            foreground=self._fg("fg_muted"),
+        ).pack(side=tk.LEFT, padx=10)
 
         btn_frame = ttk.Frame(top)
         btn_frame.pack(side=tk.LEFT, padx=(20, 0))
         ttk.Button(btn_frame, text="➕ Додати", command=self._add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(
+            side=tk.LEFT, padx=2
+        )
 
         filter_frame = ttk.Frame(self.frame, padding=5)
         filter_frame.pack(fill=tk.X, padx=5)
@@ -169,8 +186,11 @@ class MetalPricesTab:
         ttk.Label(filter_frame, text="Матеріал:").pack(side=tk.LEFT)
         self.filter_material_var = tk.StringVar(value="всі")
         self.material_combo = ttk.Combobox(
-            filter_frame, textvariable=self.filter_material_var,
-            values=["всі"] + self.manager.get_materials(), state="readonly", width=25
+            filter_frame,
+            textvariable=self.filter_material_var,
+            values=["всі"] + self.manager.get_materials(),
+            state="readonly",
+            width=25,
         )
         self.material_combo.pack(side=tk.LEFT, padx=5)
         self.filter_material_var.trace_add("write", lambda *args: self._refresh_tree())
@@ -203,16 +223,17 @@ class MetalPricesTab:
 
         self.tree.bind("<Double-1>", lambda e: self._edit_dialog())
 
-        self.summary_label = ttk.Label(
-            self.frame, text="", font=("Consolas", 10), padding=5
-        )
+        self.summary_label = ttk.Label(self.frame, text="", font=("Consolas", 10), padding=5)
         self.summary_label.pack(fill=tk.X, padx=5)
 
         note = ttk.Label(
             self.frame,
             text="💡 Основна одиниця — грн/м². Ці ціни використовуються автоматично в калькуляторі вкладки 'Ціноутворення'. "
-                 "Ціна за кг обчислюється автоматично для довідки: ціна_за_м² / ((товщина/1000) × щільність)",
-            font=("Arial", 9), foreground=self._fg("blue"), wraplength=800, justify=tk.LEFT
+            "Ціна за кг обчислюється автоматично для довідки: ціна_за_м² / ((товщина/1000) × щільність)",
+            font=("Arial", 9),
+            foreground=self._fg("blue"),
+            wraplength=800,
+            justify=tk.LEFT,
         )
         note.pack(fill=tk.X, padx=5, pady=(0, 5))
 
@@ -224,18 +245,25 @@ class MetalPricesTab:
         if material_filter != "всі":
             entries = [e for e in entries if e["material"] == material_filter]
         for entry in entries:
-            price_kg_str = f"{entry['price_per_kg']:.2f}" if entry['price_per_kg'] is not None else ""
-            self.tree.insert("", tk.END, values=(
-                entry["material"],
-                entry["thickness"],
-                f"{entry['price_per_m2']:.2f}",
-                price_kg_str,
-                entry["density"],
-            ), tags=(f"{entry['material']}|{entry['thickness']}",))
+            price_kg_str = (
+                f"{entry['price_per_kg']:.2f}" if entry["price_per_kg"] is not None else ""
+            )
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    entry["material"],
+                    entry["thickness"],
+                    f"{entry['price_per_m2']:.2f}",
+                    price_kg_str,
+                    entry["density"],
+                ),
+                tags=(f"{entry['material']}|{entry['thickness']}",),
+            )
 
         self.summary_label.config(
             text=f"Матеріалів: {len(self.manager.get_materials())} | Записів: {len(entries)} | "
-                 f"Файл: data/pricing_settings.json"
+            f"Файл: data/pricing_settings.json"
         )
         current = list(self.material_combo["values"] or [])
         new_values = ["всі"] + self.manager.get_materials()
@@ -281,28 +309,48 @@ class MetalPricesTab:
         row = 0
         ttk.Label(dialog, text="Матеріал:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
         if is_edit:
-            ttk.Label(dialog, text=material, font=("Arial", 10, "bold")).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+            ttk.Label(dialog, text=material, font=("Arial", 10, "bold")).grid(
+                row=row, column=1, sticky=tk.W, padx=5, pady=5
+            )
         else:
             existing = self.manager.get_materials()
             if existing:
-                ttk.Combobox(dialog, textvariable=mat_var, values=existing, width=25).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+                ttk.Combobox(dialog, textvariable=mat_var, values=existing, width=25).grid(
+                    row=row, column=1, sticky=tk.W, padx=5, pady=5
+                )
             else:
-                ttk.Entry(dialog, textvariable=mat_var, width=25).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+                ttk.Entry(dialog, textvariable=mat_var, width=25).grid(
+                    row=row, column=1, sticky=tk.W, padx=5, pady=5
+                )
         row += 1
 
-        ttk.Label(dialog, text="Товщина (мм):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="Товщина (мм):").grid(
+            row=row, column=0, sticky=tk.W, padx=10, pady=5
+        )
         if is_edit:
-            ttk.Label(dialog, text=str(thickness), font=("Arial", 10, "bold")).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+            ttk.Label(dialog, text=str(thickness), font=("Arial", 10, "bold")).grid(
+                row=row, column=1, sticky=tk.W, padx=5, pady=5
+            )
         else:
-            ttk.Entry(dialog, textvariable=thick_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+            ttk.Entry(dialog, textvariable=thick_var, width=10).grid(
+                row=row, column=1, sticky=tk.W, padx=5, pady=5
+            )
         row += 1
 
-        ttk.Label(dialog, text="Ціна за м² (грн):").grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
-        ttk.Entry(dialog, textvariable=m2_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(dialog, text="Ціна за м² (грн):").grid(
+            row=row, column=0, sticky=tk.W, padx=10, pady=5
+        )
+        ttk.Entry(dialog, textvariable=m2_var, width=12).grid(
+            row=row, column=1, sticky=tk.W, padx=5, pady=5
+        )
         row += 1
 
         if not is_edit:
-            ttk.Label(dialog, text="Ціна за кг обчислюється автоматично для довідки", foreground=self._fg("fg_muted")).grid(row=row, column=0, columnspan=2, padx=10, pady=2)
+            ttk.Label(
+                dialog,
+                text="Ціна за кг обчислюється автоматично для довідки",
+                foreground=self._fg("fg_muted"),
+            ).grid(row=row, column=0, columnspan=2, padx=10, pady=2)
             row += 1
 
         btn_frame = ttk.Frame(dialog)
@@ -323,7 +371,9 @@ class MetalPricesTab:
                 messagebox.showwarning("Увага", "Некоректні числові дані")
 
         ttk.Button(btn_frame, text="✅ Зберегти", command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(
+            side=tk.LEFT, padx=5
+        )
 
     def _delete_selected(self):
         selected = self._get_selected()

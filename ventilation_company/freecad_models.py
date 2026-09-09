@@ -9,6 +9,8 @@
   • Пакетний експорт
 """
 
+from datetime import datetime
+
 import json
 import os
 import subprocess
@@ -21,6 +23,7 @@ from typing import List, Any, Optional, Callable
 # ── Імпорт прев'ю ──
 try:
     from ventilation_company.freecad_preview import FreeCADPreview, show_preview_dialog
+
     PREVIEW_AVAILABLE = True
 except ImportError:
     PREVIEW_AVAILABLE = False
@@ -35,6 +38,7 @@ FREECAD_GUI = None
 FREECAD_VERSION = None
 
 _log_lines = []
+
 
 def _log(msg):
     _log_lines.append(str(msg))
@@ -100,10 +104,7 @@ def _save_cached_config(config: dict):
 def _get_freecad_version(cmd_path: str) -> Optional[str]:
     """Try to get FreeCAD version string."""
     try:
-        result = subprocess.run(
-            [cmd_path, "--version"],
-            capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run([cmd_path, "--version"], capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
             return result.stdout.strip().split("\n")[0]
     except Exception:
@@ -111,7 +112,9 @@ def _get_freecad_version(cmd_path: str) -> Optional[str]:
     try:
         result = subprocess.run(
             [cmd_path, "-c", "import FreeCAD; print(FreeCAD.Version())"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -236,14 +239,18 @@ def _find_freecad():
     # 3. Get version and cache
     if FREECAD_AVAILABLE and FREECAD_CMD:
         FREECAD_VERSION = _get_freecad_version(FREECAD_CMD)
-        _save_cached_config({
-            "cmd": FREECAD_CMD,
-            "gui": FREECAD_GUI,
-            "version": FREECAD_VERSION,
-            "found_at": str(datetime.now()) if 'datetime' in dir() else "unknown"
-        })
+        _save_cached_config(
+            {
+                "cmd": FREECAD_CMD,
+                "gui": FREECAD_GUI,
+                "version": FREECAD_VERSION,
+                "found_at": str(datetime.now()) if "datetime" in dir() else "unknown",
+            }
+        )
 
-    _log(f"=== Result: AVAILABLE={FREECAD_AVAILABLE}, CMD={FREECAD_CMD}, GUI={FREECAD_GUI}, VER={FREECAD_VERSION} ===")
+    _log(
+        f"=== Result: AVAILABLE={FREECAD_AVAILABLE}, CMD={FREECAD_CMD}, GUI={FREECAD_GUI}, VER={FREECAD_VERSION} ==="
+    )
 
     # Write debug log
     try:
@@ -294,8 +301,9 @@ def _open_in_freecad(filepath):
             subprocess.Popen(["xdg-open", filepath])
 
 
-def export_products_to_freecad(products, filepath, fmt="fcstd",
-                                  progress_callback: Optional[Callable[[int, int], None]] = None):
+def export_products_to_freecad(
+    products, filepath, fmt="fcstd", progress_callback: Optional[Callable[[int, int], None]] = None
+):
     """Export products to FreeCAD file.
 
     Args:
@@ -341,8 +349,8 @@ def export_products_to_freecad(products, filepath, fmt="fcstd",
             run_cmd,
             capture_output=True,
             text=True,
-            encoding='utf-8',
-            errors='replace',
+            encoding="utf-8",
+            errors="replace",
             timeout=180,
         )
 
@@ -350,7 +358,7 @@ def export_products_to_freecad(products, filepath, fmt="fcstd",
         log_content = ""
         if os.path.exists(log_path):
             try:
-                with open(log_path, 'r', encoding='utf-8') as f:
+                with open(log_path, "r", encoding="utf-8") as f:
                     log_content = f.read()
             except Exception:
                 pass
@@ -385,12 +393,15 @@ def build_product_model(product, builder=None):
     return filepath
 
 
-def export_batch(products, output_dir: str, fmt="step",
-                    progress_callback: Optional[Callable[[int, int], None]] = None):
+def export_batch(
+    products,
+    output_dir: str,
+    fmt="step",
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+):
     """Export each product to a separate file in output_dir."""
     os.makedirs(output_dir, exist_ok=True)
-    ext = {"fcstd": ".FCStd", "step": ".step", "stl": ".stl",
-           "obj": ".obj", "iges": ".igs"}[fmt]
+    ext = {"fcstd": ".FCStd", "step": ".step", "stl": ".stl", "obj": ".obj", "iges": ".igs"}[fmt]
 
     exported = []
     for i, p in enumerate(products):
@@ -410,4 +421,6 @@ def show_preview(parent, products: List[Any]):
     if PREVIEW_AVAILABLE:
         show_preview_dialog(parent, products)
     else:
-        raise RuntimeError("Попередній перегляд недоступний. Встановіть matplotlib: pip install matplotlib")
+        raise RuntimeError(
+            "Попередній перегляд недоступний. Встановіть matplotlib: pip install matplotlib"
+        )

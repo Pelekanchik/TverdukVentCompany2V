@@ -17,7 +17,11 @@ from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set
 
 from ventilation_company.project3d.vent_system import (
-    DuctSegment, DuctShape, Fitting, Equipment, Point3D,
+    DuctSegment,
+    DuctShape,
+    Fitting,
+    Equipment,
+    Point3D,
 )
 from ventilation_company.project3d.arch_context import Wall, Opening
 
@@ -25,6 +29,7 @@ from ventilation_company.project3d.arch_context import Wall, Opening
 @dataclass
 class Collision:
     """Опис одного зіткнення."""
+
     object_a_id: str
     object_a_type: str
     object_b_id: str
@@ -37,15 +42,19 @@ class Collision:
 
 class AABB:
     """Осі-вирівняний обмежувальний паралелепіпед."""
+
     def __init__(self, min_pt: Point3D, max_pt: Point3D):
         self.min = min_pt
         self.max = max_pt
 
     def intersects(self, other: "AABB", margin: float = 0.0) -> bool:
         return (
-            self.min.x - margin <= other.max.x and self.max.x + margin >= other.min.x and
-            self.min.y - margin <= other.max.y and self.max.y + margin >= other.min.y and
-            self.min.z - margin <= other.max.z and self.max.z + margin >= other.min.z
+            self.min.x - margin <= other.max.x
+            and self.max.x + margin >= other.min.x
+            and self.min.y - margin <= other.max.y
+            and self.max.y + margin >= other.min.y
+            and self.min.z - margin <= other.max.z
+            and self.max.z + margin >= other.min.z
         )
 
     @staticmethod
@@ -71,8 +80,12 @@ class AABB:
     @staticmethod
     def from_equipment(eq: Equipment) -> "AABB":
         return AABB(
-            Point3D(eq.position.x - eq.width/2, eq.position.y - eq.height/2, eq.position.z),
-            Point3D(eq.position.x + eq.width/2, eq.position.y + eq.height/2, eq.position.z + eq.length),
+            Point3D(eq.position.x - eq.width / 2, eq.position.y - eq.height / 2, eq.position.z),
+            Point3D(
+                eq.position.x + eq.width / 2,
+                eq.position.y + eq.height / 2,
+                eq.position.z + eq.length,
+            ),
         )
 
 
@@ -80,11 +93,11 @@ class CollisionDetector:
     """Двигун перевірки зіткнень у 3D-просторі — ВЕРСІЯ 2."""
 
     # Допуски (зазори) — мм
-    DUCT_DUCT_CLEARANCE = 20.0      # між повітропроводами
-    DUCT_WALL_CLEARANCE = 30.0      # між повітропроводом і стіною
-    DUCT_BEAM_CLEARANCE = 50.0      # між повітропроводом і несучою стіною/балкою
-    FITTING_CLEARANCE = 15.0        # фасонка — компактніша
-    EQUIPMENT_CLEARANCE = 50.0      # обладнання
+    DUCT_DUCT_CLEARANCE = 20.0  # між повітропроводами
+    DUCT_WALL_CLEARANCE = 30.0  # між повітропроводом і стіною
+    DUCT_BEAM_CLEARANCE = 50.0  # між повітропроводом і несучою стіною/балкою
+    FITTING_CLEARANCE = 15.0  # фасонка — компактніша
+    EQUIPMENT_CLEARANCE = 50.0  # обладнання
 
     def __init__(self, project):
         self.project = project
@@ -126,28 +139,38 @@ class CollisionDetector:
         # 1. Сегмент vs Стіна
         for seg, aabb, trunk, system in seg_aabbs:
             for wall in all_walls:
-                clearance = self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                clearance = (
+                    self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                )
                 if not aabb.intersects(self._wall_aabb(wall), clearance):
                     continue
                 if self._segment_hits_wall(seg, wall, all_openings):
                     self._add_collision(
-                        seg.id, "segment", f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
-                        wall.id, "wall", wall.name,
+                        seg.id,
+                        "segment",
+                        f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
+                        wall.id,
+                        "wall",
+                        wall.name,
                         seg.center,
-                        f"Сегмент перетинає стіну '{wall.name}'"
+                        f"Сегмент перетинає стіну '{wall.name}'",
                     )
 
         # 2. Сегмент vs Сегмент
         for i, (seg_a, aabb_a, tr_a, sys_a) in enumerate(seg_aabbs):
-            for seg_b, aabb_b, tr_b, sys_b in seg_aabbs[i + 1:]:
+            for seg_b, aabb_b, tr_b, sys_b in seg_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.DUCT_DUCT_CLEARANCE):
                     continue
                 if self._segment_hits_segment(seg_a, seg_b):
                     self._add_collision(
-                        seg_a.id, "segment", f"Сегмент {seg_a.width:.0f}×{seg_a.height:.0f}",
-                        seg_b.id, "segment", f"Сегмент {seg_b.width:.0f}×{seg_b.height:.0f}",
+                        seg_a.id,
+                        "segment",
+                        f"Сегмент {seg_a.width:.0f}×{seg_a.height:.0f}",
+                        seg_b.id,
+                        "segment",
+                        f"Сегмент {seg_b.width:.0f}×{seg_b.height:.0f}",
                         self._closest_point(seg_a, seg_b),
-                        "Повітропроводи перетинаються"
+                        "Повітропроводи перетинаються",
                     )
 
         # 3. Сегмент vs Фасонка
@@ -157,10 +180,14 @@ class CollisionDetector:
                     continue
                 if self._segment_hits_fitting(seg, fit):
                     self._add_collision(
-                        seg.id, "segment", f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
-                        fit.id, "fitting", fit.fitting_type,
+                        seg.id,
+                        "segment",
+                        f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
+                        fit.id,
+                        "fitting",
+                        fit.fitting_type,
                         fit.position,
-                        f"Повітропровід перетинає фасонку '{fit.fitting_type}'"
+                        f"Повітропровід перетинає фасонку '{fit.fitting_type}'",
                     )
 
         # 4. Сегмент vs Обладнання
@@ -170,23 +197,31 @@ class CollisionDetector:
                     continue
                 if self._segment_hits_equipment(seg, eq):
                     self._add_collision(
-                        seg.id, "segment", f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
-                        eq.id, "equipment", eq.name,
+                        seg.id,
+                        "segment",
+                        f"Сегмент {seg.width:.0f}×{seg.height:.0f}",
+                        eq.id,
+                        "equipment",
+                        eq.name,
                         self._closest_point_on_segment(seg, eq.position),
-                        f"Повітропровід перетинає обладнання '{eq.name}'"
+                        f"Повітропровід перетинає обладнання '{eq.name}'",
                     )
 
         # 5. Фасонка vs Фасонка
         for i, (fit_a, aabb_a, tr_a, sys_a) in enumerate(fit_aabbs):
-            for fit_b, aabb_b, tr_b, sys_b in fit_aabbs[i + 1:]:
+            for fit_b, aabb_b, tr_b, sys_b in fit_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.FITTING_CLEARANCE):
                     continue
                 if self._fitting_hits_fitting(fit_a, fit_b):
                     self._add_collision(
-                        fit_a.id, "fitting", fit_a.fitting_type,
-                        fit_b.id, "fitting", fit_b.fitting_type,
+                        fit_a.id,
+                        "fitting",
+                        fit_a.fitting_type,
+                        fit_b.id,
+                        "fitting",
+                        fit_b.fitting_type,
                         self._midpoint(fit_a.position, fit_b.position),
-                        "Фасонні вироби перетинаються"
+                        "Фасонні вироби перетинаються",
                     )
 
         # 6. Фасонка vs Обладнання
@@ -196,51 +231,71 @@ class CollisionDetector:
                     continue
                 if self._fitting_hits_equipment(fit, eq):
                     self._add_collision(
-                        fit.id, "fitting", fit.fitting_type,
-                        eq.id, "equipment", eq.name,
+                        fit.id,
+                        "fitting",
+                        fit.fitting_type,
+                        eq.id,
+                        "equipment",
+                        eq.name,
                         self._midpoint(fit.position, eq.position),
-                        f"Фасонка '{fit.fitting_type}' перетинає обладнання '{eq.name}'"
+                        f"Фасонка '{fit.fitting_type}' перетинає обладнання '{eq.name}'",
                     )
 
         # 7. Фасонка vs Стіна
         for fit, aabb_f, tr_f, sys_f in fit_aabbs:
             for wall in all_walls:
-                clearance = self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                clearance = (
+                    self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                )
                 if not aabb_f.intersects(self._wall_aabb(wall), clearance):
                     continue
                 if self._fitting_hits_wall(fit, wall, all_openings):
                     self._add_collision(
-                        fit.id, "fitting", fit.fitting_type,
-                        wall.id, "wall", wall.name,
+                        fit.id,
+                        "fitting",
+                        fit.fitting_type,
+                        wall.id,
+                        "wall",
+                        wall.name,
                         fit.position,
-                        f"Фасонка '{fit.fitting_type}' перетинає стіну '{wall.name}'"
+                        f"Фасонка '{fit.fitting_type}' перетинає стіну '{wall.name}'",
                     )
 
         # 8. Обладнання vs Стіна
         for eq, aabb_e, tr_e, sys_e in eq_aabbs:
             for wall in all_walls:
-                clearance = self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                clearance = (
+                    self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
+                )
                 if not aabb_e.intersects(self._wall_aabb(wall), clearance):
                     continue
                 if self._equipment_hits_wall(eq, wall):
                     self._add_collision(
-                        eq.id, "equipment", eq.name,
-                        wall.id, "wall", wall.name,
+                        eq.id,
+                        "equipment",
+                        eq.name,
+                        wall.id,
+                        "wall",
+                        wall.name,
                         eq.position,
-                        f"Обладнання '{eq.name}' перетинає стіну '{wall.name}'"
+                        f"Обладнання '{eq.name}' перетинає стіну '{wall.name}'",
                     )
 
         # 9. Обладнання vs Обладнання
         for i, (eq_a, aabb_a, tr_a, sys_a) in enumerate(eq_aabbs):
-            for eq_b, aabb_b, tr_b, sys_b in eq_aabbs[i + 1:]:
+            for eq_b, aabb_b, tr_b, sys_b in eq_aabbs[i + 1 :]:
                 if not aabb_a.intersects(aabb_b, self.EQUIPMENT_CLEARANCE):
                     continue
                 if self._equipment_hits_equipment(eq_a, eq_b):
                     self._add_collision(
-                        eq_a.id, "equipment", eq_a.name,
-                        eq_b.id, "equipment", eq_b.name,
+                        eq_a.id,
+                        "equipment",
+                        eq_a.name,
+                        eq_b.id,
+                        "equipment",
+                        eq_b.name,
                         self._midpoint(eq_a.position, eq_b.position),
-                        "Обладнання перетинається"
+                        "Обладнання перетинається",
                     )
 
         return self.collisions
@@ -251,11 +306,18 @@ class CollisionDetector:
         key = tuple(sorted([id_a, id_b]))
         if key not in self._collision_pairs:
             self._collision_pairs.add(key)
-            self.collisions.append(Collision(
-                object_a_id=id_a, object_a_type=type_a, object_a_name=name_a,
-                object_b_id=id_b, object_b_type=type_b, object_b_name=name_b,
-                position=position, message=message,
-            ))
+            self.collisions.append(
+                Collision(
+                    object_a_id=id_a,
+                    object_a_type=type_a,
+                    object_a_name=name_a,
+                    object_b_id=id_b,
+                    object_b_type=type_b,
+                    object_b_name=name_b,
+                    position=position,
+                    message=message,
+                )
+            )
             self._collision_ids.add(id_a)
             self._collision_ids.add(id_b)
 
@@ -285,8 +347,12 @@ class CollisionDetector:
         if seg_a.id == seg_b.id:
             return False
         # Якщо сегменти суміжні (кінець одного = початок іншого) — це НЕ зіткнення
-        if (seg_a.start == seg_b.end or seg_a.end == seg_b.start or
-            seg_a.start == seg_b.start or seg_a.end == seg_b.end):
+        if (
+            seg_a.start == seg_b.end
+            or seg_a.end == seg_b.start
+            or seg_a.start == seg_b.start
+            or seg_a.end == seg_b.end
+        ):
             return False
         dist = self._distance_segment_to_segment_exact(seg_a, seg_b)
         # Профіль як bounding box: половина діагоналі
@@ -354,12 +420,12 @@ class CollisionDetector:
         u = Point3D(a2.x - a1.x, a2.y - a1.y, a2.z - a1.z)
         v = Point3D(b2.x - b1.x, b2.y - b1.y, b2.z - b1.z)
         w = Point3D(a1.x - b1.x, a1.y - b1.y, a1.z - b1.z)
-        a = u.x*u.x + u.y*u.y + u.z*u.z
-        b = u.x*v.x + u.y*v.y + u.z*v.z
-        c = v.x*v.x + v.y*v.y + v.z*v.z
-        d = u.x*w.x + u.y*w.y + u.z*w.z
-        e = v.x*w.x + v.y*w.y + v.z*w.z
-        D = a*c - b*b
+        a = u.x * u.x + u.y * u.y + u.z * u.z
+        b = u.x * v.x + u.y * v.y + u.z * v.z
+        c = v.x * v.x + v.y * v.y + v.z * v.z
+        d = u.x * w.x + u.y * w.y + u.z * w.z
+        e = v.x * w.x + v.y * w.y + v.z * w.z
+        D = a * c - b * b
         sc, sN, sD = D, D, D
         tc, tN, tD = D, D, D
         if D < 1e-9:
@@ -368,8 +434,8 @@ class CollisionDetector:
             tN = e
             tD = c
         else:
-            sN = (b*e - c*d)
-            tN = (a*e - b*d)
+            sN = b * e - c * d
+            tN = a * e - b * d
             if sN < 0:
                 sN = 0.0
                 tN = e
@@ -394,14 +460,14 @@ class CollisionDetector:
             elif (-d + b) > a:
                 sN = sD
             else:
-                sN = (-d + b)
+                sN = -d + b
                 sD = a
         sc = 0.0 if abs(sN) < 1e-9 else sN / sD
         tc = 0.0 if abs(tN) < 1e-9 else tN / tD
         dP = Point3D(
-            w.x + sc*u.x - tc*v.x,
-            w.y + sc*u.y - tc*v.y,
-            w.z + sc*u.z - tc*v.z,
+            w.x + sc * u.x - tc * v.x,
+            w.y + sc * u.y - tc * v.y,
+            w.z + sc * u.z - tc * v.z,
         )
         return math.sqrt(dP.x**2 + dP.y**2 + dP.z**2)
 
@@ -414,8 +480,8 @@ class CollisionDetector:
         ab_len_sq = ab.x**2 + ab.y**2 + ab.z**2
         if ab_len_sq < 1e-9:
             return a.distance(point)
-        t = max(0.0, min(1.0, (ap.x*ab.x + ap.y*ab.y + ap.z*ab.z) / ab_len_sq))
-        closest = Point3D(a.x + t*ab.x, a.y + t*ab.y, a.z + t*ab.z)
+        t = max(0.0, min(1.0, (ap.x * ab.x + ap.y * ab.y + ap.z * ab.z) / ab_len_sq))
+        closest = Point3D(a.x + t * ab.x, a.y + t * ab.y, a.z + t * ab.z)
         return closest.distance(point)
 
     def _distance_segment_to_wall(self, seg: DuctSegment, wall: Wall) -> float:
@@ -423,7 +489,11 @@ class CollisionDetector:
         d2 = self._distance_point_to_wall(seg.end, wall)
         d_center = self._distance_point_to_wall(seg.center, wall)
         # Також перевіримо середину
-        mid = Point3D((seg.start.x + seg.end.x)/2, (seg.start.y + seg.end.y)/2, (seg.start.z + seg.end.z)/2)
+        mid = Point3D(
+            (seg.start.x + seg.end.x) / 2,
+            (seg.start.y + seg.end.y) / 2,
+            (seg.start.z + seg.end.z) / 2,
+        )
         d_mid = self._distance_point_to_wall(mid, wall)
         return min(d1, d2, d_center, d_mid)
 
@@ -442,14 +512,14 @@ class CollisionDetector:
             return abs(abs(proj_n) - hw)
         elif in_length:
             dz = min(abs(proj_z), abs(proj_z - wall.height))
-            return math.sqrt(max(0, (abs(proj_n) - hw))**2 + dz**2)
+            return math.sqrt(max(0, (abs(proj_n) - hw)) ** 2 + dz**2)
         elif in_height:
             dd = min(abs(proj_d), abs(proj_d - wall_length))
-            return math.sqrt(max(0, (abs(proj_n) - hw))**2 + dd**2)
+            return math.sqrt(max(0, (abs(proj_n) - hw)) ** 2 + dd**2)
         else:
             dz = min(abs(proj_z), abs(proj_z - wall.height))
             dd = min(abs(proj_d), abs(proj_d - wall_length))
-            return math.sqrt(max(0, (abs(proj_n) - hw))**2 + dd**2 + dz**2)
+            return math.sqrt(max(0, (abs(proj_n) - hw)) ** 2 + dd**2 + dz**2)
 
     def _segment_passes_through_opening(self, seg: DuctSegment, opening: Opening) -> bool:
         if self._point_in_opening(seg.start, opening) or self._point_in_opening(seg.end, opening):
@@ -470,7 +540,11 @@ class CollisionDetector:
 
     def _closest_point(self, seg: DuctSegment, seg_b: DuctSegment) -> Point3D:
         """Точка на seg, найближча до seg_b."""
-        mid = Point3D((seg.start.x + seg.end.x)/2, (seg.start.y + seg.end.y)/2, (seg.start.z + seg.end.z)/2)
+        mid = Point3D(
+            (seg.start.x + seg.end.x) / 2,
+            (seg.start.y + seg.end.y) / 2,
+            (seg.start.z + seg.end.z) / 2,
+        )
         return mid
 
     def _closest_point_on_segment(self, seg: DuctSegment, point: Point3D) -> Point3D:
@@ -481,8 +555,8 @@ class CollisionDetector:
         ab_len_sq = ab.x**2 + ab.y**2 + ab.z**2
         if ab_len_sq < 1e-9:
             return a
-        t = max(0.0, min(1.0, (ap.x*ab.x + ap.y*ab.y + ap.z*ab.z) / ab_len_sq))
-        return Point3D(a.x + t*ab.x, a.y + t*ab.y, a.z + t*ab.z)
+        t = max(0.0, min(1.0, (ap.x * ab.x + ap.y * ab.y + ap.z * ab.z) / ab_len_sq))
+        return Point3D(a.x + t * ab.x, a.y + t * ab.y, a.z + t * ab.z)
 
     def _midpoint(self, a: Point3D, b: Point3D) -> Point3D:
         return Point3D((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)

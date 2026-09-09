@@ -15,16 +15,30 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QComboBox, QMessageBox, QAbstractItemView,
-    QDialog, QFormLayout, QDialogButtonBox, QSpinBox,
-    QDoubleSpinBox, QGroupBox, QGridLayout,
-    QTabWidget, QFrame, QScrollArea, QSplitter
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QComboBox,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
+    QFormLayout,
+    QDialogButtonBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QGroupBox,
+    QGridLayout,
+    QTabWidget,
+    QFrame,
+    QScrollArea,
+    QSplitter,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
 from ventilation_company.gui_pyside6.theme import Theme
-
 
 SETTINGS_PATH = Path(__file__).parent.parent.parent / "data" / "pricing_settings.json"
 
@@ -48,6 +62,7 @@ def save_settings(data: dict):
     try:
         from ventilation_company.manufacturing_params import clear_cache as clear_manuf_cache
         from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_cache
+
         clear_manuf_cache()
         clear_cost_cache()
     except Exception:
@@ -59,16 +74,31 @@ def get_default_settings() -> dict:
     return {
         "material_prices": {
             "оцинкована сталь": {
-                "0.5": 450.0, "0.7": 580.0, "0.9": 650.0,
-                "1.0": 750.0, "1.2": 850.0, "1.5": 950.0, "2.0": 1200.0,
+                "0.5": 450.0,
+                "0.7": 580.0,
+                "0.9": 650.0,
+                "1.0": 750.0,
+                "1.2": 850.0,
+                "1.5": 950.0,
+                "2.0": 1200.0,
             },
             "нержавіюча сталь": {
-                "0.5": 950.0, "0.7": 1100.0, "0.9": 1200.0,
-                "1.0": 1200.0, "1.2": 1400.0, "1.5": 1600.0, "2.0": 2000.0,
+                "0.5": 950.0,
+                "0.7": 1100.0,
+                "0.9": 1200.0,
+                "1.0": 1200.0,
+                "1.2": 1400.0,
+                "1.5": 1600.0,
+                "2.0": 2000.0,
             },
             "алюміній": {
-                "0.5": 320.0, "0.7": 380.0, "0.9": 420.0,
-                "1.0": 450.0, "1.2": 500.0, "1.5": 600.0, "2.0": 750.0,
+                "0.5": 320.0,
+                "0.7": 380.0,
+                "0.9": 420.0,
+                "1.0": 450.0,
+                "1.2": 500.0,
+                "1.5": 600.0,
+                "2.0": 750.0,
             },
         },
         "overhead": {
@@ -115,6 +145,7 @@ def get_default_settings() -> dict:
 # ═══════════════════════════════════════════════════════════
 # Вкладка "Ціни на метал"
 # ═══════════════════════════════════════════════════════════
+
 
 class MetalPricesTab(QWidget):
     """Таблиця цін на метал (матеріал × товщина)."""
@@ -177,12 +208,17 @@ class MetalPricesTab(QWidget):
                     return
         self.settings["material_prices"] = prices
         save_settings(self.settings)
-        QMessageBox.information(self, "Успіх", "Ціни на метал збережено! Тепер розрахунок використовує нові ціни одразу.")
+        QMessageBox.information(
+            self,
+            "Успіх",
+            "Ціни на метал збережено! Тепер розрахунок використовує нові ціни одразу.",
+        )
 
 
 # ═══════════════════════════════════════════════════════════
 # Вкладка "Накладні та амортизація"
 # ═══════════════════════════════════════════════════════════
+
 
 class OverheadTab(QWidget):
     """Накладні витрати та амортизація."""
@@ -209,7 +245,9 @@ class OverheadTab(QWidget):
         self.spin_electricity = QDoubleSpinBox()
         self.spin_electricity.setRange(0, 50)
         self.spin_electricity.setSuffix(" ₴/кг")
-        self.spin_electricity.setValue(self.settings.get("overhead", {}).get("electricity_per_kg", 2.5))
+        self.spin_electricity.setValue(
+            self.settings.get("overhead", {}).get("electricity_per_kg", 2.5)
+        )
         oh_layout.addWidget(QLabel("Електроенергія:"), 1, 0)
         oh_layout.addWidget(self.spin_electricity, 1, 1)
 
@@ -223,7 +261,9 @@ class OverheadTab(QWidget):
         self.spin_transport = QDoubleSpinBox()
         self.spin_transport.setRange(0, 10000)
         self.spin_transport.setSuffix(" ₴/проєкт")
-        self.spin_transport.setValue(self.settings.get("overhead", {}).get("transport_per_project", 500.0))
+        self.spin_transport.setValue(
+            self.settings.get("overhead", {}).get("transport_per_project", 500.0)
+        )
         oh_layout.addWidget(QLabel("Транспорт:"), 3, 0)
         oh_layout.addWidget(self.spin_transport, 3, 1)
 
@@ -290,6 +330,7 @@ class OverheadTab(QWidget):
 # ═══════════════════════════════════════════════════════════
 # Вкладка "Ставки робіт"
 # ═══════════════════════════════════════════════════════════
+
 
 class LaborRatesTab(QWidget):
     """Ставки робіт (грн/м²) по типах виробів."""
@@ -360,6 +401,7 @@ class LaborRatesTab(QWidget):
 # ═══════════════════════════════════════════════════════════
 # Вкладка "Націнки"
 # ═══════════════════════════════════════════════════════════
+
 
 class MarkupTab(QWidget):
     """Націнки по категоріях."""
@@ -456,6 +498,7 @@ class MarkupTab(QWidget):
 # Головна вкладка "Ціноутворення"
 # ═══════════════════════════════════════════════════════════
 
+
 class PricingTab(QWidget):
     """Вкладка ціноутворення з підвкладками."""
 
@@ -487,16 +530,19 @@ class PricingTab(QWidget):
         self.tabs.addTab(MarkupTab(self.settings), "📐 Націнки")
         layout.addWidget(self.tabs)
 
-        hint = QLabel("💡 Зміни в цих налаштуваннях впливають на розрахунок ціни виробів у вкладці 'Вироби' одразу після збереження")
+        hint = QLabel(
+            "💡 Зміни в цих налаштуваннях впливають на розрахунок ціни виробів у вкладці 'Вироби' одразу після збереження"
+        )
         hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 8px;")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
     def _on_reset(self):
         reply = QMessageBox.question(
-            self, "Скидання",
+            self,
+            "Скидання",
             "Скинути всі ціни до стандартних значень?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.settings = get_default_settings()

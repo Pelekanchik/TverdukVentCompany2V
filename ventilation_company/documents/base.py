@@ -26,11 +26,14 @@ class BaseDocument(FPDF, ABC):
         # Реєструємо Unicode-шрифт (системний з кирилицею)
         try:
             from ventilation_company.pdf_generator import _find_fonts
+
             regular, bold = _find_fonts()
             self.add_font("DejaVu", "", regular, uni=True)
             self.add_font("DejaVu", "B", bold, uni=True)
         except Exception as exc:
-            _logger.warning("Не вдалося завантажити Unicode-шрифт: %s. PDF може не відображати кирилицю.", exc)
+            _logger.warning(
+                "Не вдалося завантажити Unicode-шрифт: %s. PDF може не відображати кирилицю.", exc
+            )
 
     def header(self):
         """Заголовок кожної сторінки."""
@@ -85,7 +88,7 @@ class BaseDocument(FPDF, ABC):
         from ventilation_company.utils.money import money_round
 
         d_subtotal = money_round(subtotal)
-        d_vat = money_round(Decimal(str(subtotal)) * Decimal(str(vat_rate)) / Decimal('100'))
+        d_vat = money_round(Decimal(str(subtotal)) * Decimal(str(vat_rate)) / Decimal("100"))
         d_total = d_subtotal + d_vat
 
         self.set_font("DejaVu", "B", 10)

@@ -5,9 +5,20 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QLineEdit, QComboBox, QMessageBox, QAbstractItemView,
-    QDialog, QFormLayout, QDialogButtonBox, QTextEdit
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QLineEdit,
+    QComboBox,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
+    QFormLayout,
+    QDialogButtonBox,
+    QTextEdit,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor
 
@@ -166,9 +177,9 @@ class CRMTab(QWidget):
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([
-            "ID", "Назва / ПІБ", "Контакт", "Телефон", "Email", "Статус", "Примітка"
-        ])
+        self.model.setHorizontalHeaderLabels(
+            ["ID", "Назва / ПІБ", "Контакт", "Телефон", "Email", "Статус", "Примітка"]
+        )
         self.table.setModel(self.model)
 
         self.table.setColumnWidth(0, 50)
@@ -206,14 +217,86 @@ class CRMTab(QWidget):
     def _load_data(self):
         """Завантажити демо-дані клієнтів."""
         self._all_clients = [
-            {"id": 1, "name": "ТОВ 'Будівельник'", "contact_person": "Іванов І.І.", "phone": "+38 (067) 111-22-33", "email": "info@budivelnyk.ua", "address": "м. Київ, вул. Будівельна, 15", "status": "Активний", "notes": "Постійний клієнт, 5 проєктів"},
-            {"id": 2, "name": "ТОВ 'Смак' (ресторан)", "contact_person": "Петренко П.П.", "phone": "+38 (050) 444-55-66", "email": "smak@restaurant.ua", "address": "м. Львів, пл. Ринок, 1", "status": "Активний", "notes": "Витяжна система кухні"},
-            {"id": 3, "name": "Складський комплекс №5", "contact_person": "Сидоренко С.С.", "phone": "+38 (063) 777-88-99", "email": "sklad5@logistics.ua", "address": "м. Одеса, вул. Портова, 42", "status": "Потенційний", "notes": "Приточна установка, чекаємо ТЗ"},
-            {"id": 4, "name": "ЖК 'Сонячний'", "contact_person": "Коваленко К.К.", "phone": "+38 (068) 000-11-22", "email": "info@sonyachny.ua", "address": "м. Дніпро, пр. Гагаріна, 100", "status": "Активний", "notes": "Вентиляція підвалів, 3 під'їзди"},
-            {"id": 5, "name": "ТОВ 'Холод'", "contact_person": "Морозенко М.М.", "phone": "+38 (095) 333-44-55", "email": "cold@refrigeration.ua", "address": "м. Харків, вул. Холодна, 7", "status": "Неактивний", "notes": "Не відповідає на дзвінки з 2024"},
-            {"id": 6, "name": "АТБ-Маркет (філія №12)", "contact_person": "Гриценко Г.Г.", "phone": "+38 (096) 666-77-88", "email": "atb12@market.ua", "address": "м. Запоріжжя, вул. Центральна, 25", "status": "Активний", "notes": "Щомісячне обслуговування"},
-            {"id": 7, "name": "Приватна особа: Ковальчук В.В.", "contact_person": "Ковальчук В.В.", "phone": "+38 (097) 999-00-11", "email": "", "address": "м. Київ, вул. Лісова, 5, кв. 12", "status": "Потенційний", "notes": "Квартира, витяжка в санвузол"},
-            {"id": 8, "name": "ТОВ 'Шахтар'", "contact_person": "", "phone": "+38 (099) 222-33-44", "email": "shakhtar@mine.ua", "address": "м. Донецьк, вул. Шахтарська, 1", "status": "Чорний список", "notes": "Не платить, 3 проєкти в борг"},
+            {
+                "id": 1,
+                "name": "ТОВ 'Будівельник'",
+                "contact_person": "Іванов І.І.",
+                "phone": "+38 (067) 111-22-33",
+                "email": "info@budivelnyk.ua",
+                "address": "м. Київ, вул. Будівельна, 15",
+                "status": "Активний",
+                "notes": "Постійний клієнт, 5 проєктів",
+            },
+            {
+                "id": 2,
+                "name": "ТОВ 'Смак' (ресторан)",
+                "contact_person": "Петренко П.П.",
+                "phone": "+38 (050) 444-55-66",
+                "email": "smak@restaurant.ua",
+                "address": "м. Львів, пл. Ринок, 1",
+                "status": "Активний",
+                "notes": "Витяжна система кухні",
+            },
+            {
+                "id": 3,
+                "name": "Складський комплекс №5",
+                "contact_person": "Сидоренко С.С.",
+                "phone": "+38 (063) 777-88-99",
+                "email": "sklad5@logistics.ua",
+                "address": "м. Одеса, вул. Портова, 42",
+                "status": "Потенційний",
+                "notes": "Приточна установка, чекаємо ТЗ",
+            },
+            {
+                "id": 4,
+                "name": "ЖК 'Сонячний'",
+                "contact_person": "Коваленко К.К.",
+                "phone": "+38 (068) 000-11-22",
+                "email": "info@sonyachny.ua",
+                "address": "м. Дніпро, пр. Гагаріна, 100",
+                "status": "Активний",
+                "notes": "Вентиляція підвалів, 3 під'їзди",
+            },
+            {
+                "id": 5,
+                "name": "ТОВ 'Холод'",
+                "contact_person": "Морозенко М.М.",
+                "phone": "+38 (095) 333-44-55",
+                "email": "cold@refrigeration.ua",
+                "address": "м. Харків, вул. Холодна, 7",
+                "status": "Неактивний",
+                "notes": "Не відповідає на дзвінки з 2024",
+            },
+            {
+                "id": 6,
+                "name": "АТБ-Маркет (філія №12)",
+                "contact_person": "Гриценко Г.Г.",
+                "phone": "+38 (096) 666-77-88",
+                "email": "atb12@market.ua",
+                "address": "м. Запоріжжя, вул. Центральна, 25",
+                "status": "Активний",
+                "notes": "Щомісячне обслуговування",
+            },
+            {
+                "id": 7,
+                "name": "Приватна особа: Ковальчук В.В.",
+                "contact_person": "Ковальчук В.В.",
+                "phone": "+38 (097) 999-00-11",
+                "email": "",
+                "address": "м. Київ, вул. Лісова, 5, кв. 12",
+                "status": "Потенційний",
+                "notes": "Квартира, витяжка в санвузол",
+            },
+            {
+                "id": 8,
+                "name": "ТОВ 'Шахтар'",
+                "contact_person": "",
+                "phone": "+38 (099) 222-33-44",
+                "email": "shakhtar@mine.ua",
+                "address": "м. Донецьк, вул. Шахтарська, 1",
+                "status": "Чорний список",
+                "notes": "Не платить, 3 проєкти в борг",
+            },
         ]
         self._apply_filters()
 
@@ -223,7 +306,12 @@ class CRMTab(QWidget):
 
         filtered = []
         for c in self._all_clients:
-            if search and search not in c.get("name", "").lower() and search not in c.get("phone", "").lower() and search not in c.get("email", "").lower():
+            if (
+                search
+                and search not in c.get("name", "").lower()
+                and search not in c.get("phone", "").lower()
+                and search not in c.get("email", "").lower()
+            ):
                 continue
             if f_status != "Всі" and f_status != c.get("status", ""):
                 continue
@@ -266,7 +354,9 @@ class CRMTab(QWidget):
     def _update_summary(self, data: list[dict]):
         active = sum(1 for c in data if c.get("status") == "Активний")
         potential = sum(1 for c in data if c.get("status") == "Потенційний")
-        self.lbl_summary.setText(f"Всього: {len(data)} клієнтів | Активних: {active} | Потенційних: {potential}")
+        self.lbl_summary.setText(
+            f"Всього: {len(data)} клієнтів | Активних: {active} | Потенційних: {potential}"
+        )
 
     def _reset_filters(self):
         self.edit_search.clear()
@@ -321,9 +411,10 @@ class CRMTab(QWidget):
         client = self._get_client_by_id(cid)
         name = client.get("name", "") if client else ""
         reply = QMessageBox.question(
-            self, "Видалення",
+            self,
+            "Видалення",
             f'Видалити клієнта "{name}"?',
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             self._all_clients = [c for c in self._all_clients if c.get("id") != cid]

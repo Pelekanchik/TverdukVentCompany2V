@@ -10,6 +10,7 @@ class TestFreeCADModels:
         """Імпорт freecad_models не падає."""
         try:
             from ventilation_company.freecad_models import FREECAD_AVAILABLE
+
             assert isinstance(FREECAD_AVAILABLE, bool)
         except ImportError as e:
             pytest.skip(f"FreeCAD не встановлено: {e}")
@@ -18,6 +19,7 @@ class TestFreeCADModels:
         """Функція build_product_model існує."""
         try:
             from ventilation_company.freecad_models import build_product_model
+
             assert callable(build_product_model)
         except ImportError:
             pytest.skip("FreeCAD не встановлено")

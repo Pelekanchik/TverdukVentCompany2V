@@ -1,5 +1,7 @@
 """Додавання користувача в PostgreSQL."""
+
 import sys, os
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ventilation_company.database.db import get_db

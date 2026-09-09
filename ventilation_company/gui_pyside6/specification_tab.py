@@ -6,9 +6,16 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableView, QComboBox, QMessageBox, QAbstractItemView,
-    QDialog
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableView,
+    QComboBox,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
@@ -81,10 +88,21 @@ class SpecificationTab(QWidget):
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels([
-            "№", "Назва", "Тип", "Розміри", "Матеріал", "Товщ.",
-            "К-ть", "Площа м²", "Вага кг", "Ціна", "Сума"
-        ])
+        self.model.setHorizontalHeaderLabels(
+            [
+                "№",
+                "Назва",
+                "Тип",
+                "Розміри",
+                "Матеріал",
+                "Товщ.",
+                "К-ть",
+                "Площа м²",
+                "Вага кг",
+                "Ціна",
+                "Сума",
+            ]
+        )
         self.table.setModel(self.model)
 
         self.table.setColumnWidth(0, 40)
@@ -119,23 +137,33 @@ class SpecificationTab(QWidget):
         summary.setSpacing(24)
 
         self.lbl_count = QLabel("Позицій: 0")
-        self.lbl_count.setStyleSheet(f"color: {Theme.TEXT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_count.setStyleSheet(
+            f"color: {Theme.TEXT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         summary.addWidget(self.lbl_count)
 
         self.lbl_qty = QLabel("Кількість: 0 шт")
-        self.lbl_qty.setStyleSheet(f"color: {Theme.TEXT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_qty.setStyleSheet(
+            f"color: {Theme.TEXT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         summary.addWidget(self.lbl_qty)
 
         self.lbl_area = QLabel("Площа: 0 м²")
-        self.lbl_area.setStyleSheet(f"color: {Theme.ACCENT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_area.setStyleSheet(
+            f"color: {Theme.ACCENT}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         summary.addWidget(self.lbl_area)
 
         self.lbl_weight = QLabel("Вага: 0 кг")
-        self.lbl_weight.setStyleSheet(f"color: {Theme.WARNING}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_weight.setStyleSheet(
+            f"color: {Theme.WARNING}; font-size: 13px; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         summary.addWidget(self.lbl_weight)
 
         self.lbl_total = QLabel("Сума: ₴ 0")
-        self.lbl_total.setStyleSheet(f"color: {Theme.SUCCESS}; font-size: 14px; font-weight: bold; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;")
+        self.lbl_total.setStyleSheet(
+            f"color: {Theme.SUCCESS}; font-size: 14px; font-weight: bold; padding: 8px 16px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
         summary.addWidget(self.lbl_total)
 
         summary.addStretch()
@@ -320,9 +348,10 @@ class SpecificationTab(QWidget):
             return
         name = self._items[self.table.currentIndex().row()].get("name", "")
         reply = QMessageBox.question(
-            self, "Видалення",
+            self,
+            "Видалення",
             f'Видалити виріб "{name}" (ID: {item_id}) зі специфікації?',
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:

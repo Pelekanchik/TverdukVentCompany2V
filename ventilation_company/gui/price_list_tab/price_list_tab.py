@@ -31,6 +31,7 @@ HAVE_OPENPYXL = False
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
     HAVE_OPENPYXL = True
 except ImportError:
     pass
@@ -43,6 +44,7 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     HAVE_REPORTLAB = True
 except ImportError:
     pass
@@ -77,37 +79,65 @@ class PriceListTab:
         btn_frame.pack(side=tk.LEFT, padx=(20, 0))
 
         ttk.Button(btn_frame, text="➕ Додати", command=self._add_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="📋 Дублювати", command=self._duplicate_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="✏️ Редагувати", command=self._edit_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="🗑️ Видалити", command=self._delete_selected).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(btn_frame, text="📋 Дублювати", command=self._duplicate_selected).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # Синхронізація
         sync_frame = ttk.LabelFrame(top, text="Синхронізація", padding=3)
         sync_frame.pack(side=tk.LEFT, padx=(10, 0))
-        ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(sync_frame, text="🔄 З виробів", command=self._sync_from_products).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(sync_frame, text="📦 З архіву", command=self._sync_from_archive).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(sync_frame, text="♻️ Оновити прайс", command=self._refresh_current_project).pack(
+            side=tk.LEFT, padx=2
+        )
 
         # Експорт
         export_frame = ttk.LabelFrame(top, text="Експорт", padding=3)
         export_frame.pack(side=tk.RIGHT, padx=5)
-        ttk.Button(export_frame, text="📄 PDF", command=lambda: self._export("pdf")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="📊 Excel", command=lambda: self._export("excel")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="🌐 HTML", command=lambda: self._export("html")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="📋 CSV", command=lambda: self._export("csv")).pack(side=tk.LEFT, padx=2)
-        ttk.Button(export_frame, text="🖨️ Друк", command=self._print_dialog).pack(side=tk.LEFT, padx=2)
+        ttk.Button(export_frame, text="📄 PDF", command=lambda: self._export("pdf")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="📊 Excel", command=lambda: self._export("excel")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="🌐 HTML", command=lambda: self._export("html")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="📋 CSV", command=lambda: self._export("csv")).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(export_frame, text="🖨️ Друк", command=self._print_dialog).pack(
+            side=tk.LEFT, padx=2
+        )
 
         view_frame = ttk.LabelFrame(self.frame, text="Режим перегляду", padding=5)
         view_frame.pack(fill=tk.X, padx=5, pady=(5, 0))
 
         self.view_var = tk.StringVar(value="internal")
         ttk.Radiobutton(
-            view_frame, text="🔐 Внутрішній прайс (повна інформація)",
-            variable=self.view_var, value="internal", command=self._on_view_changed
+            view_frame,
+            text="🔐 Внутрішній прайс (повна інформація)",
+            variable=self.view_var,
+            value="internal",
+            command=self._on_view_changed,
         ).pack(side=tk.LEFT, padx=10)
         ttk.Radiobutton(
-            view_frame, text="📋 Прайс замовника (публічний)",
-            variable=self.view_var, value="customer", command=self._on_view_changed
+            view_frame,
+            text="📋 Прайс замовника (публічний)",
+            variable=self.view_var,
+            value="customer",
+            command=self._on_view_changed,
         ).pack(side=tk.LEFT, padx=10)
 
         filter_frame = ttk.Frame(self.frame, padding=5)
@@ -116,8 +146,11 @@ class PriceListTab:
         ttk.Label(filter_frame, text="Фільтр категорії:").pack(side=tk.LEFT)
         self.filter_cat_var = tk.StringVar(value="всі")
         ttk.Combobox(
-            filter_frame, textvariable=self.filter_cat_var,
-            values=["всі"] + self.CATEGORIES, state="readonly", width=20
+            filter_frame,
+            textvariable=self.filter_cat_var,
+            values=["всі"] + self.CATEGORIES,
+            state="readonly",
+            width=20,
         ).pack(side=tk.LEFT, padx=5)
         self.filter_cat_var.trace_add("write", lambda *args: self._refresh_tree())
 
@@ -131,38 +164,102 @@ class PriceListTab:
         table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         self.internal_columns = (
-            "num", "name", "category", "type", "dimensions", "material", "thickness",
-            "unit", "qty", "cost", "labor", "overhead", "markup",
-            "unit_price", "total", "profit", "supplier", "notes"
+            "num",
+            "name",
+            "category",
+            "type",
+            "dimensions",
+            "material",
+            "thickness",
+            "unit",
+            "qty",
+            "cost",
+            "labor",
+            "overhead",
+            "markup",
+            "unit_price",
+            "total",
+            "profit",
+            "supplier",
+            "notes",
         )
         self.internal_headings = {
-            "num": "№", "name": "Назва", "category": "Категорія", "type": "Тип",
-            "dimensions": "Розміри", "material": "Матеріал", "thickness": "Товщ.",
-            "unit": "Од.", "qty": "К-ть", "cost": "Собіварт.", "labor": "Роботи",
-            "overhead": "Накладні", "markup": "Націнка%", "unit_price": "Ціна од.",
-            "total": "Сума", "profit": "Прибуток", "supplier": "Постач.", "notes": "Примітки"
+            "num": "№",
+            "name": "Назва",
+            "category": "Категорія",
+            "type": "Тип",
+            "dimensions": "Розміри",
+            "material": "Матеріал",
+            "thickness": "Товщ.",
+            "unit": "Од.",
+            "qty": "К-ть",
+            "cost": "Собіварт.",
+            "labor": "Роботи",
+            "overhead": "Накладні",
+            "markup": "Націнка%",
+            "unit_price": "Ціна од.",
+            "total": "Сума",
+            "profit": "Прибуток",
+            "supplier": "Постач.",
+            "notes": "Примітки",
         }
         self.internal_widths = {
-            "num": 30, "name": 150, "category": 90, "type": 100, "dimensions": 90,
-            "material": 90, "thickness": 45, "unit": 40, "qty": 45, "cost": 70,
-            "labor": 60, "overhead": 60, "markup": 55, "unit_price": 70,
-            "total": 80, "profit": 70, "supplier": 90, "notes": 100
+            "num": 30,
+            "name": 150,
+            "category": 90,
+            "type": 100,
+            "dimensions": 90,
+            "material": 90,
+            "thickness": 45,
+            "unit": 40,
+            "qty": 45,
+            "cost": 70,
+            "labor": 60,
+            "overhead": 60,
+            "markup": 55,
+            "unit_price": 70,
+            "total": 80,
+            "profit": 70,
+            "supplier": 90,
+            "notes": 100,
         }
 
         # === ЗАМОВНИК: без колонки "Тип", назва = product_type (без розмірів) ===
         self.customer_columns = (
-            "num", "name", "dimensions", "material", "thickness",
-            "unit", "qty", "unit_price", "total", "notes"
+            "num",
+            "name",
+            "dimensions",
+            "material",
+            "thickness",
+            "unit",
+            "qty",
+            "unit_price",
+            "total",
+            "notes",
         )
         self.customer_headings = {
-            "num": "№", "name": "Назва", "dimensions": "Розміри",
-            "material": "Матеріал", "thickness": "Товщ.", "unit": "Од.",
-            "qty": "К-ть", "unit_price": "Ціна за од.", "total": "Загальна", "notes": "Примітки"
+            "num": "№",
+            "name": "Назва",
+            "dimensions": "Розміри",
+            "material": "Матеріал",
+            "thickness": "Товщ.",
+            "unit": "Од.",
+            "qty": "К-ть",
+            "unit_price": "Ціна за од.",
+            "total": "Загальна",
+            "notes": "Примітки",
         }
         self.customer_widths = {
-            "num": 35, "name": 200, "dimensions": 120,
-            "material": 100, "thickness": 50, "unit": 45, "qty": 50,
-            "unit_price": 90, "total": 90, "notes": 150
+            "num": 35,
+            "name": 200,
+            "dimensions": 120,
+            "material": 100,
+            "thickness": 50,
+            "unit": 45,
+            "qty": 50,
+            "unit_price": 90,
+            "total": 90,
+            "notes": 150,
         }
 
         self.tree = ttk.Treeview(table_frame, show="headings", height=20)
@@ -204,7 +301,9 @@ class PriceListTab:
         self.tree["columns"] = cols
         for col in cols:
             self.tree.heading(col, text=headings.get(col, col))
-            self.tree.column(col, width=widths.get(col, 80), anchor=tk.CENTER if col != "name" else tk.W)
+            self.tree.column(
+                col, width=widths.get(col, 80), anchor=tk.CENTER if col != "name" else tk.W
+            )
 
     def _on_view_changed(self):
         self._current_view = self.view_var.get()
@@ -224,7 +323,8 @@ class PriceListTab:
         search = self.search_var.get().lower().strip()
         if search:
             items = [
-                i for i in items
+                i
+                for i in items
                 if search in i.name.lower()
                 or search in i.product_type.lower()
                 or search in i.dimensions.lower()
@@ -242,19 +342,37 @@ class PriceListTab:
         for i, item in enumerate(items, 1):
             if self._current_view == "internal":
                 values = (
-                    i, item.name, item.category, item.product_type, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.cost_price:.2f}", f"{item.labor_cost:.2f}",
-                    f"{item.overhead_cost:.2f}", f"{item.markup_percent:.1f}",
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
-                    f"{item.profit:.2f}", item.supplier, item.notes_internal,
+                    i,
+                    item.name,
+                    item.category,
+                    item.product_type,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    f"{item.cost_price:.2f}",
+                    f"{item.labor_cost:.2f}",
+                    f"{item.overhead_cost:.2f}",
+                    f"{item.markup_percent:.1f}",
+                    f"{item.unit_price:.2f}",
+                    f"{item.total_price:.2f}",
+                    f"{item.profit:.2f}",
+                    item.supplier,
+                    item.notes_internal,
                 )
             else:
                 # === ЗАМОВНИК: назва = display_name (product_type без розмірів), без колонки "Тип" ===
                 values = (
-                    i, item.display_name, item.dimensions,
-                    item.material, item.thickness, item.unit, item.quantity,
-                    f"{item.unit_price:.2f}", f"{item.total_price:.2f}",
+                    i,
+                    item.display_name,
+                    item.dimensions,
+                    item.material,
+                    item.thickness,
+                    item.unit,
+                    item.quantity,
+                    f"{item.unit_price:.2f}",
+                    f"{item.total_price:.2f}",
                     item.notes_public,
                 )
             self.tree.insert("", tk.END, values=values, tags=(item.id,))
@@ -277,7 +395,9 @@ class PriceListTab:
                 f"Прибуток: {total_profit:,.2f} грн"
             )
         else:
-            text = f"Позицій: {len(items)}  |  К-ть: {total_qty}  |  Загальна: {total_price:,.2f} грн"
+            text = (
+                f"Позицій: {len(items)}  |  К-ть: {total_qty}  |  Загальна: {total_price:,.2f} грн"
+            )
 
         self.summary_label.config(text=text)
 
@@ -332,16 +452,25 @@ class PriceListTab:
         }
 
         row = 0
+
         def add_row(label_text, var, entry_width=15):
             nonlocal row
             ttk.Label(dialog, text=label_text).grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-            ttk.Entry(dialog, textvariable=var, width=entry_width).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+            ttk.Entry(dialog, textvariable=var, width=entry_width).grid(
+                row=row, column=1, sticky=tk.W, padx=5, pady=2
+            )
             row += 1
 
         add_row("Назва *:", vars_dict["name"], 35)
 
         ttk.Label(dialog, text="Категорія:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-        ttk.Combobox(dialog, textvariable=vars_dict["category"], values=self.CATEGORIES, state="readonly", width=20).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Combobox(
+            dialog,
+            textvariable=vars_dict["category"],
+            values=self.CATEGORIES,
+            state="readonly",
+            width=20,
+        ).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
         row += 1
 
         add_row("Тип виробу:", vars_dict["product_type"], 25)
@@ -350,14 +479,20 @@ class PriceListTab:
         add_row("Товщина (мм):", vars_dict["thickness"])
 
         ttk.Label(dialog, text="Од. виміру:").grid(row=row, column=0, sticky=tk.W, padx=10, pady=2)
-        ttk.Combobox(dialog, textvariable=vars_dict["unit"], values=self.UNITS, state="readonly", width=10).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Combobox(
+            dialog, textvariable=vars_dict["unit"], values=self.UNITS, state="readonly", width=10
+        ).grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
         row += 1
 
         add_row("Кількість:", vars_dict["quantity"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="💰 Фінанси (внутрішні)", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="💰 Фінанси (внутрішні)", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Собівартість за од.:", vars_dict["cost_price"])
@@ -365,17 +500,25 @@ class PriceListTab:
         add_row("Накладні витрати за од.:", vars_dict["overhead_cost"])
         add_row("Націнка (%):", vars_dict["markup_percent"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="🔄 Перепродаж", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="🔄 Перепродаж", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Постачальник:", vars_dict["supplier"], 25)
         add_row("Закупівельна ціна:", vars_dict["supplier_price"])
 
-        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(row=row, column=0, columnspan=2, sticky="ew", pady=10)
+        ttk.Separator(dialog, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
         row += 1
-        ttk.Label(dialog, text="📝 Примітки", font=("Arial", 10, "bold")).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5)
+        ttk.Label(dialog, text="📝 Примітки", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, padx=10, pady=5
+        )
         row += 1
 
         add_row("Внутрішні:", vars_dict["notes_internal"], 35)
@@ -446,7 +589,9 @@ class PriceListTab:
                 messagebox.showwarning("Увага", f"Помилка в даних: {e}")
 
         ttk.Button(btn_frame, text="✅ Зберегти", command=save).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ Скасувати", command=dialog.destroy).pack(
+            side=tk.LEFT, padx=5
+        )
 
     def _delete_selected(self):
         item = self._get_selected_item()
@@ -485,14 +630,16 @@ class PriceListTab:
 
     def _sync_from_products(self):
         """Синхронізувати вироби з вкладки 'Вироби' для поточного проєкту."""
-        project_id = getattr(self, '_current_project_id', '') or 'current'
+        project_id = getattr(self, "_current_project_id", "") or "current"
         if self.get_products_callback:
             products = self.get_products_callback()
             if products:
                 count = self.manager.import_from_products(products, project_id=project_id)
                 self._refresh_tree()
                 if count > 0:
-                    messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з виробів")
+                    messagebox.showinfo(
+                        "Синхронізація", f"Імпортовано {count} нових позицій з виробів"
+                    )
                 else:
                     messagebox.showinfo("Синхронізація", "Усі вироби вже в прайсі")
             else:
@@ -502,10 +649,11 @@ class PriceListTab:
 
     def _sync_from_archive(self):
         """Синхронізувати з конкретного проєкту в архіві."""
-        project_id = getattr(self, '_current_project_id', None)
+        project_id = getattr(self, "_current_project_id", None)
         if not project_id:
             try:
                 from ventilation_company.db_integration import ProjectDatabase
+
                 db = ProjectDatabase()
                 projects = db.list_projects()
                 if not projects:
@@ -523,8 +671,9 @@ class PriceListTab:
                 project_map = {}
                 for p in projects:
                     display = f"{p.get('name', 'Без назви')} (ID: {p.get('id', '?')})"
-                    project_map[display] = p.get('id')
+                    project_map[display] = p.get("id")
                     listbox.insert(tk.END, display)
+
                 def on_select():
                     sel = listbox.curselection()
                     if not sel:
@@ -532,6 +681,7 @@ class PriceListTab:
                     selected_id = project_map[listbox.get(sel[0])]
                     dialog.destroy()
                     self._do_archive_sync(selected_id)
+
                 ttk.Button(dialog, text="Імпортувати", command=on_select).pack(pady=5)
             except Exception as e:
                 messagebox.showerror("Помилка", f"Не вдалося відкрити архів: {e}")
@@ -545,17 +695,20 @@ class PriceListTab:
         if count > 0:
             messagebox.showinfo("Синхронізація", f"Імпортовано {count} нових позицій з архіву")
         else:
-            messagebox.showinfo("Синхронізація", "Усі позиції вже синхронізовані або проєкт порожній")
+            messagebox.showinfo(
+                "Синхронізація", "Усі позиції вже синхронізовані або проєкт порожній"
+            )
 
     def _refresh_current_project(self):
         """Оновити прайс-лист для поточного проєкту (перезавантажити дані)."""
-        project_id = getattr(self, '_current_project_id', None)
+        project_id = getattr(self, "_current_project_id", None)
         if not project_id:
             messagebox.showwarning("Увага", "Спочатку відкрийте або створіть проєкт")
             return
         old_count = len(self.manager.items)
         self.manager.items = [
-            i for i in self.manager.items
+            i
+            for i in self.manager.items
             if not (i.source in ("products", "archive") and i.project_id == str(project_id))
         ]
         removed = old_count - len(self.manager.items)
@@ -576,8 +729,9 @@ class PriceListTab:
         try:
             if fmt == "csv":
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".csv", filetypes=[("CSV", "*.csv")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.csv"
+                    defaultextension=".csv",
+                    filetypes=[("CSV", "*.csv")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.csv",
                 )
                 if filepath:
                     content = PriceListExporter.to_csv(items, internal)
@@ -590,8 +744,9 @@ class PriceListTab:
                     messagebox.showwarning("Увага", "Встановіть openpyxl: pip install openpyxl")
                     return
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.xlsx"
+                    defaultextension=".xlsx",
+                    filetypes=[("Excel", "*.xlsx")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 )
                 if filepath:
                     PriceListExporter.to_excel(items, filepath, internal)
@@ -602,8 +757,9 @@ class PriceListTab:
                     messagebox.showwarning("Увага", "Встановіть reportlab: pip install reportlab")
                     return
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".pdf", filetypes=[("PDF", "*.pdf")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.pdf"
+                    defaultextension=".pdf",
+                    filetypes=[("PDF", "*.pdf")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.pdf",
                 )
                 if filepath:
                     title = "Прайс-лист (внутрішній)" if internal else "Прайс-лист для замовника"
@@ -612,8 +768,9 @@ class PriceListTab:
 
             elif fmt == "html":
                 filepath = filedialog.asksaveasfilename(
-                    defaultextension=".html", filetypes=[("HTML", "*.html")],
-                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.html"
+                    defaultextension=".html",
+                    filetypes=[("HTML", "*.html")],
+                    initialfile=f"price_list_{datetime.now().strftime('%Y%m%d')}.html",
                 )
                 if filepath:
                     title = "Прайс-лист (внутрішній)" if internal else "Прайс-лист для замовника"
@@ -636,11 +793,13 @@ class PriceListTab:
         content = PriceListExporter.to_html(items, internal, title)
 
         import tempfile
+
         with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
             f.write(content)
             temp_path = f.name
 
         import webbrowser
+
         webbrowser.open(f"file:///{temp_path}")
 
     def _on_right_click(self, event):
