@@ -3,14 +3,18 @@
 Запуск: python -m unittest tests.test_salary
 """
 
-import unittest
 import os
 import sys
+import unittest
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 
 from ventilation_company.services.salary_service import SalaryService
+
+# Фіксовані умови для тестів, щоб результат не залежав від локального
+# data/pricing_settings.json і поточних бізнес-налаштувань.
+TEST_LABOR = {"rate_per_m2": 120.0, "difficulty_percent": 20.0}
 
 
 class TestSalary(unittest.TestCase):
@@ -24,11 +28,13 @@ class TestSalary(unittest.TestCase):
             product_type="повітропровід прямокутний",
             dimensions="400×200×1000",
             quantity=1,
+            labor_rate=TEST_LABOR,
         )
         self.assertEqual(
-            result, 172.80,
+            result,
+            172.80,
             f"Очікувалося 172.80, отримано {result}. "
-            f"Формула: 2*(0.4+0.2)*1.0 * 120 * 1.2 = 1.2 * 144 = 172.80"
+            f"Формула: 2*(0.4+0.2)*1.0 * 120 * 1.2 = 1.2 * 144 = 172.80",
         )
 
     def test_rectangular_200x200x1000(self):
@@ -39,6 +45,7 @@ class TestSalary(unittest.TestCase):
             product_type="повітропровід прямокутний",
             dimensions="200×200×1000",
             quantity=1,
+            labor_rate=TEST_LABOR,
         )
         self.assertEqual(result, 115.20)
 
@@ -49,6 +56,7 @@ class TestSalary(unittest.TestCase):
             dimensions="999×999×9999",  # ігнорується
             quantity=1,
             area=1.5,  # явна площа
+            labor_rate=TEST_LABOR,
         )
         # 1.5 * 120 * 1.2 = 216.0
         self.assertEqual(result, 216.0)
@@ -59,6 +67,7 @@ class TestSalary(unittest.TestCase):
             product_type="повітропровід прямокутний",
             dimensions="400×200×1000",
             quantity=3,
+            labor_rate=TEST_LABOR,
         )
         # 172.80 * 3 = 518.40
         self.assertEqual(result, 518.40)
@@ -71,24 +80,26 @@ class TestSalary(unittest.TestCase):
             product_type="повітропровід круглий",
             dimensions="150×1000",
             quantity=1,
+            labor_rate=TEST_LABOR,
         )
         expected = round(3.14159 * 0.15 * 1.0 * 120 * 1.2, 2)
         self.assertEqual(result, expected)
 
     def test_difficulty_0(self):
-        """При важкості 0% — без коефіцієнта."""
-        # Треба тимчасово змінити налаштування... 
-        # Але зараз difficulty=20% у файлі. Перевіримо, що коефіцієнт 1.2 дає 172.80.
-        # Якщо б була важкість 0%, було б: 1.2 * 120 * 1.0 = 144.0
-        # Цей тест перевіряє, що коефіцієнт ВАЖКОСТІ дійсно множиться.
+        """Перевіряємо, що коефіцієнт важкості дійсно множиться."""
+        # Площа 1.2 м², ставка 120, важкість 20%:
+        # з важкістю = 172.80, без важкості = 144.0
         result = SalaryService.calculate(
             product_type="повітропровід прямокутний",
             dimensions="400×200×1000",
             quantity=1,
+            labor_rate=TEST_LABOR,
         )
-        # Перевіримо, що результат НЕ дорівнює 144 (без важкості)
-        self.assertNotEqual(result, 144.0, 
-            "Зарплата без важкості = 144, але у нас важкість 20%, має бути 172.80")
+        self.assertNotEqual(
+            result,
+            144.0,
+            "Зарплата без важкості = 144, але у тесті важкість 20%, має бути 172.80",
+        )
 
 
 if __name__ == "__main__":
