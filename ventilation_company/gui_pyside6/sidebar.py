@@ -3,21 +3,8 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 
-from ventilation_company.auth.permissions import has_permission
+from ventilation_company.auth.permissions import TAB_PERMISSIONS, has_permission
 from ventilation_company.gui_pyside6.theme import Theme
-
-# GUI tab -> canonical permission.
-TAB_PERMISSIONS = {
-    "dashboard": "projects.view",
-    "projects": "projects.view",
-    "products": "products.view",
-    "specification": "specification.view",
-    "cutting": "specification.view",
-    "pricing": "price_list.view",
-    "documents": "documents.view",
-    "crm": "crm.view",
-    "settings": "settings.view",
-}
 
 
 def can_open_tab(user, tab_id: str) -> bool:

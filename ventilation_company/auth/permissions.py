@@ -116,7 +116,6 @@ ROLE_PERMISSIONS = {
         Permission.PRICE_LIST_VIEW,
         Permission.CRM_VIEW,
         Permission.SETTINGS_VIEW,
-        Permission.ADMIN_VIEW if hasattr(Permission, "ADMIN_VIEW") else Permission.SETTINGS_VIEW,
         Permission.PRODUCTS_VIEW,
         Permission.PROJECTS_VIEW,
         Permission.DOCUMENTS_VIEW,
@@ -127,6 +126,26 @@ ROLE_PERMISSIONS = {
         Permission.PRODUCTION_VIEW,
     },
 }
+
+# GUI tab -> canonical permission.
+TAB_PERMISSIONS = {
+    "dashboard": Permission.PROJECTS_VIEW,
+    "projects": Permission.PROJECTS_VIEW,
+    "products": Permission.PRODUCTS_VIEW,
+    "specification": Permission.SPEC_VIEW,
+    "cutting": Permission.SPEC_VIEW,
+    "pricing": Permission.PRICE_LIST_VIEW,
+    "documents": Permission.DOCUMENTS_VIEW,
+    "crm": Permission.CRM_VIEW,
+    "settings": Permission.SETTINGS_VIEW,
+}
+
+
+def get_role_label(role: Role | str) -> str:
+    try:
+        return ROLE_LABELS[Role(role)]
+    except Exception:
+        return str(role)
 
 
 def role_permissions(role: Role | str) -> set[Permission]:
