@@ -3,7 +3,28 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 
+from ventilation_company.auth.permissions import has_permission
 from ventilation_company.gui_pyside6.theme import Theme
+
+# GUI tab -> canonical permission.
+TAB_PERMISSIONS = {
+    "dashboard": "projects.view",
+    "projects": "projects.view",
+    "products": "products.view",
+    "specification": "specification.view",
+    "cutting": "specification.view",
+    "pricing": "price_list.view",
+    "documents": "documents.view",
+    "crm": "crm.view",
+    "settings": "settings.view",
+}
+
+
+def can_open_tab(user, tab_id: str) -> bool:
+    permission = TAB_PERMISSIONS.get(tab_id)
+    if not permission:
+        return False
+    return has_permission(user.role, permission)
 
 
 class SidebarItem(QPushButton):
@@ -70,7 +91,6 @@ class Sidebar(QFrame):
 
         layout.addSpacing(16)
 
-        # РОБОТА
         lbl_work = QLabel("РОБОТА")
         lbl_work.setStyleSheet(
             f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
@@ -85,7 +105,6 @@ class Sidebar(QFrame):
 
         layout.addSpacing(12)
 
-        # ФІНАНСИ
         lbl_fin = QLabel("ФІНАНСИ")
         lbl_fin.setStyleSheet(
             f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
@@ -97,7 +116,6 @@ class Sidebar(QFrame):
 
         layout.addSpacing(12)
 
-        # АНАЛІТИКА
         lbl_an = QLabel("АНАЛІТИКА")
         lbl_an.setStyleSheet(
             f"color: {Theme.TEXT_MUTED}; font-size: 10px; font-weight: bold; padding: 8px 4px;"
@@ -128,6 +146,8 @@ class Sidebar(QFrame):
         layout.addWidget(btn_logout)
 
     def _add_item(self, icon, label, tab_id):
+        if not can_open_tab(self.user, tab_id):
+            return
         btn = SidebarItem(icon, label, tab_id)
         btn.clicked.connect(lambda: self._on_tab_clicked(btn))
         self._buttons.append(btn)

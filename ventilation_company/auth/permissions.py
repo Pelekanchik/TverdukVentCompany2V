@@ -1,168 +1,157 @@
-"""Система ролей та дозволів VentCompany (оновлена).
-
-Ролі:
-  • admin      — повний доступ
-  • director   — повний доступ (альтернатива admin)
-  • manager    — проєкти, клієнти, ціни, прайси
-  • engineer   — розкрій, специфікації, 3D-моделі, розрахунки
-  • master     — виробництво, статуси, відвантаження
-  • accountant — собівартість, прибуток, звіти, зарплати
-  • viewer     — тільки перегляд
-  • monter     — монтаж (альтернатива master)
-"""
+"""RBAC permissions для VentCompany."""
 
 from enum import Enum
 
 
+class Permission(str, Enum):
+    # Проєкти
+    PROJECTS_VIEW = "projects.view"
+    PROJECTS_EDIT = "projects.edit"
+    PROJECTS_DELETE = "projects.delete"
+
+    # Специфікація / виробництво
+    SPEC_VIEW = "specification.view"
+    SPEC_EDIT = "specification.edit"
+    SPEC_DELETE = "specification.delete"
+    PRODUCTION_VIEW = "production.view"
+    PRODUCTION_EDIT = "production.edit"
+
+    # Прайс-лист
+    PRICE_LIST_VIEW = "price_list.view"
+    PRICE_LIST_EDIT = "price_list.edit"
+    PRICE_LIST_DELETE = "price_list.delete"
+
+    # CRM
+    CRM_VIEW = "crm.view"
+    CRM_EDIT = "crm.edit"
+    CRM_DELETE = "crm.delete"
+
+    # Налаштування
+    SETTINGS_VIEW = "settings.view"
+    SETTINGS_EDIT = "settings.edit"
+
+    # Адміністрування
+    ADMIN_USERS = "admin.users"
+    ADMIN_ROLES = "admin.roles"
+    ADMIN_BACKUP = "admin.backup"
+    ADMIN_AUDIT = "admin.audit"
+
+    # Продукти
+    PRODUCTS_VIEW = "products.view"
+    PRODUCTS_EDIT = "products.edit"
+    PRODUCTS_DELETE = "products.delete"
+
+    # Документи
+    DOCUMENTS_VIEW = "documents.view"
+    DOCUMENTS_EDIT = "documents.edit"
+    DOCUMENTS_DELETE = "documents.delete"
+
+
 class Role(str, Enum):
-    DIRECTOR = "director"
-    ENGINEER = "engineer"
-    ACCOUNTANT = "accountant"
-    MONTER = "monter"
     ADMIN = "admin"
+    DIRECTOR = "director"
     MANAGER = "manager"
+    ENGINEER = "engineer"
     MASTER = "master"
+    ACCOUNTANT = "accountant"
     VIEWER = "viewer"
+    MONTER = "monter"
 
 
-ROLE_PERMISSIONS: dict[Role, list[str]] = {
-    Role.DIRECTOR: ["*"],
-    Role.ADMIN: ["*"],
-    Role.ENGINEER: [
-        "view_products",
-        "create_products",
-        "edit_products",
-        "delete_products",
-        "view_specification",
-        "create_specification",
-        "edit_specification",
-        "export_specification",
-        "view_cutting",
-        "create_cutting",
-        "edit_cutting",
-        "view_project_3d",
-        "create_project_3d",
-        "export_project_3d",
-        "view_projects",
-        "create_projects",
-        "edit_projects",
-        "view_aerodynamics",
-        "view_price_list",
-        "view_materials",
-        "view_production",
-        "view_crm",
-        "view_dashboard",
-        "view_program_settings",
-    ],
-    Role.MANAGER: [
-        "view_products",
-        "create_products",
-        "edit_products",
-        "view_specification",
-        "view_projects",
-        "create_projects",
-        "edit_projects",
-        "view_price_list",
-        "edit_price_list",
-        "export_price_list",
-        "view_crm",
-        "edit_crm",
-        "view_dashboard",
-        "view_program_settings",
-    ],
-    Role.MASTER: [
-        "view_projects",
-        "view_specification",
-        "view_cutting",
-        "view_materials",
-        "view_production",
-        "view_program_settings",
-    ],
-    Role.ACCOUNTANT: [
-        "view_settings",
-        "edit_settings",
-        "view_price_list",
-        "edit_price_list",
-        "export_price_list",
-        "view_metal_prices",
-        "edit_metal_prices",
-        "view_crm",
-        "edit_crm",
-        "view_dashboard",
-        "view_production",
-        "view_materials",
-        "view_projects",
-        "view_specification",
-        "export_specification",
-        "export_price_list",
-        "view_program_settings",
-        "edit_program_settings",
-    ],
-    Role.MONTER: [
-        "view_projects",
-        "view_specification",
-        "view_cutting",
-        "view_project_3d",
-        "view_materials",
-        "view_production",
-        "view_program_settings",
-    ],
-    Role.VIEWER: [
-        "view_products",
-        "view_specification",
-        "view_cutting",
-        "view_project_3d",
-        "view_projects",
-        "view_price_list",
-        "view_materials",
-        "view_production",
-        "view_crm",
-        "view_dashboard",
-        "view_program_settings",
-    ],
-}
-
-
-ROLE_LABELS: dict[Role, str] = {
-    Role.DIRECTOR: "Директор",
-    Role.ENGINEER: "Інженер",
-    Role.ACCOUNTANT: "Бухгалтер",
-    Role.MONTER: "Монтажник",
+ROLE_LABELS = {
     Role.ADMIN: "Адміністратор",
+    Role.DIRECTOR: "Директор",
     Role.MANAGER: "Менеджер",
+    Role.ENGINEER: "Інженер",
     Role.MASTER: "Майстер",
-    Role.VIEWER: "Перегляд",
+    Role.ACCOUNTANT: "Бухгалтер",
+    Role.VIEWER: "Тільки перегляд",
+    Role.MONTER: "Монтажник",
+}
+
+ROLE_PERMISSIONS = {
+    Role.ADMIN: set(Permission),
+    Role.DIRECTOR: set(Permission),
+    Role.MANAGER: {
+        Permission.PROJECTS_VIEW,
+        Permission.PROJECTS_EDIT,
+        Permission.CRM_VIEW,
+        Permission.CRM_EDIT,
+        Permission.SPEC_VIEW,
+        Permission.SPEC_EDIT,
+        Permission.PRODUCTS_VIEW,
+        Permission.PRODUCTS_EDIT,
+        Permission.PRICE_LIST_VIEW,
+        Permission.PRICE_LIST_EDIT,
+    },
+    Role.ENGINEER: {
+        Permission.PROJECTS_VIEW,
+        Permission.PROJECTS_EDIT,
+        Permission.SPEC_VIEW,
+        Permission.SPEC_EDIT,
+        Permission.PRODUCTION_VIEW,
+        Permission.PRODUCTION_EDIT,
+        Permission.PRODUCTS_VIEW,
+        Permission.PRODUCTS_EDIT,
+        Permission.SETTINGS_VIEW,
+    },
+    Role.MASTER: {
+        Permission.PROJECTS_VIEW,
+        Permission.SPEC_VIEW,
+        Permission.SPEC_EDIT,
+        Permission.PRODUCTION_VIEW,
+        Permission.PRODUCTION_EDIT,
+    },
+    Role.ACCOUNTANT: {
+        Permission.PROJECTS_VIEW,
+        Permission.CRM_VIEW,
+        Permission.PRICE_LIST_VIEW,
+        Permission.CRM_EDIT,
+        Permission.PRICE_LIST_EDIT,
+        Permission.PROJECTS_EDIT,
+    },
+    Role.VIEWER: {
+        Permission.SPEC_VIEW,
+        Permission.PRODUCTION_VIEW,
+        Permission.PRICE_LIST_VIEW,
+        Permission.CRM_VIEW,
+        Permission.SETTINGS_VIEW,
+        Permission.ADMIN_VIEW if hasattr(Permission, "ADMIN_VIEW") else Permission.SETTINGS_VIEW,
+        Permission.PRODUCTS_VIEW,
+        Permission.PROJECTS_VIEW,
+        Permission.DOCUMENTS_VIEW,
+    },
+    Role.MONTER: {
+        Permission.PROJECTS_VIEW,
+        Permission.SPEC_VIEW,
+        Permission.PRODUCTION_VIEW,
+    },
 }
 
 
-TAB_PERMISSIONS: dict[str, list[str]] = {
-    "📦 Вироби": ["view_products"],
-    "📋 Специфікація": ["view_specification"],
-    "✂️ Розкрій": ["view_cutting"],
-    "🏗️ Проєкти 3D": ["view_project_3d"],
-    "💰 Ціноутворення": ["view_settings"],
-    "🏭 Виробництво": ["view_production"],
-    "📦 Матеріали": ["view_materials"],
-    "💨 Аеродинаміка": ["view_aerodynamics"],
-    "📊 Дашборд": ["view_dashboard"],
-    "🏷️ Прайс-лист": ["view_price_list"],
-    "👥 CRM": ["view_crm"],
-    "🔧 Ціни на метал": ["view_metal_prices"],
-    "⚙️ Налаштування": ["view_program_settings"],
-}
+def role_permissions(role: Role | str) -> set[Permission]:
+    try:
+        role = Role(role)
+    except ValueError:
+        return set()
+    return ROLE_PERMISSIONS.get(role, set())
 
 
-def has_permission(role: Role | str, permission: str) -> bool:
-    if isinstance(role, str):
+def has_permission(role: Role | str, permission: Permission | str) -> bool:
+    if isinstance(permission, str):
         try:
-            role = Role(role)
+            permission = Permission(permission)
         except ValueError:
             return False
-    perms = ROLE_PERMISSIONS.get(role, [])
-    return "*" in perms or permission in perms
+    return permission in role_permissions(role)
 
 
-def get_role_label(role: Role | str) -> str:
-    if isinstance(role, str):
-        return ROLE_LABELS.get(role, role)
-    return ROLE_LABELS.get(role, role.value)
+def is_admin(role: Role | str) -> bool:
+    try:
+        return Role(role) in {Role.ADMIN, Role.DIRECTOR}
+    except ValueError:
+        return False
+
+
+def can_manage_users(role: Role | str) -> bool:
+    return is_admin(role)

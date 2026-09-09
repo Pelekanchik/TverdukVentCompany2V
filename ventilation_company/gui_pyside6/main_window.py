@@ -1,4 +1,4 @@
-"""Головне вікно VentCompany (PySide6) — з вкладкою Налаштування."""
+"""Головне вікно VentCompany (PySide6)."""
 
 import sys
 
@@ -13,7 +13,7 @@ from ventilation_company.gui_pyside6.pricing_tab import PricingTab
 from ventilation_company.gui_pyside6.products_tab import ProductsTab
 from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
 from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
-from ventilation_company.gui_pyside6.sidebar import Sidebar
+from ventilation_company.gui_pyside6.sidebar import Sidebar, can_open_tab
 from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.auth_service import AuthUser
@@ -43,22 +43,27 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         layout.addWidget(self.stack, 1)
 
-        self.tabs = {
-            "dashboard": DashboardTab(),
-            "projects": ProjectsTab(main_window=self),
-            "products": ProductsTab(main_window=self),
-            "specification": SpecificationTab(main_window=self),
-            "cutting": CuttingTab(),
-            "pricing": PricingTab(),
-            "documents": DocumentsTab(main_window=self),
-            "crm": CRMTab(),
-            "settings": ProgramSettingsTab(current_user=self.user),  # <-- НОВЕ
+        tab_factories = {
+            "dashboard": lambda: DashboardTab(),
+            "projects": lambda: ProjectsTab(main_window=self),
+            "products": lambda: ProductsTab(main_window=self),
+            "specification": lambda: SpecificationTab(main_window=self),
+            "cutting": lambda: CuttingTab(),
+            "pricing": lambda: PricingTab(),
+            "documents": lambda: DocumentsTab(main_window=self),
+            "crm": lambda: CRMTab(),
+            "settings": lambda: ProgramSettingsTab(current_user=self.user),
         }
 
-        for _key, tab in self.tabs.items():
-            self.stack.addWidget(tab)
+        self.tabs = {}
+        for tab_id, factory in tab_factories.items():
+            if can_open_tab(self.user, tab_id):
+                self.tabs[tab_id] = factory()
+                self.stack.addWidget(self.tabs[tab_id])
 
-        self._on_tab_changed("dashboard")
+        default_tab = "dashboard" if "dashboard" in self.tabs else next(iter(self.tabs), None)
+        if default_tab:
+            self._on_tab_changed(default_tab)
 
     def _on_tab_changed(self, tab_name):
         if tab_name in self.tabs:
