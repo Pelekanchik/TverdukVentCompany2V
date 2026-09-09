@@ -1,12 +1,8 @@
 """Temporary GUI facade over canonical auth service.
 
-Новий канонічний auth знаходиться у:
-
-- `ventilation_company.auth.service`
-- `ventilation_company.auth.permissions`
-
-Цей модуль лишено тільки для зворотної сумісності з PySide6 GUI.
-Нові місця в коді мають імпортувати канонічний `auth`, `Role`, `has_permission`.
+Canonical auth:
+- ventilation_company.auth.service.auth
+- ventilation_company.auth.permissions
 """
 
 from __future__ import annotations
@@ -15,24 +11,20 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ventilation_company.auth.password_policy import hash_password, verify_password
-from ventilation_company.auth.permissions import Role
+from ventilation_company.auth.permissions import (
+    TAB_PERMISSIONS,
+    Role,
+    can_manage_users,
+    has_permission,
+    role_permissions,
+)
 from ventilation_company.auth.service import auth as canonical_auth
 
-# ── Temporary compatibility mapping for GUI tabs ──
-# TODO: migrate GUI to canonical permissions and remove this mapping.
+# ── Temporary compatibility mapping for legacy GUI imports ──
+# TODO: remove after all GUI code uses canonical permissions.
 ROLE_PERMISSIONS = {
-    "admin": {
-        "tabs": "*",
-        "edit": True,
-        "delete": True,
-        "manage_users": True,
-    },
-    "director": {
-        "tabs": "*",
-        "edit": True,
-        "delete": True,
-        "manage_users": True,
-    },
+    "admin": {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
+    "director": {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
     "manager": {
         "tabs": ["products", "specification", "price_list", "clients", "projects"],
         "edit": True,
@@ -63,15 +55,10 @@ ROLE_PERMISSIONS = {
         "delete": False,
         "manage_users": False,
     },
-    "viewer": {
-        "tabs": "*",
-        "edit": False,
-        "delete": False,
-        "manage_users": False,
-    },
+    "viewer": {"tabs": "*", "edit": False, "delete": False, "manage_users": False},
 }
 
-VALID_ROLES = set(ROLE_PERMISSIONS.keys())
+VALID_ROLES = [role.value for role in Role]
 
 
 @dataclass
@@ -85,22 +72,23 @@ class AuthUser:
     is_active: bool
 
     def can_edit(self) -> bool:
-        return ROLE_PERMISSIONS.get(self.role, {}).get("edit", False)
+        return any(p.value.endswith(".edit") for p in role_permissions(self.role))
 
     def can_delete(self) -> bool:
-        return ROLE_PERMISSIONS.get(self.role, {}).get("delete", False)
+        return any(p.value.endswith(".delete") for p in role_permissions(self.role))
 
     def can_manage_users(self) -> bool:
-        return ROLE_PERMISSIONS.get(self.role, {}).get("manage_users", False)
+        return can_manage_users(self.role)
 
-    def allowed_tabs(self):
-        return ROLE_PERMISSIONS.get(self.role, {}).get("tabs", [])
+    def allowed_tabs(self) -> list[str]:
+        return [
+            tab
+            for tab, permission in TAB_PERMISSIONS.items()
+            if has_permission(self.role, permission)
+        ]
 
     def has_tab_access(self, tab_name: str) -> bool:
-        tabs = self.allowed_tabs()
-        if tabs == "*":
-            return True
-        return tab_name in tabs
+        return has_permission(self.role, TAB_PERMISSIONS.get(tab_name, ""))
 
 
 class AuthService:
@@ -151,16 +139,12 @@ class AuthService:
             return False
         return user.role in roles
 
-    # ── Compatibility CRUD delegated to canonical auth ──
     @classmethod
     def create_user(
         cls, username: str, password: str, full_name: str, role: Role | str = Role.MONTER
     ):
         return canonical_auth.create_user(
-            username=username,
-            password=password,
-            full_name=full_name,
-            role=role,
+            username=username, password=password, full_name=full_name, role=role
         )
 
     @classmethod
