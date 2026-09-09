@@ -4,20 +4,15 @@
   • Catppuccin Mocha (через ventilation_company.gui_pyside6.theme.Theme)
   • Немає hardcoded QSS — наслідує глобальну тему
   • Пароль у DATABASE_URL замасковано
-  • Primary-кнопки через Theme.ACCENT
 
 Модулі:
   • 🏢 Компанія     — реквізити, контакти, логотип
   • 🗄️ База даних   — PostgreSQL: статус, тест, пул, міграції
-  • 🎨 Тема         — Industrial Orange / Light (збереження налаштування)
+  • 🎨 Тема         — збереження налаштування теми
   • 👥 Користувачі  — CRUD користувачів (тільки admin/director)
   • 💾 Бекап        — резервне копіювання БД
   • ℹ️ Система      — версії, статистика, шляхи
 """
-
-# Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
-INDUSTRIAL_QSS = ""
-LIGHT_QSS = ""
 
 import os
 import platform
@@ -47,6 +42,11 @@ from ventilation_company.database.models.calc import CalcSetting
 from ventilation_company.utils.backup import create_backup, restore_backup
 from ventilation_company.auth.service import auth
 from ventilation_company.gui_pyside6.theme import Theme
+
+
+# Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
+INDUSTRIAL_QSS = ""
+LIGHT_QSS = ""
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -133,15 +133,12 @@ class ProgramSettingsTab(QWidget):
         self.settings = AppSettingsRepository()
         self._build_ui()
         self._load_all()
-        # ❌ НЕ встановлюємо setStyleSheet — наслідуємо глобальну тему
 
-    # ── UI ──
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # Заголовок
         top = QHBoxLayout()
         title = QLabel("⚙️ Налаштування програми")
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
@@ -267,7 +264,7 @@ class ProgramSettingsTab(QWidget):
             self.company_vars["app.company_logo_path"].setText(path)
 
     # ═══════════════════════════════════════════════════════════════
-    # 2. БАЗА ДАНИХ (з маскуванням пароля)
+    # 2. БАЗА ДАНИХ
     # ═══════════════════════════════════════════════════════════════
     def _build_db_tab(self):
         hlay = QHBoxLayout(self.tab_db)

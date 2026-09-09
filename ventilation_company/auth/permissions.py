@@ -1,6 +1,6 @@
-"""Система ролей та дозволів VentCompany (оновлена — сумісність PySide6 + Налаштування).
+"""Система ролей та дозволів VentCompany (оновлена).
 
-Ролі (сумісність з обома системами):
+Ролі:
   • admin      — повний доступ
   • director   — повний доступ (альтернатива admin)
   • manager    — проєкти, клієнти, ціни, прайси
@@ -19,14 +19,12 @@ class Role(str, Enum):
     ENGINEER = "engineer"
     ACCOUNTANT = "accountant"
     MONTER = "monter"
-    # Його ролі
     ADMIN = "admin"
     MANAGER = "manager"
     MASTER = "master"
     VIEWER = "viewer"
 
 
-# ── Дозволи ──
 ROLE_PERMISSIONS: dict[Role, list[str]] = {
     Role.DIRECTOR: ["*"],
     Role.ADMIN: ["*"],
@@ -94,7 +92,6 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
 }
 
 
-# ── Відображення ролей (сумісність) ──
 ROLE_LABELS: dict[Role, str] = {
     Role.DIRECTOR: "Директор",
     Role.ENGINEER: "Інженер",
@@ -107,7 +104,6 @@ ROLE_LABELS: dict[Role, str] = {
 }
 
 
-# ── Вкладки та дозволи ──
 TAB_PERMISSIONS: dict[str, list[str]] = {
     "📦 Вироби":       ["view_products"],
     "📋 Специфікація": ["view_specification"],
@@ -126,7 +122,6 @@ TAB_PERMISSIONS: dict[str, list[str]] = {
 
 
 def has_permission(role: Role | str, permission: str) -> bool:
-    """Перевірити, чи має роль вказаний дозвіл."""
     if isinstance(role, str):
         try:
             role = Role(role)
@@ -137,7 +132,6 @@ def has_permission(role: Role | str, permission: str) -> bool:
 
 
 def get_role_label(role: Role | str) -> str:
-    """Отримати людську назву ролі."""
     if isinstance(role, str):
         return ROLE_LABELS.get(role, role)
     return ROLE_LABELS.get(role, role.value)
