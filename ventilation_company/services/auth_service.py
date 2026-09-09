@@ -20,44 +20,6 @@ from ventilation_company.auth.permissions import (
 )
 from ventilation_company.auth.service import auth as canonical_auth
 
-# ── Temporary compatibility mapping for legacy GUI imports ──
-# TODO: remove after all GUI code uses canonical permissions.
-ROLE_PERMISSIONS = {
-    "admin": {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
-    "director": {"tabs": "*", "edit": True, "delete": True, "manage_users": True},
-    "manager": {
-        "tabs": ["products", "specification", "price_list", "clients", "projects"],
-        "edit": True,
-        "delete": False,
-        "manage_users": False,
-    },
-    "engineer": {
-        "tabs": ["products", "specification", "cutting", "freecad", "projects"],
-        "edit": True,
-        "delete": False,
-        "manage_users": False,
-    },
-    "master": {
-        "tabs": ["projects", "specification", "cutting"],
-        "edit": True,
-        "delete": False,
-        "manage_users": False,
-    },
-    "monter": {
-        "tabs": ["projects", "specification", "cutting"],
-        "edit": True,
-        "delete": False,
-        "manage_users": False,
-    },
-    "accountant": {
-        "tabs": ["price_list", "projects", "settings"],
-        "edit": True,
-        "delete": False,
-        "manage_users": False,
-    },
-    "viewer": {"tabs": "*", "edit": False, "delete": False, "manage_users": False},
-}
-
 VALID_ROLES = [role.value for role in Role]
 
 
