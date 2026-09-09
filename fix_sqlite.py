@@ -13,7 +13,7 @@ env_path = os.path.join(BASE, ".env")
 with open(env_path, "w", encoding="utf-8") as f:
     f.write("""DATABASE_URL=sqlite:///data/company.db
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=
 ADMIN_FULL_NAME=Administrator
 """)
 print("✅ .env оновлено → SQLite")

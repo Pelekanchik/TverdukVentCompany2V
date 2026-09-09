@@ -50,7 +50,7 @@ def check_dependencies():
 
 def create_env():
     write_file(os.path.join(BASE_DIR, ".env"), '''# PostgreSQL конфігурація VentCompany
-DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/ventcompany
+DATABASE_URL=postgresql://CHANGE_ME:CHANGE_ME@localhost:5432/ventcompany
 
 # Налаштування пулу з'єднань
 DB_POOL_SIZE=10
@@ -59,7 +59,7 @@ DB_POOL_RECYCLE=3600
 
 # Перший адміністратор (створюється автоматично)
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=
 ADMIN_FULL_NAME=Адміністратор
 ''')
 
@@ -72,7 +72,7 @@ script_location = migrations
 prepend_sys_path = .
 version_path_separator = os
 
-sqlalchemy.url = postgresql://postgres:postgres123@localhost:5432/ventcompany
+sqlalchemy.url = postgresql://CHANGE_ME:CHANGE_ME@localhost:5432/ventcompany
 
 [post_write_hooks]
 
@@ -312,7 +312,7 @@ def main():
         print("=" * 55)
         print("\n  📋 Наступні кроки:")
         print("     1. Запустіть програму: python main.py")
-        print("     2. Увійдіть як admin / admin123")
+        print("     2. Перевірте data/.setup_credentials.json для стартового пароля admin")
         print("     3. ЗМІНІТЬ ПАРОЛЬ АДМІНІСТРАТОРА!")
         print("     4. Для нових міграцій: alembic revision --autogenerate -m \"опис\"")
     else:

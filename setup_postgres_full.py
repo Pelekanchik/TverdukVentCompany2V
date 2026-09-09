@@ -34,7 +34,13 @@ import os
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = "ventcompany"
 DB_USER = "vent"
-DB_PASS = "vent123"
+def _generate_password(length: int = 20) -> str:
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+DB_PASS = os.environ.get("VENT_DB_PASSWORD") or _generate_password()
 DB_HOST = "localhost"
 DB_PORT = "5432"
 
@@ -141,7 +147,7 @@ env_path = os.path.join(BASE, ".env")
 with open(env_path, "w", encoding="utf-8") as f:
     f.write(f"""DATABASE_URL={database_url}
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=
 ADMIN_FULL_NAME=Administrator
 """)
 print("  ✅ .env оновлено")
@@ -152,4 +158,4 @@ print("=" * 60)
 print("\n  Запускайте програму:")
 print("    python main.py")
 print("\n  Логін: admin")
-print("  Пароль: admin123")
+print("  Стартовий пароль: див. data/.setup_credentials.json або задайте ADMIN_PASSWORD")

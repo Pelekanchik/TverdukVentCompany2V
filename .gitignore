@@ -1,0 +1,46 @@
+# Секрети та локальні налаштування
+.env
+.env.*
+!.env.example
+!.env.sample
+data/.setup_credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+venv/
+.venv/
+pip-wheel-metadata/
+
+# Тести/качество
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Дані, логи, документи — не комітити
+data/
+logs/
+documents/
+*.db
+*.sqlite
+*.db.backup.*
+*.log
+postgres_path.txt
+ventilation_company/database/db.py.sqlite_backup
+ventilation_company/freecad_debug.log
+
+# ОС/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

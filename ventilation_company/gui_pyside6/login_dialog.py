@@ -26,7 +26,6 @@ class LoginDialog(QDialog):
         layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(16)
 
-        # Логотип
         lbl_icon = QLabel("🏭")
         lbl_icon.setStyleSheet("font-size: 48px;")
         lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -44,7 +43,6 @@ class LoginDialog(QDialog):
 
         layout.addSpacing(20)
 
-        # Логін
         lbl_user = QLabel("👤 Логін")
         lbl_user.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
         layout.addWidget(lbl_user)
@@ -54,7 +52,6 @@ class LoginDialog(QDialog):
         self.edit_user.setMinimumHeight(36)
         layout.addWidget(self.edit_user)
 
-        # Пароль
         lbl_pass = QLabel("🔒 Пароль")
         lbl_pass.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
         layout.addWidget(lbl_pass)
@@ -65,7 +62,6 @@ class LoginDialog(QDialog):
         self.edit_pass.setMinimumHeight(36)
         layout.addWidget(self.edit_pass)
 
-        # Кнопка входу
         layout.addSpacing(16)
         self.btn_login = QPushButton("Увійти в систему")
         self.btn_login.setObjectName("primary")
@@ -74,11 +70,9 @@ class LoginDialog(QDialog):
         self.btn_login.clicked.connect(self._do_login)
         layout.addWidget(self.btn_login)
 
-        # Enter = вхід
         self.edit_pass.returnPressed.connect(self._do_login)
         self.edit_user.returnPressed.connect(self.edit_pass.setFocus)
 
-        # Статус
         self.lbl_status = QLabel("")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setStyleSheet(f"color: {Theme.DANGER}; font-size: 12px;")
@@ -86,10 +80,10 @@ class LoginDialog(QDialog):
 
         layout.addStretch()
 
-        # Підказка
-        hint = QLabel("💡 За замовчуванням: admin / admin123")
+        hint = QLabel("Якщо ви втратили пароль — зверніться до адміністратора.")
         hint.setObjectName("subtitle")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setWordWrap(True)
         layout.addWidget(hint)
 
     def _do_login(self):

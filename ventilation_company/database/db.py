@@ -22,7 +22,7 @@ load_dotenv(dotenv_path=env_path)
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DATABASE_URL = "postgresql://vent:vent123@localhost:5432/ventcompany"
+DEFAULT_DATABASE_URL = "postgresql://CHANGE_ME:CHANGE_ME@localhost:5432/ventcompany"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))

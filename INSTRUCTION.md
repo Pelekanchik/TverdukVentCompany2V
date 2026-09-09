@@ -18,7 +18,7 @@ python main.py
 
 ```sql
 CREATE DATABASE ventcompany;
-CREATE USER vent WITH PASSWORD 'vent123';
+CREATE USER vent WITH PASSWORD 'CHANGE_ME_DB_PASSWORD';
 GRANT ALL PRIVILEGES ON DATABASE ventcompany TO vent;
 ```
 
@@ -27,7 +27,7 @@ GRANT ALL PRIVILEGES ON DATABASE ventcompany TO vent;
 ```env
 DATABASE_URL=postgresql://ТВІЙ_КОРИСТУВАЧ:ТВІЙ_ПАРОЛЬ@localhost:5432/ventcompany
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=
 ADMIN_FULL_NAME=Адміністратор
 ```
 
