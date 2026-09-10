@@ -15,7 +15,7 @@ from ventilation_company.services.pricing_settings import PricingSettings
 @pytest.fixture
 def temp_db():
     """Тимчасова БД для тестів."""
-    from ventilation_company.db_integration import ProjectDatabase
+    from tests.helpers import ProjectDatabase
 
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)

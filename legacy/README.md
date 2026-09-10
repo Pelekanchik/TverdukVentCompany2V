@@ -67,3 +67,9 @@ Moved at: 2026-09-10 14:51:25
 - `ventilation_company/gui/settings_tab.py`
 - `ventilation_company/gui/specification_tab.py`
 - `ventilation_company/gui/theme_manager.py`
+
+## Retired db_integration v2
+
+Moved at: 2026-09-10 15:09:41
+
+- `ventilation_company/db_integration.py` replaced for tests by `tests/helpers.py`
