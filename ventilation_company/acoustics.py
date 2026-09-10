@@ -13,7 +13,6 @@
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 # ── НОРМИ ШУМУ ДЛЯ РІЗНИХ ПРИМІЩЕНЬ (дБА) ──
 NOISE_LIMITS = {
@@ -346,7 +345,7 @@ class AcousticCalculator:
         duct_width: float,
         duct_height: float,
         max_pressure_drop: float = 100.0,
-    ) -> Optional[Silencer]:
+    ) -> Silencer | None:
         """Підібрати шумоглушник.
 
         Args:
@@ -383,8 +382,8 @@ class AcousticReport:
     room_type: str
     noise_limit: int
     sources: list[NoiseSource] = field(default_factory=list)
-    duct_path: Optional[DuctPath] = None
-    silencer: Optional[Silencer] = None
+    duct_path: DuctPath | None = None
+    silencer: Silencer | None = None
 
     @property
     def source_lw_total(self) -> float:

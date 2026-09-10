@@ -1,7 +1,5 @@
 """Репозиторій для робіт проєкту (ProjectWork) — v2.3."""
 
-from typing import List
-
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import ProjectWork
 
@@ -20,7 +18,7 @@ def _work_to_dict(work: ProjectWork) -> dict:
 
 class ProjectWorkRepository:
     @staticmethod
-    def get_all(project_id: int) -> List[dict]:
+    def get_all(project_id: int) -> list[dict]:
         with get_db() as session:
             items = (
                 session.query(ProjectWork)

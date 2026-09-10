@@ -12,7 +12,6 @@
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 # ── ФІЗИЧНІ КОНСТАНТИ ──
 AIR_DENSITY = 1.2  # кг/м³ — густина повітря при 20°C
@@ -411,7 +410,7 @@ FAN_CATALOG = [
 ]
 
 
-def select_fan(air_flow: float, pressure: float, fan_type: Optional[str] = None) -> Optional[dict]:
+def select_fan(air_flow: float, pressure: float, fan_type: str | None = None) -> dict | None:
     """Підібрати вентилятор з каталогу.
 
     Args:

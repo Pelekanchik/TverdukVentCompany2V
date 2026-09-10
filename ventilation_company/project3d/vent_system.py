@@ -7,7 +7,6 @@ import math
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Tuple
 
 
 class DuctType(Enum):
@@ -39,11 +38,11 @@ class Point3D:
             (self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2
         )
 
-    def to_tuple(self) -> Tuple[float, float, float]:
+    def to_tuple(self) -> tuple[float, float, float]:
         return (self.x, self.y, self.z)
 
     @classmethod
-    def from_tuple(cls, t: Tuple[float, float, float]) -> "Point3D":
+    def from_tuple(cls, t: tuple[float, float, float]) -> "Point3D":
         return cls(t[0], t[1], t[2])
 
 
@@ -175,7 +174,7 @@ class Equipment:
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = ""
     position: Point3D = field(default_factory=Point3D)
-    rotation: Tuple[float, float, float] = (0, 0, 0)  # градуси
+    rotation: tuple[float, float, float] = (0, 0, 0)  # градуси
     width: float = 400.0
     height: float = 400.0
     length: float = 600.0
@@ -224,9 +223,9 @@ class VentilationTrunk:
     name: str = "Магістраль"
     floor: int = 1
     duct_type: DuctType = DuctType.SUPPLY
-    segments: List[DuctSegment] = field(default_factory=list)
-    fittings: List[Fitting] = field(default_factory=list)
-    equipment: List[Equipment] = field(default_factory=list)
+    segments: list[DuctSegment] = field(default_factory=list)
+    fittings: list[Fitting] = field(default_factory=list)
+    equipment: list[Equipment] = field(default_factory=list)
     air_flow: float = 0.0
     notes: str = ""
 
@@ -281,7 +280,7 @@ class VentilationSystem:
     system_type: str = "припливно-витяжна"
     total_air_flow: float = 0.0
     total_pressure: float = 0.0
-    trunks: List[VentilationTrunk] = field(default_factory=list)
+    trunks: list[VentilationTrunk] = field(default_factory=list)
     notes: str = ""
 
     @property
@@ -292,19 +291,19 @@ class VentilationSystem:
     def total_metal_area(self) -> float:
         return sum(t.total_area for t in self.trunks)
 
-    def get_all_segments(self) -> List[DuctSegment]:
+    def get_all_segments(self) -> list[DuctSegment]:
         segments = []
         for t in self.trunks:
             segments.extend(t.segments)
         return segments
 
-    def get_all_fittings(self) -> List[Fitting]:
+    def get_all_fittings(self) -> list[Fitting]:
         fittings = []
         for t in self.trunks:
             fittings.extend(t.fittings)
         return fittings
 
-    def get_all_equipment(self) -> List[Equipment]:
+    def get_all_equipment(self) -> list[Equipment]:
         equipment = []
         for t in self.trunks:
             equipment.extend(t.equipment)

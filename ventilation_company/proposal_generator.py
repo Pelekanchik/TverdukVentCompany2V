@@ -13,7 +13,6 @@ import contextlib
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List
 
 try:
     from fpdf import FPDF
@@ -93,7 +92,7 @@ class ProposalData:
     )
 
     # Зміст
-    items: List[ProposalItem] = field(default_factory=list)
+    items: list[ProposalItem] = field(default_factory=list)
     delivery_days: int = 14
     installation_days: int = 7
     warranty_months: int = 24
@@ -390,7 +389,7 @@ class ProposalPDF(FPDF):
         return output_path
 
 
-def generate_proposal(project_data: dict, items: List[dict], output_path: str) -> str:
+def generate_proposal(project_data: dict, items: list[dict], output_path: str) -> str:
     """Швидка функція для генерації КП з даних проєкту."""
     prop = ProposalData()
 

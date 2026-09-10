@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Patch: fixes CostEngine to read material prices from pricing_settings.json
 
 Run: python patch_cost_engine.py
@@ -6,7 +5,7 @@ Run: python patch_cost_engine.py
 
 FILE_PATH = "ventilation_company/calculations/cost_engine.py"
 
-with open(FILE_PATH, "r", encoding="utf-8") as f:
+with open(FILE_PATH, encoding="utf-8") as f:
     content = f.read()
 
 # 1. Add _get_material_price method before _get_labor_rate

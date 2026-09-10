@@ -14,7 +14,6 @@ import json
 import os
 import secrets
 import stat
-from typing import Optional
 
 from ventilation_company.auth.password_policy import (
     PasswordValidationResult,
@@ -58,7 +57,7 @@ class User:
 class AuthService:
     """Сервіс автентифікації з хешуванням паролів (SQLAlchemy ORM)."""
 
-    _instance: Optional["AuthService"] = None
+    _instance: AuthService | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -149,7 +148,7 @@ class AuthService:
         finally:
             session.close()
 
-    def get_user(self, user_id: int) -> Optional[User]:
+    def get_user(self, user_id: int) -> User | None:
         session = self._session()
         try:
             orm = session.get(UserORM, user_id)
@@ -157,7 +156,7 @@ class AuthService:
         finally:
             session.close()
 
-    def get_user_by_username(self, username: str) -> Optional[User]:
+    def get_user_by_username(self, username: str) -> User | None:
         session = self._session()
         try:
             orm = (
@@ -202,7 +201,7 @@ class AuthService:
         return self.update_user(user_id, is_active=0)
 
     # ── Автентифікація ──
-    def authenticate(self, username: str, password: str) -> Optional[User]:
+    def authenticate(self, username: str, password: str) -> User | None:
         """Перевірити логін/пароль і повернути користувача."""
         session = self._session()
         try:
@@ -227,7 +226,7 @@ class AuthService:
         self._current_user = None
 
     @property
-    def current_user(self) -> Optional[User]:
+    def current_user(self) -> User | None:
         return self._current_user
 
     @property
@@ -305,7 +304,7 @@ class AuthService:
         if not self.has_setup_credentials():
             return None
         try:
-            with open(_SETUP_FILE, "r", encoding="utf-8") as f:
+            with open(_SETUP_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             return None

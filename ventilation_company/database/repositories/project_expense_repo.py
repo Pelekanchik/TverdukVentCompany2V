@@ -1,7 +1,5 @@
 """Репозиторій для витрат проєкту (ProjectExpense) — v2.3."""
 
-from typing import List
-
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import ProjectExpense
 
@@ -21,7 +19,7 @@ def _expense_to_dict(expense: ProjectExpense) -> dict:
 
 class ProjectExpenseRepository:
     @staticmethod
-    def get_all(project_id: int) -> List[dict]:
+    def get_all(project_id: int) -> list[dict]:
         with get_db() as session:
             items = (
                 session.query(ProjectExpense)

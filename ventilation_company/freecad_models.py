@@ -16,8 +16,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, List, Optional
+from typing import Any
 
 # ── Імпорт прев'ю ──
 try:
@@ -83,7 +84,7 @@ def _load_cached_config() -> dict:
     """Load cached FreeCAD path from config file."""
     try:
         if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            with open(CONFIG_FILE, encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
         _log(f"Config load error: {e}")
@@ -100,7 +101,7 @@ def _save_cached_config(config: dict):
         _log(f"Config save error: {e}")
 
 
-def _get_freecad_version(cmd_path: str) -> Optional[str]:
+def _get_freecad_version(cmd_path: str) -> str | None:
     """Try to get FreeCAD version string."""
     try:
         result = subprocess.run([cmd_path, "--version"], capture_output=True, text=True, timeout=10)
@@ -301,7 +302,7 @@ def _open_in_freecad(filepath):
 
 
 def export_products_to_freecad(
-    products, filepath, fmt="fcstd", progress_callback: Optional[Callable[[int, int], None]] = None
+    products, filepath, fmt="fcstd", progress_callback: Callable[[int, int], None] | None = None
 ):
     """Export products to FreeCAD file.
 
@@ -357,7 +358,7 @@ def export_products_to_freecad(
         log_content = ""
         if os.path.exists(log_path):
             try:
-                with open(log_path, "r", encoding="utf-8") as f:
+                with open(log_path, encoding="utf-8") as f:
                     log_content = f.read()
             except Exception:
                 pass
@@ -396,7 +397,7 @@ def export_batch(
     products,
     output_dir: str,
     fmt="step",
-    progress_callback: Optional[Callable[[int, int], None]] = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ):
     """Export each product to a separate file in output_dir."""
     os.makedirs(output_dir, exist_ok=True)
@@ -415,7 +416,7 @@ def export_batch(
     return exported
 
 
-def show_preview(parent, products: List[Any]):
+def show_preview(parent, products: list[Any]):
     """Show 3D preview dialog (no FreeCAD required)."""
     if PREVIEW_AVAILABLE:
         show_preview_dialog(parent, products)

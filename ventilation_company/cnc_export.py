@@ -9,7 +9,6 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 from ventilation_company.metal_cutting import CuttingPlan, PlacedDetail, Sheet
 
@@ -53,7 +52,7 @@ class CNCSettings:
 class DXFExporter:
     """Генератор DXF-файлів (ASCII R14) без зовнішніх бібліотек."""
 
-    def __init__(self, plan: CuttingPlan, settings: Optional[CNCSettings] = None):
+    def __init__(self, plan: CuttingPlan, settings: CNCSettings | None = None):
         self.plan = plan
         self.settings = settings or CNCSettings()
 
@@ -196,7 +195,7 @@ class DXFExporter:
 class GCodeExporter:
     """Генератор G-code для плазмових/лазерних верстатів."""
 
-    def __init__(self, plan: CuttingPlan, settings: Optional[CNCSettings] = None):
+    def __init__(self, plan: CuttingPlan, settings: CNCSettings | None = None):
         self.plan = plan
         self.settings = settings or CNCSettings()
         self._sheet_idx = 0
@@ -332,14 +331,14 @@ class GCodeExporter:
 # =========================================================
 
 
-def export_to_dxf(plan: CuttingPlan, filepath: str, settings: Optional[CNCSettings] = None) -> str:
+def export_to_dxf(plan: CuttingPlan, filepath: str, settings: CNCSettings | None = None) -> str:
     """Експортувати план розкрою в DXF."""
     exporter = DXFExporter(plan, settings)
     return exporter.export(filepath)
 
 
 def export_to_gcode(
-    plan: CuttingPlan, directory: str, settings: Optional[CNCSettings] = None
+    plan: CuttingPlan, directory: str, settings: CNCSettings | None = None
 ) -> list[str]:
     """Експортувати план розкрою в G-code (по файлу на лист)."""
     exporter = GCodeExporter(plan, settings)

@@ -98,7 +98,7 @@ class PresetsManager:
         """Завантажити пресети з JSON."""
         if self.filepath.exists():
             try:
-                with open(self.filepath, "r", encoding="utf-8") as f:
+                with open(self.filepath, encoding="utf-8") as f:
                     data = json.load(f)
                 self._presets = [_dict_to_product(d) for d in data]
                 return

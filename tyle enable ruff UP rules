@@ -1,0 +1,83 @@
+warning: in the working copy of 'apply_patch.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'fix_products_tab.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'patch_calc_button.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'patch_cost_engine.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'patch_main_window_docs.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'setup_postgres.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/acoustics.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/aerodynamics.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/auth/service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/calculations/cost_engine.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/cnc_export.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/models/crm.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/models/project.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/models/unified.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/repositories/product_repo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/repositories/project_document_repo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/repositories/project_expense_repo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/repositories/project_work_repo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/database/repositories/user_repo.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/dxf_exporter.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/freecad_geometry.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/freecad_macro.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/freecad_models.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/freecad_preview.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/gcode_exporter.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/pdf_generator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/product_presets_manager.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/production_models.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/production_scheduler.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/arch_context.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/collision_detection.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/converters.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/preview_2d.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/preview_3d.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/project_model.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/project3d/vent_system.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/proposal_generator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/services/auth_service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/services/pricing_settings.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'ventilation_company/standard_products.py', LF will be replaced by CRLF the next time Git touches it
+ apply_patch.py                                     |  4 [32m++[m[31m--[m
+ fix_products_tab.py                                |  3 [32m+[m[31m--[m
+ patch_calc_button.py                               |  3 [32m+[m[31m--[m
+ patch_cost_engine.py                               |  3 [32m+[m[31m--[m
+ patch_main_window_docs.py                          |  3 [32m+[m[31m--[m
+ pyproject.toml                                     |  2 [32m+[m[31m-[m
+ setup_postgres.py                                  |  2 [32m+[m[31m-[m
+ ventilation_company/acoustics.py                   |  7 [32m+++[m[31m---[m
+ ventilation_company/aerodynamics.py                |  3 [32m+[m[31m--[m
+ ventilation_company/auth/service.py                | 13 [32m+++++[m[31m-----[m
+ ventilation_company/calculations/cost_engine.py    |  2 [32m+[m[31m-[m
+ ventilation_company/cnc_export.py                  |  9 [32m++++[m[31m---[m
+ ventilation_company/database/models/crm.py         | 16 [32m++++++[m[31m-------[m
+ ventilation_company/database/models/project.py     | 24 [32m+++++++++[m[31m----------[m
+ ventilation_company/database/models/unified.py     | 22 [32m++++++++[m[31m---------[m
+ .../database/repositories/product_repo.py          |  6 [32m++[m[31m---[m
+ .../database/repositories/project_document_repo.py |  4 [32m+[m[31m---[m
+ .../database/repositories/project_expense_repo.py  |  4 [32m+[m[31m---[m
+ .../database/repositories/project_work_repo.py     |  4 [32m+[m[31m---[m
+ .../database/repositories/user_repo.py             | 10 [32m++++[m[31m----[m
+ ventilation_company/dxf_exporter.py                | 13 [32m+++++[m[31m-----[m
+ ventilation_company/freecad_geometry.py            | 28 [32m+++++++++++[m[31m-----------[m
+ ventilation_company/freecad_macro.py               |  2 [32m+[m[31m-[m
+ ventilation_company/freecad_models.py              | 15 [32m++++++[m[31m------[m
+ ventilation_company/freecad_preview.py             | 14 [32m+++++[m[31m------[m
+ ventilation_company/gcode_exporter.py              |  3 [32m+[m[31m--[m
+ ventilation_company/pdf_generator.py               |  7 [32m+++[m[31m---[m
+ ventilation_company/product_presets_manager.py     |  2 [32m+[m[31m-[m
+ ventilation_company/production_models.py           |  9 [32m++++[m[31m---[m
+ ventilation_company/production_scheduler.py        | 11 [32m++++[m[31m-----[m
+ ventilation_company/project3d/arch_context.py      | 24 [32m+++++++++[m[31m----------[m
+ .../project3d/collision_detection.py               | 17 [32m+++++++[m[31m------[m
+ ventilation_company/project3d/converters.py        | 26 [32m++++++++++[m[31m----------[m
+ ventilation_company/project3d/preview_2d.py        | 17 [32m++++++[m[31m-------[m
+ ventilation_company/project3d/preview_3d.py        |  5 [32m++[m[31m--[m
+ ventilation_company/project3d/project_model.py     | 12 [32m+++++[m[31m-----[m
+ ventilation_company/project3d/vent_system.py       | 21 [32m++++++++[m[31m--------[m
+ ventilation_company/proposal_generator.py          |  5 [32m++[m[31m--[m
+ ventilation_company/services/auth_service.py       |  9 [32m++++[m[31m---[m
+ ventilation_company/services/pricing_settings.py   |  6 [32m++[m[31m---[m
+ ventilation_company/standard_products.py           |  2 [32m+[m[31m-[m
+ 41 files changed, 183 insertions(+), 209 deletions(-)

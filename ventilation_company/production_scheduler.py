@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
 
 from ventilation_company.production_models import (
     DEFAULT_EQUIPMENT,
@@ -86,8 +85,8 @@ class ProductionScheduler:
 
     def __init__(
         self,
-        equipment: Optional[list[Equipment]] = None,
-        norms: Optional[dict[OperationType, OperationNorm]] = None,
+        equipment: list[Equipment] | None = None,
+        norms: dict[OperationType, OperationNorm] | None = None,
     ):
         self.equipment = equipment or DEFAULT_EQUIPMENT.copy()
         self.norms = norms or DEFAULT_NORMS.copy()
@@ -101,7 +100,7 @@ class ProductionScheduler:
                 return self.OPERATION_SEQUENCE[key]
         return self.OPERATION_SEQUENCE["default"]
 
-    def _find_equipment(self, op_type: OperationType, after: datetime) -> Optional[Equipment]:
+    def _find_equipment(self, op_type: OperationType, after: datetime) -> Equipment | None:
         """Знайти вільне обладнання для операції після заданого часу."""
         candidates = [e for e in self.equipment if op_type in e.operation_types and e.is_active]
         if not candidates:
@@ -149,8 +148,8 @@ class ProductionScheduler:
         self,
         project_name: str,
         products: list[dict],
-        start_date: Optional[datetime] = None,
-        deadline: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        deadline: datetime | None = None,
     ) -> ProductionPlan:
         """Запланувати виробництво проєкту."""
         start_date = start_date or datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)

@@ -12,7 +12,6 @@
 """
 
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -136,7 +135,7 @@ class GCodeExporter:
 
     def _calculate_contour(
         self, x: float, y: float, w: float, h: float, rotated: bool
-    ) -> List[tuple]:
+    ) -> list[tuple]:
         """Розрахувати контур деталі з компенсацією різу.
 
         Повертає список (X, Y) точок контуру за годинниковою стрілкою.

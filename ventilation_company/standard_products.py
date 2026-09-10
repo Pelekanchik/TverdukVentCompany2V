@@ -280,7 +280,7 @@ class StandardProduct:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> "StandardProduct":
+    def from_dict(cls, data: dict) -> StandardProduct:
         raw_material = data.get("material", "оцинкована сталь")
         material = MaterialType.GALVANIZED
         for m in MaterialType:

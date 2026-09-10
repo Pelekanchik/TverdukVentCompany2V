@@ -34,18 +34,18 @@ class Client(Base):
     )
 
     # Relationships
-    interactions: Mapped[list["Interaction"]] = relationship(
+    interactions: Mapped[list[Interaction]] = relationship(
         back_populates="client", cascade="all, delete-orphan", order_by="Interaction.date.desc()"
     )
-    payments: Mapped[list["Payment"]] = relationship(
+    payments: Mapped[list[Payment]] = relationship(
         back_populates="client", cascade="all, delete-orphan", order_by="Payment.date.desc()"
     )
-    projects: Mapped[list["ClientProject"]] = relationship(
+    projects: Mapped[list[ClientProject]] = relationship(
         back_populates="client",
         cascade="all, delete-orphan",
         order_by="ClientProject.start_date.desc()",
     )
-    reminders: Mapped[list["WarrantyReminder"]] = relationship(
+    reminders: Mapped[list[WarrantyReminder]] = relationship(
         back_populates="client",
         cascade="all, delete-orphan",
         order_by="WarrantyReminder.reminder_date.asc()",
@@ -73,7 +73,7 @@ class Interaction(Base):
     next_action_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    client: Mapped["Client"] = relationship(back_populates="interactions")
+    client: Mapped[Client] = relationship(back_populates="interactions")
 
 
 class Payment(Base):
@@ -91,7 +91,7 @@ class Payment(Base):
     project_name: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    client: Mapped["Client"] = relationship(back_populates="payments")
+    client: Mapped[Client] = relationship(back_populates="payments")
 
 
 class ClientProject(Base):
@@ -112,7 +112,7 @@ class ClientProject(Base):
     warranty_months: Mapped[int] = mapped_column(Integer, default=24)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    client: Mapped["Client"] = relationship(back_populates="projects")
+    client: Mapped[Client] = relationship(back_populates="projects")
 
 
 class WarrantyReminder(Base):
@@ -132,4 +132,4 @@ class WarrantyReminder(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    client: Mapped["Client"] = relationship(back_populates="reminders")
+    client: Mapped[Client] = relationship(back_populates="reminders")

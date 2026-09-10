@@ -8,7 +8,6 @@ Canonical auth:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ventilation_company.auth.password_policy import hash_password, verify_password
 from ventilation_company.auth.permissions import (
@@ -56,10 +55,10 @@ class AuthUser:
 class AuthService:
     """Facade: delegates auth to canonical auth service."""
 
-    _current_user: Optional[AuthUser] = None
+    _current_user: AuthUser | None = None
 
     @staticmethod
-    def _to_gui_user(user) -> Optional[AuthUser]:
+    def _to_gui_user(user) -> AuthUser | None:
         if user is None:
             return None
         return AuthUser(
@@ -79,14 +78,14 @@ class AuthService:
         return verify_password(plain_password, hashed_password)
 
     @classmethod
-    def authenticate(cls, username: str, password: str) -> Optional[AuthUser]:
+    def authenticate(cls, username: str, password: str) -> AuthUser | None:
         user = canonical_auth.authenticate(username, password)
         gui_user = cls._to_gui_user(user)
         cls._current_user = gui_user
         return gui_user
 
     @classmethod
-    def get_current_user(cls) -> Optional[AuthUser]:
+    def get_current_user(cls) -> AuthUser | None:
         return cls._current_user
 
     @classmethod

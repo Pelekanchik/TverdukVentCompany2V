@@ -14,7 +14,6 @@
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Set, Tuple
 
 from ventilation_company.project3d.arch_context import Opening, Wall
 from ventilation_company.project3d.vent_system import (
@@ -35,7 +34,7 @@ class Collision:
     object_b_type: str
     object_a_name: str = ""
     object_b_name: str = ""
-    position: Optional[Point3D] = None
+    position: Point3D | None = None
     message: str = ""
 
 
@@ -100,11 +99,11 @@ class CollisionDetector:
 
     def __init__(self, project):
         self.project = project
-        self.collisions: List[Collision] = []
-        self._collision_ids: Set[str] = set()
-        self._collision_pairs: Set[Tuple[str, str]] = set()
+        self.collisions: list[Collision] = []
+        self._collision_ids: set[str] = set()
+        self._collision_pairs: set[tuple[str, str]] = set()
 
-    def check_all(self) -> List[Collision]:
+    def check_all(self) -> list[Collision]:
         """Повна перевірка всього проєкту з AABB-фільтрацією."""
         self.collisions.clear()
         self._collision_ids.clear()
@@ -331,7 +330,7 @@ class CollisionDetector:
 
     # ── Геометричні перевірки ──
 
-    def _segment_hits_wall(self, seg: DuctSegment, wall: Wall, openings: List[Opening]) -> bool:
+    def _segment_hits_wall(self, seg: DuctSegment, wall: Wall, openings: list[Opening]) -> bool:
         for opening in openings:
             if opening.wall_id == wall.id and self._segment_passes_through_opening(seg, opening):
                 return False
@@ -384,7 +383,7 @@ class CollisionDetector:
         r_eq = max(eq.width, eq.height, eq.length) / 2
         return dist < (self.EQUIPMENT_CLEARANCE + r_fit + r_eq)
 
-    def _fitting_hits_wall(self, fit: Fitting, wall: Wall, openings: List[Opening]) -> bool:
+    def _fitting_hits_wall(self, fit: Fitting, wall: Wall, openings: list[Opening]) -> bool:
         for opening in openings:
             if opening.wall_id == wall.id and self._point_in_opening(fit.position, opening):
                 return False
@@ -558,5 +557,5 @@ class CollisionDetector:
     def _midpoint(self, a: Point3D, b: Point3D) -> Point3D:
         return Point3D((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
 
-    def get_colliding_ids(self) -> Set[str]:
+    def get_colliding_ids(self) -> set[str]:
         return self._collision_ids.copy()

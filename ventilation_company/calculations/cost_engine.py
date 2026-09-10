@@ -101,7 +101,7 @@ class CostBreakdown:
     category_waste_cost: float = 0.0
     vat_rate: float = 20.0
 
-    def per_unit(self) -> "CostBreakdown":
+    def per_unit(self) -> CostBreakdown:
         """Розбив на 1 штуку (якщо quantity > 1)."""
         if self.quantity <= 1:
             return self

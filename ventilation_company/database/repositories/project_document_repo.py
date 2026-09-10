@@ -3,8 +3,6 @@
 CRUD + фільтрація по проєкту та типу.
 """
 
-from typing import List
-
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project_document import ProjectDocument
 
@@ -36,7 +34,7 @@ class ProjectDocumentRepository:
             }
 
     @staticmethod
-    def get_by_project(project_id: int, doc_type: str = None) -> List[dict]:
+    def get_by_project(project_id: int, doc_type: str = None) -> list[dict]:
         with get_db() as session:
             q = session.query(ProjectDocument).filter(ProjectDocument.project_id == project_id)
             if doc_type:

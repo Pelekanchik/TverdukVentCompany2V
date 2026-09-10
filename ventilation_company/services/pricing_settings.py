@@ -213,10 +213,10 @@ class PricingSettings:
     екземпляром даних, і запис у файл є атомарним.
     """
 
-    _instance: "PricingSettings | None" = None
+    _instance: PricingSettings | None = None
     _lock = threading.Lock()
 
-    def __new__(cls, filepath: str = SETTINGS_FILE) -> "PricingSettings":
+    def __new__(cls, filepath: str = SETTINGS_FILE) -> PricingSettings:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -225,7 +225,7 @@ class PricingSettings:
         return cls._instance
 
     @classmethod
-    def get_instance(cls, filepath: str = SETTINGS_FILE) -> "PricingSettings":
+    def get_instance(cls, filepath: str = SETTINGS_FILE) -> PricingSettings:
         """Отримати єдиний екземпляр налаштувань."""
         return cls(filepath)
 

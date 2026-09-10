@@ -3,8 +3,6 @@
 Додано discounted_price в _item_to_dict.
 """
 
-from typing import List
-
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.product_item import ProductItem
 
@@ -47,7 +45,7 @@ def _extract_float(notes: str | None, key: str) -> float:
 
 class ProductRepository:
     @staticmethod
-    def get_all(project_id: int = None) -> List[dict]:
+    def get_all(project_id: int = None) -> list[dict]:
         with get_db() as session:
             q = session.query(ProductItem)
             if project_id:
@@ -115,7 +113,7 @@ class ProductRepository:
         material: str = "",
         thickness: str = "",
         project_id: int = None,
-    ) -> List[dict]:
+    ) -> list[dict]:
         with get_db() as session:
             q = session.query(ProductItem)
             if project_id:

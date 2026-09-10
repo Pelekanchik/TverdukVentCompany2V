@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Patch: adds Documents tab to main_window.py
 
 Run: python patch_main_window_docs.py
@@ -6,7 +5,7 @@ Run: python patch_main_window_docs.py
 
 FILE_PATH = "ventilation_company/gui_pyside6/main_window.py"
 
-with open(FILE_PATH, "r", encoding="utf-8") as f:
+with open(FILE_PATH, encoding="utf-8") as f:
     content = f.read()
 
 # 1. Add import

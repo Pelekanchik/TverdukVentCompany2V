@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Patch: adds "Details" button to ProductDialog.
 
 Run: python patch_calc_button.py
@@ -6,7 +5,7 @@ Run: python patch_calc_button.py
 
 FILE_PATH = "ventilation_company/gui_pyside6/products_tab.py"
 
-with open(FILE_PATH, "r", encoding="utf-8") as f:
+with open(FILE_PATH, encoding="utf-8") as f:
     content = f.read()
 
 # 1. Add import

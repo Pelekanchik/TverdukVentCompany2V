@@ -5,7 +5,6 @@
 
 import os
 from datetime import datetime
-from typing import List, Optional
 
 try:
     from fpdf import FPDF
@@ -94,7 +93,7 @@ class ProjectPDFReport(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, _clean_text(f"Сторінка {self.page_no()}"), align="C")
 
-    def build_report(self, project: dict, products: List[dict], output_path: str) -> str:
+    def build_report(self, project: dict, products: list[dict], output_path: str) -> str:
         self._draw_header("ЗВІТ ПО ПРОЄКТУ")
 
         self._section_title("Інформація про проєкт")
@@ -243,7 +242,7 @@ class ProjectPDFReport(FPDF):
                 return short
         return material[:10]
 
-    def _draw_products_table(self, products: List[dict]):
+    def _draw_products_table(self, products: list[dict]):
         col_widths = [8, 50, 18, 11, 9, 18, 18, 22, 22]
         headers = [
             "№",
@@ -319,7 +318,7 @@ class ProjectPDFReport(FPDF):
 
 
 def generate_project_pdf(
-    project: dict, products: List[dict], output_path: Optional[str] = None
+    project: dict, products: list[dict], output_path: str | None = None
 ) -> str:
     if output_path is None:
         import tempfile

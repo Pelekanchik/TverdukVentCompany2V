@@ -7,7 +7,7 @@ import math
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ventilation_company.project3d.vent_system import Point3D
 
@@ -64,7 +64,7 @@ class Wall:
         d = self.direction
         return Point3D(-d.y, d.x, 0)
 
-    def get_bounding_box(self) -> Tuple[Point3D, Point3D]:
+    def get_bounding_box(self) -> tuple[Point3D, Point3D]:
         """Повертає (min, max) точки bounding box."""
         n = self.normal
         hw = self.thickness / 2
@@ -117,7 +117,7 @@ class Opening:
 
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = "Отвір"
-    wall_id: Optional[str] = None
+    wall_id: str | None = None
     position: Point3D = field(default_factory=Point3D)
     width: float = 200.0
     height: float = 200.0
@@ -164,11 +164,11 @@ class Floor:
     name: str = "Поверх 1"
     level: float = 0.0  # відмітка верху перекриття, мм
     height: float = 3000.0  # висота поверху, мм
-    walls: List[Wall] = field(default_factory=list)
-    openings: List[Opening] = field(default_factory=list)
+    walls: list[Wall] = field(default_factory=list)
+    openings: list[Opening] = field(default_factory=list)
     notes: str = ""
     # Підкладка (DXF/DWG)
-    background: Optional[Dict[str, Any]] = (
+    background: dict[str, Any] | None = (
         None  # {"path": str, "scale": float, "offset_x": float, "offset_y": float, "rotation": float, "lines": List}
     )
 
@@ -177,7 +177,7 @@ class Floor:
         """Рівень підлоги (низ перекриття)."""
         return self.level - self.height
 
-    def get_bounding_box(self) -> Tuple[Point3D, Point3D]:
+    def get_bounding_box(self) -> tuple[Point3D, Point3D]:
         """Повертає (min, max) точки всіх стін поверху."""
         if not self.walls:
             return (Point3D(0, 0, self.floor_z), Point3D(10000, 10000, self.level))
@@ -224,30 +224,30 @@ class ArchitecturalContext:
 
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     project_name: str = "Архітектурний проєкт"
-    floors: List[Floor] = field(default_factory=list)
+    floors: list[Floor] = field(default_factory=list)
     reference_point: Point3D = field(default_factory=Point3D)  # точка прив'язки
     units: str = "мм"
     notes: str = ""
 
-    def get_floor(self, floor_name: str) -> Optional[Floor]:
+    def get_floor(self, floor_name: str) -> Floor | None:
         for f in self.floors:
             if f.name == floor_name:
                 return f
         return None
 
-    def get_all_walls(self) -> List[Wall]:
+    def get_all_walls(self) -> list[Wall]:
         walls = []
         for f in self.floors:
             walls.extend(f.walls)
         return walls
 
-    def get_all_openings(self) -> List[Opening]:
+    def get_all_openings(self) -> list[Opening]:
         openings = []
         for f in self.floors:
             openings.extend(f.openings)
         return openings
 
-    def get_bounding_box(self) -> Tuple[Point3D, Point3D]:
+    def get_bounding_box(self) -> tuple[Point3D, Point3D]:
         if not self.floors:
             return (Point3D(0, 0, 0), Point3D(10000, 10000, 10000))
         all_min = []

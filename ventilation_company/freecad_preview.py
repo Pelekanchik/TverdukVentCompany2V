@@ -4,7 +4,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, List, Optional
+from typing import Any
 
 try:
     import matplotlib
@@ -26,10 +26,10 @@ class FreeCADPreview:
 
     def __init__(self, parent: tk.Widget):
         self.parent = parent
-        self.figure: Optional[Figure] = None
-        self.canvas: Optional[FigureCanvasTkAgg] = None
-        self.ax: Optional[Any] = None
-        self._meshes: List[MeshData] = []
+        self.figure: Figure | None = None
+        self.canvas: FigureCanvasTkAgg | None = None
+        self.ax: Any | None = None
+        self._meshes: list[MeshData] = []
         self._show_labels = True
         self._show_axes = True
         self._view_angle = (30, -60)  # elev, azim
@@ -105,7 +105,7 @@ class FreeCADPreview:
         self._view_angle = (elev, azim)
         self.refresh()
 
-    def set_products(self, products: List[Any]):
+    def set_products(self, products: list[Any]):
         """Set products to display (accepts dicts or StandardProduct objects)."""
         self._products = []
         for p in products:
@@ -241,7 +241,7 @@ class FreeCADPreview:
             )
 
 
-def show_preview_dialog(parent: tk.Tk, products: List[Any]):
+def show_preview_dialog(parent: tk.Tk, products: list[Any]):
     """Show a modal preview dialog."""
     dialog = tk.Toplevel(parent)
     dialog.title("🔍 3D Перегляд — VentCompany")

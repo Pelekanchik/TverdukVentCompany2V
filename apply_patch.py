@@ -22,7 +22,7 @@ def patch_main_window():
         print("❌ main_window.py не знайдено")
         return False
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         content = f.read()
 
     if "ProgramSettingsTab" in content:
@@ -79,7 +79,7 @@ def patch_permissions():
         print("❌ permissions.py не знайдено — скопіюй його з архіву вручну")
         return False
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         content = f.read()
 
     if "view_program_settings" in content:

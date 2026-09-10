@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy.orm import Session
 
 from ventilation_company.database.models.user import UserORM
@@ -14,13 +12,13 @@ class UserRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_id(self, user_id: int) -> Optional[UserORM]:
+    def get_by_id(self, user_id: int) -> UserORM | None:
         return self.session.query(UserORM).filter(UserORM.id == user_id).first()
 
-    def get_by_username(self, username: str) -> Optional[UserORM]:
+    def get_by_username(self, username: str) -> UserORM | None:
         return self.session.query(UserORM).filter(UserORM.username == username).first()
 
-    def get_all(self, active_only: bool = True) -> List[UserORM]:
+    def get_all(self, active_only: bool = True) -> list[UserORM]:
         query = self.session.query(UserORM)
         if active_only:
             query = query.filter(UserORM.is_active == 1)
@@ -49,7 +47,7 @@ class UserRepository:
         self.session.refresh(user)
         return user
 
-    def update(self, user_id: int, **kwargs) -> Optional[UserORM]:
+    def update(self, user_id: int, **kwargs) -> UserORM | None:
         user = self.get_by_id(user_id)
         if not user:
             return None

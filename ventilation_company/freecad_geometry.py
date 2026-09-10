@@ -4,22 +4,22 @@ Generates mesh data for matplotlib preview and parameters for FreeCAD macro.
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 @dataclass
 class MeshData:
     """3D mesh for visualization."""
 
-    vertices: List[Tuple[float, float, float]]
-    edges: List[Tuple[int, int]]
-    faces: List[Tuple[int, ...]]
-    color: Tuple[float, float, float] = (0.7, 0.7, 0.7)
-    position: Tuple[float, float, float] = (0, 0, 0)
+    vertices: list[tuple[float, float, float]]
+    edges: list[tuple[int, int]]
+    faces: list[tuple[int, ...]]
+    color: tuple[float, float, float] = (0.7, 0.7, 0.7)
+    position: tuple[float, float, float] = (0, 0, 0)
     name: str = ""
-    bounds: Tuple[float, float, float] = (0, 0, 0)
+    bounds: tuple[float, float, float] = (0, 0, 0)
 
-    def transform(self, offset: Tuple[float, float, float]) -> "MeshData":
+    def transform(self, offset: tuple[float, float, float]) -> "MeshData":
         ox, oy, oz = offset
         new_vertices = [(x + ox, y + oy, z + oz) for x, y, z in self.vertices]
         return MeshData(
@@ -54,7 +54,7 @@ class VentGeometry:
     }
 
     @classmethod
-    def detect_type(cls, data: Dict[str, Any]) -> str:
+    def detect_type(cls, data: dict[str, Any]) -> str:
         ptype = (data.get("product_type", "") + " " + data.get("name", "")).lower()
         if any(k in ptype for k in ("hnuchk", "vstavka", "flexible", "гнучк")):
             return "flexible"
@@ -81,7 +81,7 @@ class VentGeometry:
         return "default"
 
     @classmethod
-    def build(cls, data: Dict[str, Any], position=(0, 0, 0)) -> MeshData:
+    def build(cls, data: dict[str, Any], position=(0, 0, 0)) -> MeshData:
         ptype = cls.detect_type(data)
         method = getattr(cls, f"_build_{ptype}", cls._build_default)
         mesh = method(data)
@@ -91,7 +91,7 @@ class VentGeometry:
         return mesh.transform(position)
 
     @classmethod
-    def get_bounds(cls, data: Dict[str, Any]) -> Tuple[float, float, float]:
+    def get_bounds(cls, data: dict[str, Any]) -> tuple[float, float, float]:
         ptype = cls.detect_type(data)
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
@@ -637,9 +637,9 @@ class ProductLayout:
     def __init__(self, spacing: float = 50.0, axis: str = "z"):
         self.spacing = spacing
         self.axis = axis.lower()
-        self.positions: List[Tuple[float, float, float]] = []
+        self.positions: list[tuple[float, float, float]] = []
 
-    def layout(self, products: List[Dict[str, Any]]) -> List[Tuple[float, float, float]]:
+    def layout(self, products: list[dict[str, Any]]) -> list[tuple[float, float, float]]:
         self.positions = []
         offset = 0.0
         axis_idx = {"x": 0, "y": 1, "z": 2}[self.axis]
@@ -652,6 +652,6 @@ class ProductLayout:
             offset += depth + self.spacing
         return self.positions
 
-    def build_all(self, products: List[Dict[str, Any]]) -> List[MeshData]:
+    def build_all(self, products: list[dict[str, Any]]) -> list[MeshData]:
         positions = self.layout(products)
         return [VentGeometry.build(p, pos) for p, pos in zip(products, positions, strict=False)]

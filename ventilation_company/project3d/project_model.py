@@ -8,7 +8,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from ventilation_company.project3d.arch_context import ArchitecturalContext, Floor, Opening, Wall
 from ventilation_company.project3d.vent_system import (
@@ -35,10 +35,10 @@ class VentProject:
 
     # Основні компоненти
     arch_context: ArchitecturalContext = field(default_factory=ArchitecturalContext)
-    ventilation_systems: List[VentilationSystem] = field(default_factory=list)
+    ventilation_systems: list[VentilationSystem] = field(default_factory=list)
 
     # 2D-креслення
-    drawing_files: List[Dict[str, Any]] = field(default_factory=list)
+    drawing_files: list[dict[str, Any]] = field(default_factory=list)
     # [{"path": "...", "floor": "Поверх 1", "type": "план", "format": "dxf"}]
 
     # Налаштування
@@ -57,10 +57,10 @@ class VentProject:
     def total_metal_area(self) -> float:
         return sum(vs.total_metal_area for vs in self.ventilation_systems)
 
-    def get_all_floors(self) -> List[Floor]:
+    def get_all_floors(self) -> list[Floor]:
         return self.arch_context.floors
 
-    def get_floor_systems(self, floor_name: str) -> List[VentilationSystem]:
+    def get_floor_systems(self, floor_name: str) -> list[VentilationSystem]:
         """Отримати системи, що проходять через певний поверх."""
         result = []
         for vs in self.ventilation_systems:
@@ -134,7 +134,7 @@ class VentProject:
     @classmethod
     def load(cls, filepath: str) -> "VentProject":
         """Завантажити проєкт з файлу .ventproj."""
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
         return cls.from_dict(data)
 

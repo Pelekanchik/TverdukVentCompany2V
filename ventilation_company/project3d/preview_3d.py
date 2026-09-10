@@ -4,7 +4,6 @@ import os
 import tempfile
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Optional
 
 import matplotlib
 
@@ -35,8 +34,8 @@ class Project3DPreview:
 
     def __init__(self, parent: tk.Widget):
         self.parent = parent
-        self.project: Optional[VentProject] = None
-        self.current_floor: Optional[str] = None
+        self.project: VentProject | None = None
+        self.current_floor: str | None = None
         self._show_arch = True
         self._show_vent = True
         self._show_labels = True

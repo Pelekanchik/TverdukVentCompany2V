@@ -7,10 +7,11 @@ import math
 import os
 import tempfile
 import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from tkinter import filedialog, messagebox, simpledialog, ttk
-from typing import Any, Callable, Optional, Tuple
+from typing import Any
 
 from PIL import Image
 
@@ -65,13 +66,13 @@ class CADCanvas(tk.Canvas):
         self.bind("<Button-5>", self._on_wheel)
         self.bind("<Motion>", self._on_move)
 
-    def world_to_screen(self, x: float, y: float) -> Tuple[float, float]:
+    def world_to_screen(self, x: float, y: float) -> tuple[float, float]:
         """Перетворення світових координат (мм) в екранні (пікселі)."""
         sx = (x - self._offset_x) * self._scale + self.winfo_width() / 2
         sy = self.winfo_height() / 2 - (y - self._offset_y) * self._scale
         return (sx, sy)
 
-    def screen_to_world(self, sx: float, sy: float) -> Tuple[float, float]:
+    def screen_to_world(self, sx: float, sy: float) -> tuple[float, float]:
         """Перетворення екранних координат в світові (мм)."""
         x = (sx - self.winfo_width() / 2) / self._scale + self._offset_x
         y = (self.winfo_height() / 2 - sy) / self._scale + self._offset_y
@@ -142,15 +143,15 @@ class Project2DPreview:
         "bg": "#f5f5f5",
     }
 
-    def __init__(self, parent: tk.Widget, on_select_callback: Optional[Callable] = None):
+    def __init__(self, parent: tk.Widget, on_select_callback: Callable | None = None):
         self.parent = parent
         self.on_select_callback = on_select_callback
-        self.project: Optional[VentProject] = None
-        self.current_floor: Optional[Floor] = None
+        self.project: VentProject | None = None
+        self.current_floor: Floor | None = None
 
         self.current_tool = DrawingTool.SELECT
         self.drawing_state = None
-        self.p1: Optional[Tuple[float, float]] = None
+        self.p1: tuple[float, float] | None = None
 
         self.selected_object = None
         self.selected_type = None
@@ -158,7 +159,7 @@ class Project2DPreview:
         self.snap_grid = 50.0
         self.ortho_mode = False
 
-        self.background: Optional[BackgroundImage] = None
+        self.background: BackgroundImage | None = None
         self.bg_photo = None
 
         self.layers = {

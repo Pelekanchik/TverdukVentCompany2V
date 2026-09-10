@@ -11,7 +11,6 @@
 """
 
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -124,7 +123,7 @@ class DXFExporter:
 
     def _draw_rectangle(
         self, x: float, y: float, w: float, h: float, layer: str, color: int, line_type: str
-    ) -> List[str]:
+    ) -> list[str]:
         """LWPOLYLINE — прямокутник."""
         return [
             "0",
@@ -163,7 +162,7 @@ class DXFExporter:
 
     def _draw_text(
         self, x: float, y: float, text: str, height: float, layer: str, color: int
-    ) -> List[str]:
+    ) -> list[str]:
         """TEXT — текстова мітка."""
         return [
             "0",
@@ -200,7 +199,7 @@ class DXFExporter:
 
     # ── DXF структура ──
 
-    def _header(self) -> List[str]:
+    def _header(self) -> list[str]:
         return [
             "0",
             "SECTION",
@@ -218,7 +217,7 @@ class DXFExporter:
             "ENDSEC",
         ]
 
-    def _tables(self) -> List[str]:
+    def _tables(self) -> list[str]:
         layers = [
             (self.settings.layer_details, self.settings.color_details),
             (self.settings.layer_text, self.settings.color_text),
@@ -244,8 +243,8 @@ class DXFExporter:
         lines.extend(["0", "ENDTAB", "0", "ENDSEC"])
         return lines
 
-    def _blocks(self) -> List[str]:
+    def _blocks(self) -> list[str]:
         return ["0", "SECTION", "2", "BLOCKS", "0", "ENDSEC"]
 
-    def _footer(self) -> List[str]:
+    def _footer(self) -> list[str]:
         return ["0", "ENDSEC", "0", "EOF"]

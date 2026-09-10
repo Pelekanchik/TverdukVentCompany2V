@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class OperationType(Enum):
@@ -90,7 +89,7 @@ class ScheduledOperation:
     end_time: datetime
     duration_minutes: float
     status: OperationStatus = OperationStatus.PLANNED
-    depends_on: Optional[str] = None  # ID попередньої операції
+    depends_on: str | None = None  # ID попередньої операції
     notes: str = ""
 
     @property
@@ -103,9 +102,9 @@ class ProductionPlan:
     """Повний план виробництва проєкту."""
 
     project_name: str
-    project_id: Optional[int] = None
+    project_id: int | None = None
     start_date: datetime = field(default_factory=datetime.now)
-    deadline: Optional[datetime] = None
+    deadline: datetime | None = None
     operations: list[ScheduledOperation] = field(default_factory=list)
 
     @property
@@ -120,7 +119,7 @@ class ProductionPlan:
         return (completed / len(self.operations)) * 100
 
     @property
-    def estimated_end(self) -> Optional[datetime]:
+    def estimated_end(self) -> datetime | None:
         if not self.operations:
             return None
         return max(o.end_time for o in self.operations)

@@ -855,7 +855,7 @@ def main():
         print("ERROR: JSON file not found: " + str(json_path))
         sys.exit(1)
 
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         products = json.load(f)
 
     print("Loaded " + str(len(products)) + " products")

@@ -63,28 +63,28 @@ class Project(Base):
     created_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
-    components: Mapped[list["ProjectComponent"]] = relationship(
+    components: Mapped[list[ProjectComponent]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    materials: Mapped[list["ProjectMaterial"]] = relationship(
+    materials: Mapped[list[ProjectMaterial]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    works: Mapped[list["ProjectWork"]] = relationship(
+    works: Mapped[list[ProjectWork]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    expenses: Mapped[list["ProjectExpense"]] = relationship(  # ← v2.3 НОВЕ
+    expenses: Mapped[list[ProjectExpense]] = relationship(  # ← v2.3 НОВЕ
         back_populates="project", cascade="all, delete-orphan"
     )
-    calculations: Mapped[list["Calculation"]] = relationship(
+    calculations: Mapped[list[Calculation]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    project_products: Mapped[list["ProjectProduct"]] = relationship(
+    project_products: Mapped[list[ProjectProduct]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    specifications: Mapped[list["Specification"]] = relationship(
+    specifications: Mapped[list[Specification]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    cutting_plans: Mapped[list["CuttingPlan"]] = relationship(
+    cutting_plans: Mapped[list[CuttingPlan]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 
@@ -100,7 +100,7 @@ class ProjectComponent(Base):
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
-    project: Mapped["Project"] = relationship(back_populates="components")
+    project: Mapped[Project] = relationship(back_populates="components")
 
 
 class ProjectMaterial(Base):
@@ -114,7 +114,7 @@ class ProjectMaterial(Base):
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
-    project: Mapped["Project"] = relationship(back_populates="materials")
+    project: Mapped[Project] = relationship(back_populates="materials")
 
 
 class ProjectWork(Base):
@@ -128,7 +128,7 @@ class ProjectWork(Base):
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
-    project: Mapped["Project"] = relationship(back_populates="works")
+    project: Mapped[Project] = relationship(back_populates="works")
 
 
 class ProjectExpense(Base):  # ← v2.3 НОВЕ
@@ -143,4 +143,4 @@ class ProjectExpense(Base):  # ← v2.3 НОВЕ
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now)
 
-    project: Mapped["Project"] = relationship(back_populates="expenses")
+    project: Mapped[Project] = relationship(back_populates="expenses")

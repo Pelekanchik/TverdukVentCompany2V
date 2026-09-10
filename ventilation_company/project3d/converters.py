@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ventilation_company.freecad_models import FREECAD_AVAILABLE, FREECAD_CMD
 from ventilation_company.project3d.arch_context import (
@@ -116,7 +116,7 @@ class IFCConverter(BaseConverter):
             pass
         return 1000.0
 
-    def _get_property(self, element, pset_name: str, prop_name: str) -> Optional[str]:
+    def _get_property(self, element, pset_name: str, prop_name: str) -> str | None:
         """Отримати значення властивості з PropertySet."""
         try:
             for rel in element.IsDefinedBy:
@@ -166,7 +166,7 @@ class IFCConverter(BaseConverter):
 
     def _get_placement(
         self, element, scale: float = 1000.0
-    ) -> Tuple[Point3D, Optional[Tuple[float, float, float]]]:
+    ) -> tuple[Point3D, tuple[float, float, float] | None]:
         """Отримати розташування та напрямок елемента."""
         try:
             placement = element.ObjectPlacement
@@ -226,7 +226,7 @@ class IFCConverter(BaseConverter):
 
     def _extract_duct_geometry(
         self, element, scale: float = 1000.0
-    ) -> Optional[Tuple[Point3D, Point3D, float, float, float, str]]:
+    ) -> tuple[Point3D, Point3D, float, float, float, str] | None:
         """
         Витягти геометрію повітропроводу: (start, end, width, height, diameter, shape).
         Повертає None, якщо не вдалося.
@@ -357,7 +357,7 @@ class IFCConverter(BaseConverter):
 
         return None
 
-    def _get_ports(self, element, scale: float = 1000.0) -> List[Point3D]:
+    def _get_ports(self, element, scale: float = 1000.0) -> list[Point3D]:
         """Отримати координати портів (з'єднань) елемента."""
         ports = []
         try:
@@ -379,7 +379,7 @@ class IFCConverter(BaseConverter):
             pass
         return ports
 
-    def _get_storey_for_element(self, element, floors_map: dict) -> Optional[Floor]:
+    def _get_storey_for_element(self, element, floors_map: dict) -> Floor | None:
         """Знайти поверх для елемента."""
         try:
             for rel in element.ContainedInStructure:
@@ -391,7 +391,7 @@ class IFCConverter(BaseConverter):
             pass
         return None
 
-    def _get_system_for_element(self, element) -> Optional[str]:
+    def _get_system_for_element(self, element) -> str | None:
         """Знайти назву системи для елемента."""
         try:
             for rel in element.HasAssignments:
@@ -403,7 +403,7 @@ class IFCConverter(BaseConverter):
             pass
         return None
 
-    def _get_element_quantity(self, element, qname: str) -> Optional[float]:
+    def _get_element_quantity(self, element, qname: str) -> float | None:
         """Отримати значення кількості (IfcElementQuantity)."""
         try:
             for rel in element.IsDefinedBy:
@@ -875,10 +875,10 @@ class STEPConverter(BaseConverter):
         ext = os.path.splitext(filepath)[1].lower()
         return ext in self.SUPPORTED_EXPORT
 
-    def _parse_step_simple(self, filepath: str) -> List[Dict[str, Any]]:
+    def _parse_step_simple(self, filepath: str) -> list[dict[str, Any]]:
         """Спрощений парсер STEP — витягує геометрію CARTESIAN_POINT."""
         entities = []
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         # Шукаємо CARTESIAN_POINT
@@ -1054,7 +1054,7 @@ doc.close()
 
             json_path = os.path.join(tempfile.gettempdir(), "vent_fc_import.json")
             if os.path.exists(json_path):
-                with open(json_path, "r", encoding="utf-8") as f:
+                with open(json_path, encoding="utf-8") as f:
                     data = json.load(f)
                 floor = Floor(name="Поверх 1")
                 for obj in data.get("objects", []):
@@ -1163,7 +1163,7 @@ class ProjectConverter:
         project.save(filepath)
 
     @classmethod
-    def get_supported_import_formats(cls) -> List[Tuple[str, str]]:
+    def get_supported_import_formats(cls) -> list[tuple[str, str]]:
         """Повертає список підтримуваних форматів імпорту."""
         formats = []
         if IFC_AVAILABLE:
@@ -1177,7 +1177,7 @@ class ProjectConverter:
         return formats
 
     @classmethod
-    def get_supported_export_formats(cls) -> List[Tuple[str, str]]:
+    def get_supported_export_formats(cls) -> list[tuple[str, str]]:
         """Повертає список підтримуваних форматів експорту."""
         formats = []
         if IFC_AVAILABLE:

@@ -262,7 +262,7 @@ def update_requirements():
 
     existing = ""
     if os.path.exists(req_path):
-        with open(req_path, "r", encoding="utf-8") as f:
+        with open(req_path, encoding="utf-8") as f:
             existing = f.read()
 
     added = []

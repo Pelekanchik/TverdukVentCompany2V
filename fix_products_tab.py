@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Patch for products_tab.py - inserts area/weight calculation.
 
 Run: python fix_products_tab.py
@@ -6,7 +5,7 @@ Run: python fix_products_tab.py
 
 FILE_PATH = "ventilation_company/gui_pyside6/products_tab.py"
 
-with open(FILE_PATH, "r", encoding="utf-8") as f:
+with open(FILE_PATH, encoding="utf-8") as f:
     lines = f.readlines()
 
 # Find the line with "project_id = self.parent()" inside get_data()
