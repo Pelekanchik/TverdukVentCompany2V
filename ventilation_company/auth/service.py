@@ -24,6 +24,7 @@ from ventilation_company.auth.password_policy import (
 from ventilation_company.auth.permissions import Role, has_permission
 from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.user import UserORM
+from ventilation_company.services.audit_service import log_action
 
 # Шлях до тимчасового файлу з обліковими даними першого запуску
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -144,7 +145,15 @@ class AuthService:
             session.add(user_orm)
             session.commit()
             session.refresh(user_orm)
-            return self._orm_to_user(user_orm)
+            user = self._orm_to_user(user_orm)
+            log_action(
+                "user.create",
+                entity_type="user",
+                entity_id=user.id,
+                details={"username": user.username, "full_name": user.full_name, "role": user.role},
+                actor=self._current_user,
+            )
+            return user
         finally:
             session.close()
 
@@ -192,6 +201,15 @@ class AuthService:
             for k, v in fields.items():
                 setattr(orm, k, v)
             session.commit()
+            action = "user.delete" if fields == {"is_active": 0} else "user.update"
+            safe_fields = {k: ("***" if k == "password_hash" else v) for k, v in fields.items()}
+            log_action(
+                action,
+                entity_type="user",
+                entity_id=user_id,
+                details=safe_fields,
+                actor=self._current_user,
+            )
             return True
         finally:
             session.close()
@@ -216,6 +234,16 @@ class AuthService:
                 orm.last_login = datetime.now()
                 session.commit()
                 self._current_user = self._orm_to_user(orm)
+                log_action(
+                    "auth.login",
+                    entity_type="user",
+                    entity_id=self._current_user.id,
+                    details={
+                        "username": self._current_user.username,
+                        "role": self._current_user.role,
+                    },
+                    actor=self._current_user,
+                )
                 return self._current_user
             return None
         finally:
@@ -223,6 +251,15 @@ class AuthService:
 
     def logout(self):
         """Вийти з системи."""
+        actor = self._current_user
+        if actor is not None:
+            log_action(
+                "auth.logout",
+                entity_type="user",
+                entity_id=actor.id,
+                details={"username": actor.username, "role": actor.role},
+                actor=actor,
+            )
         self._current_user = None
 
     @property

@@ -67,6 +67,7 @@ from ventilation_company.database.models.project import Project
 from ventilation_company.database.models.user import UserORM
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.services.audit_service import log_action
 from ventilation_company.utils.backup import create_backup, restore_backup
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
@@ -717,7 +718,17 @@ class ProgramSettingsTab(QWidget):
         path = self.edit_backup_path.text().strip() or "data/backups"
         os.makedirs(path, exist_ok=True)
         self._backup_worker = FunctionWorker(self._create_backup_job, path)
-        self._backup_worker.result.connect(lambda msg: QMessageBox.information(self, "Успіх", msg))
+        self._backup_worker.result.connect(
+            lambda msg: (
+                QMessageBox.information(self, "Успіх", msg),
+                log_action(
+                    "backup.create",
+                    entity_type="database",
+                    details={"path": path, "result": msg},
+                    actor=self.current_user,
+                ),
+            )
+        )
         self._backup_worker.error.connect(
             lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося створити бекап: {err}")
         )
@@ -780,7 +791,15 @@ class ProgramSettingsTab(QWidget):
 
         self._restore_worker = FunctionWorker(self._restore_backup_job, full_path)
         self._restore_worker.result.connect(
-            lambda msg: QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму.")
+            lambda msg: (
+                QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму."),
+                log_action(
+                    "backup.restore",
+                    entity_type="database",
+                    details={"path": full_path, "result": msg},
+                    actor=self.current_user,
+                ),
+            )
         )
         self._restore_worker.error.connect(
             lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося відновити: {err}")
@@ -1000,4 +1019,10 @@ class ProgramSettingsTab(QWidget):
         theme_name = "light" if self.radio_light.isChecked() else "industrial"
         self.settings.set("app.theme", theme_name)
 
+        log_action(
+            "settings.update",
+            entity_type="settings",
+            details={"company_keys": len(self.company_vars)},
+            actor=self.current_user,
+        )
         QMessageBox.information(self, "Успіх", "✅ Усі налаштування збережено в PostgreSQL")

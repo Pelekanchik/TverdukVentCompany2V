@@ -7,6 +7,7 @@
 """
 
 from ventilation_company.database.base import Base
+from ventilation_company.database.models.audit import AuditLog
 from ventilation_company.database.models.calc import (
     CalcCalculation,
     CalcItem,
@@ -47,6 +48,7 @@ from ventilation_company.database.models.work_catalog import WorkCatalog
 
 __all__ = [
     "Base",
+    "AuditLog",
     "Project",
     "ProjectComponent",
     "ProjectMaterial",
