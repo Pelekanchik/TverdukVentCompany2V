@@ -2,6 +2,7 @@
 
 import sys
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from ventilation_company.gui_pyside6.crm_tab import CRMTab
@@ -85,12 +86,19 @@ class MainWindow(QMainWindow):
 def run_app():
     app = QApplication(sys.argv)
     Theme.apply(app)
+    app.setQuitOnLastWindowClosed(False)
+
     login = LoginDialog()
+    login.setAttribute(Qt.WA_QuitOnClose, False)
     if login.exec() != LoginDialog.DialogCode.Accepted:
         sys.exit(0)
     user = login.authenticated_user
     if not user:
         sys.exit(0)
+    login.hide()
+
     window = MainWindow(user)
+    window.setAttribute(Qt.WA_DeleteOnClose, True)
+    window.destroyed.connect(app.quit)
     window.show()
     sys.exit(app.exec())

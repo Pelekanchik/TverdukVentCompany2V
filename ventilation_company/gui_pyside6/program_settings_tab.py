@@ -488,6 +488,7 @@ class ProgramSettingsTab(QWidget):
 
         btn_row = QHBoxLayout()
         for text, slot in [
+            ("📜 Audit Log", self._show_audit_log),
             ("➕ Додати", self._add_user_dialog),
             ("✏️ Редагувати", self._edit_user_dialog),
             ("🗑️ Видалити", self._delete_user),
@@ -512,6 +513,12 @@ class ProgramSettingsTab(QWidget):
         vlay.addWidget(self.users_table)
 
         self._refresh_users()
+
+    def _show_audit_log(self):
+        from ventilation_company.gui_pyside6.audit_log_dialog import AuditLogDialog
+
+        dlg = AuditLogDialog(self.current_user, self)
+        dlg.exec()
 
     def _refresh_users(self):
         self.users_table.setRowCount(0)
@@ -860,54 +867,6 @@ class ProgramSettingsTab(QWidget):
                 pass
         QMessageBox.information(self, "Готово", f"Видалено старих бекапів: {deleted}")
         self._refresh_backup_list()
-
-    def _restore_selected_backup(self):
-        item = self.list_backups.currentItem()
-        if not item:
-            QMessageBox.warning(self, "Увага", "Оберіть бекап для відновлення")
-            return
-        filename = item.text()
-        path = self.edit_backup_path.text().strip() or "data/backups"
-        full_path = os.path.join(path, filename)
-
-        reply = QMessageBox.warning(
-            self,
-            "⚠️ УВАГА",
-            f"Відновити БД з бекапу?\n\n{filename}\n\n" "ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
-            return
-
-        try:
-            if full_path.endswith(".sql"):
-                parsed = urlparse(DATABASE_URL)
-                db_name = parsed.path.lstrip("/")
-                host = parsed.hostname or "localhost"
-                port = parsed.port or 5432
-                user = parsed.username or "vent"
-                env = os.environ.copy()
-                env["PGPASSWORD"] = parsed.password or ""
-                cmd = [
-                    "psql",
-                    "-h",
-                    host,
-                    "-p",
-                    str(port),
-                    "-U",
-                    user,
-                    "-d",
-                    db_name,
-                    "-f",
-                    full_path,
-                ]
-                subprocess.run(cmd, env=env, check=True, capture_output=True)
-                QMessageBox.information(self, "Успіх", "БД відновлено. Перезапустіть програму.")
-            else:
-                if restore_backup(full_path, "data/company.db"):
-                    QMessageBox.information(self, "Успіх", "БД відновлено. Перезапустіть програму.")
-        except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося відновити:\n{e}")
 
     # ═══════════════════════════════════════════════════════════════
     # 6. СИСТЕМА
