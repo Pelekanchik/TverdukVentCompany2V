@@ -348,7 +348,7 @@ class ProjectDatabase:
     def add_product_to_project(self, project_id: int, product: dict) -> int:
         """Додати виріб до проєкту."""
         # Автоматичний розрахунок зарплати
-        from ventilation_company.gui.settings_tab import PricingSettings
+        from ventilation_company.services.pricing_settings import PricingSettings
 
         settings = PricingSettings.get_instance()
         ptype = product.get("product_type", "")

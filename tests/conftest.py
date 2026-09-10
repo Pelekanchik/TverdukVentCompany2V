@@ -9,7 +9,7 @@ import pytest
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.services.pricing_settings import PricingSettings
 
 
 @pytest.fixture

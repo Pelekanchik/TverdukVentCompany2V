@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.services.pricing_settings import PricingSettings
 
 
 class SalaryService:

@@ -4,8 +4,8 @@
 GUI і бізнес-логіки.
 """
 
-from ventilation_company.gui.markup_matrix_tab import classify_product, is_standard_size
-from ventilation_company.gui.settings_tab import PricingSettings
+from ventilation_company.services.markup_matrix import classify_product, is_standard_size
+from ventilation_company.services.pricing_settings import PricingSettings
 
 
 class PriceCalculator:

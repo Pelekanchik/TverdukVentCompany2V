@@ -375,7 +375,7 @@ class SpecBuilder:
         self.spec = Specification(project_name=project_name, project_id=project_id)
         self._pricing = None
         try:
-            from ventilation_company.gui.settings_tab import PricingSettings
+            from ventilation_company.services.pricing_settings import PricingSettings
 
             self._pricing = PricingSettings()
         except ImportError:
