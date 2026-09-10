@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import secrets
@@ -292,10 +293,8 @@ class AuthService:
                 }
                 with open(_SETUP_FILE, "w", encoding="utf-8") as f:
                     json.dump(setup_data, f, ensure_ascii=False, indent=2)
-                try:
+                with contextlib.suppress(OSError):
                     os.chmod(_SETUP_FILE, stat.S_IRUSR | stat.S_IWUSR)
-                except OSError:
-                    pass
         finally:
             session.close()
 
@@ -313,10 +312,8 @@ class AuthService:
 
     def clear_setup_credentials(self):
         if os.path.exists(_SETUP_FILE):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(_SETUP_FILE)
-            except OSError:
-                pass
 
 
 # ── Глобальний екземпляр ──

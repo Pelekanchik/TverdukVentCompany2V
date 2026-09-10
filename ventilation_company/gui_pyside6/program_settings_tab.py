@@ -14,6 +14,7 @@
   • ℹ️ Система      — версії, статистика, шляхи
 """
 
+import contextlib
 import os
 import platform
 import subprocess
@@ -914,10 +915,8 @@ class ProgramSettingsTab(QWidget):
             edit.setText(self.settings.get(key, ""))
 
         self.edit_backup_path.setText(self.settings.get("app.backup_path", "data/backups"))
-        try:
+        with contextlib.suppress(ValueError):
             self.spin_backup_keep.setValue(int(self.settings.get("app.backup_keep", "10")))
-        except ValueError:
-            pass
         self.chk_backup_auto.setChecked(self.settings.get("app.backup_auto", "0") == "1")
 
         theme_name = self.settings.get("app.theme", "industrial")

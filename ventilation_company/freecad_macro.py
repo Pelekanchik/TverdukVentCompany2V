@@ -692,9 +692,7 @@ def get_bounds(product_data):
         radius = float(product_data.get("radius", 150))
         rad = math.radians(angle)
         return radius * math.sin(rad) + w * 0.5
-    elif ptype in ("rect_tee", "round_tee"):
-        return l
-    elif ptype in ("rect_transition", "round_transition"):
+    elif ptype in ("rect_tee", "round_tee") or ptype in ("rect_transition", "round_transition"):
         return l
     elif ptype in ("rect_cap", "round_cap"):
         return float(product_data.get("depth", 30))

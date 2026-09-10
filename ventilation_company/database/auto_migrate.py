@@ -66,10 +66,7 @@ def auto_add_missing_columns() -> None:
             # Якщо колонка має default — використовуємо його
             if col.default is not None and hasattr(col.default, "arg"):
                 arg = col.default.arg
-                if isinstance(arg, str):
-                    default = f" DEFAULT '{arg}'"
-                else:
-                    default = f" DEFAULT {arg}"
+                default = f" DEFAULT '{arg}'" if isinstance(arg, str) else f" DEFAULT {arg}"
 
             sql = (
                 f'ALTER TABLE "{table_name}" '

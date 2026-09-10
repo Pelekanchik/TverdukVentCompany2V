@@ -167,7 +167,7 @@ def get_material_price(material_name: str, thickness_mm: float) -> float:
         return float(prices[key])
     # fallback до найближчої товщини
     try:
-        thicknesses = sorted(float(k) for k in prices.keys())
+        thicknesses = sorted(float(k) for k in prices)
         if not thicknesses:
             return 0.0
         closest = min(thicknesses, key=lambda t: abs(t - thickness_mm))

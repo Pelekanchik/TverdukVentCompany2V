@@ -29,6 +29,8 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+import contextlib
+
 from sqlalchemy.orm import Session
 
 from ventilation_company.auth.password_policy import validate_password
@@ -59,10 +61,8 @@ def _write_setup_credentials(username: str, password: str, role: str) -> Path:
         "note": "Локальний файл. Видаліть його після першого входу та змініть пароль.",
     }
     creds_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(creds_path, stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:
-        pass
     return creds_path
 
 

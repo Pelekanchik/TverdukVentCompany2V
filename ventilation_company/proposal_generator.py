@@ -9,6 +9,7 @@
   • підписами
 """
 
+import contextlib
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -146,10 +147,8 @@ class ProposalPDF(FPDF):
 
         # Логотип (placeholder або зображення)
         if self.data.company_logo_path and os.path.exists(self.data.company_logo_path):
-            try:
+            with contextlib.suppress(Exception):
                 self.image(self.data.company_logo_path, x=10, y=5, w=25)
-            except Exception:
-                pass
         else:
             self._set_bold(16)
             self.set_text_color(255, 255, 255)

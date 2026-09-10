@@ -8,6 +8,7 @@
   • Власний формат .ventproj
 """
 
+import contextlib
 import json
 import os
 import subprocess
@@ -326,15 +327,11 @@ class IFCConverter(BaseConverter):
             for key, val in props.items():
                 key_lower = key.lower()
                 if any(k in key_lower for k in ["width", "ширина", "b"]):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         width = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except (ValueError, TypeError):
-                        pass
                 elif any(k in key_lower for k in ["height", "висота", "h"]):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         height = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except (ValueError, TypeError):
-                        pass
                 elif any(k in key_lower for k in ["diameter", "діаметр", "d", "ø"]):
                     try:
                         diameter = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
@@ -344,10 +341,8 @@ class IFCConverter(BaseConverter):
                     except (ValueError, TypeError):
                         pass
                 elif any(k in key_lower for k in ["length", "довжина", "l"]):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         length = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
-                    except (ValueError, TypeError):
-                        pass
 
             dx, dy, dz = direction
             end = Point3D(
@@ -437,10 +432,8 @@ class IFCConverter(BaseConverter):
         floors_map = {}
         for storey in ifc_file.by_type("IfcBuildingStorey"):
             level = 0
-            try:
+            with contextlib.suppress(Exception):
                 level = float(storey.Elevation) * scale
-            except Exception:
-                pass
             floor = Floor(
                 id=storey.GlobalId,
                 name=storey.Name or f"Поверх {len(floors_map) + 1}",
@@ -615,10 +608,8 @@ class IFCConverter(BaseConverter):
                     if any(
                         k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]
                     ):
-                        try:
+                        with contextlib.suppress(ValueError, TypeError):
                             air_flow = float(val)
-                        except (ValueError, TypeError):
-                            pass
 
                 width = 400
                 height = 200

@@ -7,6 +7,7 @@
   Прибуток = ціна (зі знижкою) − собівартість               [auto]
 """
 
+import contextlib
 from datetime import datetime
 
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
@@ -54,10 +55,8 @@ class ProjectEditDialog(QDialog):
         project_id = self.project_data.get("id")
         products = []
         if project_id:
-            try:
+            with contextlib.suppress(Exception):
                 products = ProductRepository.get_all(project_id=project_id)
-            except Exception:
-                pass
 
         cost_total = sum(p.get("cost_price", 0) * p.get("quantity", 1) for p in products)
         # ← v2.4: ціна з урахуванням знижки на вироби

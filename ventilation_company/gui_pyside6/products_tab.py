@@ -951,10 +951,7 @@ class ProductsTab(QWidget):
             disc = item.get("discounted_price", 0)
             total = item.get("total_price", 0)
             # Розрахунок знижки % для відображення
-            if disc > 0 and total > 0:
-                discount_pct = round((1 - disc / total) * 100, 1)
-            else:
-                discount_pct = 0
+            discount_pct = round((1 - disc / total) * 100, 1) if disc > 0 and total > 0 else 0
             effective = disc if disc > 0 else total
             row = [
                 QStandardItem(str(item.get("id", ""))),

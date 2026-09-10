@@ -218,7 +218,7 @@ class PriceImporter:
             )
             record.price_per_m2 = (
                 self._parse_price(
-                    row.get("Ціна за м²", row.get("Price per m2", row.get("ціна за м²", None)))
+                    row.get("Ціна за м²", row.get("Price per m2", row.get("ціна за м²")))
                 )
                 or None
             )
