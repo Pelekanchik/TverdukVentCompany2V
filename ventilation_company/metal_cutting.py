@@ -195,12 +195,8 @@ class Sheet:
                 h = detail.total_width if rotated else detail.total_height
 
                 if w <= rw and h <= rh:
-                    if heuristic == "best_fit":
-                        # Найщільніше вміщення — мінімальний залишок площі
-                        score = (rw * rh) - (w * h)
-                    else:
-                        # Bottom-Left: лівіше і нижче = краще
-                        score = rx + ry * 2
+                    # Best fit: minimize leftover area; otherwise bottom-left.
+                    score = (rw * rh) - (w * h) if heuristic == "best_fit" else rx + ry * 2
 
                     if score < best_score:
                         best_score = score

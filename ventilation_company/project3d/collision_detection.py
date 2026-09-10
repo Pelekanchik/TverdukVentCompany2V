@@ -333,9 +333,8 @@ class CollisionDetector:
 
     def _segment_hits_wall(self, seg: DuctSegment, wall: Wall, openings: List[Opening]) -> bool:
         for opening in openings:
-            if opening.wall_id == wall.id:
-                if self._segment_passes_through_opening(seg, opening):
-                    return False
+            if opening.wall_id == wall.id and self._segment_passes_through_opening(seg, opening):
+                return False
         dist = self._distance_segment_to_wall(seg, wall)
         clearance = self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE
         return dist < (clearance + max(seg.width, seg.height) / 2)
@@ -387,9 +386,8 @@ class CollisionDetector:
 
     def _fitting_hits_wall(self, fit: Fitting, wall: Wall, openings: List[Opening]) -> bool:
         for opening in openings:
-            if opening.wall_id == wall.id:
-                if self._point_in_opening(fit.position, opening):
-                    return False
+            if opening.wall_id == wall.id and self._point_in_opening(fit.position, opening):
+                return False
         dist = self._distance_point_to_wall(fit.position, wall)
         size = max(fit.width_in, fit.height_in, fit.width_out, fit.height_out) / 2
         clearance = self.DUCT_BEAM_CLEARANCE if wall.is_load_bearing else self.DUCT_WALL_CLEARANCE

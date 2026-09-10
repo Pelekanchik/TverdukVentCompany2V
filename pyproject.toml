@@ -63,7 +63,7 @@ exclude = ["venv", ".venv", "build", "dist", "__pycache__", "legacy"]
 
 [tool.ruff.lint]
 select = ["E9", "F821", "F401", "I001", "B", "SIM"]
-ignore = ["E501", "SIM102", "SIM108", "SIM113"]
+ignore = ["E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

@@ -189,11 +189,10 @@ class CostEngine:
         material_prices = self.pricing.get("material_prices", {})
         if isinstance(material_prices, dict):
             for mat_name, thicknesses in material_prices.items():
-                if isinstance(thicknesses, dict):
-                    if mat_name.lower() == material_name.lower():
-                        price = thicknesses.get(str(thickness_mm), 0)
-                        if price:
-                            return float(price)
+                if isinstance(thicknesses, dict) and mat_name.lower() == material_name.lower():
+                    price = thicknesses.get(str(thickness_mm), 0)
+                    if price:
+                        return float(price)
         # Fallback to manufacturing_params.py
         return get_material_price(material_name, thickness_mm)
 

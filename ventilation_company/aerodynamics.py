@@ -427,15 +427,17 @@ def select_fan(air_flow: float, pressure: float, fan_type: Optional[str] = None)
         if fan_type and fan["type"] != fan_type:
             continue
         # Запас 15% по потоку та тиску
-        if fan["flow_min"] <= air_flow * 1.15 <= fan["flow_max"]:
-            if fan["pressure_min"] <= pressure * 1.15 <= fan["pressure_max"]:
-                # Рейтинг: чим ближче до середини діапазону, тим краще
-                flow_mid = (fan["flow_min"] + fan["flow_max"]) / 2
-                pressure_mid = (fan["pressure_min"] + fan["pressure_max"]) / 2
-                flow_score = 1 - abs(air_flow - flow_mid) / flow_mid
-                pressure_score = 1 - abs(pressure - pressure_mid) / pressure_mid
-                score = flow_score + pressure_score
-                candidates.append((score, fan))
+        if (
+            fan["flow_min"] <= air_flow * 1.15 <= fan["flow_max"]
+            and fan["pressure_min"] <= pressure * 1.15 <= fan["pressure_max"]
+        ):
+            # Рейтинг: чим ближче до середини діапазону, тим краще
+            flow_mid = (fan["flow_min"] + fan["flow_max"]) / 2
+            pressure_mid = (fan["pressure_min"] + fan["pressure_max"]) / 2
+            flow_score = 1 - abs(air_flow - flow_mid) / flow_mid
+            pressure_score = 1 - abs(pressure - pressure_mid) / pressure_mid
+            score = flow_score + pressure_score
+            candidates.append((score, fan))
 
     if not candidates:
         # Спробуємо знайти найближчий

@@ -77,15 +77,13 @@ class GanttChart:
 
         y_positions = {}
         y_labels = []
-        y = 0
 
-        for op in operations:
+        for y, op in enumerate(operations):
             label = f"{op.product_name} — {op.operation_type.value}"
             if show_equipment:
                 label += f" [{op.equipment.name}]"
             y_positions[op.id] = y
             y_labels.append(label)
-            y += 1
 
         # Малюємо бари
         for op in operations:
