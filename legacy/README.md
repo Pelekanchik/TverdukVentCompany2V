@@ -73,3 +73,12 @@ Moved at: 2026-09-10 14:51:25
 Moved at: 2026-09-10 15:09:41
 
 - `ventilation_company/db_integration.py` replaced for tests by `tests/helpers.py`
+
+## Archived root patch/fix scripts
+
+Moved at: 2026-09-10 16:00:04
+
+- `fix_products_tab.py`
+- `patch_calc_button.py`
+- `patch_cost_engine.py`
+- `patch_main_window_docs.py`
