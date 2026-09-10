@@ -66,6 +66,7 @@ from ventilation_company.database.models.calc import CalcSetting
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.models.user import UserORM
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.utils.backup import create_backup, restore_backup
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
@@ -715,46 +716,105 @@ class ProgramSettingsTab(QWidget):
     def _create_backup_now(self):
         path = self.edit_backup_path.text().strip() or "data/backups"
         os.makedirs(path, exist_ok=True)
-        try:
-            if "postgresql" in DATABASE_URL:
-                parsed = urlparse(DATABASE_URL)
-                db_name = parsed.path.lstrip("/")
-                host = parsed.hostname or "localhost"
-                port = parsed.port or 5432
-                user = parsed.username or "vent"
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                dump_file = os.path.join(path, f"ventcompany_backup_{timestamp}.sql")
+        self._backup_worker = FunctionWorker(self._create_backup_job, path)
+        self._backup_worker.result.connect(lambda msg: QMessageBox.information(self, "Успіх", msg))
+        self._backup_worker.error.connect(
+            lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося створити бекап: {err}")
+        )
+        self._backup_worker.finished.connect(self._refresh_backup_list)
+        self._backup_worker.start()
 
-                env = os.environ.copy()
-                env["PGPASSWORD"] = parsed.password or ""
+    def _create_backup_job(self, path: str) -> str:
+        if "postgresql" in DATABASE_URL:
+            parsed = urlparse(DATABASE_URL)
+            db_name = parsed.path.lstrip("/")
+            host = parsed.hostname or "localhost"
+            port = parsed.port or 5432
+            user = parsed.username or "vent"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dump_file = os.path.join(path, f"ventcompany_backup_{timestamp}.sql")
 
-                cmd = [
-                    "pg_dump",
-                    "-h",
-                    host,
-                    "-p",
-                    str(port),
-                    "-U",
-                    user,
-                    "-d",
-                    db_name,
-                    "-f",
-                    dump_file,
-                    "-F",
-                    "p",
-                ]
-                subprocess.run(cmd, env=env, check=True, capture_output=True)
-                QMessageBox.information(self, "Успіх", f"Бекап PostgreSQL створено:\n{dump_file}")
-            else:
-                db_path = "data/company.db"
-                bp = create_backup(db_path)
-                if bp:
-                    QMessageBox.information(self, "Успіх", f"Бекап створено:\n{bp}")
-                else:
-                    QMessageBox.warning(self, "Увага", "БД не знайдено для бекапу")
-        except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося створити бекап:\n{e}")
-        self._refresh_backup_list()
+            env = os.environ.copy()
+            env["PGPASSWORD"] = parsed.password or ""
+
+            cmd = [
+                "pg_dump",
+                "-h",
+                host,
+                "-p",
+                str(port),
+                "-U",
+                user,
+                "-d",
+                db_name,
+                "-f",
+                dump_file,
+                "-F",
+                "p",
+            ]
+            subprocess.run(cmd, env=env, check=True, capture_output=True)
+            return f"Бекап PostgreSQL створено: {dump_file}"
+
+        backup_path = create_backup("data/company.db", path)
+        if backup_path:
+            return f"Бекап створено: {backup_path}"
+        raise RuntimeError("БД не знайдено для бекапу")
+
+    def _restore_selected_backup(self):
+        item = self.list_backups.currentItem()
+        if not item:
+            QMessageBox.warning(self, "Увага", "Оберіть бекап для відновлення")
+            return
+        filename = item.text()
+        path = self.edit_backup_path.text().strip() or "data/backups"
+        full_path = os.path.join(path, filename)
+
+        reply = QMessageBox.warning(
+            self,
+            "⚠️ УВАГА",
+            f"Відновити БД з бекапу: {filename}? ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self._restore_worker = FunctionWorker(self._restore_backup_job, full_path)
+        self._restore_worker.result.connect(
+            lambda msg: QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму.")
+        )
+        self._restore_worker.error.connect(
+            lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося відновити: {err}")
+        )
+        self._restore_worker.start()
+
+    def _restore_backup_job(self, full_path: str) -> str:
+        if full_path.endswith(".sql"):
+            parsed = urlparse(DATABASE_URL)
+            db_name = parsed.path.lstrip("/")
+            host = parsed.hostname or "localhost"
+            port = parsed.port or 5432
+            user = parsed.username or "vent"
+            env = os.environ.copy()
+            env["PGPASSWORD"] = parsed.password or ""
+            cmd = [
+                "psql",
+                "-h",
+                host,
+                "-p",
+                str(port),
+                "-U",
+                user,
+                "-d",
+                db_name,
+                "-f",
+                full_path,
+            ]
+            subprocess.run(cmd, env=env, check=True, capture_output=True)
+            return "БД відновлено."
+
+        if restore_backup(full_path, "data/company.db"):
+            return "БД відновлено."
+        raise RuntimeError("Не вдалося відновити бекап")
 
     def _refresh_backup_list(self):
         self.list_backups.clear()
