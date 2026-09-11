@@ -22,22 +22,24 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from ventilation_company.manufacturing_params import get_material_price
+from ventilation_company.paths import DATA_DIR
 from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("cost_engine")
 
-_PRICING_PATH = Path(__file__).parent.parent / "data" / "pricing_settings.json"
+_PRICING_PATH = DATA_DIR / "pricing_settings.json"
 
 
 def _load_pricing() -> dict[str, Any]:
     try:
         with open(_PRICING_PATH, encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
         _logger.error("Не вдалося завантажити %s", _PRICING_PATH)
         return {}
 

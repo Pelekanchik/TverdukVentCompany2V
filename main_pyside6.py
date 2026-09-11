@@ -13,6 +13,11 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from ventilation_company.bootstrap import ensure_runtime_dirs
+
+ensure_runtime_dirs()
+
 MIGRATIONS_DONE_ENV = "VENTCOMPANY_MIGRATIONS_DONE"
 LAUNCH_GUI = PROJECT_ROOT / "launch_gui.py"
 
