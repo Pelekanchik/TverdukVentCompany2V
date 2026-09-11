@@ -65,6 +65,11 @@ from ventilation_company.database.db import (
 from ventilation_company.database.models.calc import CalcSetting
 from ventilation_company.database.models.project import Project
 from ventilation_company.database.models.user import UserORM
+from ventilation_company.database.repositories.app_settings_repository import (
+    AppSettingsRepository,
+    _mask_url,
+    get_role_label,
+)
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
@@ -77,81 +82,6 @@ LIGHT_QSS = ""
 
 # ═══════════════════════════════════════════════════════════════════
 # Репозиторій налаштувань програми (key-value в PostgreSQL)
-# ═══════════════════════════════════════════════════════════════════
-class AppSettingsRepository:
-    """CRUD для програмних налаштувань через таблицю calc_settings."""
-
-    _CACHE: dict[str, str] = {}
-
-    def __init__(self):
-        self._session_factory = SessionLocal
-
-    def _session(self):
-        return self._session_factory()
-
-    def get(self, key: str, default: str = "") -> str:
-        if key in self._CACHE:
-            return self._CACHE[key]
-        session = self._session()
-        try:
-            row = session.query(CalcSetting).filter(CalcSetting.key == key).first()
-            val = row.value if row else default
-            self._CACHE[key] = val
-            return val
-        finally:
-            session.close()
-
-    def set(self, key: str, value: str) -> None:
-        session = self._session()
-        try:
-            row = session.query(CalcSetting).filter(CalcSetting.key == key).first()
-            if row:
-                row.value = value
-            else:
-                session.add(CalcSetting(key=key, value=value))
-            session.commit()
-            self._CACHE[key] = value
-        finally:
-            session.close()
-
-    def clear_cache(self):
-        self._CACHE.clear()
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Хелпери
-# ═══════════════════════════════════════════════════════════════════
-ROLE_LABELS = {
-    "admin": "Адміністратор",
-    "manager": "Менеджер",
-    "engineer": "Інженер",
-    "master": "Майстер",
-    "accountant": "Бухгалтер",
-    "viewer": "Перегляд",
-    "director": "Директор",
-    "monter": "Монтажник",
-}
-
-
-def get_role_label(role: str) -> str:
-    return ROLE_LABELS.get(role, role)
-
-
-def _mask_url(url: str) -> str:
-    """Замаскувати пароль у DATABASE_URL."""
-    if "://" not in url:
-        return url
-    try:
-        parsed = urlparse(url)
-        if parsed.password:
-            return url.replace(f":{parsed.password}@", ":***@")
-    except Exception:
-        pass
-    return url
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Головний клас
 # ═══════════════════════════════════════════════════════════════════
 class ProgramSettingsTab(QWidget):
     """Вкладка '⚙️ Налаштування' — інтегрована з Catppuccin Mocha."""
