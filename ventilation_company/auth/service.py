@@ -14,6 +14,7 @@ import json
 import os
 import secrets
 import stat
+from datetime import datetime, timedelta
 
 from ventilation_company.auth.password_policy import (
     PasswordValidationResult,
@@ -29,6 +30,10 @@ from ventilation_company.services.audit_service import log_action
 # Шлях до тимчасового файлу з обліковими даними першого запуску
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SETUP_FILE = os.path.join(_BASE_DIR, "data", ".setup_credentials.json")
+
+MAX_FAILED_ATTEMPTS = 5
+ATTEMPT_WINDOW_SECONDS = 600
+LOCKOUT_SECONDS = 600
 
 
 class User:
@@ -59,6 +64,8 @@ class AuthService:
     """Сервіс автентифікації з хешуванням паролів (SQLAlchemy ORM)."""
 
     _instance: AuthService | None = None
+    _login_attempts: dict[str, list[datetime]] = {}
+    _login_lockouts: dict[str, datetime] = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -218,9 +225,39 @@ class AuthService:
         """Soft-delete."""
         return self.update_user(user_id, is_active=0)
 
+    # ── Login rate limiting (in-memory) ──
+    def _is_locked(self, username: str, now: datetime | None = None) -> bool:
+        now = now or datetime.now()
+        locked_until = self._login_lockouts.get(username)
+        if not locked_until:
+            return False
+        if now < locked_until:
+            return True
+        self._login_lockouts.pop(username, None)
+        self._login_attempts.pop(username, None)
+        return False
+
+    def _record_failed_attempt(self, username: str, now: datetime | None = None) -> None:
+        now = now or datetime.now()
+        attempts = [
+            ts
+            for ts in self._login_attempts.get(username, [])
+            if (now - ts).total_seconds() <= ATTEMPT_WINDOW_SECONDS
+        ]
+        attempts.append(now)
+        self._login_attempts[username] = attempts
+        if len(attempts) >= MAX_FAILED_ATTEMPTS:
+            self._login_lockouts[username] = now + timedelta(seconds=LOCKOUT_SECONDS)
+
+    def _clear_failed_attempts(self, username: str) -> None:
+        self._login_attempts.pop(username, None)
+        self._login_lockouts.pop(username, None)
+
     # ── Автентифікація ──
     def authenticate(self, username: str, password: str) -> User | None:
         """Перевірити логін/пароль і повернути користувача."""
+        if self._is_locked(username):
+            return None
         session = self._session()
         try:
             orm = (
@@ -229,8 +266,7 @@ class AuthService:
                 .first()
             )
             if orm and self._verify_password(password, orm.password_hash):
-                from datetime import datetime
-
+                self._clear_failed_attempts(username)
                 orm.last_login = datetime.now()
                 session.commit()
                 self._current_user = self._orm_to_user(orm)
@@ -245,6 +281,13 @@ class AuthService:
                     actor=self._current_user,
                 )
                 return self._current_user
+            log_action(
+                "auth.login_failed",
+                entity_type="user",
+                details={"username": username},
+                actor=None,
+            )
+            self._record_failed_attempt(username)
             return None
         finally:
             session.close()
