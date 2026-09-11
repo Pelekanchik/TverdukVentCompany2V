@@ -5,6 +5,7 @@ CRUD + фільтрація по проєкту та типу.
 
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project_document import ProjectDocument
+from ventilation_company.services.audit_service import log_action
 
 
 class ProjectDocumentRepository:
@@ -24,6 +25,17 @@ class ProjectDocumentRepository:
             session.flush()
             session.refresh(doc)
             session.commit()
+            log_action(
+                "document.create",
+                entity_type="document",
+                entity_id=doc.id,
+                details={
+                    "project_id": doc.project_id,
+                    "doc_type": doc.doc_type,
+                    "filename": doc.filename,
+                    "file_size": doc.file_size,
+                },
+            )
             return {
                 "id": doc.id,
                 "project_id": doc.project_id,
@@ -74,6 +86,12 @@ class ProjectDocumentRepository:
             doc = session.query(ProjectDocument).filter(ProjectDocument.id == doc_id).first()
             if not doc:
                 return False
+            log_action(
+                "document.delete",
+                entity_type="document",
+                entity_id=doc.id,
+                details={"project_id": doc.project_id, "filename": doc.filename},
+            )
             session.delete(doc)
             session.commit()
             return True

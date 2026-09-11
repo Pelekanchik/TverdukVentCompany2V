@@ -5,6 +5,7 @@
 
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.product_item import ProductItem
+from ventilation_company.services.audit_service import log_action
 
 
 def _item_to_dict(item: ProductItem) -> dict:
@@ -82,6 +83,12 @@ class ProductRepository:
             session.flush()
             session.refresh(item)
             session.commit()
+            log_action(
+                "product.create",
+                entity_type="product",
+                entity_id=item.id,
+                details={"name": item.name, "project_id": item.project_id},
+            )
             return _item_to_dict(item)
 
     @staticmethod
@@ -94,6 +101,12 @@ class ProductRepository:
                 if hasattr(item, key):
                     setattr(item, key, value)
             session.commit()
+            log_action(
+                "product.update",
+                entity_type="product",
+                entity_id=item_id,
+                details={"fields": sorted(data.keys())},
+            )
             return True
 
     @staticmethod
@@ -102,6 +115,12 @@ class ProductRepository:
             item = session.query(ProductItem).filter(ProductItem.id == item_id).first()
             if not item:
                 return False
+            log_action(
+                "product.delete",
+                entity_type="product",
+                entity_id=item.id,
+                details={"name": item.name, "project_id": item.project_id},
+            )
             session.delete(item)
             session.commit()
             return True
