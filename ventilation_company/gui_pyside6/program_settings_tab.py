@@ -14,17 +14,12 @@
   • ℹ️ Система      — версії, статистика, шляхи
 """
 
-import contextlib
 import os
 import platform
-import subprocess
-from datetime import datetime
-from urllib.parse import urlparse
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QCheckBox,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -32,11 +27,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSpinBox,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
@@ -53,13 +46,12 @@ from ventilation_company.database.repositories.app_settings_repository import (
     AppSettingsRepository,
     _mask_url,
 )
+from ventilation_company.gui_pyside6.settings_backup_tab import BackupSettingsTab
 from ventilation_company.gui_pyside6.settings_theme_tab import ThemeSettingsTab
 from ventilation_company.gui_pyside6.settings_users_tab import UsersAdminTab
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
 from ventilation_company.services.system_service import SystemService
-from ventilation_company.utils.backup import create_backup, restore_backup
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
 INDUSTRIAL_QSS = ""
@@ -314,222 +306,11 @@ class ProgramSettingsTab(QWidget):
         lay.addWidget(self.users_tab)
 
     def _build_backup_tab(self):
-        hlay = QHBoxLayout(self.tab_backup)
+        lay = QVBoxLayout(self.tab_backup)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.backup_tab = BackupSettingsTab(self.current_user)
+        lay.addWidget(self.backup_tab)
 
-        left = QVBoxLayout()
-
-        cfg = QGroupBox("Налаштування бекапу")
-        v = QVBoxLayout(cfg)
-        v.setSpacing(8)
-        v.addWidget(QLabel("Шлях до директорії бекапів:"))
-        self.edit_backup_path = QLineEdit("data/backups")
-        v.addWidget(self.edit_backup_path)
-
-        v.addWidget(QLabel("Зберігати копій:"))
-        self.spin_backup_keep = QSpinBox()
-        self.spin_backup_keep.setRange(1, 100)
-        self.spin_backup_keep.setValue(10)
-        v.addWidget(self.spin_backup_keep)
-
-        self.chk_backup_auto = QCheckBox("Автоматичний бекап при виході")
-        v.addWidget(self.chk_backup_auto)
-
-        btn_save_cfg = QPushButton("💾 Зберегти налаштування бекапу")
-        btn_save_cfg.setMinimumHeight(32)
-        btn_save_cfg.clicked.connect(self._save_backup_settings)
-        v.addWidget(btn_save_cfg)
-        left.addWidget(cfg)
-
-        ctrl = QGroupBox("Керування")
-        v2 = QVBoxLayout(ctrl)
-        v2.setSpacing(8)
-        btn_create = QPushButton("📦 Створити бекап зараз")
-        btn_create.setMinimumHeight(32)
-        btn_create.clicked.connect(self._create_backup_now)
-        v2.addWidget(btn_create)
-        btn_clean = QPushButton("🧹 Очистити старі бекапи")
-        btn_clean.setMinimumHeight(32)
-        btn_clean.clicked.connect(self._cleanup_backups)
-        v2.addWidget(btn_clean)
-        left.addWidget(ctrl)
-        left.addStretch()
-
-        hlay.addLayout(left, 1)
-
-        right = QGroupBox("Існуючі бекапи")
-        v3 = QVBoxLayout(right)
-        self.list_backups = QListWidget()
-        v3.addWidget(self.list_backups)
-
-        btn_row = QHBoxLayout()
-        btn_refresh = QPushButton("🔄 Оновити список")
-        btn_refresh.setMinimumHeight(32)
-        btn_refresh.clicked.connect(self._refresh_backup_list)
-        btn_row.addWidget(btn_refresh)
-        btn_restore = QPushButton("↩️ Відновити")
-        btn_restore.setMinimumHeight(32)
-        btn_restore.clicked.connect(self._restore_selected_backup)
-        btn_row.addWidget(btn_restore)
-        v3.addLayout(btn_row)
-
-        hlay.addWidget(right, 1)
-
-    def _save_backup_settings(self):
-        self.settings.set("app.backup_path", self.edit_backup_path.text())
-        self.settings.set("app.backup_keep", str(self.spin_backup_keep.value()))
-        self.settings.set("app.backup_auto", "1" if self.chk_backup_auto.isChecked() else "0")
-        QMessageBox.information(self, "Успіх", "Налаштування бекапу збережено")
-
-    def _create_backup_now(self):
-        path = self.edit_backup_path.text().strip() or "data/backups"
-        os.makedirs(path, exist_ok=True)
-        self._backup_worker = FunctionWorker(self._create_backup_job, path)
-        self._backup_worker.result.connect(
-            lambda msg: (
-                QMessageBox.information(self, "Успіх", msg),
-                log_action(
-                    "backup.create",
-                    entity_type="database",
-                    details={"path": path, "result": msg},
-                    actor=self.current_user,
-                ),
-            )
-        )
-        self._backup_worker.error.connect(
-            lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося створити бекап: {err}")
-        )
-        self._backup_worker.finished.connect(self._refresh_backup_list)
-        self._backup_worker.start()
-
-    def _create_backup_job(self, path: str) -> str:
-        if "postgresql" in DATABASE_URL:
-            parsed = urlparse(DATABASE_URL)
-            db_name = parsed.path.lstrip("/")
-            host = parsed.hostname or "localhost"
-            port = parsed.port or 5432
-            user = parsed.username or "vent"
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dump_file = os.path.join(path, f"ventcompany_backup_{timestamp}.sql")
-
-            env = os.environ.copy()
-            env["PGPASSWORD"] = parsed.password or ""
-
-            cmd = [
-                "pg_dump",
-                "-h",
-                host,
-                "-p",
-                str(port),
-                "-U",
-                user,
-                "-d",
-                db_name,
-                "-f",
-                dump_file,
-                "-F",
-                "p",
-            ]
-            subprocess.run(cmd, env=env, check=True, capture_output=True)
-            return f"Бекап PostgreSQL створено: {dump_file}"
-
-        backup_path = create_backup("data/company.db", path)
-        if backup_path:
-            return f"Бекап створено: {backup_path}"
-        raise RuntimeError("БД не знайдено для бекапу")
-
-    def _restore_selected_backup(self):
-        item = self.list_backups.currentItem()
-        if not item:
-            QMessageBox.warning(self, "Увага", "Оберіть бекап для відновлення")
-            return
-        filename = item.text()
-        path = self.edit_backup_path.text().strip() or "data/backups"
-        full_path = os.path.join(path, filename)
-
-        reply = QMessageBox.warning(
-            self,
-            "⚠️ УВАГА",
-            f"Відновити БД з бекапу: {filename}? ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
-            return
-
-        self._restore_worker = FunctionWorker(self._restore_backup_job, full_path)
-        self._restore_worker.result.connect(
-            lambda msg: (
-                QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму."),
-                log_action(
-                    "backup.restore",
-                    entity_type="database",
-                    details={"path": full_path, "result": msg},
-                    actor=self.current_user,
-                ),
-            )
-        )
-        self._restore_worker.error.connect(
-            lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося відновити: {err}")
-        )
-        self._restore_worker.start()
-
-    def _restore_backup_job(self, full_path: str) -> str:
-        if full_path.endswith(".sql"):
-            parsed = urlparse(DATABASE_URL)
-            db_name = parsed.path.lstrip("/")
-            host = parsed.hostname or "localhost"
-            port = parsed.port or 5432
-            user = parsed.username or "vent"
-            env = os.environ.copy()
-            env["PGPASSWORD"] = parsed.password or ""
-            cmd = [
-                "psql",
-                "-h",
-                host,
-                "-p",
-                str(port),
-                "-U",
-                user,
-                "-d",
-                db_name,
-                "-f",
-                full_path,
-            ]
-            subprocess.run(cmd, env=env, check=True, capture_output=True)
-            return "БД відновлено."
-
-        if restore_backup(full_path, "data/company.db"):
-            return "БД відновлено."
-        raise RuntimeError("Не вдалося відновити бекап")
-
-    def _refresh_backup_list(self):
-        self.list_backups.clear()
-        path = self.edit_backup_path.text().strip() or "data/backups"
-        if not os.path.exists(path):
-            return
-        files = sorted(os.listdir(path), reverse=True)
-        for f in files:
-            if "backup" in f:
-                self.list_backups.addItem(f)
-
-    def _cleanup_backups(self):
-        keep = self.spin_backup_keep.value()
-        path = self.edit_backup_path.text().strip() or "data/backups"
-        if not os.path.exists(path):
-            return
-        files = sorted([f for f in os.listdir(path) if "backup" in f], reverse=True)
-        deleted = 0
-        for old in files[keep:]:
-            try:
-                os.remove(os.path.join(path, old))
-                deleted += 1
-            except Exception:
-                pass
-        QMessageBox.information(self, "Готово", f"Видалено старих бекапів: {deleted}")
-        self._refresh_backup_list()
-
-    # ═══════════════════════════════════════════════════════════════
-    # 6. СИСТЕМА
-    # ═══════════════════════════════════════════════════════════════
     def _build_system_tab(self):
         vlay = QVBoxLayout(self.tab_sys)
         vlay.setAlignment(Qt.AlignTop)
@@ -584,24 +365,18 @@ class ProgramSettingsTab(QWidget):
         for key, edit in self.company_vars.items():
             edit.setText(self.settings.get(key, ""))
 
-        self.edit_backup_path.setText(self.settings.get("app.backup_path", "data/backups"))
-        with contextlib.suppress(ValueError):
-            self.spin_backup_keep.setValue(int(self.settings.get("app.backup_keep", "10")))
-        self.chk_backup_auto.setChecked(self.settings.get("app.backup_auto", "0") == "1")
+        self.backup_tab.load_settings(self.settings)
 
         self.theme_tab.set_theme(self.settings.get("app.theme", "industrial"))
 
         self._test_db_connection()
         self._refresh_db_stats()
-        self._refresh_backup_list()
 
     def _save_all(self):
         for key, edit in self.company_vars.items():
             self.settings.set(key, edit.text())
 
-        self.settings.set("app.backup_path", self.edit_backup_path.text())
-        self.settings.set("app.backup_keep", str(self.spin_backup_keep.value()))
-        self.settings.set("app.backup_auto", "1" if self.chk_backup_auto.isChecked() else "0")
+        self.backup_tab.save_settings(self.settings)
 
         theme_name = self.theme_tab.theme_name()
         self.settings.set("app.theme", theme_name)
