@@ -6,6 +6,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -24,8 +27,22 @@ jobs:
       - name: Build PyInstaller bundle
         run: pyinstaller --clean --noconfirm VentCompany.spec
 
+      - name: Package release ZIP
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Compress-Archive -Path "dist\VentCompany\*" -DestinationPath "release\VentCompany-windows.zip" -Force
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: VentCompany-windows
-          path: dist/VentCompany
+          path: release/VentCompany-windows.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VentCompany ${{ github.ref_name }}
+          files: release/VentCompany-windows.zip
+          generate_release_notes: true
