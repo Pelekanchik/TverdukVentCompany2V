@@ -8,6 +8,7 @@ import threading
 from dataclasses import dataclass, field
 
 from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
+from ventilation_company.paths import DATA_DIR
 from ventilation_company.services.markup_matrix import (
     PRODUCT_TYPE_LABELS,
     build_default_markup_matrix,
@@ -15,7 +16,7 @@ from ventilation_company.services.markup_matrix import (
     is_standard_size,
 )
 
-SETTINGS_FILE = "data/pricing_settings.json"
+SETTINGS_FILE = str(DATA_DIR / "pricing_settings.json")
 
 DEFAULT_MATERIAL_PRICES = {
     "оцинкована сталь": {

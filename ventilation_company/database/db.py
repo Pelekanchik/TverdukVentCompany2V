@@ -15,10 +15,24 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-# === ВАЖЛИВО: явний шлях до .env ===
-env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
-# =====================================
+from ventilation_company.paths import APP_ROOT
+
+# === Source + PyInstaller-safe .env loading ===
+_candidate_envs = [
+    Path.cwd() / ".env",
+    APP_ROOT / ".env",
+    Path(__file__).resolve().parents[3] / ".env",
+]
+for _env_path in _candidate_envs:
+    if _env_path.exists():
+        try:
+            load_dotenv(dotenv_path=_env_path, override=True, encoding="utf-8")
+        except UnicodeDecodeError:
+            load_dotenv(dotenv_path=_env_path, override=True, encoding="cp1251")
+        break
+else:
+    load_dotenv(override=True, encoding="utf-8")
+# ===============================================
 
 logger = logging.getLogger(__name__)
 

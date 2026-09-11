@@ -4,8 +4,11 @@
 
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+from ventilation_company.paths import APP_ROOT as _APP_ROOT
+from ventilation_company.paths import DATA_DIR as _DATA_DIR
+
+BASE_DIR = str(_APP_ROOT)
+DATA_DIR = str(_DATA_DIR)
 PROJECTS_DIR = os.path.join(DATA_DIR, "projects")
 ARCHIVE_DIR = os.path.join(DATA_DIR, "archive")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
