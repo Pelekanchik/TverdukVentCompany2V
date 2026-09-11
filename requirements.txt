@@ -5,6 +5,7 @@ alembic>=1.13.0
 python-dotenv>=1.0.0
 psycopg2-binary>=2.9.9
 bcrypt>=4.0.0
+requests>=2.31.0
 
 # Documents / reports / integrations
 openpyxl>=3.1.0

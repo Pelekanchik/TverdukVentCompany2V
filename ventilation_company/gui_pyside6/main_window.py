@@ -17,6 +17,7 @@ from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
 from ventilation_company.gui_pyside6.sidebar import Sidebar, can_open_tab
 from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.update_checker import UpdateChecker
 from ventilation_company.services.auth_service import AuthUser
 
 
@@ -29,6 +30,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
         self._build_ui()
+        self.update_checker = UpdateChecker(self)
+        self.update_checker.start()
 
     def _build_ui(self):
         central = QWidget()
