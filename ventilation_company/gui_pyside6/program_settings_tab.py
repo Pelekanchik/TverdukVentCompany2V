@@ -52,19 +52,12 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.auth.service import auth
-from ventilation_company.database.base import Base
 from ventilation_company.database.db import (
     DATABASE_URL,
     MAX_OVERFLOW,
     POOL_RECYCLE,
     POOL_SIZE,
-    SessionLocal,
-    check_db_connection,
-    engine,
 )
-from ventilation_company.database.models.calc import CalcSetting
-from ventilation_company.database.models.project import Project
-from ventilation_company.database.models.user import UserORM
 from ventilation_company.database.repositories.app_settings_repository import (
     AppSettingsRepository,
     _mask_url,
@@ -73,6 +66,7 @@ from ventilation_company.database.repositories.app_settings_repository import (
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
+from ventilation_company.services.system_service import SystemService
 from ventilation_company.utils.backup import create_backup, restore_backup
 
 # Зворотна сумісність — QSS константи (тепер не використовуються, тема через Theme)
@@ -287,22 +281,15 @@ class ProgramSettingsTab(QWidget):
         hlay.addWidget(grp_stats, 1)
 
     def _test_db_connection(self):
-        ok = check_db_connection()
+        ok, info = SystemService.test_connection()
         if ok:
             self.lbl_db_status.setText("✅ Підключено до PostgreSQL")
             self.lbl_db_status.setStyleSheet(f"color: {Theme.SUCCESS};")
-            try:
-                from sqlalchemy import text
-
-                with engine.connect() as conn:
-                    version = conn.execute(text("SELECT version()")).scalar()
-                    self.lbl_db_info.setText(str(version)[:150])
-            except Exception as e:
-                self.lbl_db_info.setText(f"Помилка: {e}")
+            self.lbl_db_info.setText(info)
         else:
             self.lbl_db_status.setText("❌ Немає з'єднання з PostgreSQL")
             self.lbl_db_status.setStyleSheet(f"color: {Theme.DANGER};")
-            self.lbl_db_info.setText("")
+            self.lbl_db_info.setText(info)
 
     def _create_tables(self):
         reply = QMessageBox.question(
@@ -313,49 +300,15 @@ class ProgramSettingsTab(QWidget):
         )
         if reply == QMessageBox.Yes:
             try:
-                Base.metadata.create_all(bind=engine)
+                SystemService.create_tables()
                 QMessageBox.information(self, "Успіх", "Таблиці створено / оновлено.")
                 self._refresh_db_stats()
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося створити таблиці:\n{e}")
 
     def _refresh_db_stats(self):
-        try:
-            from sqlalchemy import text
+        self.txt_db_stats.setPlainText(SystemService.db_stats())
 
-            stats = []
-            with engine.connect() as conn:
-                size_row = conn.execute(
-                    text("SELECT pg_size_pretty(pg_database_size(current_database()))")
-                ).scalar()
-                stats.append(f"📦 Розмір БД: {size_row}")
-
-                tables = conn.execute(
-                    text(
-                        "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"
-                    )
-                ).scalar()
-                stats.append(f"📋 Таблиць: {tables}")
-
-                for tbl in [
-                    "projects",
-                    "users",
-                    "project_products",
-                    "clients",
-                    "calc_calculations",
-                ]:
-                    try:
-                        cnt = conn.execute(text(f"SELECT count(*) FROM {tbl}")).scalar()
-                        stats.append(f"   • {tbl}: {cnt} записів")
-                    except Exception:
-                        pass
-            self.txt_db_stats.setPlainText("\n".join(stats))
-        except Exception as e:
-            self.txt_db_stats.setPlainText(f"❌ Помилка: {e}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # 3. ТЕМА
-    # ═══════════════════════════════════════════════════════════════
     def _build_theme_tab(self):
         vlay = QVBoxLayout(self.tab_theme)
         vlay.setAlignment(Qt.AlignTop)
@@ -846,38 +799,11 @@ class ProgramSettingsTab(QWidget):
         self._refresh_system_stats()
 
     def _pkg_version(self, pkg: str) -> str:
-        try:
-            import importlib.metadata
-
-            return importlib.metadata.version(pkg)
-        except Exception:
-            return "невідомо"
+        return SystemService.package_version(pkg)
 
     def _refresh_system_stats(self):
-        try:
-            session = SessionLocal()
-            stats = [
-                f"📋 Проєктів у БД: {session.query(Project).count()}",
-                f"👥 Користувачів: {session.query(UserORM).count()}",
-                f"⚙️ Налаштувань: {session.query(CalcSetting).count()}",
-            ]
-            session.close()
+        self.lbl_sys_stats.setText(SystemService.system_stats())
 
-            total_size = 0
-            if os.path.exists("data"):
-                for dirpath, _dirnames, filenames in os.walk("data"):
-                    for f in filenames:
-                        fp = os.path.join(dirpath, f)
-                        total_size += os.path.getsize(fp)
-            stats.append(f"📦 Розмір data/: {total_size / 1024 / 1024:.1f} МБ")
-
-            self.lbl_sys_stats.setText("\n".join(stats))
-        except Exception as e:
-            self.lbl_sys_stats.setText(f"❌ Помилка: {e}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # ЗАВАНТАЖЕННЯ / ЗБЕРЕЖЕННЯ
-    # ═══════════════════════════════════════════════════════════════
     def _load_all(self):
         for key, edit in self.company_vars.items():
             edit.setText(self.settings.get(key, ""))
