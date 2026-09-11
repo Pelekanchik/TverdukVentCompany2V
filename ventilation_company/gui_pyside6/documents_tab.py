@@ -26,6 +26,7 @@ from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
 class DocumentsTab(QWidget):
@@ -167,42 +168,46 @@ class DocumentsTab(QWidget):
             QMessageBox.warning(self, "Увага", "У проєкті немає виробів.")
             return
 
-        try:
-            # Генеруємо Excel у пам'ять
-            buffer = io.BytesIO()
-            filename = (
-                f"{doc_type}_{project['project_number']}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        self._worker = FunctionWorker(self._generate_job, project, products, doc_type)
+        self._worker.result.connect(self._on_document_generated)
+        self._worker.error.connect(
+            lambda err: QMessageBox.critical(
+                self, "Помилка", f"Не вдалося згенерувати документ: {err}"
             )
+        )
+        self._worker.start()
 
-            if doc_type == "spec":
-                self._gen_spec(project, products, buffer)
-            elif doc_type == "calc":
-                self._gen_calc(project, products, buffer)
-            elif doc_type == "metal":
-                self._gen_metal(project, products, buffer)
-            elif doc_type == "order":
-                self._gen_order(project, products, buffer)
+    def _on_document_generated(self, payload):
+        filename, size_kb = payload
+        QMessageBox.information(
+            self,
+            "Успіх",
+            f"Документ збережено в базі даних! Файл: {filename} Розмір: {size_kb:.1f} КБ. Перегляньте у картці проєкту.",
+        )
 
-            content = buffer.getvalue()
+    def _generate_job(self, project, products, doc_type: str):
+        buffer = io.BytesIO()
+        filename = (
+            f"{doc_type}_{project['project_number']}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        )
 
-            # Зберігаємо в БД
-            ProjectDocumentRepository.create(
-                project_id=project["id"],
-                doc_type=doc_type,
-                filename=filename,
-                content=content,
-            )
+        if doc_type == "spec":
+            self._gen_spec(project, products, buffer)
+        elif doc_type == "calc":
+            self._gen_calc(project, products, buffer)
+        elif doc_type == "metal":
+            self._gen_metal(project, products, buffer)
+        elif doc_type == "order":
+            self._gen_order(project, products, buffer)
 
-            QMessageBox.information(
-                self,
-                "Успіх",
-                f"Документ збережено в базі даних!\n\n"
-                f"Файл: {filename}\n"
-                f"Розмір: {len(content) / 1024:.1f} КБ\n\n"
-                f"Перегляньте у картці проєкту (вкладка 'Проєкти').",
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося згенерувати документ: {e}")
+        content = buffer.getvalue()
+        ProjectDocumentRepository.create(
+            project_id=project["id"],
+            doc_type=doc_type,
+            filename=filename,
+            content=content,
+        )
+        return filename, len(content) / 1024
 
     def _style_header(self, ws, row, headers, fill_color="4472C4"):
         fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
