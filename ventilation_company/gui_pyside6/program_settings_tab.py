@@ -25,33 +25,24 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
     QMessageBox,
     QPushButton,
-    QRadioButton,
     QScrollArea,
     QSpinBox,
-    QTableWidget,
-    QTableWidgetItem,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from ventilation_company.auth.service import auth
 from ventilation_company.database.db import (
     DATABASE_URL,
     MAX_OVERFLOW,
@@ -61,8 +52,9 @@ from ventilation_company.database.db import (
 from ventilation_company.database.repositories.app_settings_repository import (
     AppSettingsRepository,
     _mask_url,
-    get_role_label,
 )
+from ventilation_company.gui_pyside6.settings_theme_tab import ThemeSettingsTab
+from ventilation_company.gui_pyside6.settings_users_tab import UsersAdminTab
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
@@ -310,233 +302,17 @@ class ProgramSettingsTab(QWidget):
         self.txt_db_stats.setPlainText(SystemService.db_stats())
 
     def _build_theme_tab(self):
-        vlay = QVBoxLayout(self.tab_theme)
-        vlay.setAlignment(Qt.AlignTop)
+        lay = QVBoxLayout(self.tab_theme)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.theme_tab = ThemeSettingsTab()
+        lay.addWidget(self.theme_tab)
 
-        lbl = QLabel("🎨 Оформлення інтерфейсу")
-        lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        vlay.addWidget(lbl)
-        vlay.addSpacing(10)
-
-        self.radio_industrial = QRadioButton("🏭 Industrial Orange (темна)")
-        self.radio_light = QRadioButton("☀️ Light (світла)")
-        self.radio_industrial.setChecked(True)
-
-        vlay.addWidget(self.radio_industrial)
-        vlay.addWidget(self.radio_light)
-
-        grp = QGroupBox("Preview кольорів")
-        h = QHBoxLayout(grp)
-        self.preview_frames = []
-        for name, color in [
-            ("bg", Theme.BG),
-            ("accent", Theme.ACCENT),
-            ("frame", Theme.BG_CARD),
-            ("button", Theme.BG_HOVER),
-            ("select", Theme.ACCENT),
-        ]:
-            f = QFrame()
-            f.setFixedSize(60, 40)
-            f.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
-            f.setToolTip(name)
-            h.addWidget(f)
-            self.preview_frames.append((name, f))
-        h.addStretch()
-        vlay.addWidget(grp)
-
-        btn_apply = QPushButton("✨ Застосувати тему")
-        btn_apply.setObjectName("primary")
-        btn_apply.setMinimumHeight(36)
-        btn_apply.clicked.connect(self._apply_theme)
-        vlay.addWidget(btn_apply)
-        vlay.addStretch()
-
-    def _apply_theme(self):
-        QMessageBox.information(
-            self, "Готово", "Тему збережено.\nПерезапустіть програму для повного ефекту."
-        )
-
-    # ═══════════════════════════════════════════════════════════════
-    # 4. КОРИСТУВАЧІ
-    # ═══════════════════════════════════════════════════════════════
     def _build_users_tab(self):
-        vlay = QVBoxLayout(self.tab_users)
+        lay = QVBoxLayout(self.tab_users)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.users_tab = UsersAdminTab(self.current_user)
+        lay.addWidget(self.users_tab)
 
-        if not self.is_director:
-            lbl = QLabel("🚫 Доступ тільки для адміністратора")
-            lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
-            lbl.setStyleSheet(f"color: {Theme.DANGER};")
-            vlay.addWidget(lbl, alignment=Qt.AlignCenter)
-            return
-
-        btn_row = QHBoxLayout()
-        for text, slot in [
-            ("📜 Audit Log", self._show_audit_log),
-            ("➕ Додати", self._add_user_dialog),
-            ("✏️ Редагувати", self._edit_user_dialog),
-            ("🗑️ Видалити", self._delete_user),
-            ("🔄 Оновити", self._refresh_users),
-        ]:
-            btn = QPushButton(text)
-            btn.setMinimumHeight(32)
-            btn.clicked.connect(slot)
-            btn_row.addWidget(btn)
-        btn_row.addStretch()
-        vlay.addLayout(btn_row)
-
-        self.users_table = QTableWidget()
-        self.users_table.setColumnCount(6)
-        self.users_table.setHorizontalHeaderLabels(
-            ["ID", "Логін", "ПІБ", "Роль", "Активний", "Останній вхід"]
-        )
-        self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.users_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.users_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.users_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        vlay.addWidget(self.users_table)
-
-        self._refresh_users()
-
-    def _show_audit_log(self):
-        from ventilation_company.gui_pyside6.audit_log_dialog import AuditLogDialog
-
-        dlg = AuditLogDialog(self.current_user, self)
-        dlg.exec()
-
-    def _refresh_users(self):
-        self.users_table.setRowCount(0)
-        for u in auth.list_users():
-            row = self.users_table.rowCount()
-            self.users_table.insertRow(row)
-            self.users_table.setItem(row, 0, QTableWidgetItem(str(u.id)))
-            self.users_table.setItem(row, 1, QTableWidgetItem(u.username))
-            self.users_table.setItem(row, 2, QTableWidgetItem(u.full_name or "—"))
-            self.users_table.setItem(row, 3, QTableWidgetItem(get_role_label(u.role)))
-            self.users_table.setItem(row, 4, QTableWidgetItem("Так" if u.is_active else "Ні"))
-            self.users_table.setItem(row, 5, QTableWidgetItem(u.last_login or "—"))
-
-    def _selected_user(self):
-        row = self.users_table.currentRow()
-        if row < 0:
-            QMessageBox.warning(self, "Увага", "Оберіть користувача")
-            return None
-        username = self.users_table.item(row, 1).text()
-        return auth.get_user_by_username(username)
-
-    def _add_user_dialog(self):
-        self._user_dialog(None)
-
-    def _edit_user_dialog(self):
-        user = self._selected_user()
-        if user:
-            self._user_dialog(user)
-
-    def _user_dialog(self, user):
-        is_edit = user is not None
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Редагування користувача" if is_edit else "Новий користувач")
-        dlg.setMinimumSize(400, 380)
-
-        lay = QFormLayout(dlg)
-
-        login_edit = QLineEdit(user.username if is_edit else "")
-        if is_edit:
-            login_edit.setReadOnly(True)
-        lay.addRow("👤 Логін *", login_edit)
-
-        name_edit = QLineEdit(user.full_name if is_edit else "")
-        lay.addRow("📝 Повне ім'я *", name_edit)
-
-        pass_edit = QLineEdit()
-        pass_edit.setEchoMode(QLineEdit.Password)
-        lay.addRow("🔒 Пароль" + ("" if is_edit else " *"), pass_edit)
-        if is_edit:
-            lay.addRow(QLabel("(залиште порожнім, щоб не змінювати)"))
-
-        pass2_edit = QLineEdit()
-        pass2_edit.setEchoMode(QLineEdit.Password)
-        lay.addRow("🔒 Підтвердіть пароль", pass2_edit)
-
-        role_combo = QComboBox()
-        role_combo.addItems(
-            ["Адміністратор", "Менеджер", "Інженер", "Майстер", "Бухгалтер", "Перегляд"]
-        )
-        if is_edit:
-            role_combo.setCurrentText(get_role_label(user.role))
-        lay.addRow("🛡️ Посада *", role_combo)
-
-        status_lbl = QLabel("")
-        status_lbl.setStyleSheet(f"color: {Theme.DANGER};")
-        lay.addRow(status_lbl)
-
-        btns = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        lay.addRow(btns)
-
-        def save():
-            role_map = {
-                "Адміністратор": "admin",
-                "Менеджер": "manager",
-                "Інженер": "engineer",
-                "Майстер": "master",
-                "Бухгалтер": "accountant",
-                "Перегляд": "viewer",
-            }
-            new_role = role_map.get(role_combo.currentText(), "viewer")
-
-            if is_edit:
-                kwargs = {"full_name": name_edit.text(), "role": new_role}
-                if pass_edit.text():
-                    if pass_edit.text() != pass2_edit.text():
-                        status_lbl.setText("❌ Паролі не співпадають")
-                        return
-                    kwargs["password"] = pass_edit.text()
-                auth.update_user(user.id, **kwargs)
-                self._refresh_users()
-                dlg.accept()
-                QMessageBox.information(self, "Успіх", f"Користувача {user.username} оновлено")
-            else:
-                login = login_edit.text().strip()
-                name = name_edit.text().strip()
-                password = pass_edit.text()
-                if not all([login, name, password]):
-                    status_lbl.setText("⚠️ Заповніть обов'язкові поля")
-                    return
-                if password != pass2_edit.text():
-                    status_lbl.setText("❌ Паролі не співпадають")
-                    return
-                if len(password) < 4:
-                    status_lbl.setText("❌ Пароль мінімум 4 символи")
-                    return
-                try:
-                    auth.create_user(login, password, name, new_role)
-                    self._refresh_users()
-                    dlg.accept()
-                    QMessageBox.information(self, "Успіх", f"Користувача {login} створено")
-                except ValueError as e:
-                    status_lbl.setText(f"❌ {e}")
-
-        btns.accepted.connect(save)
-        btns.rejected.connect(dlg.reject)
-        dlg.exec()
-
-    def _delete_user(self):
-        user = self._selected_user()
-        if not user:
-            return
-        if self.current_user and user.username == self.current_user.username:
-            QMessageBox.critical(self, "Помилка", "Не можна видалити самого себе")
-            return
-        reply = QMessageBox.question(
-            self, "Підтвердження", f'Видалити користувача "{user.username}"?'
-        )
-        if reply == QMessageBox.Yes:
-            auth.delete_user(user.id)
-            self._refresh_users()
-            QMessageBox.information(self, "Успіх", f"Користувача {user.username} видалено")
-
-    # ═══════════════════════════════════════════════════════════════
-    # 5. БЕКАП
-    # ═══════════════════════════════════════════════════════════════
     def _build_backup_tab(self):
         hlay = QHBoxLayout(self.tab_backup)
 
@@ -813,11 +589,7 @@ class ProgramSettingsTab(QWidget):
             self.spin_backup_keep.setValue(int(self.settings.get("app.backup_keep", "10")))
         self.chk_backup_auto.setChecked(self.settings.get("app.backup_auto", "0") == "1")
 
-        theme_name = self.settings.get("app.theme", "industrial")
-        if theme_name == "light":
-            self.radio_light.setChecked(True)
-        else:
-            self.radio_industrial.setChecked(True)
+        self.theme_tab.set_theme(self.settings.get("app.theme", "industrial"))
 
         self._test_db_connection()
         self._refresh_db_stats()
@@ -831,7 +603,7 @@ class ProgramSettingsTab(QWidget):
         self.settings.set("app.backup_keep", str(self.spin_backup_keep.value()))
         self.settings.set("app.backup_auto", "1" if self.chk_backup_auto.isChecked() else "0")
 
-        theme_name = "light" if self.radio_light.isChecked() else "industrial"
+        theme_name = self.theme_tab.theme_name()
         self.settings.set("app.theme", theme_name)
 
         log_action(
