@@ -1,8 +1,9 @@
-"""GitHub release update checker."""
+"""GitHub release update checker and downloader."""
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import requests
 
@@ -35,11 +36,18 @@ def get_latest_release(timeout: int = 5) -> dict | None:
         response = requests.get(GITHUB_RELEASES_API, timeout=timeout)
         response.raise_for_status()
         data = response.json()
+        asset_url = ""
+        for asset in data.get("assets", []):
+            name = asset.get("name", "")
+            if name.endswith(".zip"):
+                asset_url = asset.get("browser_download_url", "")
+                break
         return {
             "tag": data.get("tag_name", ""),
             "name": data.get("name", ""),
             "url": data.get("html_url", ""),
             "published_at": data.get("published_at", ""),
+            "asset_url": asset_url,
         }
     except Exception:
         return None
@@ -54,3 +62,23 @@ def check_for_update() -> dict | None:
         latest["current_version"] = __version__
         return latest
     return None
+
+
+def download_release_asset(release_info: dict, target_dir: str | Path = "updates") -> str:
+    """Download release ZIP into target_dir and return local file path."""
+    asset_url = release_info.get("asset_url") or ""
+    if not asset_url:
+        raise RuntimeError("У релізі не знайдено ZIP-файл оновлення.")
+
+    target = Path(target_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    filename = release_info.get("asset_name") or "VentCompany-windows.zip"
+    output = target / filename
+
+    with requests.get(asset_url, stream=True, timeout=60) as response:
+        response.raise_for_status()
+        with open(output, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+    return str(output)

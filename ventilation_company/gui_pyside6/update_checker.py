@@ -7,7 +7,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox
 
 from ventilation_company.gui_pyside6.workers import FunctionWorker
-from ventilation_company.services.update_service import check_for_update
+from ventilation_company.services.update_service import check_for_update, download_release_asset
 
 
 class UpdateChecker(QObject):
@@ -35,9 +35,31 @@ class UpdateChecker(QObject):
             "Доступне оновлення",
             f"Доступна нова версія: {info.get('tag') or info.get('name')}. "
             f"Поточна версія: {info.get('current_version')}. "
-            "Перейти на сторінку завантаження?",
+            "Завантажити файл оновлення?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )
-        if answer == QMessageBox.Yes and info.get("url"):
-            QDesktopServices.openUrl(QUrl(info["url"]))
+        if answer == QMessageBox.Yes:
+            self._download(info)
+        else:
+            QDesktopServices.openUrl(QUrl(info.get("url", "")))
+
+    def _download(self, info):
+        parent = self.parent()
+        QMessageBox.information(parent, "Оновлення", "Завантаження почалося у фоні.")
+        self._worker = FunctionWorker(download_release_asset, info)
+        self._worker.result.connect(self._on_downloaded)
+        self._worker.error.connect(
+            lambda err: QMessageBox.critical(
+                parent, "Помилка", f"Не вдалося завантажити оновлення: {err}"
+            )
+        )
+        self._worker.start()
+
+    def _on_downloaded(self, path: str):
+        parent = self.parent()
+        QMessageBox.information(
+            parent,
+            "Успіх",
+            f"Файл оновлення завантажено:\n{path}\n\nРозпакуйте та замініть файли вручну.",
+        )
