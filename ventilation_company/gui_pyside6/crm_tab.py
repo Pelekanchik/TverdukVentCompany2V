@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.gui_pyside6.client_dialog import ClientDialog
+from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
 from ventilation_company.gui_pyside6.theme import Theme
 
 
@@ -86,6 +87,10 @@ class CRMTab(QWidget):
         layout.addLayout(filters)
 
         # ── Таблиця ──
+        btn_history = QPushButton("📜 Історія")
+        btn_history.clicked.connect(self._show_client_history)
+        layout.addWidget(btn_history)
+
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -211,6 +216,15 @@ class CRMTab(QWidget):
             if client["id"] == client_id:
                 return client["name"]
         return str(client_id)
+
+    def _show_client_history(self):
+        cid = self._get_selected_id()
+        if not cid:
+            QMessageBox.warning(self, "Увага", "Оберіть клієнта")
+            return
+        name = self._client_name(cid)
+        dlg = ClientHistoryDialog(cid, name, self)
+        dlg.exec()
 
     def _on_add(self):
         dlg = ClientDialog(parent=self)
