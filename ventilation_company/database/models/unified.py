@@ -161,6 +161,7 @@ class Client(Base):
     company_type: Mapped[str | None] = mapped_column(String, nullable=True)
     edrpou: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, default=datetime.now, nullable=True
     )
