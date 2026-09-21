@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import csv
 from datetime import date, datetime
+from pathlib import Path
 
-from PySide6.QtWidgets import QDialog, QGridLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QGridLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.paths import APP_ROOT
 
 
 def _to_date(value) -> date | None:
@@ -25,12 +36,12 @@ def _to_date(value) -> date | None:
 
 
 class CRMDashboardDialog(QDialog):
-    """Small read-only CRM dashboard."""
+    """Small read-only CRM dashboard with CSV export."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📊 CRM Dashboard")
-        self.resize(420, 320)
+        self.resize(460, 360)
         self._build_ui()
         self.refresh()
 
@@ -58,9 +69,14 @@ class CRMDashboardDialog(QDialog):
             self.grid.addWidget(QLabel(title), row, 0)
             self.grid.addWidget(label, row, 1)
 
+        btn_row = QVBoxLayout()
         btn_refresh = QPushButton("🔄 Оновити")
+        btn_export = QPushButton("💾 Експорт CSV")
         btn_refresh.clicked.connect(self.refresh)
-        layout.addWidget(btn_refresh)
+        btn_export.clicked.connect(self.export_csv)
+        btn_row.addWidget(btn_refresh)
+        btn_row.addWidget(btn_export)
+        layout.addLayout(btn_row)
 
     def refresh(self):
         clients = ClientRepository.list_all()
@@ -86,3 +102,76 @@ class CRMDashboardDialog(QDialog):
         self.lbl_interactions.setText(str(len(interactions)))
         self.lbl_payments_total.setText(f"{payments_total:,.2f}")
         self.lbl_next_actions.setText(str(next_actions))
+
+    @staticmethod
+    def _write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({k: row.get(k, "") for k in fieldnames})
+
+    def export_csv(self):
+        default_dir = APP_ROOT / "exports"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        directory = QFileDialog.getExistingDirectory(
+            self, "Оберіть папку для CSV", str(default_dir)
+        )
+        if not directory:
+            return
+        out_dir = Path(directory)
+
+        clients = ClientRepository.list_all()
+        interactions = InteractionRepository.list_all()
+        payments = PaymentRepository.list_all()
+
+        try:
+            self._write_csv(
+                out_dir / "clients.csv",
+                [
+                    "id",
+                    "name",
+                    "contact_person",
+                    "phone",
+                    "email",
+                    "address",
+                    "company_type",
+                    "edrpou",
+                    "status",
+                    "notes",
+                ],
+                clients,
+            )
+            self._write_csv(
+                out_dir / "interactions.csv",
+                [
+                    "id",
+                    "client_id",
+                    "date",
+                    "type",
+                    "subject",
+                    "result",
+                    "next_action",
+                    "next_action_date",
+                    "description",
+                ],
+                interactions,
+            )
+            self._write_csv(
+                out_dir / "payments.csv",
+                [
+                    "id",
+                    "client_id",
+                    "date",
+                    "amount",
+                    "currency",
+                    "type",
+                    "purpose",
+                    "project_name",
+                    "notes",
+                ],
+                payments,
+            )
+            QMessageBox.information(self, "Успіх", f"CSV експортовано у: {out_dir}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {exc}")
