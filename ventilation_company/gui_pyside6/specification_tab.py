@@ -18,11 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.products_tab import ProductDialog
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.specification_service import SpecificationService
 
 
 class SpecificationTab(QWidget):
@@ -177,11 +176,9 @@ class SpecificationTab(QWidget):
         self.combo_project.blockSignals(True)
         self.combo_project.clear()
         try:
-            with get_db() as session:
-                projects = session.query(Project).order_by(Project.created_at.desc()).all()
-                for p in projects:
-                    display = f"{p.project_number or '—'} — {p.name or 'Без назви'}"
-                    self.combo_project.addItem(display, p.id)
+            projects = SpecificationService.load_projects()
+            for p in projects:
+                self.combo_project.addItem(p["display"], p["id"])
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
         self.combo_project.blockSignals(False)
@@ -226,7 +223,7 @@ class SpecificationTab(QWidget):
             return
 
         try:
-            items = ProductRepository.get_all(project_id=project_id)
+            items = SpecificationService.load_items(project_id)
             self._items = items
             self._populate_table(items)
             self._update_summary(items)
@@ -236,18 +233,7 @@ class SpecificationTab(QWidget):
     def _populate_table(self, items: list[dict]):
         """Заповнити таблицю виробами."""
         for pos, item in enumerate(items, 1):
-            w = item.get("width", 0) or 0
-            h = item.get("height", 0) or 0
-            l = item.get("length", 0) or 0
-
-            if h > 0:
-                dims = f"{w:.0f}×{h:.0f}"
-                if l > 0:
-                    dims += f" × {l:.0f}"
-            else:
-                dims = f"Ø{w:.0f}"
-                if l > 0:
-                    dims += f" × {l:.0f}"
+            dims = SpecificationService.format_dimensions(item)
 
             row = [
                 QStandardItem(str(pos)),
@@ -268,17 +254,13 @@ class SpecificationTab(QWidget):
 
     def _update_summary(self, items: list[dict]):
         """Оновити підсумкові мітки."""
-        count = len(items)
-        qty = sum(i.get("quantity", 1) for i in items)
-        area = sum((i.get("metal_area_m2") or 0) * (i.get("quantity") or 1) for i in items)
-        weight = sum((i.get("weight_kg") or 0) * (i.get("quantity") or 1) for i in items)
-        total = sum(i.get("total_price", 0) for i in items)
+        summary = SpecificationService.summarize(items)
 
-        self.lbl_count.setText(f"Позицій: {count}")
-        self.lbl_qty.setText(f"Кількість: {qty} шт")
-        self.lbl_area.setText(f"Площа: {area:.2f} м²")
-        self.lbl_weight.setText(f"Вага: {weight:.2f} кг")
-        self.lbl_total.setText(f"Сума: ₴ {total:,.2f}")
+        self.lbl_count.setText(f"Позицій: {summary['count']}")
+        self.lbl_qty.setText(f"Кількість: {summary['qty']} шт")
+        self.lbl_area.setText(f"Площа: {summary['area']:.2f} м²")
+        self.lbl_weight.setText(f"Вага: {summary['weight']:.2f} кг")
+        self.lbl_total.setText(f"Сума: ₴ {summary['total']:,.2f}")
 
     # ═══════════════════════════════════════════════════════════
     # CRUD операції
