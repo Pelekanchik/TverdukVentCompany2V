@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from datetime import date, datetime
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -24,8 +25,21 @@ from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.audit import AuditLog
 
 
+def _to_date(value) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
 class AuditLogDialog(QDialog):
-    """Read-only audit log viewer with simple filters."""
+    """Read-only audit log viewer with filters."""
 
     def __init__(self, current_user=None, parent=None):
         super().__init__(parent)
@@ -46,6 +60,14 @@ class AuditLogDialog(QDialog):
         self.edit_action.setPlaceholderText("Action, напр. auth.login")
         self.edit_entity = QLineEdit()
         self.edit_entity.setPlaceholderText("Entity type")
+
+        self.date_from = QLineEdit()
+        self.date_from.setPlaceholderText("YYYY-MM-DD")
+        self.date_from.setMaximumWidth(110)
+        self.date_to = QLineEdit()
+        self.date_to.setPlaceholderText("YYYY-MM-DD")
+        self.date_to.setMaximumWidth(110)
+
         btn_apply = QPushButton("🔍 Показати")
         btn_apply.clicked.connect(self.refresh_logs)
         btn_export = QPushButton("💾 Експорт CSV")
@@ -57,6 +79,10 @@ class AuditLogDialog(QDialog):
         filters.addWidget(self.edit_action)
         filters.addWidget(QLabel("Entity:"))
         filters.addWidget(self.edit_entity)
+        filters.addWidget(QLabel("Від:"))
+        filters.addWidget(self.date_from)
+        filters.addWidget(QLabel("До:"))
+        filters.addWidget(self.date_to)
         filters.addWidget(btn_apply)
         filters.addWidget(btn_export)
         layout.addLayout(filters)
@@ -84,6 +110,8 @@ class AuditLogDialog(QDialog):
         username = self.edit_user.text().strip().lower()
         action = self.edit_action.text().strip().lower()
         entity = self.edit_entity.text().strip().lower()
+        date_from = _to_date(self.date_from.text().strip()) or date(2000, 1, 1)
+        date_to = _to_date(self.date_to.text().strip()) or date(2100, 1, 1)
 
         session = SessionLocal()
         try:
@@ -98,6 +126,11 @@ class AuditLogDialog(QDialog):
             if action and action not in row.action.lower():
                 continue
             if entity and entity not in (row.entity_type or "").lower():
+                continue
+            created_date = _to_date(row.created_at)
+            if created_date is None:
+                continue
+            if created_date < date_from or created_date > date_to:
                 continue
             filtered.append(row)
             if len(filtered) >= 1000:
@@ -186,4 +219,4 @@ class AuditLogDialog(QDialog):
                     )
             QMessageBox.information(self, "Успіх", f"Експортовано рядків: {len(self._rows)}")
         except Exception as exc:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати:\n{exc}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати: {exc}")
