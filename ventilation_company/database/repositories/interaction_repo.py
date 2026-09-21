@@ -90,3 +90,9 @@ class InteractionRepository:
             session.delete(item)
             session.commit()
             return True
+
+    @staticmethod
+    def list_all() -> list[dict]:
+        with get_db() as session:
+            items = session.query(Interaction).order_by(Interaction.date.desc()).all()
+            return [_to_dict(i) for i in items]

@@ -87,3 +87,9 @@ class PaymentRepository:
             session.delete(item)
             session.commit()
             return True
+
+    @staticmethod
+    def list_all() -> list[dict]:
+        with get_db() as session:
+            items = session.query(Payment).order_by(Payment.date.desc()).all()
+            return [_to_dict(p) for p in items]
