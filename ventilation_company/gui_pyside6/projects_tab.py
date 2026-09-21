@@ -33,6 +33,7 @@ from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.audit_service import log_action
 
 
 class ProjectEditDialog(QDialog):
@@ -356,6 +357,9 @@ class ProjectsTab(QWidget):
             dlg = ProjectCardDialog(project_id, parent=self)
             dlg.exec()
 
+    def _audit_actor(self):
+        return getattr(self.main_window, "user", None)
+
     def _on_new_project(self):
         dlg = ProjectEditDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -380,6 +384,22 @@ class ProjectsTab(QWidget):
                     session.add(project)
                     session.flush()
                     project_id = project.id
+                log_action(
+                    "project.create",
+                    entity_type="project",
+                    entity_id=project_id,
+                    details={
+                        "name": data["name"],
+                        "project_number": data["project_number"],
+                        "client": data["client"],
+                        "status": data["status"],
+                        "cost_price": data["cost_price"],
+                        "customer_price": data["customer_price"],
+                        "discounted_price": data["discounted_price"],
+                        "profit": data["profit"],
+                    },
+                    actor=self._audit_actor(),
+                )
                 self._load_data()
                 if self.main_window:
                     self.main_window.set_active_project(project_id)
@@ -418,6 +438,22 @@ class ProjectsTab(QWidget):
                         project.discounted_price = data["discounted_price"]
                         project.profit = data["profit"]
                         session.commit()
+                log_action(
+                    "project.update",
+                    entity_type="project",
+                    entity_id=project_id,
+                    details={
+                        "name": data["name"],
+                        "project_number": data["project_number"],
+                        "client": data["client"],
+                        "status": data["status"],
+                        "cost_price": data["cost_price"],
+                        "customer_price": data["customer_price"],
+                        "discounted_price": data["discounted_price"],
+                        "profit": data["profit"],
+                    },
+                    actor=self._audit_actor(),
+                )
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Проєкт оновлено!")
             except Exception as e:
@@ -450,6 +486,13 @@ class ProjectsTab(QWidget):
                     session.query(ProductItem).filter(ProductItem.project_id == project_id).delete()
                     session.query(Project).filter(Project.id == project_id).delete()
                     session.commit()
+                log_action(
+                    "project.delete",
+                    entity_type="project",
+                    entity_id=project_id,
+                    details={"name": project_name},
+                    actor=self._audit_actor(),
+                )
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Проєкт, вироби та документи видалено!")
             except Exception as e:
