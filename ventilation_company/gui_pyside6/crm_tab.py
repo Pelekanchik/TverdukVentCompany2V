@@ -3,7 +3,7 @@
 Таблиця клієнтів з пошуком, фільтрами, діалогом додавання/редагування.
 """
 
-from PySide6.QtGui import QColor, QStandardItem, QStandardItemModel
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -14,10 +14,12 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QTableView,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.gui_pyside6.client_dialog import ClientDialog
 from ventilation_company.gui_pyside6.theme import Theme
 
@@ -133,211 +135,113 @@ class CRMTab(QWidget):
         self.lbl_summary.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px; padding: 4px;")
         layout.addWidget(self.lbl_summary)
 
-    def _load_data(self):
-        """Завантажити демо-дані клієнтів."""
-        self._all_clients = [
-            {
-                "id": 1,
-                "name": "ТОВ 'Будівельник'",
-                "contact_person": "Іванов І.І.",
-                "phone": "+38 (067) 111-22-33",
-                "email": "info@budivelnyk.ua",
-                "address": "м. Київ, вул. Будівельна, 15",
-                "status": "Активний",
-                "notes": "Постійний клієнт, 5 проєктів",
-            },
-            {
-                "id": 2,
-                "name": "ТОВ 'Смак' (ресторан)",
-                "contact_person": "Петренко П.П.",
-                "phone": "+38 (050) 444-55-66",
-                "email": "smak@restaurant.ua",
-                "address": "м. Львів, пл. Ринок, 1",
-                "status": "Активний",
-                "notes": "Витяжна система кухні",
-            },
-            {
-                "id": 3,
-                "name": "Складський комплекс №5",
-                "contact_person": "Сидоренко С.С.",
-                "phone": "+38 (063) 777-88-99",
-                "email": "sklad5@logistics.ua",
-                "address": "м. Одеса, вул. Портова, 42",
-                "status": "Потенційний",
-                "notes": "Приточна установка, чекаємо ТЗ",
-            },
-            {
-                "id": 4,
-                "name": "ЖК 'Сонячний'",
-                "contact_person": "Коваленко К.К.",
-                "phone": "+38 (068) 000-11-22",
-                "email": "info@sonyachny.ua",
-                "address": "м. Дніпро, пр. Гагаріна, 100",
-                "status": "Активний",
-                "notes": "Вентиляція підвалів, 3 під'їзди",
-            },
-            {
-                "id": 5,
-                "name": "ТОВ 'Холод'",
-                "contact_person": "Морозенко М.М.",
-                "phone": "+38 (095) 333-44-55",
-                "email": "cold@refrigeration.ua",
-                "address": "м. Харків, вул. Холодна, 7",
-                "status": "Неактивний",
-                "notes": "Не відповідає на дзвінки з 2024",
-            },
-            {
-                "id": 6,
-                "name": "АТБ-Маркет (філія №12)",
-                "contact_person": "Гриценко Г.Г.",
-                "phone": "+38 (096) 666-77-88",
-                "email": "atb12@market.ua",
-                "address": "м. Запоріжжя, вул. Центральна, 25",
-                "status": "Активний",
-                "notes": "Щомісячне обслуговування",
-            },
-            {
-                "id": 7,
-                "name": "Приватна особа: Ковальчук В.В.",
-                "contact_person": "Ковальчук В.В.",
-                "phone": "+38 (097) 999-00-11",
-                "email": "",
-                "address": "м. Київ, вул. Лісова, 5, кв. 12",
-                "status": "Потенційний",
-                "notes": "Квартира, витяжка в санвузол",
-            },
-            {
-                "id": 8,
-                "name": "ТОВ 'Шахтар'",
-                "contact_person": "",
-                "phone": "+38 (099) 222-33-44",
-                "email": "shakhtar@mine.ua",
-                "address": "м. Донецьк, вул. Шахтарська, 1",
-                "status": "Чорний список",
-                "notes": "Не платить, 3 проєкти в борг",
-            },
-        ]
+    def _reset_filters(self):
+        self.edit_search.clear()
+        self.combo_status.setCurrentText("Всі")
         self._apply_filters()
+
+    def _fill_table(self, clients):
+        self._visible_clients = clients
+        headers = ["ID", "Назва", "Контакт", "Телефон", "Email", "Статус", "Адреса"]
+        if hasattr(self, "model") and self.model is not None:
+            self.model.clear()
+            self.model.setHorizontalHeaderLabels(headers)
+            for c in clients:
+                self.model.appendRow(
+                    [
+                        QStandardItem(str(c["id"])),
+                        QStandardItem(c["name"]),
+                        QStandardItem(c.get("contact_person") or "—"),
+                        QStandardItem(c.get("phone") or "—"),
+                        QStandardItem(c.get("email") or "—"),
+                        QStandardItem(c.get("status") or "—"),
+                        QStandardItem(c.get("address") or "—"),
+                    ]
+                )
+            return
+
+        self.table.setRowCount(0)
+        for c in clients:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(str(c["id"])))
+            self.table.setItem(row, 1, QTableWidgetItem(c["name"]))
+            self.table.setItem(row, 2, QTableWidgetItem(c.get("contact_person") or "—"))
+            self.table.setItem(row, 3, QTableWidgetItem(c.get("phone") or "—"))
+            self.table.setItem(row, 4, QTableWidgetItem(c.get("email") or "—"))
+            self.table.setItem(row, 5, QTableWidgetItem(c.get("status") or "—"))
+            self.table.setItem(row, 6, QTableWidgetItem(c.get("address") or "—"))
 
     def _apply_filters(self):
         search = self.edit_search.text().lower()
-        f_status = self.filter_status.currentText()
-
+        status = self.combo_status.currentText()
         filtered = []
         for c in self._all_clients:
-            if (
-                search
-                and search not in c.get("name", "").lower()
-                and search not in c.get("phone", "").lower()
-                and search not in c.get("email", "").lower()
-            ):
+            if status != "Всі" and c.get("status") != status:
                 continue
-            if f_status != "Всі" and f_status != c.get("status", ""):
-                continue
+            if search:
+                haystacks = [
+                    c.get("name", ""),
+                    c.get("contact_person") or "",
+                    c.get("phone") or "",
+                    c.get("email") or "",
+                    c.get("address") or "",
+                ]
+                if not any(search in h.lower() for h in haystacks):
+                    continue
             filtered.append(c)
-
         self._fill_table(filtered)
-        self._update_summary(filtered)
 
-    def _fill_table(self, data: list[dict]):
-        self.model.removeRows(0, self.model.rowCount())
-        for c in data:
-            # Колір статусу
-            status = c.get("status", "")
-            status_color = {
-                "Активний": Theme.SUCCESS,
-                "Потенційний": Theme.ACCENT,
-                "Неактивний": Theme.TEXT_MUTED,
-                "Чорний список": Theme.DANGER,
-            }.get(status, Theme.TEXT)
-
-            row = [
-                QStandardItem(str(c.get("id", "—"))),
-                QStandardItem(c.get("name", "—")),
-                QStandardItem(c.get("contact_person", "—")),
-                QStandardItem(c.get("phone", "—")),
-                QStandardItem(c.get("email", "—")),
-                QStandardItem(status),
-                QStandardItem(c.get("notes", "—")),
-            ]
-            # Зафарбувати статус
-            row[5].setForeground(QColor(status_color))
-            if status == "Чорний список":
-                row[5].setBackground(QColor(Theme.DANGER))
-                row[5].setForeground(QColor(Theme.BG_DARK))
-
-            for cell in row:
-                cell.setEditable(False)
-            self.model.appendRow(row)
-
-    def _update_summary(self, data: list[dict]):
-        active = sum(1 for c in data if c.get("status") == "Активний")
-        potential = sum(1 for c in data if c.get("status") == "Потенційний")
-        self.lbl_summary.setText(
-            f"Всього: {len(data)} клієнтів | Активних: {active} | Потенційних: {potential}"
-        )
-
-    def _reset_filters(self):
-        self.edit_search.clear()
-        self.filter_status.setCurrentIndex(0)
-
-    def _get_selected_id(self) -> int | None:
-        idx = self.table.currentIndex()
-        if not idx.isValid():
-            return None
+    def _load_data(self):
         try:
-            return int(self.model.item(idx.row(), 0).text())
-        except ValueError:
-            return None
+            self._all_clients = ClientRepository.list_all()
+        except Exception:
+            self._all_clients = []
+        self._fill_table(self._all_clients)
 
-    def _get_client_by_id(self, cid: int) -> dict | None:
-        for c in self._all_clients:
-            if c.get("id") == cid:
-                return c
-        return None
+    def _get_selected_id(self):
+        row = self.table.currentIndex().row()
+        clients = getattr(self, "_visible_clients", self._all_clients)
+        if row < 0 or row >= len(clients):
+            return None
+        return clients[row]["id"]
+
+    def _client_name(self, client_id):
+        for client in self._all_clients:
+            if client["id"] == client_id:
+                return client["name"]
+        return str(client_id)
 
     def _on_add(self):
         dlg = ClientDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            data = dlg.get_data()
-            data["id"] = max((c.get("id", 0) for c in self._all_clients), default=0) + 1
-            self._all_clients.append(data)
-            self._apply_filters()
+            ClientRepository.create(dlg.get_data())
+            self._load_data()
+            QMessageBox.information(self, "Успіх", "Клієнта додано")
 
     def _on_edit(self):
         cid = self._get_selected_id()
         if not cid:
-            QMessageBox.warning(self, "Увага", "Виберіть клієнта для редагування")
             return
-        client = self._get_client_by_id(cid)
+        client = next((c for c in self._all_clients if c["id"] == cid), None)
         if not client:
             return
-        dlg = ClientDialog(client, parent=self)
+        dlg = ClientDialog(client_data=client, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            new_data = dlg.get_data()
-            new_data["id"] = cid
-            for i, c in enumerate(self._all_clients):
-                if c.get("id") == cid:
-                    self._all_clients[i] = new_data
-                    break
-            self._apply_filters()
+            ClientRepository.update(cid, dlg.get_data())
+            self._load_data()
+            QMessageBox.information(self, "Успіх", "Дані клієнта оновлено")
 
     def _on_delete(self):
         cid = self._get_selected_id()
         if not cid:
-            QMessageBox.warning(self, "Увага", "Виберіть клієнта для видалення")
             return
-        client = self._get_client_by_id(cid)
-        name = client.get("name", "") if client else ""
-        reply = QMessageBox.question(
-            self,
-            "Видалення",
-            f'Видалити клієнта "{name}"?',
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._all_clients = [c for c in self._all_clients if c.get("id") != cid]
-            self._apply_filters()
+        name = self._client_name(cid)
+        reply = QMessageBox.question(self, "Підтвердження", f'Видалити клієнта "{name}"?')
+        if reply == QMessageBox.Yes:
+            ClientRepository.delete(cid)
+            self._load_data()
+            QMessageBox.information(self, "Успіх", "Клієнта видалено")
 
     def refresh(self):
         self._load_data()
