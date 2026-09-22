@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -10,7 +13,29 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox
 
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.paths import APP_ROOT
 from ventilation_company.services.update_service import check_for_update, download_release_asset
+
+UPDATER_BAT = r"""@echo off
+set PID=%1
+set SRC=%2
+set TARGET=%3
+set EXE=%4
+
+echo Waiting for app to close...
+:wait
+tasklist /FI "PID eq %PID%" | find "%PID%" >nul
+if %errorlevel%==0 (
+    timeout /t 2 /nobreak >nul
+    goto wait
+)
+
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%i
+set BACKUP=%TARGET%\_backup_%TS%
+xcopy "%TARGET%" "%BACKUP%" /E /I /Y >nul
+xcopy "%SRC%\*" "%TARGET%\" /E /I /Y >nul
+start "" "%EXE%"
+"""
 
 
 class UpdateChecker(QObject):
@@ -95,7 +120,58 @@ class UpdateChecker(QObject):
         try:
             with zipfile.ZipFile(file_path) as zf:
                 zf.extractall(target_dir)
-            QMessageBox.information(parent, "Успіх", f"Оновлення розпаковано у: {target_dir}")
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_dir)))
         except Exception as exc:
             QMessageBox.critical(parent, "Помилка", f"Не вдалося розпакувати оновлення: {exc}")
+            return
+
+        answer = QMessageBox.question(
+            parent,
+            "Оновлення розпаковано",
+            f"Оновлення розпаковано у:\n{target_dir}\n\nВстановити оновлення зараз?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if answer == QMessageBox.Yes:
+            self._start_self_update(target_dir)
+        else:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_dir)))
+
+    def _start_self_update(self, extracted_dir: Path):
+        parent = self.parent()
+        if not getattr(sys, "frozen", False):
+            QMessageBox.information(
+                parent,
+                "Ручне оновлення",
+                "Автоматичне встановлення доступне тільки в PyInstaller-збірці. "
+                "Розпаковані файли можна замінити вручну.",
+            )
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(extracted_dir)))
+            return
+
+        exe_path = Path(sys.executable)
+        target_dir = APP_ROOT
+        updates_dir = target_dir / "updates"
+        updates_dir.mkdir(parents=True, exist_ok=True)
+        bat_path = updates_dir / "updater.bat"
+        bat_path.write_text(UPDATER_BAT, encoding="ascii")
+
+        subprocess.Popen(
+            [
+                "cmd",
+                "/c",
+                "start",
+                "",
+                "/min",
+                str(bat_path),
+                str(os.getpid()),
+                str(extracted_dir),
+                str(target_dir),
+                str(exe_path),
+            ],
+            close_fds=True,
+        )
+        QMessageBox.information(
+            parent, "Оновлення", "Застосунок буде закрито для встановлення оновлення."
+        )
+        if parent is not None:
+            parent.close()
