@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.database.repositories.client_repo import ClientRepository
+from ventilation_company.gui_pyside6.client_card_dialog import ClientCardDialog
 from ventilation_company.gui_pyside6.client_dialog import ClientDialog
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
 from ventilation_company.gui_pyside6.crm_dashboard_dialog import CRMDashboardDialog
@@ -88,6 +89,10 @@ class CRMTab(QWidget):
         layout.addLayout(filters)
 
         # ── Таблиця ──
+        btn_card = QPushButton("🪪 Картка")
+        btn_card.clicked.connect(self._show_client_card)
+        layout.addWidget(btn_card)
+
         btn_dashboard = QPushButton("📊 Dashboard")
         btn_dashboard.clicked.connect(self._show_crm_dashboard)
         layout.addWidget(btn_dashboard)
@@ -221,6 +226,18 @@ class CRMTab(QWidget):
             if client["id"] == client_id:
                 return client["name"]
         return str(client_id)
+
+    def _show_client_card(self):
+        cid = self._get_selected_id()
+        if not cid:
+            QMessageBox.warning(self, "Увага", "Оберіть клієнта")
+            return
+        client = next((c for c in self._all_clients if c["id"] == cid), None)
+        if not client:
+            QMessageBox.warning(self, "Увага", "Клієнта не знайдено")
+            return
+        dlg = ClientCardDialog(client, self)
+        dlg.exec()
 
     def _show_crm_dashboard(self):
         dlg = CRMDashboardDialog(self)
