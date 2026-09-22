@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import zipfile
+from pathlib import Path
+
 from PySide6.QtCore import QObject, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox
@@ -58,8 +61,25 @@ class UpdateChecker(QObject):
 
     def _on_downloaded(self, path: str):
         parent = self.parent()
-        QMessageBox.information(
-            parent,
-            "Успіх",
-            f"Файл оновлення завантажено:\n{path}\n\nРозпакуйте та замініть файли вручну.",
+        file_path = Path(path)
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            QMessageBox.critical(parent, "Помилка", "Файл оновлення не завантажився або порожній.")
+            return
+        if not zipfile.is_zipfile(file_path):
+            QMessageBox.critical(parent, "Помилка", "Завантажений файл не є коректним ZIP-архівом.")
+            return
+
+        size_mb = file_path.stat().st_size / 1024 / 1024
+        msg = QMessageBox(parent)
+        msg.setWindowTitle("Оновлення завантажено")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(
+            f"Файл оновлення завантажено:\n{file_path.name}\n\n"
+            f"Розмір: {size_mb:.1f} МБ\n\n"
+            "Розпакуйте архів і замініть файли застосунку."
         )
+        open_btn = msg.addButton("Відкрити папку", QMessageBox.AcceptRole)
+        msg.addButton(QMessageBox.Ok)
+        msg.exec()
+        if msg.clickedButton() == open_btn:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(file_path.parent)))
