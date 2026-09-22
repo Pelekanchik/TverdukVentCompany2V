@@ -3,6 +3,8 @@
 v2.4b: знижка вводиться у відсотках, кінцева ціна рахується автоматично.
 """
 
+import csv
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
     QBrush,
@@ -14,6 +16,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QDialog,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -148,6 +151,12 @@ class ProductsTab(QWidget):
         self.table.setColumnWidth(9, 80)
 
         actions = QHBoxLayout()
+        btn_export = QPushButton("💾 Експорт CSV")
+        btn_export.clicked.connect(self._export_csv)
+        actions.addWidget(btn_export)
+        btn_import = QPushButton("📥 Імпорт CSV")
+        btn_import.clicked.connect(self._import_csv)
+        actions.addWidget(btn_import)
         actions.addStretch()
         btn_edit = QPushButton("✏️ Редагувати")
         btn_edit.clicked.connect(self._on_edit)
@@ -232,6 +241,91 @@ class ProductsTab(QWidget):
         row = idx.row()
         id_val = self.model.item(row, 0).text()
         return int(id_val) if id_val.isdigit() else None
+
+    def _export_csv(self):
+        project_id = self.main_window.active_project_id if self.main_window else None
+        items = ProductRepository.get_all(project_id=project_id)
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт виробів", "products.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+        fieldnames = [
+            "name",
+            "product_type",
+            "width",
+            "height",
+            "length",
+            "thickness",
+            "material",
+            "quantity",
+            "cost_price",
+            "unit_price",
+            "total_price",
+            "discounted_price",
+            "notes",
+            "project_id",
+        ]
+        try:
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for item in items:
+                    row = {k: item.get(k, "") for k in fieldnames}
+                    writer.writerow(row)
+            QMessageBox.information(self, "Успіх", f"Експортовано виробів: {len(items)}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {exc}")
+
+    def _import_csv(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Імпорт виробів", "", "CSV (*.csv)")
+        if not path:
+            return
+        project_id = self.main_window.active_project_id if self.main_window else None
+
+        def fnum(value, default=0.0):
+            try:
+                return float(str(value or "").replace(",", "."))
+            except Exception:
+                return default
+
+        created = 0
+        errors = 0
+        try:
+            with open(path, newline="", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        data = {
+                            "name": row.get("name") or row.get("Назва") or "Імпортований виріб",
+                            "product_type": row.get("product_type")
+                            or row.get("Тип")
+                            or "Повітропровід прямокутний",
+                            "width": fnum(row.get("width") or row.get("Ширина")),
+                            "height": fnum(row.get("height") or row.get("Висота")),
+                            "length": fnum(row.get("length") or row.get("Довжина")),
+                            "thickness": str(row.get("thickness") or row.get("Товщина") or "0.7"),
+                            "material": row.get("material")
+                            or row.get("Матеріал")
+                            or "Оцинкована сталь",
+                            "quantity": int(fnum(row.get("quantity") or row.get("Кількість"), 1)),
+                            "cost_price": fnum(row.get("cost_price")),
+                            "unit_price": fnum(row.get("unit_price")),
+                            "total_price": fnum(row.get("total_price")),
+                            "discounted_price": fnum(row.get("discounted_price")),
+                            "notes": row.get("notes") or "",
+                            "project_id": project_id,
+                        }
+                        ProductRepository.create(data)
+                        created += 1
+                    except Exception:
+                        errors += 1
+            self._load_data()
+            QMessageBox.information(
+                self, "Імпорт завершено", f"Створено: {created}. Помилок: {errors}."
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося імпортувати CSV: {exc}")
 
     def _on_add(self):
         dlg = ProductDialog(parent=self)
