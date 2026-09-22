@@ -19,6 +19,7 @@ class UpdateChecker(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
+        self._pending_release = None
 
     def start(self, delay_ms: int = 1500) -> None:
         QTimer.singleShot(delay_ms, self._check)
@@ -49,6 +50,7 @@ class UpdateChecker(QObject):
 
     def _download(self, info):
         parent = self.parent()
+        self._pending_release = info
         QMessageBox.information(parent, "Оновлення", "Завантаження почалося у фоні.")
         self._worker = FunctionWorker(download_release_asset, info)
         self._worker.result.connect(self._on_downloaded)
@@ -73,13 +75,27 @@ class UpdateChecker(QObject):
         msg = QMessageBox(parent)
         msg.setWindowTitle("Оновлення завантажено")
         msg.setIcon(QMessageBox.Information)
-        msg.setText(
-            f"Файл оновлення завантажено:\n{file_path.name}\n\n"
-            f"Розмір: {size_mb:.1f} МБ\n\n"
-            "Розпакуйте архів і замініть файли застосунку."
-        )
+        msg.setText(f"Файл оновлення завантажено: {file_path.name} | Розмір: {size_mb:.1f} МБ")
+        extract_btn = msg.addButton("Розпакувати", QMessageBox.AcceptRole)
         open_btn = msg.addButton("Відкрити папку", QMessageBox.AcceptRole)
         msg.addButton(QMessageBox.Ok)
         msg.exec()
-        if msg.clickedButton() == open_btn:
+
+        if msg.clickedButton() == extract_btn:
+            self._extract_update(file_path)
+        elif msg.clickedButton() == open_btn:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file_path.parent)))
+
+    def _extract_update(self, file_path: Path):
+        parent = self.parent()
+        tag = (self._pending_release or {}).get("tag") or "update"
+        safe_tag = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in tag)
+        target_dir = file_path.parent / f"extracted_{safe_tag}"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            with zipfile.ZipFile(file_path) as zf:
+                zf.extractall(target_dir)
+            QMessageBox.information(parent, "Успіх", f"Оновлення розпаковано у: {target_dir}")
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_dir)))
+        except Exception as exc:
+            QMessageBox.critical(parent, "Помилка", f"Не вдалося розпакувати оновлення: {exc}")
