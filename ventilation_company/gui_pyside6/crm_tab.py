@@ -101,6 +101,22 @@ class CRMTab(QWidget):
         btn_history.clicked.connect(self._show_client_history)
         layout.addWidget(btn_history)
 
+        filter_row = QHBoxLayout()
+        self.edit_search = QLineEdit()
+        self.edit_search.setPlaceholderText("Пошук клієнта...")
+        self.combo_status = QComboBox()
+        self.combo_status.addItems(
+            ["Всі", "Активний", "Потенційний", "Неактивний", "Чорний список"]
+        )
+        btn_reset_filters = QPushButton("🔄")
+        btn_reset_filters.clicked.connect(self._reset_filters)
+        self.edit_search.textChanged.connect(self._apply_filters)
+        self.combo_status.currentTextChanged.connect(self._apply_filters)
+        filter_row.addWidget(self.edit_search)
+        filter_row.addWidget(self.combo_status)
+        filter_row.addWidget(btn_reset_filters)
+        layout.addLayout(filter_row)
+
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

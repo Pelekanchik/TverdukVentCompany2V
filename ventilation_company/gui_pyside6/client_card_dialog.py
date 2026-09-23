@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -39,13 +40,13 @@ def _to_date(value) -> date | None:
 
 
 class ClientCardDialog(QDialog):
-    """Consolidated client info card with small editable fields."""
+    """Editable client info card."""
 
     def __init__(self, client: dict, parent=None):
         super().__init__(parent)
         self.client = client
         self.setWindowTitle(f"🪪 Картка клієнта — {client.get('name', '')}")
-        self.resize(780, 600)
+        self.resize(820, 640)
         self._build_ui()
         self._load_data()
 
@@ -53,12 +54,17 @@ class ClientCardDialog(QDialog):
         layout = QVBoxLayout(self)
 
         info = QFormLayout()
-        info.addRow("Назва:", QLabel(self.client.get("name") or "—"))
-        info.addRow("Контакт:", QLabel(self.client.get("contact_person") or "—"))
-        info.addRow("Телефон:", QLabel(self.client.get("phone") or "—"))
-        info.addRow("Email:", QLabel(self.client.get("email") or "—"))
-        info.addRow("Адреса:", QLabel(self.client.get("address") or "—"))
-        layout.addLayout(info)
+        self.edit_name = QLineEdit(self.client.get("name") or "")
+        self.edit_contact = QLineEdit(self.client.get("contact_person") or "")
+        self.edit_phone = QLineEdit(self.client.get("phone") or "")
+        self.edit_email = QLineEdit(self.client.get("email") or "")
+        self.edit_address = QLineEdit(self.client.get("address") or "")
+
+        info.addRow("Назва:", self.edit_name)
+        info.addRow("Контакт:", self.edit_contact)
+        info.addRow("Телефон:", self.edit_phone)
+        info.addRow("Email:", self.edit_email)
+        info.addRow("Адреса:", self.edit_address)
 
         self.combo_status = QComboBox()
         self.combo_status.addItems(["Активний", "Потенційний", "Неактивний", "Чорний список"])
@@ -69,6 +75,8 @@ class ClientCardDialog(QDialog):
         self.edit_notes.setPlaceholderText("Нотатки про клієнта...")
         self.edit_notes.setMaximumHeight(80)
         info.addRow("Нотатки:", self.edit_notes)
+
+        layout.addLayout(info)
 
         btn_save = QPushButton("💾 Зберегти")
         btn_save.clicked.connect(self._save)
@@ -114,9 +122,17 @@ class ClientCardDialog(QDialog):
 
     def _save(self):
         data = {
+            "name": self.edit_name.text().strip(),
+            "contact_person": self.edit_contact.text().strip(),
+            "phone": self.edit_phone.text().strip(),
+            "email": self.edit_email.text().strip(),
+            "address": self.edit_address.text().strip(),
             "status": self.combo_status.currentText(),
             "notes": self.edit_notes.toPlainText().strip(),
         }
+        if not data["name"]:
+            QMessageBox.warning(self, "Увага", "Назва клієнта не може бути порожньою")
+            return
         try:
             updated = ClientRepository.update(self.client["id"], data)
             if updated:
@@ -149,9 +165,6 @@ class ClientCardDialog(QDialog):
         self.lbl_interactions.setText(str(len(interactions)))
         self.lbl_payments.setText(f"{len(payments)} | {payments_total:,.2f} UAH")
         self.lbl_next_action.setText(next_action)
-        self.combo_status.setCurrentText(self.client.get("status") or "Потенційний")
-        if not self.edit_notes.toPlainText():
-            self.edit_notes.setPlainText(self.client.get("notes") or "")
 
         self.table_interactions.setRowCount(0)
         for item in interactions[:5]:

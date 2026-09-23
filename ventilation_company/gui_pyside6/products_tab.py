@@ -157,6 +157,9 @@ class ProductsTab(QWidget):
         btn_import = QPushButton("📥 Імпорт CSV")
         btn_import.clicked.connect(self._import_csv)
         actions.addWidget(btn_import)
+        btn_template = QPushButton("📄 Шаблон CSV")
+        btn_template.clicked.connect(self._download_csv_template)
+        actions.addWidget(btn_template)
         actions.addStretch()
         btn_edit = QPushButton("✏️ Редагувати")
         btn_edit.clicked.connect(self._on_edit)
@@ -326,6 +329,56 @@ class ProductsTab(QWidget):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Помилка", f"Не вдалося імпортувати CSV: {exc}")
+
+    def _download_csv_template(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти шаблон CSV",
+            "products_template.csv",
+            "CSV (*.csv)",
+        )
+        if not path:
+            return
+        fieldnames = [
+            "name",
+            "product_type",
+            "width",
+            "height",
+            "length",
+            "thickness",
+            "material",
+            "quantity",
+            "cost_price",
+            "unit_price",
+            "total_price",
+            "discounted_price",
+            "notes",
+            "project_id",
+        ]
+        sample = {
+            "name": "Повітропровід прямокутний 400x200x1000",
+            "product_type": "Повітропровід прямокутний",
+            "width": 400,
+            "height": 200,
+            "length": 1000,
+            "thickness": "0.7",
+            "material": "Оцинкована сталь",
+            "quantity": 1,
+            "cost_price": 0,
+            "unit_price": 0,
+            "total_price": 0,
+            "discounted_price": 0,
+            "notes": "",
+            "project_id": "",
+        }
+        try:
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerow(sample)
+            QMessageBox.information(self, "Успіх", f"Шаблон збережено: {path}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти шаблон: {exc}")
 
     def _on_add(self):
         dlg = ProductDialog(parent=self)
