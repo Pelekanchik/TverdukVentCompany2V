@@ -1,5 +1,10 @@
 # 🏭 VentCompany v2.0
 
+## Documentation
+
+- [User Guide](docs/USER_GUIDE.md)
+
+
 **Система управління вентиляційними проєктами**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
