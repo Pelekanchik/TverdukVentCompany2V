@@ -5,17 +5,21 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFormLayout,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
 )
 
+from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
@@ -35,13 +39,13 @@ def _to_date(value) -> date | None:
 
 
 class ClientCardDialog(QDialog):
-    """Consolidated client info card."""
+    """Consolidated client info card with small editable fields."""
 
     def __init__(self, client: dict, parent=None):
         super().__init__(parent)
         self.client = client
         self.setWindowTitle(f"🪪 Картка клієнта — {client.get('name', '')}")
-        self.resize(760, 560)
+        self.resize(780, 600)
         self._build_ui()
         self._load_data()
 
@@ -53,9 +57,22 @@ class ClientCardDialog(QDialog):
         info.addRow("Контакт:", QLabel(self.client.get("contact_person") or "—"))
         info.addRow("Телефон:", QLabel(self.client.get("phone") or "—"))
         info.addRow("Email:", QLabel(self.client.get("email") or "—"))
-        info.addRow("Статус:", QLabel(self.client.get("status") or "—"))
         info.addRow("Адреса:", QLabel(self.client.get("address") or "—"))
         layout.addLayout(info)
+
+        self.combo_status = QComboBox()
+        self.combo_status.addItems(["Активний", "Потенційний", "Неактивний", "Чорний список"])
+        self.combo_status.setCurrentText(self.client.get("status") or "Потенційний")
+        info.addRow("Статус:", self.combo_status)
+
+        self.edit_notes = QTextEdit(self.client.get("notes") or "")
+        self.edit_notes.setPlaceholderText("Нотатки про клієнта...")
+        self.edit_notes.setMaximumHeight(80)
+        info.addRow("Нотатки:", self.edit_notes)
+
+        btn_save = QPushButton("💾 Зберегти")
+        btn_save.clicked.connect(self._save)
+        layout.addWidget(btn_save)
 
         self.grid = QGridLayout()
         self.lbl_interactions = QLabel()
@@ -95,6 +112,21 @@ class ClientCardDialog(QDialog):
         self.table_payments.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.table_payments)
 
+    def _save(self):
+        data = {
+            "status": self.combo_status.currentText(),
+            "notes": self.edit_notes.toPlainText().strip(),
+        }
+        try:
+            updated = ClientRepository.update(self.client["id"], data)
+            if updated:
+                self.client = updated
+            if self.parent() is not None and hasattr(self.parent(), "_load_data"):
+                self.parent()._load_data()
+            QMessageBox.information(self, "Успіх", "Картку клієнта збережено")
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти картку: {exc}")
+
     def _open_history(self):
         dlg = ClientHistoryDialog(self.client["id"], self.client.get("name") or "Клієнт", self)
         dlg.exec()
@@ -117,6 +149,9 @@ class ClientCardDialog(QDialog):
         self.lbl_interactions.setText(str(len(interactions)))
         self.lbl_payments.setText(f"{len(payments)} | {payments_total:,.2f} UAH")
         self.lbl_next_action.setText(next_action)
+        self.combo_status.setCurrentText(self.client.get("status") or "Потенційний")
+        if not self.edit_notes.toPlainText():
+            self.edit_notes.setPlainText(self.client.get("notes") or "")
 
         self.table_interactions.setRowCount(0)
         for item in interactions[:5]:
