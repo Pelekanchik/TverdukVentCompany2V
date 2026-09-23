@@ -384,12 +384,45 @@ class ProductsTab(QWidget):
         dlg = ProductDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             data = dlg.get_data()
+            duplicate = self._find_duplicate_product(data)
+            if duplicate:
+                answer = QMessageBox.question(
+                    self,
+                    "Можливий дублікат",
+                    f"Схожий виріб уже є: {duplicate.get('name')}. Додати ще один?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if answer != QMessageBox.Yes:
+                    return
             try:
                 ProductRepository.create(data)
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Виріб додано!")
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти: {e}")
+
+    def _find_duplicate_product(self, data: dict):
+        name = (data.get("name") or "").strip().lower()
+        product_type = (data.get("product_type") or "").strip().lower()
+        width = float(data.get("width") or 0)
+        height = float(data.get("height") or 0)
+        length = float(data.get("length") or 0)
+        thickness = str(data.get("thickness") or "").strip()
+        for item in getattr(self, "_all_data", []):
+            if name and (item.get("name") or "").lower() == name:
+                if product_type and (item.get("product_type") or "").lower() != product_type:
+                    continue
+                if abs(float(item.get("width") or 0) - width) > 0.001:
+                    continue
+                if abs(float(item.get("height") or 0) - height) > 0.001:
+                    continue
+                if abs(float(item.get("length") or 0) - length) > 0.001:
+                    continue
+                if thickness and str(item.get("thickness") or "").strip() != thickness:
+                    continue
+                return item
+        return None
 
     def _on_edit(self):
         item_id = self._get_selected_id()
