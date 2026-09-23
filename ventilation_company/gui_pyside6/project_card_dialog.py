@@ -26,13 +26,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.theme import Theme
 
@@ -149,50 +148,28 @@ class ProjectCardDialog(QDialog):
 
     def _load_data(self):
         try:
-            self._products = ProductRepository.get_all(project_id=self.project_id)
-            self._documents = ProjectDocumentRepository.get_by_project(self.project_id)
-            self._works = ProjectWorkRepository.get_all(project_id=self.project_id)
-            self._expenses = ProjectExpenseRepository.get_all(project_id=self.project_id)
-
-            # Рахуємо з виробів (з урахуванням знижки на виріб)
-            cost_from_products = sum(
-                p.get("cost_price", 0) * p.get("quantity", 1) for p in self._products
+            p = ProjectRepository.get(self.project_id)
+            if not p:
+                return
+            self.lbl_number.setText(p.get("project_number") or "—")
+            self.lbl_name.setText(p.get("name") or "—")
+            self.lbl_client.setText(p.get("client") or "—")
+            self.lbl_address.setText(p.get("address") or "—")
+            self.lbl_status.setText(p.get("status") or "—")
+            self.lbl_dates.setText(
+                f"Початок: {p.get('start_date') or '—'} | Дедлайн: {p.get('deadline') or '—'}"
             )
-            # ← v2.4: використовуємо discounted_price, якщо вона вказана
-            price_from_products = sum(
-                (
-                    p.get("discounted_price", 0)
-                    if p.get("discounted_price", 0) > 0
-                    else p.get("total_price", 0)
-                )
-                for p in self._products
+            self.lbl_prices.setText(
+                f"Собівартість: {p.get('cost_price') or 0:,.0f} | Клієнту: {p.get('customer_price') or 0:,.0f} | Зі знижкою: {p.get('discounted_price') or 0:,.0f}"
             )
-
-            works_total = sum(w.get("total_price", 0) for w in self._works)
-            expenses_total = sum(e.get("total_price", 0) for e in self._expenses)
-
-            if cost_from_products == 0 and price_from_products > 0:
-                cost_from_products = round(price_from_products / 1.56, 2)
-
-            with get_db() as session:
-                p = session.query(Project).filter(Project.id == self.project_id).first()
-                if p:
-                    self._project_data = {
-                        "id": p.id,
-                        "name": p.name or "—",
-                        "project_number": p.project_number or str(p.id),
-                        "client": p.client or "—",
-                        "status": p.status or "—",
-                        "created_at": str(p.created_at)[:10] if p.created_at else "—",
-                        "cost_price": cost_from_products,
-                        "customer_price": price_from_products,
-                        "discounted_price": float(p.discounted_price or 0),
-                        "works_total": works_total,
-                        "expenses_total": expenses_total,
-                        "profit": float(p.profit or 0),
-                    }
+            products = ProductRepository.get_all(project_id=self.project_id)
+            self.lbl_products.setText(f"Виробів у проєкті: {len(products)}")
+            self._products = products
+            self._update_calculations()
+            docs = ProjectDocumentRepository.list_by_project(self.project_id)
+            self.lbl_docs.setText(f"Документів: {len(docs)}")
         except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити дані проєкту: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)

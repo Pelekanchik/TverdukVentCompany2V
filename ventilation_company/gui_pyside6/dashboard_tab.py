@@ -6,12 +6,9 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from sqlalchemy import extract, func
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
-from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.dashboard_service import DashboardService
 
 
 class StatCard(QFrame):
@@ -111,82 +108,39 @@ class DashboardTab(QWidget):
         layout.addStretch()
 
     def refresh(self):
-        """Оновити дані дашборду з БД — тільки завершені проєкти."""
+        """Оновити дані дашборду через DashboardService."""
         try:
-            with get_db() as session:
-                # 1. Завершені проєкти
-                done_projects = (
-                    session.query(Project).filter(Project.status.in_(self.DONE_STATUSES)).all()
-                )
+            stats = DashboardService.done_dashboard(self.DONE_STATUSES)
+            self.card_projects.findChild(QLabel, "stat_value").setText(str(stats["done_count"]))
+            self.card_revenue.findChild(QLabel, "stat_value").setText(
+                f"₴ {stats['total_revenue']:,.0f}"
+            )
+            self.card_profit.findChild(QLabel, "stat_value").setText(f"₴ {stats['profit']:,.0f}")
+            self.card_clients.findChild(QLabel, "stat_value").setText(str(stats["clients"]))
 
-                done_count = len(done_projects)
-                self.card_projects.findChild(QLabel, "stat_value").setText(str(done_count))
-
-                # 2. Виручка та прибуток — сума всіх виробів у завершених проєктах
-                total_revenue = 0
-                total_cost = 0
-                for p in done_projects:
-                    try:
-                        products = ProductRepository.get_all(project_id=p.id)
-                        for item in products:
-                            total_revenue += item.get("total_price", 0)
-                            # Собівартість = base_cost (без націнки та ПДВ)
-                            # Приблизно: total_price / 1.3 / 1.2 (зворотній розрахунок)
-                            # Або просто беремо unit_price * quantity
-                            total_cost += item.get("unit_price", 0) * item.get("quantity", 1)
-                    except Exception:
-                        pass
-
-                self.card_revenue.findChild(QLabel, "stat_value").setText(f"₴ {total_revenue:,.0f}")
-
-                profit = total_revenue - total_cost
-                self.card_profit.findChild(QLabel, "stat_value").setText(f"₴ {profit:,.0f}")
-
-                # 3. Унікальних клієнтів (тільки у завершених проєктів)
-                clients = (
-                    session.query(Project.client)
-                    .filter(Project.status.in_(self.DONE_STATUSES), Project.client != None)
-                    .distinct()
-                    .count()
-                )
-                self.card_clients.findChild(QLabel, "stat_value").setText(str(clients))
-
-                # 4. Графік — динаміка завершених проєктів по місяцях
-                monthly = (
-                    session.query(
-                        extract("month", Project.created_at).label("month"),
-                        func.count(Project.id).label("cnt"),
-                        func.sum(Project.customer_price).label("sum"),
-                    )
-                    .filter(Project.status.in_(self.DONE_STATUSES))
-                    .group_by("month")
-                    .order_by("month")
-                    .all()
-                )
-
-                if monthly:
-                    lines = []
-                    for m, c, s in monthly:
-                        month_name = [
-                            "",
-                            "Січ",
-                            "Лют",
-                            "Бер",
-                            "Кві",
-                            "Тра",
-                            "Чер",
-                            "Лип",
-                            "Сер",
-                            "Вер",
-                            "Жов",
-                            "Лис",
-                            "Гру",
-                        ][int(m)]
-                        lines.append(f"{month_name}: {int(c)} проєктів, ₴ {float(s or 0):,.0f}")
-                    self.lbl_chart_value.setText("\n".join(lines))
-                else:
-                    self.lbl_chart_value.setText("Немає завершених проєктів")
-
+            month_names = [
+                "",
+                "Січ",
+                "Лют",
+                "Бер",
+                "Кві",
+                "Тра",
+                "Чер",
+                "Лип",
+                "Сер",
+                "Вер",
+                "Жов",
+                "Лис",
+                "Гру",
+            ]
+            if stats["monthly"]:
+                lines = [
+                    f"{month_names[row['month']]}: {row['count']} проєктів, ₴ {row['sum']:,.0f}"
+                    for row in stats["monthly"]
+                ]
+                self.lbl_chart_value.setText("\n".join(lines))
+            else:
+                self.lbl_chart_value.setText("Немає завершених проєктів")
         except Exception as e:
             self.card_projects.findChild(QLabel, "stat_value").setText("—")
             self.card_revenue.findChild(QLabel, "stat_value").setText("—")

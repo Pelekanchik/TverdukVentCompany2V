@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from ventilation_company.database.db import SessionLocal
 from ventilation_company.database.models.audit import AuditLog
+from ventilation_company.database.repositories.audit_log_repo import AuditLogRepository
 
 
 def _to_date(value) -> date | None:
@@ -113,11 +113,7 @@ class AuditLogDialog(QDialog):
         date_from = _to_date(self.date_from.text().strip()) or date(2000, 1, 1)
         date_to = _to_date(self.date_to.text().strip()) or date(2100, 1, 1)
 
-        session = SessionLocal()
-        try:
-            rows = session.query(AuditLog).order_by(AuditLog.id.desc()).limit(5000).all()
-        finally:
-            session.close()
+        rows = AuditLogRepository.list_recent(5000)
 
         filtered = []
         for row in rows:

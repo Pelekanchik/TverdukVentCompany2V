@@ -19,12 +19,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
+from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
@@ -113,52 +112,37 @@ class DocumentsTab(QWidget):
         layout.addStretch()
 
     def _load_projects(self):
-        self.combo_project.blockSignals(True)
         self.combo_project.clear()
         try:
-            with get_db() as session:
-                projects = session.query(Project).order_by(Project.created_at.desc()).all()
-                for p in projects:
-                    display = f"{p.project_number or '—'} — {p.name or 'Без назви'}"
-                    self.combo_project.addItem(display, p.id)
+            projects = ProjectRepository.list_all()
+            for p in projects:
+                display = f"{p.get('project_number') or '—'} — {p.get('name') or 'Без назви'}"
+                self.combo_project.addItem(display, p["id"])
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
-        self.combo_project.blockSignals(False)
-
-        active_id = self.main_window.active_project_id if self.main_window else None
-        if active_id:
-            idx = self.combo_project.findData(active_id)
-            if idx >= 0:
-                self.combo_project.setCurrentIndex(idx)
-                return
-        if self.combo_project.count() > 0:
-            self.combo_project.setCurrentIndex(0)
-            self._current_project_id = self.combo_project.itemData(0)
 
     def _on_project_changed(self, index):
         self._current_project_id = self.combo_project.itemData(index)
 
     def _get_project_data(self):
         if not self._current_project_id:
-            QMessageBox.warning(self, "Увага", "Спочатку виберіть проєкт")
-            return None, None
+            return None, []
         try:
-            with get_db() as session:
-                p = session.query(Project).filter(Project.id == self._current_project_id).first()
-                if not p:
-                    QMessageBox.warning(self, "Увага", "Проєкт не знайдено")
-                    return None, None
-                project_data = {
-                    "id": p.id,
-                    "name": p.name or "—",
-                    "project_number": p.project_number or str(p.id),
-                    "client": p.client or "—",
-                }
-                products = ProductRepository.get_all(project_id=self._current_project_id)
-                return project_data, products
+            p = ProjectRepository.get(self._current_project_id)
+            if not p:
+                return None, []
+            products = ProductRepository.get_all(project_id=p["id"])
+            project = {
+                "id": p["id"],
+                "project_number": p.get("project_number"),
+                "name": p.get("name"),
+                "client": p.get("client"),
+                "address": p.get("address"),
+            }
+            return project, products
         except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити дані: {e}")
-            return None, None
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
+            return None, []
 
     def _generate(self, doc_type: str):
         project, products = self._get_project_data()
