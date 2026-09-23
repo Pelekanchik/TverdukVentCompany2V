@@ -271,9 +271,34 @@ class CRMTab(QWidget):
     def _on_add(self):
         dlg = ClientDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            ClientRepository.create(dlg.get_data())
+            data = dlg.get_data()
+            duplicate = self._find_duplicate_client(data)
+            if duplicate:
+                answer = QMessageBox.question(
+                    self,
+                    "Можливий дублікат",
+                    f"Схожий клієнт вже існує: {duplicate.get('name')} ({duplicate.get('phone') or '—'}). Додати ще одного?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if answer != QMessageBox.Yes:
+                    return
+            ClientRepository.create(data)
             self._load_data()
             QMessageBox.information(self, "Успіх", "Клієнта додано")
+
+    def _find_duplicate_client(self, data: dict):
+        name = (data.get("name") or "").strip().lower()
+        phone = (data.get("phone") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+        for client in self._all_clients:
+            if name and (client.get("name") or "").lower() == name:
+                return client
+            if phone and (client.get("phone") or "").strip() == phone:
+                return client
+            if email and (client.get("email") or "").strip().lower() == email:
+                return client
+        return None
 
     def _on_edit(self):
         cid = self._get_selected_id()
