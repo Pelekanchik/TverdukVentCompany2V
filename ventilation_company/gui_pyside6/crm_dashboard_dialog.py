@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
 )
 
@@ -36,12 +38,12 @@ def _to_date(value) -> date | None:
 
 
 class CRMDashboardDialog(QDialog):
-    """Small read-only CRM dashboard with CSV export."""
+    """Small read-only CRM dashboard with CSV export and upcoming actions."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📊 CRM Dashboard")
-        self.resize(460, 360)
+        self.resize(720, 560)
         self._build_ui()
         self.refresh()
 
@@ -69,19 +71,27 @@ class CRMDashboardDialog(QDialog):
             self.grid.addWidget(QLabel(title), row, 0)
             self.grid.addWidget(label, row, 1)
 
-        btn_row = QVBoxLayout()
+        layout.addWidget(QLabel("Майбутні дії:"))
+        self.table_actions = QTableWidget()
+        self.table_actions.setColumnCount(5)
+        self.table_actions.setHorizontalHeaderLabels(
+            ["Дата", "Клієнт", "Тип", "Тема", "Наступна дія"]
+        )
+        self.table_actions.setEditTriggers(QTableWidget.NoEditTriggers)
+        layout.addWidget(self.table_actions)
+
         btn_refresh = QPushButton("🔄 Оновити")
         btn_export = QPushButton("💾 Експорт CSV")
         btn_refresh.clicked.connect(self.refresh)
         btn_export.clicked.connect(self.export_csv)
-        btn_row.addWidget(btn_refresh)
-        btn_row.addWidget(btn_export)
-        layout.addLayout(btn_row)
+        layout.addWidget(btn_refresh)
+        layout.addWidget(btn_export)
 
     def refresh(self):
         clients = ClientRepository.list_all()
         interactions = InteractionRepository.list_all()
         payments = PaymentRepository.list_all()
+        client_names = {c["id"]: c.get("name") or f"#{c['id']}" for c in clients}
 
         total = len(clients)
         active = sum(1 for c in clients if (c.get("status") or "") == "Активний")
@@ -90,11 +100,14 @@ class CRMDashboardDialog(QDialog):
             float(p.get("amount") or 0) for p in payments if (p.get("currency") or "UAH") == "UAH"
         )
         today = date.today()
-        next_actions = 0
+
+        upcoming = []
         for item in interactions:
             action_date = _to_date(item.get("next_action_date"))
             if action_date and action_date >= today:
-                next_actions += 1
+                upcoming.append((action_date, item))
+        upcoming.sort(key=lambda pair: pair[0])
+        next_actions = len(upcoming)
 
         self.lbl_total_clients.setText(str(total))
         self.lbl_active_clients.setText(str(active))
@@ -102,6 +115,22 @@ class CRMDashboardDialog(QDialog):
         self.lbl_interactions.setText(str(len(interactions)))
         self.lbl_payments_total.setText(f"{payments_total:,.2f}")
         self.lbl_next_actions.setText(str(next_actions))
+
+        self.table_actions.setRowCount(0)
+        for action_date, item in upcoming[:50]:
+            row = self.table_actions.rowCount()
+            self.table_actions.insertRow(row)
+            values = [
+                action_date.isoformat(),
+                client_names.get(item.get("client_id"), "—"),
+                item.get("type"),
+                item.get("subject"),
+                item.get("next_action"),
+            ]
+            for col, value in enumerate(values):
+                self.table_actions.setItem(
+                    row, col, QTableWidgetItem("" if value is None else str(value))
+                )
 
     @staticmethod
     def _write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
