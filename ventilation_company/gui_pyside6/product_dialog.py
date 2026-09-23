@@ -578,6 +578,20 @@ class ProductDialog(QDialog):
             self.spin_flange_count.setValue(2)
 
     def _on_calc(self):
+        try:
+            self._on_calc_impl()
+        except RuntimeError:
+            # Qt іноді тримає stale widget після зміни типу виробу.
+            # Перебудовуємо dynamic fields і пробуємо ще раз.
+            try:
+                self._on_type_changed(self.combo_type.currentText())
+                self._on_calc_impl()
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Помилка розрахунку", f"Не вдалося розрахувати ціну: {e}"
+                )
+
+    def _on_calc_impl(self):
         pt = self.combo_type.currentText()
         mat = self.combo_material.currentText()
         thick = float(self.combo_thickness.currentText())

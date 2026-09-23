@@ -160,6 +160,10 @@ class ProductsTab(QWidget):
         btn_template = QPushButton("📄 Шаблон CSV")
         btn_template.clicked.connect(self._download_csv_template)
         actions.addWidget(btn_template)
+        btn_presets = QPushButton("📚 Пресети")
+        btn_presets.clicked.connect(self._show_presets)
+        actions.addWidget(btn_presets)
+
         actions.addStretch()
         btn_edit = QPushButton("✏️ Редагувати")
         btn_edit.clicked.connect(self._on_edit)
@@ -379,6 +383,12 @@ class ProductsTab(QWidget):
             QMessageBox.information(self, "Успіх", f"Шаблон збережено: {path}")
         except Exception as exc:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти шаблон: {exc}")
+
+    def _show_presets(self):
+        from ventilation_company.gui_pyside6.product_presets_dialog import ProductPresetsDialog
+
+        dlg = ProductPresetsDialog(self)
+        dlg.exec()
 
     def _on_add(self):
         dlg = ProductDialog(parent=self)
