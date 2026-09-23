@@ -201,6 +201,26 @@ class CRMDashboardDialog(QDialog):
                 ],
                 payments,
             )
+            today = date.today()
+            client_names = {c["id"]: c.get("name") or f"#{c['id']}" for c in clients}
+            upcoming_rows = []
+            for item in interactions:
+                action_date = _to_date(item.get("next_action_date"))
+                if action_date and action_date >= today:
+                    upcoming_rows.append(
+                        {
+                            "date": action_date.isoformat(),
+                            "client": client_names.get(item.get("client_id"), ""),
+                            "type": item.get("type") or "",
+                            "subject": item.get("subject") or "",
+                            "next_action": item.get("next_action") or "",
+                        }
+                    )
+            self._write_csv(
+                out_dir / "upcoming_actions.csv",
+                ["date", "client", "type", "subject", "next_action"],
+                upcoming_rows,
+            )
             QMessageBox.information(self, "Успіх", f"CSV експортовано у: {out_dir}")
         except Exception as exc:
             QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {exc}")
