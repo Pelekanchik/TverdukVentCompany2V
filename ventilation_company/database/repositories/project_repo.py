@@ -2,33 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import Project
 
 
+def _columns() -> set[str]:
+    return set(Project.__table__.columns.keys())
+
+
 def _to_dict(project: Project) -> dict:
-    return {
-        "id": project.id,
-        "name": project.name,
-        "project_number": project.project_number,
-        "client": project.client,
-        "client_id": project.client_id,
-        "address": project.address,
-        "status": project.status,
-        "priority": project.priority,
-        "progress": project.progress,
-        "start_date": project.start_date,
-        "deadline": project.deadline,
-        "completed_date": project.completed_date,
-        "cost_price": project.cost_price,
-        "customer_price": project.customer_price,
-        "discounted_price": project.discounted_price,
-        "profit": project.profit,
-        "margin_percent": project.margin_percent,
-        "notes": project.notes,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
-    }
+    return {key: getattr(project, key, None) for key in _columns()}
 
 
 class ProjectRepository:
@@ -46,26 +31,14 @@ class ProjectRepository:
 
     @staticmethod
     def create(data: dict) -> dict:
+        columns = _columns()
         with get_db() as session:
-            project = Project(
-                name=data.get("name"),
-                project_number=data.get("project_number"),
-                client=data.get("client"),
-                client_id=data.get("client_id"),
-                address=data.get("address"),
-                status=data.get("status") or "Новий",
-                priority=data.get("priority") or "Середній",
-                progress=data.get("progress") or 0,
-                start_date=data.get("start_date"),
-                deadline=data.get("deadline"),
-                completed_date=data.get("completed_date"),
-                cost_price=data.get("cost_price") or 0,
-                customer_price=data.get("customer_price") or 0,
-                discounted_price=data.get("discounted_price") or 0,
-                profit=data.get("profit") or 0,
-                margin_percent=data.get("margin_percent") or 0,
-                notes=data.get("notes"),
-            )
+            project = Project()
+            for key, value in data.items():
+                if key in columns and value is not None:
+                    setattr(project, key, value)
+            if "created_at" in columns and getattr(project, "created_at", None) is None:
+                project.created_at = datetime.now()
             session.add(project)
             session.commit()
             session.refresh(project)
@@ -73,32 +46,14 @@ class ProjectRepository:
 
     @staticmethod
     def update(project_id: int, data: dict) -> dict | None:
+        columns = _columns()
         with get_db() as session:
             project = session.get(Project, project_id)
             if not project:
                 return None
-            fields = {
-                "name",
-                "project_number",
-                "client",
-                "client_id",
-                "address",
-                "status",
-                "priority",
-                "progress",
-                "start_date",
-                "deadline",
-                "completed_date",
-                "cost_price",
-                "customer_price",
-                "discounted_price",
-                "profit",
-                "margin_percent",
-                "notes",
-            }
-            for key in fields:
-                if key in data:
-                    setattr(project, key, data[key])
+            for key, value in data.items():
+                if key in columns:
+                    setattr(project, key, value)
             session.commit()
             session.refresh(project)
             return _to_dict(project)
@@ -109,6 +64,22 @@ class ProjectRepository:
             project = session.get(Project, project_id)
             if not project:
                 return False
+            session.delete(project)
+            session.commit()
+            return True
+
+    @staticmethod
+    def delete_cascade(project_id: int) -> bool:
+        """Delete project with related documents and products."""
+        from ventilation_company.database.models.product_item import ProductItem
+        from ventilation_company.database.models.project_document import ProjectDocument
+
+        with get_db() as session:
+            project = session.get(Project, project_id)
+            if not project:
+                return False
+            session.query(ProjectDocument).filter(ProjectDocument.project_id == project_id).delete()
+            session.query(ProductItem).filter(ProductItem.project_id == project_id).delete()
             session.delete(project)
             session.commit()
             return True

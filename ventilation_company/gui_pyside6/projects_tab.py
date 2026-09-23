@@ -28,9 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
 from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.audit_service import log_action
@@ -279,63 +278,57 @@ class ProjectsTab(QWidget):
         self.model.removeRows(0, self.model.rowCount())
         self._projects = []
         try:
-            with get_db() as session:
-                projects = session.query(Project).order_by(Project.created_at.desc()).all()
-                for p in projects:
-                    try:
-                        products = ProductRepository.get_all(project_id=p.id)
-                        # ← v2.4: ціна з урахуванням знижки на вироби
-                        cost = sum(
-                            pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products
+            projects = ProjectRepository.list_all()
+            for p in projects:
+                try:
+                    products = ProductRepository.get_all(project_id=p["id"])
+                    cost = sum(pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products)
+                    base = sum(
+                        (
+                            pr.get("discounted_price", 0)
+                            if pr.get("discounted_price", 0) > 0
+                            else pr.get("total_price", 0)
                         )
-                        base = sum(
-                            (
-                                pr.get("discounted_price", 0)
-                                if pr.get("discounted_price", 0) > 0
-                                else pr.get("total_price", 0)
-                            )
-                            for pr in products
-                        )
-                    except Exception:
-                        cost = 0
-                        base = 0
+                        for pr in products
+                    )
+                except Exception:
+                    cost = 0
+                    base = 0
 
-                    discounted = float(p.discounted_price or 0)
-                    effective = discounted if discounted > 0 else base
-                    profit = effective - cost
+                discounted = float(p.get("discounted_price") or 0)
+                effective = discounted if discounted > 0 else base
+                profit = effective - cost
+                data = {
+                    "id": p["id"],
+                    "name": p.get("name") or "—",
+                    "project_number": p.get("project_number") or "—",
+                    "client": p.get("client") or "—",
+                    "status": p.get("status") or "Новий",
+                    "created_at": str(p.get("created_at"))[:10] if p.get("created_at") else "—",
+                    "cost_price": cost,
+                    "customer_price": base,
+                    "discounted_price": discounted,
+                    "profit": profit,
+                }
+                self._projects.append(data)
 
-                    data = {
-                        "id": p.id,
-                        "name": p.name or "—",
-                        "project_number": p.project_number or "—",
-                        "client": p.client or "—",
-                        "status": p.status or "Новий",
-                        "created_at": str(p.created_at)[:10] if p.created_at else "—",
-                        "cost_price": cost,
-                        "customer_price": base,
-                        "discounted_price": discounted,
-                        "profit": profit,
-                    }
-                    self._projects.append(data)
-
-                    profit_color = Theme.SUCCESS if profit >= 0 else Theme.DANGER
-
-                    row = [
-                        QStandardItem(str(p.id)),
-                        QStandardItem(data["project_number"]),
-                        QStandardItem(data["name"]),
-                        QStandardItem(data["client"]),
-                        QStandardItem(data["status"]),
-                        QStandardItem(data["created_at"]),
-                        QStandardItem("₴ " + f"{base:,.0f}"),
-                        QStandardItem("₴ " + f"{base:,.0f}"),
-                        QStandardItem("₴ " + f"{discounted:,.0f}"),
-                        QStandardItem("₴ " + f"{profit:,.0f}"),
-                    ]
-                    for cell in row:
-                        cell.setEditable(False)
-                    row[-1].setForeground(QBrush(QColor(profit_color)))
-                    self.model.appendRow(row)
+                profit_color = Theme.SUCCESS if profit >= 0 else Theme.DANGER
+                row = [
+                    QStandardItem(str(p["id"])),
+                    QStandardItem(data["project_number"]),
+                    QStandardItem(data["name"]),
+                    QStandardItem(data["client"]),
+                    QStandardItem(data["status"]),
+                    QStandardItem(data["created_at"]),
+                    QStandardItem("₴ " + f"{cost:,.0f}"),
+                    QStandardItem("₴ " + f"{base:,.0f}"),
+                    QStandardItem("₴ " + f"{discounted:,.0f}"),
+                    QStandardItem("₴ " + f"{profit:,.0f}"),
+                ]
+                for cell in row:
+                    cell.setEditable(False)
+                row[-1].setForeground(QBrush(QColor(profit_color)))
+                self.model.appendRow(row)
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
 
@@ -367,37 +360,17 @@ class ProjectsTab(QWidget):
             if not data["name"]:
                 QMessageBox.warning(self, "Помилка", "Введіть назву проєкту")
                 return
+            if not data.get("project_number"):
+                data["project_number"] = f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            data["created_at"] = datetime.now()
             try:
-                with get_db() as session:
-                    project = Project(
-                        name=data["name"],
-                        project_number=data["project_number"]
-                        or f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-                        client=data["client"],
-                        status=data["status"],
-                        cost_price=data["cost_price"],
-                        customer_price=data["customer_price"],
-                        discounted_price=data["discounted_price"],
-                        profit=data["profit"],
-                        created_at=datetime.now(),
-                    )
-                    session.add(project)
-                    session.flush()
-                    project_id = project.id
+                created = ProjectRepository.create(data)
+                project_id = created["id"]
                 log_action(
                     "project.create",
                     entity_type="project",
                     entity_id=project_id,
-                    details={
-                        "name": data["name"],
-                        "project_number": data["project_number"],
-                        "client": data["client"],
-                        "status": data["status"],
-                        "cost_price": data["cost_price"],
-                        "customer_price": data["customer_price"],
-                        "discounted_price": data["discounted_price"],
-                        "profit": data["profit"],
-                    },
+                    details=data,
                     actor=self._audit_actor(),
                 )
                 self._load_data()
@@ -412,11 +385,7 @@ class ProjectsTab(QWidget):
         if not project_id:
             QMessageBox.warning(self, "Увага", "Виберіть проєкт для редагування")
             return
-        project_data = None
-        for p in self._projects:
-            if p["id"] == project_id:
-                project_data = p
-                break
+        project_data = next((p for p in self._projects if p["id"] == project_id), None)
         if not project_data:
             return
         dlg = ProjectEditDialog(project_data, parent=self)
@@ -426,32 +395,12 @@ class ProjectsTab(QWidget):
                 QMessageBox.warning(self, "Помилка", "Введіть назву проєкту")
                 return
             try:
-                with get_db() as session:
-                    project = session.query(Project).filter(Project.id == project_id).first()
-                    if project:
-                        project.name = data["name"]
-                        project.project_number = data["project_number"] or project.project_number
-                        project.client = data["client"]
-                        project.status = data["status"]
-                        project.cost_price = data["cost_price"]
-                        project.customer_price = data["customer_price"]
-                        project.discounted_price = data["discounted_price"]
-                        project.profit = data["profit"]
-                        session.commit()
+                ProjectRepository.update(project_id, data)
                 log_action(
                     "project.update",
                     entity_type="project",
                     entity_id=project_id,
-                    details={
-                        "name": data["name"],
-                        "project_number": data["project_number"],
-                        "client": data["client"],
-                        "status": data["status"],
-                        "cost_price": data["cost_price"],
-                        "customer_price": data["customer_price"],
-                        "discounted_price": data["discounted_price"],
-                        "profit": data["profit"],
-                    },
+                    details=data,
                     actor=self._audit_actor(),
                 )
                 self._load_data()
@@ -464,11 +413,7 @@ class ProjectsTab(QWidget):
         if not project_id:
             QMessageBox.warning(self, "Увага", "Виберіть проєкт для видалення")
             return
-        project_name = ""
-        for p in self._projects:
-            if p["id"] == project_id:
-                project_name = p["name"]
-                break
+        project_name = next((p["name"] for p in self._projects if p["id"] == project_id), "")
         msg = 'Видалити проєкт "' + project_name + '" (ID: ' + str(project_id) + ")?"
         msg += " ВСІ вироби та документи цього проєкту також будуть видалені!"
         reply = QMessageBox.question(
@@ -476,16 +421,7 @@ class ProjectsTab(QWidget):
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                with get_db() as session:
-                    from ventilation_company.database.models.product_item import ProductItem
-                    from ventilation_company.database.models.project_document import ProjectDocument
-
-                    session.query(ProjectDocument).filter(
-                        ProjectDocument.project_id == project_id
-                    ).delete()
-                    session.query(ProductItem).filter(ProductItem.project_id == project_id).delete()
-                    session.query(Project).filter(Project.id == project_id).delete()
-                    session.commit()
+                ProjectRepository.delete_cascade(project_id)
                 log_action(
                     "project.delete",
                     entity_type="project",
