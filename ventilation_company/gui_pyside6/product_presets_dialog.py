@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -17,7 +19,9 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.paths import APP_ROOT
 from ventilation_company.product_presets_manager import PresetsManager
+from ventilation_company.standard_products import StandardProduct
 
 
 class ProductPresetsDialog(QDialog):
@@ -27,6 +31,13 @@ class ProductPresetsDialog(QDialog):
         super().__init__(parent)
         self.manager = PresetsManager()
         self._all_presets = self.manager.get_all()
+        custom_file = APP_ROOT / "data" / "custom_product_presets.json"
+        if custom_file.exists():
+            try:
+                for row in json.loads(custom_file.read_text(encoding="utf-8")):
+                    self._all_presets.append(StandardProduct.from_dict(row))
+            except Exception:
+                pass
         self._visible = []
         self.setWindowTitle("📚 Бібліотека типових виробів")
         self.resize(920, 560)

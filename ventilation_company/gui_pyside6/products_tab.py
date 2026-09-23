@@ -164,6 +164,10 @@ class ProductsTab(QWidget):
         btn_presets.clicked.connect(self._show_presets)
         actions.addWidget(btn_presets)
 
+        btn_save_preset = QPushButton("⭐ У пресети")
+        btn_save_preset.clicked.connect(self._save_selected_as_preset)
+        actions.addWidget(btn_save_preset)
+
         actions.addStretch()
         btn_edit = QPushButton("✏️ Редагувати")
         btn_edit.clicked.connect(self._on_edit)
@@ -383,6 +387,42 @@ class ProductsTab(QWidget):
             QMessageBox.information(self, "Успіх", f"Шаблон збережено: {path}")
         except Exception as exc:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти шаблон: {exc}")
+
+    def _save_selected_as_preset(self):
+        import json
+
+        from ventilation_company.paths import APP_ROOT
+
+        row = self.table.currentIndex().row()
+        if row < 0:
+            QMessageBox.warning(self, "Увага", "Оберіть виріб")
+            return
+        id_item = self.model.item(row, 0)
+        if id_item is None:
+            QMessageBox.warning(self, "Увага", "Оберіть виріб")
+            return
+        try:
+            product_id = int(id_item.text())
+        except Exception:
+            QMessageBox.warning(self, "Увага", "Не вдалося визначити виріб")
+            return
+        data = next(
+            (item for item in getattr(self, "_all_data", []) if item.get("id") == product_id), None
+        )
+        if not data:
+            QMessageBox.warning(self, "Увага", "Не вдалося знайти дані виробу")
+            return
+        try:
+            custom_file = APP_ROOT / "data" / "custom_product_presets.json"
+            custom_file.parent.mkdir(parents=True, exist_ok=True)
+            rows = []
+            if custom_file.exists():
+                rows = json.loads(custom_file.read_text(encoding="utf-8"))
+            rows.append(data)
+            custom_file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+            QMessageBox.information(self, "Успіх", f"Виріб збережено у пресети: {data.get('name')}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти пресет: {exc}")
 
     def _show_presets(self):
         from ventilation_company.gui_pyside6.product_presets_dialog import ProductPresetsDialog
