@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
 
 
@@ -93,6 +94,13 @@ class ClientCardDialog(QDialog):
         self.grid.addWidget(QLabel("Наступна дія:"), 2, 0)
         self.grid.addWidget(self.lbl_next_action, 2, 1)
         layout.addLayout(self.grid)
+        layout.addWidget(QLabel("Проєкти клієнта:"))
+        self.table_projects = QTableWidget()
+        self.table_projects.setColumnCount(5)
+        self.table_projects.setHorizontalHeaderLabels(["ID", "Номер", "Назва", "Статус", "Сума"])
+        self.table_projects.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_projects.setSelectionBehavior(QTableWidget.SelectRows)
+        layout.addWidget(self.table_projects)
 
         btn_row = QHBoxLayout()
         btn_history = QPushButton("📜 Повна історія")
@@ -148,7 +156,32 @@ class ClientCardDialog(QDialog):
         dlg.exec()
         self._load_data()
 
+    def _load_projects(self):
+        try:
+            projects = ProjectRepository.list_by_client(self.client["id"])
+        except Exception:
+            projects = []
+        self.table_projects.setRowCount(0)
+        for project in projects:
+            row = self.table_projects.rowCount()
+            self.table_projects.insertRow(row)
+            amount = float(project.get("discounted_price") or 0)
+            if amount <= 0:
+                amount = float(project.get("customer_price") or 0)
+            values = [
+                project.get("id"),
+                project.get("project_number"),
+                project.get("name"),
+                project.get("status"),
+                amount,
+            ]
+            for col, value in enumerate(values):
+                self.table_projects.setItem(
+                    row, col, QTableWidgetItem("" if value is None else str(value))
+                )
+
     def _load_data(self):
+        self._load_projects()
         interactions = InteractionRepository.list_by_client(self.client["id"])
         payments = PaymentRepository.list_by_client(self.client["id"])
 

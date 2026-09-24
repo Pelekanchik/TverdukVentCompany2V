@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
@@ -77,9 +78,25 @@ class ProjectEditDialog(QDialog):
         self.edit_number.setText(self.project_data.get("project_number", ""))
         layout.addRow("Номер", self.edit_number)
 
-        self.edit_client = QLineEdit()
-        self.edit_client.setText(self.project_data.get("client", ""))
-        layout.addRow("Клієнт", self.edit_client)
+        self.combo_client = QComboBox()
+        self.combo_client.setEditable(True)
+        try:
+            clients = ClientRepository.list_all()
+        except Exception:
+            clients = []
+        for client in clients:
+            label = client.get("name") or f"Клієнт #{client['id']}"
+            extra = client.get("phone") or client.get("email") or ""
+            display = f"{label} ({extra})" if extra else label
+            self.combo_client.addItem(display, client["id"])
+        current_client_id = self.project_data.get("client_id")
+        if current_client_id:
+            idx = self.combo_client.findData(current_client_id)
+            if idx >= 0:
+                self.combo_client.setCurrentIndex(idx)
+        elif self.project_data.get("client"):
+            self.combo_client.setCurrentText(self.project_data.get("client"))
+        layout.addRow("Клієнт", self.combo_client)
 
         self.combo_status = QComboBox()
         self.combo_status.addItems(self.STATUSES)
@@ -167,7 +184,8 @@ class ProjectEditDialog(QDialog):
         return {
             "name": self.edit_name.text().strip(),
             "project_number": self.edit_number.text().strip(),
-            "client": self.edit_client.text().strip(),
+            "client": self.combo_client.currentText().strip(),
+            "client_id": self.combo_client.currentData(),
             "status": self.combo_status.currentText(),
             "cost_price": cost,
             "customer_price": base_price,

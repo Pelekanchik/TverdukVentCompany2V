@@ -40,6 +40,7 @@ class Project(Base):
     project_number: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     client: Mapped[str | None] = mapped_column(String, nullable=True)
+    client_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     address: Mapped[str | None] = mapped_column(String, nullable=True)
     ventilation_type: Mapped[str | None] = mapped_column(String, nullable=True)
     air_flow: Mapped[float | None] = mapped_column(Float, nullable=True)

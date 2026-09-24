@@ -24,6 +24,17 @@ class ProjectRepository:
             return [_to_dict(p) for p in projects]
 
     @staticmethod
+    def list_by_client(client_id: int) -> list[dict]:
+        with get_db() as session:
+            projects = (
+                session.query(Project)
+                .filter(Project.client_id == client_id)
+                .order_by(Project.created_at.desc())
+                .all()
+            )
+            return [_to_dict(p) for p in projects]
+
+    @staticmethod
     def get(project_id: int) -> dict | None:
         with get_db() as session:
             project = session.get(Project, project_id)
