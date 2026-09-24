@@ -169,8 +169,16 @@ class ProductPresetsDialog(QDialog):
             }
         )
         parent = self.parent()
-        main_window = getattr(parent, "main_window", None)
-        data["project_id"] = getattr(main_window, "active_project_id", None)
+        project_id = None
+        if parent is not None:
+            project_id = getattr(parent, "_current_project_id", lambda: None)()
+            if project_id is None:
+                main_window = getattr(parent, "main_window", None)
+                project_id = getattr(main_window, "active_project_id", None)
+        if not project_id:
+            QMessageBox.warning(self, "Увага", "Спочатку оберіть проєкт")
+            return
+        data["project_id"] = project_id
         try:
             ProductRepository.create(data)
             if parent is not None and hasattr(parent, "_load_data"):

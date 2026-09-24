@@ -141,6 +141,7 @@ class ProjectExpense(Base):  # ← v2.3 НОВЕ
     unit: Mapped[str | None] = mapped_column(String, nullable=True)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    direction: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now)
 
     project: Mapped[Project] = relationship(back_populates="expenses")

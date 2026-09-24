@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTableView,
     QVBoxLayout,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
 from ventilation_company.gui_pyside6.theme import Theme
 
@@ -83,7 +85,17 @@ class ProductsTab(QWidget):
 
         filters_group = QGroupBox("🔍 Фільтри")
         filters_layout = QVBoxLayout(filters_group)
+        # Проєктний контекст
+        self.combo_project = QComboBox()
+        self.combo_project.currentIndexChanged.connect(self._on_project_selected)
+        self._reload_projects()
+        project_row = QHBoxLayout()
+        project_row.addWidget(QLabel("Проєкт:"))
+        project_row.addWidget(self.combo_project)
+        filters_layout.addLayout(project_row)
+
         self.edit_search = QLineEdit()
+        self.edit_search.setMaximumHeight(28)
         self.edit_search.setPlaceholderText("Пошук за назвою...")
         self.edit_search.textChanged.connect(self._apply_filters)
         filters_layout.addWidget(self.edit_search)
@@ -153,14 +165,14 @@ class ProductsTab(QWidget):
 
         actions = QGridLayout()
         action_buttons = [
-            (QPushButton("💾 Експорт CSV"), self._export_csv),
-            (QPushButton("📥 Імпорт CSV"), self._import_csv),
-            (QPushButton("📄 Шаблон CSV"), self._download_csv_template),
+            (QPushButton("💾 Експорт"), self._export_csv),
+            (QPushButton("📥 Імпорт"), self._import_csv),
+            (QPushButton("📄 Шаблон"), self._download_csv_template),
             (QPushButton("📚 Пресети"), self._show_presets),
             (QPushButton("⭐ У пресети"), self._save_selected_as_preset),
-            (QPushButton("🔄 Перерахувати ціни"), self._recalculate_all_prices),
+            (QPushButton("🔄 Перерахувати"), self._recalculate_all_prices),
             (QPushButton("✏️ Редагувати"), self._on_edit),
-            (QPushButton("🗑️ Видалити"), self._on_delete),
+            (QPushButton("🗑 Видалити"), self._on_delete),
             (QPushButton("🔄 Оновити"), self._load_data),
         ]
         action_buttons[-3][0].setStyleSheet(f"color: {Theme.DANGER};")
@@ -168,6 +180,17 @@ class ProductsTab(QWidget):
             btn.clicked.connect(slot)
             actions.addWidget(btn, idx // 5, idx % 5)
         right_layout.addLayout(actions)
+        actions.setContentsMargins(4, 4, 4, 4)
+        actions.setSpacing(4)
+        for idx in range(actions.count()):
+            item = actions.itemAt(idx)
+            if item is not None and item.widget() is not None:
+                btn = item.widget()
+                btn.setMaximumHeight(26)
+                btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
+        if hasattr(self, "table"):
+            self.table.setMinimumHeight(520)
+            self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.lbl_summary = QLabel("Всього: 0 виробів | Сума: ₴ 0")
         self.lbl_summary.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px; padding: 4px;")
@@ -175,9 +198,51 @@ class ProductsTab(QWidget):
         splitter.addWidget(right_panel)
         splitter.setSizes([350, 750])
 
+    def _active_project_id(self):
+        return getattr(self.main_window, "active_project_id", None) if self.main_window else None
+
+    def _current_project_id(self):
+        if hasattr(self, "combo_project"):
+            data = self.combo_project.currentData()
+            if data is not None:
+                return data
+        return self._active_project_id()
+
+    def _require_project(self):
+        project_id = self._current_project_id()
+        if not project_id:
+            QMessageBox.warning(self, "Увага", "Спочатку оберіть проєкт")
+        return project_id
+
+    def _reload_projects(self):
+        active_id = self._active_project_id()
+        self.combo_project.blockSignals(True)
+        self.combo_project.clear()
+        self.combo_project.addItem("— оберіть проєкт —", None)
+        try:
+            projects = ProjectRepository.list_all()
+        except Exception:
+            projects = []
+        selected_index = 0
+        for idx, project in enumerate(projects, start=1):
+            display = (
+                f"{project.get('project_number') or '—'} — {project.get('name') or 'Без назви'}"
+            )
+            self.combo_project.addItem(display, project["id"])
+            if active_id is not None and project["id"] == active_id:
+                selected_index = idx
+        self.combo_project.setCurrentIndex(selected_index)
+        self.combo_project.blockSignals(False)
+
+    def _on_project_selected(self):
+        project_id = self.combo_project.currentData()
+        if self.main_window is not None and hasattr(self.main_window, "set_active_project"):
+            self.main_window.set_active_project(project_id)
+        self._load_data()
+
     def _load_data(self):
         try:
-            project_id = self.main_window.active_project_id if self.main_window else None
+            project_id = self._current_project_id()
             self._all_data = ProductRepository.get_all(project_id=project_id)
             self._populate_table(self._all_data)
         except Exception as e:
@@ -216,7 +281,7 @@ class ProductsTab(QWidget):
 
     def _apply_filters(self):
         try:
-            project_id = self.main_window.active_project_id if self.main_window else None
+            project_id = self._current_project_id()
             items = ProductRepository.search(
                 query=self.edit_search.text().strip(),
                 product_type=self.filter_type.currentText(),
@@ -242,7 +307,7 @@ class ProductsTab(QWidget):
         return int(id_val) if id_val.isdigit() else None
 
     def _export_csv(self):
-        project_id = self.main_window.active_project_id if self.main_window else None
+        project_id = self._current_project_id()
         items = ProductRepository.get_all(project_id=project_id)
         path, _ = QFileDialog.getSaveFileName(
             self, "Експорт виробів", "products.csv", "CSV (*.csv)"
@@ -277,10 +342,13 @@ class ProductsTab(QWidget):
             QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {exc}")
 
     def _import_csv(self):
+        project_id = self._require_project()
+        if not project_id:
+            return
         path, _ = QFileDialog.getOpenFileName(self, "Імпорт виробів", "", "CSV (*.csv)")
         if not path:
             return
-        project_id = self.main_window.active_project_id if self.main_window else None
+        project_id = self._current_project_id()
 
         def fnum(value, default=0.0):
             try:
@@ -413,12 +481,18 @@ class ProductsTab(QWidget):
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти пресет: {exc}")
 
     def _show_presets(self):
+        project_id = self._require_project()
+        if not project_id:
+            return
         from ventilation_company.gui_pyside6.product_presets_dialog import ProductPresetsDialog
 
         dlg = ProductPresetsDialog(self)
         dlg.exec()
 
     def _recalculate_all_prices(self):
+        project_id = self._require_project()
+        if not project_id:
+            return
         import json
 
         from ventilation_company.calculations.cost_engine import CostEngine, clear_cache
@@ -532,9 +606,13 @@ class ProductsTab(QWidget):
         QMessageBox.information(self, "Готово", f"Оновлено: {updated}. Помилок: {errors}.")
 
     def _on_add(self):
+        project_id = self._require_project()
+        if not project_id:
+            return
         dlg = ProductDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             data = dlg.get_data()
+            data["project_id"] = project_id
             duplicate = self._find_duplicate_product(data)
             if duplicate:
                 answer = QMessageBox.question(

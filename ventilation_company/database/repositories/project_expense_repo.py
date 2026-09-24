@@ -13,6 +13,7 @@ def _expense_to_dict(expense: ProjectExpense) -> dict:
         "unit": expense.unit or "шт",
         "unit_price": float(expense.unit_price or 0),
         "total_price": float(expense.total_price or 0),
+        "direction": getattr(expense, "direction", None) or "minus",
         "created_at": str(expense.created_at)[:16] if expense.created_at else "—",
     }
 
@@ -41,6 +42,7 @@ class ProjectExpenseRepository:
                 unit=data.get("unit", "шт"),
                 unit_price=unit_price,
                 total_price=qty * unit_price,
+                direction=data.get("direction") or "minus",
             )
             session.add(expense)
             session.flush()

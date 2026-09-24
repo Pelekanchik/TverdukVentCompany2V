@@ -1,5 +1,6 @@
 """Product dialog widgets extracted from products_tab."""
 
+import contextlib
 import json
 import math
 
@@ -258,6 +259,7 @@ class ProductDialog(QDialog):
         self._engine = CostEngine()
         self._build_ui()
         self._on_type_changed(self.combo_type.currentText())
+        self._apply_params_to_fields()
 
     def _build_ui(self):
         layout = QHBoxLayout(self)
@@ -576,6 +578,51 @@ class ProductDialog(QDialog):
         self.combo_flange_profile.setEnabled(enabled)
         if enabled and self.spin_flange_count.value() == 0:
             self.spin_flange_count.setValue(2)
+
+    def _apply_params_to_fields(self):
+        try:
+            params = json.loads(self._data.get("notes") or "{}")
+        except Exception:
+            params = {}
+
+        def set_spin(widget_name: str, key: str):
+            widget = getattr(self, widget_name, None)
+            if widget is not None and key in params:
+                with contextlib.suppress(Exception):
+                    widget.setValue(float(params.get(key) or 0))
+
+        set_spin("spin_bend_angle", "bend_angle")
+        set_spin("spin_radius", "radius")
+        set_spin("spin_ext_top", "ext_top")
+        set_spin("spin_ext_bottom", "ext_bottom")
+        set_spin("spin_branch_dist", "branch_dist")
+        set_spin("spin_branch_width", "branch_width")
+        set_spin("spin_branch_height", "branch_height")
+        set_spin("spin_branch_length", "branch_length")
+        set_spin("spin_end_width", "end_width")
+        set_spin("spin_end_height", "end_height")
+        set_spin("spin_bend_width", "bend_width")
+        set_spin("spin_depth", "depth")
+
+        if params.get("category") and hasattr(self, "combo_category"):
+            self.combo_category.setCurrentText(str(params["category"]))
+
+        if hasattr(self, "chk_with_flanges") and "with_flanges" in params:
+            self.chk_with_flanges.setChecked(bool(params.get("with_flanges")))
+            self._on_flange_changed(self.chk_with_flanges.checkState())
+        if hasattr(self, "spin_flange_count") and "flange_count" in params:
+            self.spin_flange_count.setValue(int(params.get("flange_count") or 0))
+        if hasattr(self, "combo_flange_profile") and params.get("flange_profile"):
+            self.combo_flange_profile.setCurrentText(str(params.get("flange_profile")))
+        if hasattr(self, "combo_fabric") and params.get("fabric"):
+            self.combo_fabric.setCurrentText(str(params.get("fabric")))
+        if hasattr(self, "spin_holes") and "holes" in params:
+            self.spin_holes.setValue(int(params.get("holes") or 0))
+
+        total = float(self._data.get("total_price") or 0)
+        discounted = float(self._data.get("discounted_price") or 0)
+        if total > 0 and discounted > 0 and hasattr(self, "spin_discount_percent"):
+            self.spin_discount_percent.setValue(round((1 - discounted / total) * 100, 1))
 
     def _on_calc(self):
         try:

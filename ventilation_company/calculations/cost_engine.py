@@ -276,6 +276,7 @@ class CostEngine:
         flange_price: float = 0.0,
         category_waste_percent: float = 0.0,
         custom_markup_percent: float | None = None,
+        custom_vat_rate: float | None = None,
     ) -> CostBreakdown:
         """Розрахувати собівартість і ціну виробу.
 
@@ -367,7 +368,7 @@ class CostEngine:
         result.price_no_vat = result.base_cost + result.profit
 
         # ── 9. ПДВ ──
-        result.vat_rate = self._get_vat_rate()
+        result.vat_rate = custom_vat_rate if custom_vat_rate is not None else self._get_vat_rate()
         result.vat_amount = result.price_no_vat * result.vat_rate / 100
 
         # ── 10. Кінцева ціна ──

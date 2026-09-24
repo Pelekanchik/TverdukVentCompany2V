@@ -118,13 +118,15 @@ class CalcDetailsDialog(QDialog):
         self.spin_markup = QDoubleSpinBox()
         self.spin_markup.setRange(0, 500)
         self.spin_markup.setSuffix(" %")
-        matrix = self._settings.get("markup_matrix", {})
-        base_name = (
-            self._markup_name.replace(" (", "").split("%")[0].strip()
-            if "(" in self._markup_name
-            else self._markup_name
-        )
-        markup_val = matrix.get(base_name, 30.0)
+        markup_val = 30.0
+        if "(" in self._markup_name and "%" in self._markup_name:
+            try:
+                markup_val = float(self._markup_name.split("(", 1)[1].split("%", 1)[0])
+            except Exception:
+                markup_val = 30.0
+        else:
+            matrix = self._settings.get("markup_matrix", {})
+            markup_val = matrix.get(self._markup_name, 30.0)
         self.spin_markup.setValue(markup_val)
         coeffs_layout.addRow("Націнка прибутку:", self.spin_markup)
 
@@ -182,6 +184,7 @@ class CalcDetailsDialog(QDialog):
             flange_count=self._flange_count,
             flange_price=self._flange_price,
             custom_markup_percent=self.spin_markup.value(),
+            custom_vat_rate=self.spin_vat.value(),
         )
         self._show_result()
 

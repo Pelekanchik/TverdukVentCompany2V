@@ -1,4 +1,4 @@
-"""Темна тема VentCompany для PySide6.
+"""Світла тема VentCompany для PySide6.
 
 Використання:
     from ventilation_company.gui_pyside6.theme import Theme
@@ -10,32 +10,32 @@ from PySide6.QtWidgets import QApplication
 
 
 class Theme:
-    """Catppuccin Mocha — сучасна темна тема."""
+    """Світла тема для VentCompany."""
 
     # Кольори
-    BG = "#1e1e2e"  # Фон вікна
-    BG_DARK = "#11111b"  # Темніший фон
-    BG_CARD = "#181825"  # Фон карток/панелей
-    BG_HOVER = "#313244"  # Hover ефект
-    BG_ACTIVE = "#45475a"  # Активний елемент
+    BG = "#f5f7fb"  # Фон вікна
+    BG_DARK = "#e9edf5"  # Темніший фон
+    BG_CARD = "#ffffff"  # Фон карток/панелей
+    BG_HOVER = "#e8eefc"  # Hover ефект
+    BG_ACTIVE = "#d7e4fb"  # Активний елемент
 
-    TEXT = "#cdd6f4"  # Основний текст
-    TEXT_MUTED = "#6c7086"  # Приглушений текст
-    TEXT_BRIGHT = "#f5e0dc"  # Яскравий текст
+    TEXT = "#1f2937"  # Основний текст
+    TEXT_MUTED = "#6b7280"  # Приглушений текст
+    TEXT_BRIGHT = "#111827"  # Яскравий текст
 
-    ACCENT = "#89b4fa"  # Основний акцент (синій)
-    ACCENT_HOVER = "#b4befe"  # Акцент hover
-    SUCCESS = "#a6e3a1"  # Зелений
-    WARNING = "#f9e2af"  # Жовтий
-    DANGER = "#f38ba8"  # Червоний
-    INFO = "#74c7ec"  # Блакитний
+    ACCENT = "#2563eb"  # Основний акцент (синій)
+    ACCENT_HOVER = "#1d4ed8"  # Акцент hover
+    SUCCESS = "#16a34a"  # Зелений
+    WARNING = "#d97706"  # Жовтий
+    DANGER = "#dc2626"  # Червоний
+    INFO = "#0891b2"  # Блакитний
 
-    BORDER = "#313244"  # Рамки
-    BORDER_LIGHT = "#45475a"  # Світлі рамки
+    BORDER = "#d1d5db"  # Рамки
+    BORDER_LIGHT = "#e5e7eb"  # Світлі рамки
 
-    SIDEBAR_BG = "#181825"
-    SIDEBAR_ACTIVE = "#313244"
-    SIDEBAR_ACTIVE_TEXT = "#89b4fa"
+    SIDEBAR_BG = "#ffffff"
+    SIDEBAR_ACTIVE = "#e8eefc"
+    SIDEBAR_ACTIVE_TEXT = "#1d4ed8"
 
     @classmethod
     def apply(cls, app: QApplication):
@@ -60,7 +60,7 @@ class Theme:
         palette.setColor(QPalette.ColorRole.ButtonText, QColor(cls.TEXT))
         palette.setColor(QPalette.ColorRole.BrightText, QColor(cls.TEXT_BRIGHT))
         palette.setColor(QPalette.ColorRole.Highlight, QColor(cls.ACCENT))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(cls.BG_DARK))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.PlaceholderText, QColor(cls.TEXT_MUTED))
         app.setPalette(palette)
 
@@ -90,7 +90,7 @@ class Theme:
         }}
         QPushButton:pressed {{
             background-color: {cls.ACCENT};
-            color: {cls.BG_DARK};
+            color: #ffffff;
         }}
         QPushButton#primary {{
             background-color: {cls.ACCENT};
@@ -117,7 +117,7 @@ class Theme:
             border-radius: 8px;
             gridline-color: {cls.BORDER};
             selection-background-color: {cls.ACCENT};
-            selection-color: {cls.BG_DARK};
+            selection-color: #ffffff;
         }}
         QTableView::item {{
             padding: 6px 10px;

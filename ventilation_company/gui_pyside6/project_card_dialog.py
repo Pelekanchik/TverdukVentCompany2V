@@ -8,8 +8,13 @@
   Прибуток = ціна (зі знижкою) − собівартість − роботи − витрати
 """
 
+import os
+import tempfile
+from pathlib import Path
+
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -80,6 +85,7 @@ class WorkEditDialog(QDialog):
             "unit": self.edit_unit.text().strip(),
             "unit_price": price,
             "total_price": round(qty * price, 2),
+            "direction": self.direction_combo.currentData(),
         }
 
 
@@ -94,6 +100,12 @@ class ExpenseEditDialog(QDialog):
 
     def _build_ui(self, expense_data):
         layout = QFormLayout(self)
+        self.direction_combo = QComboBox()
+        self.direction_combo.addItem("➖ Витрата", "minus")
+        self.direction_combo.addItem("➕ Плюс", "plus")
+        current_direction = expense_data.get("direction", "minus") if expense_data else "minus"
+        self.direction_combo.setCurrentIndex(1 if current_direction == "plus" else 0)
+        layout.addRow("Тип:", self.direction_combo)
         self.edit_name = QLineEdit()
         self.edit_name.setText(expense_data.get("expense_name", "") if expense_data else "")
         layout.addRow("Назва витрати *", self.edit_name)
@@ -127,6 +139,7 @@ class ExpenseEditDialog(QDialog):
             "unit": self.edit_unit.text().strip(),
             "unit_price": price,
             "total_price": round(qty * price, 2),
+            "direction": self.direction_combo.currentData(),
         }
 
 
@@ -151,23 +164,47 @@ class ProjectCardDialog(QDialog):
             p = ProjectRepository.get(self.project_id)
             if not p:
                 return
-            self.lbl_number.setText(p.get("project_number") or "—")
-            self.lbl_name.setText(p.get("name") or "—")
-            self.lbl_client.setText(p.get("client") or "—")
-            self.lbl_address.setText(p.get("address") or "—")
-            self.lbl_status.setText(p.get("status") or "—")
-            self.lbl_dates.setText(
-                f"Початок: {p.get('start_date') or '—'} | Дедлайн: {p.get('deadline') or '—'}"
-            )
-            self.lbl_prices.setText(
-                f"Собівартість: {p.get('cost_price') or 0:,.0f} | Клієнту: {p.get('customer_price') or 0:,.0f} | Зі знижкою: {p.get('discounted_price') or 0:,.0f}"
-            )
+
             products = ProductRepository.get_all(project_id=self.project_id)
-            self.lbl_products.setText(f"Виробів у проєкті: {len(products)}")
+            works = ProjectWorkRepository.get_all(self.project_id)
+            expenses = ProjectExpenseRepository.get_all(self.project_id)
+            documents = ProjectDocumentRepository.get_by_project(self.project_id)
+
+            cost = sum(
+                float(item.get("cost_price") or 0) * float(item.get("quantity") or 1)
+                for item in products
+            )
+            base_price = sum(
+                (
+                    float(item.get("discounted_price") or 0)
+                    if float(item.get("discounted_price") or 0) > 0
+                    else float(item.get("total_price") or 0)
+                )
+                for item in products
+            )
+            works_total = sum(float(item.get("total_price") or 0) for item in works)
+            plus_expenses_total = sum(
+                float(item.get("total_price") or 0)
+                for item in expenses
+                if (item.get("direction") or "minus") == "plus"
+            )
+            minus_expenses_total = sum(
+                float(item.get("total_price") or 0)
+                for item in expenses
+                if (item.get("direction") or "minus") != "plus"
+            )
+
+            self._project_data = dict(p)
+            self._project_data["cost_price"] = cost
+            self._project_data["customer_price"] = base_price
+            self._project_data["works_total"] = works_total
+            self._project_data["plus_expenses_total"] = plus_expenses_total
+            self._project_data["minus_expenses_total"] = minus_expenses_total
+            self._project_data["expenses_total"] = minus_expenses_total
             self._products = products
-            self._update_calculations()
-            docs = ProjectDocumentRepository.list_by_project(self.project_id)
-            self.lbl_docs.setText(f"Документів: {len(docs)}")
+            self._documents = documents
+            self._works = works
+            self._expenses = expenses
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
 
@@ -198,14 +235,16 @@ class ProjectCardDialog(QDialog):
         base_price = self._project_data.get("customer_price", 0)
         discounted = self._project_data.get("discounted_price", 0)
         works_total = self._project_data.get("works_total", 0)
-        expenses_total = self._project_data.get("expenses_total", 0)
+        plus_expenses_total = self._project_data.get("plus_expenses_total", 0)
+        minus_expenses_total = self._project_data.get("minus_expenses_total", 0)
         effective = discounted if discounted > 0 else base_price
-        display_profit = effective - cost - works_total - expenses_total
+        total_customer = effective + works_total + plus_expenses_total
+        display_profit = total_customer - cost - minus_expenses_total
         layout.addRow("Номер:", QLabel(self._project_data.get("project_number", "—")))
         layout.addRow("Назва:", QLabel(self._project_data.get("name", "—")))
         layout.addRow("Клієнт:", QLabel(self._project_data.get("client", "—")))
         layout.addRow("Статус:", QLabel(self._project_data.get("status", "—")))
-        layout.addRow("Дата створення:", QLabel(self._project_data.get("created_at", "—")))
+        layout.addRow("Дата створення:", QLabel(str(self._project_data.get("created_at") or "—")))
         layout.addRow(QLabel(""))
         lbl_cost = QLabel(f"₴ {cost:,.2f}")
         lbl_cost.setStyleSheet(f"color: {Theme.SUCCESS}; font-weight: bold;")
@@ -213,9 +252,12 @@ class ProjectCardDialog(QDialog):
         lbl_works = QLabel(f"₴ {works_total:,.2f}")
         lbl_works.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
         layout.addRow("🔨 Додаткові роботи:", lbl_works)
-        lbl_exp = QLabel(f"₴ {expenses_total:,.2f}")
+        lbl_exp = QLabel(f"₴ {minus_expenses_total:,.2f}")
+        lbl_plus_exp = QLabel(f"₴ {plus_expenses_total:,.2f}")
+        lbl_plus_exp.setStyleSheet(f"color: {Theme.SUCCESS}; font-weight: bold;")
         lbl_exp.setStyleSheet(f"color: {Theme.WARNING}; font-weight: bold;")
-        layout.addRow("💸 Додаткові витрати:", lbl_exp)
+        layout.addRow("💸 Витрати:", lbl_exp)
+        layout.addRow("➕ Надходження:", lbl_plus_exp)
         layout.addRow(QLabel(""))
         lbl_base = QLabel(f"₴ {base_price:,.2f}")
         lbl_base.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
@@ -329,6 +371,8 @@ class ProjectCardDialog(QDialog):
         self.docs_model = QStandardItemModel()
         self.docs_model.setHorizontalHeaderLabels(["ID", "Тип", "Файл", "Розмір", "Дата", "Дії"])
         self.docs_table.setModel(self.docs_model)
+        self.docs_table.clicked.connect(self._on_docs_table_clicked)
+        self.docs_table.doubleClicked.connect(lambda _idx: self._open_document())
         self.docs_table.setColumnWidth(0, 40)
         self.docs_table.setColumnWidth(1, 120)
         self.docs_table.setColumnWidth(2, 250)
@@ -381,6 +425,40 @@ class ProjectCardDialog(QDialog):
         if 0 <= row < len(self._documents):
             return self._documents[row]["id"]
         return None
+
+    def _on_docs_table_clicked(self, index):
+        if not index.isValid():
+            return
+        if index.column() == self.docs_model.columnCount() - 1:
+            self._open_document()
+
+    def _open_document(self):
+        doc_id = self._get_selected_doc_id()
+        if not doc_id:
+            QMessageBox.warning(self, "Увага", "Оберіть документ")
+            return
+        get_doc = (
+            getattr(ProjectDocumentRepository, "get_by_id", None) or ProjectDocumentRepository.get
+        )
+        doc = get_doc(doc_id)
+        if not doc:
+            QMessageBox.warning(self, "Увага", "Документ не знайдено")
+            return
+        content = doc.get("content") or b""
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+        filename = doc.get("filename") or f"document_{doc_id}.xlsx"
+        filename = Path(filename).name
+        suffix = Path(filename).suffix or ".xlsx"
+        try:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=suffix, prefix="ventcompany_doc_"
+            ) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            os.startfile(tmp_path)
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося відкрити документ: {e}")
 
     def _export_document(self):
         doc_id = self._get_selected_doc_id()
@@ -537,7 +615,7 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         top = QHBoxLayout()
-        lbl = QLabel(f"💸 Додаткові витрати ({len(self._expenses)})")
+        lbl = QLabel(f"💸 Витрати / надходження ({len(self._expenses)})")
         lbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
         top.addWidget(lbl)
         top.addStretch()
@@ -552,7 +630,7 @@ class ProjectCardDialog(QDialog):
         layout.addWidget(self.expenses_table)
         self.expenses_model = QStandardItemModel()
         self.expenses_model.setHorizontalHeaderLabels(
-            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
+            ["ID", "Тип", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
         )
         self.expenses_table.setModel(self.expenses_model)
         self.expenses_table.setColumnWidth(0, 40)
@@ -578,8 +656,11 @@ class ProjectCardDialog(QDialog):
     def _populate_expenses(self):
         self.expenses_model.removeRows(0, self.expenses_model.rowCount())
         for e in self._expenses:
+            direction = e.get("direction") or "minus"
+            direction_label = "➕ Плюс" if direction == "plus" else "➖ Витрата"
             row = [
                 QStandardItem(str(e["id"])),
+                QStandardItem(direction_label),
                 QStandardItem(e["expense_name"]),
                 QStandardItem(f"{e['quantity']:,.2f}"),
                 QStandardItem(e["unit"]),

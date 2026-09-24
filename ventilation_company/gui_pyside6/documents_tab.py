@@ -23,7 +23,9 @@ from ventilation_company.database.repositories.product_repo import ProductReposi
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
+from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
@@ -99,6 +101,14 @@ class DocumentsTab(QWidget):
         )
         self.btn_order.clicked.connect(lambda: self._generate("order"))
         docs_grid.addWidget(self.btn_order, 1, 1)
+
+        self.btn_client = QPushButton("💼 Повний кошторис\nдля замовника")
+        self.btn_client.setMinimumHeight(80)
+        self.btn_client.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_client.clicked.connect(lambda: self._generate("client"))
+        docs_grid.addWidget(self.btn_client, 2, 0, 1, 2)
 
         layout.addLayout(docs_grid)
 
@@ -183,6 +193,8 @@ class DocumentsTab(QWidget):
             self._gen_metal(project, products, buffer)
         elif doc_type == "order":
             self._gen_order(project, products, buffer)
+        elif doc_type == "client":
+            self._gen_client(project, products, buffer)
 
         content = buffer.getvalue()
         ProjectDocumentRepository.create(
@@ -208,6 +220,97 @@ class DocumentsTab(QWidget):
             cell.font = font
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = border
+
+    def _gen_client(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Кошторис для замовника"
+        ws.merge_cells("A1:F1")
+        ws["A1"] = f"КОШТОРИС ДЛЯ ЗАМОВНИКА № {project['project_number']}"
+        ws["A1"].font = Font(bold=True, size=16)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.merge_cells("A2:F2")
+        ws["A2"] = f"Проєкт: {project.get('name') or ''} | Клієнт: {project.get('client') or '—'}"
+        ws["A2"].alignment = Alignment(horizontal="center")
+
+        headers = ["№", "Назва", "Опис / розміри", "К-ть", "Ціна", "Сума"]
+        self._style_header(ws, 4, headers)
+        row = 5
+        idx = 1
+        total = 0.0
+
+        def dims(item):
+            w = float(item.get("width") or 0)
+            h = float(item.get("height") or 0)
+            l = float(item.get("length") or 0)
+            if h:
+                return f"{w:.0f}×{h:.0f}×{l:.0f}"
+            return f"Ø{w:.0f}×{l:.0f}" if l else f"Ø{w:.0f}"
+
+        for item in products:
+            qty = float(item.get("quantity") or 1)
+            line_total = float(item.get("discounted_price") or 0)
+            if line_total <= 0:
+                line_total = float(item.get("total_price") or 0)
+            unit_price = line_total / qty if qty else line_total
+            ws.cell(row=row, column=1, value=idx)
+            ws.cell(row=row, column=2, value=item.get("name"))
+            ws.cell(row=row, column=3, value=dims(item))
+            ws.cell(row=row, column=4, value=qty)
+            ws.cell(row=row, column=5, value=round(unit_price, 2))
+            ws.cell(row=row, column=6, value=round(line_total, 2))
+            total += line_total
+            row += 1
+            idx += 1
+
+        works = ProjectWorkRepository.get_all(project["id"])
+        if works:
+            row += 1
+            ws.cell(row=row, column=2, value="ДОДАТКОВІ РОБОТИ / МОНТАЖ").font = Font(bold=True)
+            row += 1
+            for w in works:
+                qty = float(w.get("quantity") or 1)
+                price = float(w.get("unit_price") or 0)
+                line_total = float(w.get("total_price") or qty * price)
+                ws.cell(row=row, column=1, value=idx)
+                ws.cell(row=row, column=2, value=w.get("work_name"))
+                ws.cell(row=row, column=3, value=w.get("work_type") or "")
+                ws.cell(row=row, column=4, value=qty)
+                ws.cell(row=row, column=5, value=price)
+                ws.cell(row=row, column=6, value=line_total)
+                total += line_total
+                row += 1
+                idx += 1
+
+        expenses = [
+            e
+            for e in ProjectExpenseRepository.get_all(project["id"])
+            if (e.get("direction") or "minus") == "plus"
+        ]
+        if expenses:
+            row += 1
+            ws.cell(row=row, column=2, value="ДОСТАВКА / ДОДАТКОВІ ПОСЛУГИ").font = Font(bold=True)
+            row += 1
+            for e in expenses:
+                qty = float(e.get("quantity") or 1)
+                price = float(e.get("unit_price") or 0)
+                line_total = float(e.get("total_price") or qty * price)
+                ws.cell(row=row, column=1, value=idx)
+                ws.cell(row=row, column=2, value=e.get("expense_name"))
+                ws.cell(row=row, column=3, value="")
+                ws.cell(row=row, column=4, value=qty)
+                ws.cell(row=row, column=5, value=price)
+                ws.cell(row=row, column=6, value=line_total)
+                total += line_total
+                row += 1
+                idx += 1
+
+        row += 1
+        ws.cell(row=row, column=5, value="РАЗОМ").font = Font(bold=True)
+        ws.cell(row=row, column=6, value=round(total, 2)).font = Font(bold=True)
+        for col, width in {"A": 6, "B": 34, "C": 24, "D": 10, "E": 14, "F": 16}.items():
+            ws.column_dimensions[col].width = width
+        wb.save(buffer)
 
     def _gen_spec(self, project, products, buffer):
         wb = openpyxl.Workbook()
