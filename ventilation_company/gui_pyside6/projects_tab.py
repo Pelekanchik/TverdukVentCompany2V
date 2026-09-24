@@ -208,7 +208,10 @@ class ProjectsTab(QWidget):
         btn_new = QPushButton("➕ Новий проєкт")
         btn_new.setObjectName("primary")
         btn_new.clicked.connect(self._on_new_project)
+        btn_duplicate = QPushButton("📄 Дублювати")
+        btn_duplicate.clicked.connect(self._on_duplicate_project)
         header.addWidget(btn_new)
+        header.addWidget(btn_duplicate)
 
         layout.addLayout(header)
 
@@ -352,6 +355,77 @@ class ProjectsTab(QWidget):
 
     def _audit_actor(self):
         return getattr(self.main_window, "user", None)
+
+    def _on_duplicate_project(self):
+        project_id = self._get_selected_id()
+        if not project_id:
+            QMessageBox.warning(self, "Увага", "Виберіть проєкт для дублювання")
+            return
+        source = ProjectRepository.get(project_id)
+        if not source:
+            QMessageBox.warning(self, "Увага", "Проєкт не знайдено")
+            return
+        products = ProductRepository.get_all(project_id=project_id)
+        answer = QMessageBox.question(
+            self,
+            "Дублювання проєкту",
+            f"Створити копію проєкту '{source.get('name')}' з {len(products)} виробами?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            return
+        data = {
+            "name": f"{source.get('name') or 'Проєкт'} (копія)",
+            "project_number": f"PRJ-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            "client": source.get("client"),
+            "address": source.get("address"),
+            "status": "Новий",
+            "start_date": source.get("start_date"),
+            "deadline": source.get("deadline"),
+            "notes": source.get("notes"),
+            "created_at": datetime.now(),
+        }
+        try:
+            new_project = ProjectRepository.create(data)
+            new_id = new_project["id"]
+            copied = 0
+            for item in products:
+                pdata = {
+                    "name": item.get("name"),
+                    "product_type": item.get("product_type"),
+                    "width": item.get("width"),
+                    "height": item.get("height"),
+                    "length": item.get("length"),
+                    "thickness": item.get("thickness"),
+                    "material": item.get("material"),
+                    "quantity": item.get("quantity"),
+                    "cost_price": item.get("cost_price"),
+                    "unit_price": item.get("unit_price"),
+                    "total_price": item.get("total_price"),
+                    "discounted_price": item.get("discounted_price"),
+                    "metal_area_m2": item.get("metal_area_m2"),
+                    "weight_kg": item.get("weight_kg"),
+                    "notes": item.get("notes"),
+                    "project_id": new_id,
+                }
+                ProductRepository.create(pdata)
+                copied += 1
+            log_action(
+                "project.duplicate",
+                entity_type="project",
+                entity_id=new_id,
+                details={"source_project_id": project_id, "products_copied": copied},
+                actor=self._audit_actor(),
+            )
+            self._load_data()
+            if self.main_window:
+                self.main_window.set_active_project(new_id)
+            QMessageBox.information(
+                self, "Успіх", f"Створено копію проєкту ID {new_id}. Скопійовано виробів: {copied}."
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося дублювати проєкт: {e}")
 
     def _on_new_project(self):
         dlg = ProjectEditDialog(parent=self)
