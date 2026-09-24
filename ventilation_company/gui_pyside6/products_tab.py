@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -150,35 +151,22 @@ class ProductsTab(QWidget):
         self.table.setColumnWidth(8, 70)
         self.table.setColumnWidth(9, 80)
 
-        actions = QHBoxLayout()
-        btn_export = QPushButton("💾 Експорт CSV")
-        btn_export.clicked.connect(self._export_csv)
-        actions.addWidget(btn_export)
-        btn_import = QPushButton("📥 Імпорт CSV")
-        btn_import.clicked.connect(self._import_csv)
-        actions.addWidget(btn_import)
-        btn_template = QPushButton("📄 Шаблон CSV")
-        btn_template.clicked.connect(self._download_csv_template)
-        actions.addWidget(btn_template)
-        btn_presets = QPushButton("📚 Пресети")
-        btn_presets.clicked.connect(self._show_presets)
-        actions.addWidget(btn_presets)
-
-        btn_save_preset = QPushButton("⭐ У пресети")
-        btn_save_preset.clicked.connect(self._save_selected_as_preset)
-        actions.addWidget(btn_save_preset)
-
-        actions.addStretch()
-        btn_edit = QPushButton("✏️ Редагувати")
-        btn_edit.clicked.connect(self._on_edit)
-        actions.addWidget(btn_edit)
-        btn_del = QPushButton("🗑️ Видалити")
-        btn_del.setStyleSheet(f"color: {Theme.DANGER};")
-        btn_del.clicked.connect(self._on_delete)
-        actions.addWidget(btn_del)
-        btn_refresh = QPushButton("🔄 Оновити")
-        btn_refresh.clicked.connect(self._load_data)
-        actions.addWidget(btn_refresh)
+        actions = QGridLayout()
+        action_buttons = [
+            (QPushButton("💾 Експорт CSV"), self._export_csv),
+            (QPushButton("📥 Імпорт CSV"), self._import_csv),
+            (QPushButton("📄 Шаблон CSV"), self._download_csv_template),
+            (QPushButton("📚 Пресети"), self._show_presets),
+            (QPushButton("⭐ У пресети"), self._save_selected_as_preset),
+            (QPushButton("🔄 Перерахувати ціни"), self._recalculate_all_prices),
+            (QPushButton("✏️ Редагувати"), self._on_edit),
+            (QPushButton("🗑️ Видалити"), self._on_delete),
+            (QPushButton("🔄 Оновити"), self._load_data),
+        ]
+        action_buttons[-3][0].setStyleSheet(f"color: {Theme.DANGER};")
+        for idx, (btn, slot) in enumerate(action_buttons):
+            btn.clicked.connect(slot)
+            actions.addWidget(btn, idx // 5, idx % 5)
         right_layout.addLayout(actions)
 
         self.lbl_summary = QLabel("Всього: 0 виробів | Сума: ₴ 0")
@@ -429,6 +417,119 @@ class ProductsTab(QWidget):
 
         dlg = ProductPresetsDialog(self)
         dlg.exec()
+
+    def _recalculate_all_prices(self):
+        import json
+
+        from ventilation_company.calculations.cost_engine import CostEngine, clear_cache
+        from ventilation_company.gui_pyside6.product_dialog import calc_surface_area
+        from ventilation_company.services.pricing_settings import PricingSettings
+
+        PricingSettings.get_instance().load()
+        clear_cache()
+        engine = CostEngine()
+
+        items = list(getattr(self, "_all_data", []))
+        if not items:
+            QMessageBox.information(self, "Інформація", "Немає виробів для перерахунку")
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Перерахунок цін",
+            f"Перерахувати ціни для {len(items)} виробів за поточними налаштуваннями?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            return
+
+        markup_map = {
+            "Стандартна (30%)": 30,
+            "Преміум (40%)": 40,
+            "Економ (20%)": 20,
+            "Спецзамовлення (50%)": 50,
+        }
+
+        updated = 0
+        errors = 0
+        for item in items:
+            try:
+                params = {}
+                try:
+                    params = json.loads(item.get("notes") or "{}")
+                except Exception:
+                    params = {}
+
+                product_type = item.get("product_type") or ""
+                width = float(item.get("width") or 0)
+                height = float(item.get("height") or 0)
+                length = float(item.get("length") or 0)
+                thickness = float(item.get("thickness") or 0.7)
+                quantity = int(float(item.get("quantity") or 1))
+                material = item.get("material") or "Оцинкована сталь"
+
+                bend_angle = float(params.get("bend_angle") or 90)
+                radius = float(params.get("radius") or 0)
+                branch_w = float(params.get("branch_width") or 0)
+                branch_h = float(params.get("branch_height") or 0)
+                branch_l = float(params.get("branch_length") or 0)
+
+                surface = calc_surface_area(
+                    product_type,
+                    width,
+                    height,
+                    length,
+                    bend_angle=bend_angle,
+                    radius=radius,
+                    branch_width=branch_w,
+                    branch_height=branch_h,
+                    branch_length=branch_l,
+                )
+                blank = surface * 1.15
+                material_area = blank * 1.05
+
+                with_flanges = bool(params.get("with_flanges"))
+                flange_count = int(params.get("flange_count") or 0) if with_flanges else 0
+                flange_profile = params.get("flange_profile") or "P30"
+                flange_price = 150.0 if flange_profile == "P30" else 200.0
+                markup = markup_map.get(params.get("category"), 30)
+
+                breakdown = engine.calculate(
+                    product_type=product_type,
+                    material_name=material,
+                    thickness_mm=thickness,
+                    surface_area_m2=surface,
+                    blank_area_m2=blank,
+                    material_area_m2=material_area,
+                    quantity=quantity,
+                    flange_count=flange_count,
+                    flange_price=flange_price,
+                    custom_markup_percent=markup,
+                )
+
+                new_total = round(float(breakdown.final_price or 0), 2)
+                old_total = float(item.get("total_price") or 0)
+                old_discounted = float(item.get("discounted_price") or 0)
+                if old_total > 0 and old_discounted > 0:
+                    discount_ratio = old_discounted / old_total
+                    new_discounted = round(new_total * discount_ratio, 2)
+                else:
+                    new_discounted = old_discounted
+
+                data = {
+                    "cost_price": round(float(breakdown.base_cost or 0), 2),
+                    "unit_price": round(float(breakdown.price_no_vat or 0), 2),
+                    "total_price": new_total,
+                    "discounted_price": new_discounted,
+                }
+                ProductRepository.update(item["id"], data)
+                updated += 1
+            except Exception:
+                errors += 1
+
+        self._load_data()
+        QMessageBox.information(self, "Готово", f"Оновлено: {updated}. Помилок: {errors}.")
 
     def _on_add(self):
         dlg = ProductDialog(parent=self)
