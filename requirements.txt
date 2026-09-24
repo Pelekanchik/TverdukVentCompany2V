@@ -6,6 +6,7 @@ python-dotenv>=1.0.0
 psycopg2-binary>=2.9.9
 bcrypt>=4.0.0
 requests>=2.31.0
+psycopg[binary]>=3.1
 
 # Documents / reports / integrations
 openpyxl>=3.1.0
