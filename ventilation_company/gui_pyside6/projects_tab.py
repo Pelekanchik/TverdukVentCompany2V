@@ -217,7 +217,15 @@ class ProjectsTab(QWidget):
         self.edit_search.setPlaceholderText("🔍 Пошук проєкту...")
         self.edit_search.setFixedWidth(250)
         self.edit_search.textChanged.connect(self._on_search)
+        self.combo_status_filter = QComboBox()
+        self.combo_status_filter.addItems(
+            ["Всі", "Новий", "В роботі", "На виробництві", "Готовий", "Відвантажено", "Закрито"]
+        )
+        self.combo_status_filter.currentTextChanged.connect(
+            lambda _text: self._on_search(self.edit_search.text())
+        )
         header.addWidget(self.edit_search)
+        header.addWidget(self.combo_status_filter)
 
         btn_refresh = QPushButton("🔄 Оновити")
         btn_refresh.clicked.connect(self._load_data)
@@ -355,6 +363,11 @@ class ProjectsTab(QWidget):
 
     def _on_search(self, text):
         text = text.lower()
+        status_filter = (
+            self.combo_status_filter.currentText()
+            if hasattr(self, "combo_status_filter")
+            else "Всі"
+        )
         for row in range(self.model.rowCount()):
             visible = False
             for col in range(self.model.columnCount()):
@@ -362,6 +375,9 @@ class ProjectsTab(QWidget):
                 if item and text in item.text().lower():
                     visible = True
                     break
+            if visible and status_filter != "Всі":
+                status_item = self.model.item(row, 4)
+                visible = bool(status_item and status_item.text() == status_filter)
             self.table.setRowHidden(row, not visible)
 
     def _on_double_click(self, index):
