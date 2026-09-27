@@ -47,8 +47,8 @@
 - Видалено мертві константи без споживачів: MARKUP_PERCENTAGE, OVERHEAD_PERCENTAGE,
   MIN_WAGE, WORKING_HOURS_PER_MONTH, WORKS.
 - Додано `tests/unit/test_business_settings.py` (+8 тестів), усього 79/79 зелених, ruff чисто.
-
-Не зроблено (наступний крок): редактор цих налаштувань у GUI (зараз файл можна правити руками).
+- Редактор у GUI: вкладка «💼 Бізнес» у вікні Налаштування (`gui_pyside6/settings_business_tab.py`),
+  редагування тільки для admin/director, іншим — режим перегляду; +5 GUI-тестів (84/84).
 
 ## Фаза 3 — Архітектура і стійкість (2–4 дні)
 

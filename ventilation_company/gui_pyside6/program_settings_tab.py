@@ -9,6 +9,7 @@
   • 🏢 Компанія     — реквізити, контакти, логотип
   • 🗄️ База даних   — PostgreSQL: статус, тест, пул, міграції
   • 🎨 Тема         — збереження налаштування теми
+  • 💼 Бізнес       — ПДВ, комплектуючі, ізоляція, посади/ставки
   • 👥 Користувачі  — CRUD користувачів (тільки admin/director)
   • 💾 Бекап        — резервне копіювання БД
   • ℹ️ Система      — версії, статистика, шляхи
@@ -47,6 +48,7 @@ from ventilation_company.database.repositories.app_settings_repository import (
     _mask_url,
 )
 from ventilation_company.gui_pyside6.settings_backup_tab import BackupSettingsTab
+from ventilation_company.gui_pyside6.settings_business_tab import BusinessSettingsTab
 from ventilation_company.gui_pyside6.settings_theme_tab import ThemeSettingsTab
 from ventilation_company.gui_pyside6.settings_users_tab import UsersAdminTab
 from ventilation_company.gui_pyside6.theme import Theme
@@ -111,6 +113,10 @@ class ProgramSettingsTab(QWidget):
         self.tab_theme = QWidget()
         self.tabs.addTab(self.tab_theme, "🎨 Тема")
         self._build_theme_tab()
+
+        self.tab_business = QWidget()
+        self.tabs.addTab(self.tab_business, "💼 Бізнес")
+        self._build_business_tab()
 
         self.tab_users = QWidget()
         self.tabs.addTab(self.tab_users, "👥 Користувачі")
@@ -299,6 +305,12 @@ class ProgramSettingsTab(QWidget):
         self.theme_tab = ThemeSettingsTab()
         lay.addWidget(self.theme_tab)
 
+    def _build_business_tab(self):
+        lay = QVBoxLayout(self.tab_business)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.business_tab = BusinessSettingsTab(self.current_user)
+        lay.addWidget(self.business_tab)
+
     def _build_users_tab(self):
         lay = QVBoxLayout(self.tab_users)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -367,6 +379,8 @@ class ProgramSettingsTab(QWidget):
 
         self.backup_tab.load_settings(self.settings)
 
+        self.business_tab.load()
+
         self.theme_tab.set_theme(self.settings.get("app.theme", "industrial"))
 
         self._test_db_connection()
@@ -377,6 +391,8 @@ class ProgramSettingsTab(QWidget):
             self.settings.set(key, edit.text())
 
         self.backup_tab.save_settings(self.settings)
+
+        self.business_tab.save()
 
         theme_name = self.theme_tab.theme_name()
         self.settings.set("app.theme", theme_name)
