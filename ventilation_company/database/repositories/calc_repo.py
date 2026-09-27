@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.calc import CalcCalculation, CalcItem
 
 
@@ -102,7 +102,15 @@ class CalculationRepository:
         return True
 
 
-# Зворотна сумісність
-CalcRepo = CalculationRepository
+# Зворотна сумісність — лінивий синглтон:
+# сесія БД створюється при першому зверненні, а не на імпорті модуля.
+_CalcRepo = None
 
-CalcRepo = CalculationRepository(SessionLocal())
+
+def __getattr__(name: str):
+    if name == "CalcRepo":
+        global _CalcRepo
+        if _CalcRepo is None:
+            _CalcRepo = CalculationRepository(get_session_local()())
+        return _CalcRepo
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

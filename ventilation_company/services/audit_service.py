@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.audit import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def log_action(
 ) -> None:
     """Write one audit event. Never raises."""
     try:
-        session = SessionLocal()
+        session = get_session_local()()
         try:
             session.add(
                 AuditLog(

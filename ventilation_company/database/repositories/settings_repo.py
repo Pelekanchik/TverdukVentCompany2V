@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.calc import CalcSetting
 
 
@@ -55,8 +55,14 @@ class SettingsRepository:
     set = set_value
 
 
-# Зворотна сумісність
-SettingsRepo = SettingsRepository
+# Зворотна сумісність — лінивий синглтон (сесія створюється при першому зверненні).
+_SettingsRepo = None
 
 
-SettingsRepo = SettingsRepository(SessionLocal())
+def __getattr__(name: str):
+    if name == "SettingsRepo":
+        global _SettingsRepo
+        if _SettingsRepo is None:
+            _SettingsRepo = SettingsRepository(get_session_local()())
+        return _SettingsRepo
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

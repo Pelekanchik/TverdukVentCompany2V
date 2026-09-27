@@ -23,7 +23,7 @@ from ventilation_company.auth.password_policy import (
     verify_password,
 )
 from ventilation_company.auth.permissions import Role, has_permission
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.user import UserORM
 from ventilation_company.services.audit_service import log_action
 
@@ -79,7 +79,7 @@ class AuthService:
             self._initialized = True
 
     def _session(self):
-        return SessionLocal()
+        return get_session_local()()
 
     # ── Хешування (bcrypt) ──
     @staticmethod

@@ -6,9 +6,9 @@ import os
 
 from ventilation_company.database.base import Base
 from ventilation_company.database.db import (
-    SessionLocal,
     check_db_connection,
-    engine,
+    get_engine,
+    get_session_local,
 )
 from ventilation_company.database.models.calc import CalcSetting
 from ventilation_company.database.models.project import Project
@@ -26,7 +26,7 @@ class SystemService:
         try:
             from sqlalchemy import text
 
-            with engine.connect() as conn:
+            with get_engine().connect() as conn:
                 version = conn.execute(text("SELECT version()")).scalar()
                 return True, str(version)[:150]
         except Exception as exc:
@@ -34,7 +34,7 @@ class SystemService:
 
     @staticmethod
     def create_tables() -> None:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=get_engine())
 
     @staticmethod
     def db_stats() -> str:
@@ -42,7 +42,7 @@ class SystemService:
             from sqlalchemy import text
 
             stats = []
-            with engine.connect() as conn:
+            with get_engine().connect() as conn:
                 size_row = conn.execute(
                     text("SELECT pg_size_pretty(pg_database_size(current_database()))")
                 ).scalar()
@@ -83,7 +83,7 @@ class SystemService:
     @staticmethod
     def system_stats() -> str:
         try:
-            session = SessionLocal()
+            session = get_session_local()()
             stats = [
                 f"📋 Проєктів у БД: {session.query(Project).count()}",
                 f"👥 Користувачів: {session.query(UserORM).count()}",

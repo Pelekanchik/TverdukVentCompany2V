@@ -88,6 +88,22 @@ def _init_engine() -> None:
     logger.info("PostgreSQL engine ініціалізовано: %s", DATABASE_URL.split("@")[-1])
 
 
+def get_session_local():
+    """Ліниво повернути фабрику сесій (ініціалізує engine при першому виклику).
+
+    Навідміну від ``from db import SessionLocal``, цей виклик не спрацьовує
+    на імпорті модуля — лише коли сесію справді потрібно відкрити.
+    """
+    _init_engine()
+    return _SessionLocal
+
+
+def get_engine():
+    """Ліниво повернути engine (ініціалізує при першому виклику)."""
+    _init_engine()
+    return _engine
+
+
 def __getattr__(name: str):
     """PEP 562: лінивий доступ до engine / SessionLocal / db_session."""
     if name in ("engine", "SessionLocal", "db_session"):

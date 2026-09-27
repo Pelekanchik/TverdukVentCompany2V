@@ -73,7 +73,7 @@ class TestAuditService:
         from ventilation_company.services import audit_service
 
         fake = FakeAuditSession()
-        monkeypatch.setattr(audit_service, "SessionLocal", lambda: fake)
+        monkeypatch.setattr(audit_service, "get_session_local", lambda: lambda: fake)
         actor = SimpleNamespace(id=10, username="admin", role="admin")
 
         log_action(
@@ -109,6 +109,6 @@ class TestAuditService:
             def close(self):
                 pass
 
-        monkeypatch.setattr(audit_service, "SessionLocal", lambda: BrokenSession())
+        monkeypatch.setattr(audit_service, "get_session_local", lambda: lambda: BrokenSession())
 
         log_action("backup.create", details={"path": "/tmp/backup"})
