@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -47,6 +48,7 @@ class ClientCardDialog(QDialog):
         super().__init__(parent)
         self.client = client
         self.setWindowTitle(f"🪪 Картка клієнта — {client.get('name', '')}")
+        self.setWindowState(Qt.WindowState.WindowMaximized)
         self.resize(820, 640)
         self._build_ui()
         self._load_data()
@@ -93,6 +95,15 @@ class ClientCardDialog(QDialog):
         self.grid.addWidget(self.lbl_payments, 1, 1)
         self.grid.addWidget(QLabel("Наступна дія:"), 2, 0)
         self.grid.addWidget(self.lbl_next_action, 2, 1)
+        self.lbl_projects_total = QLabel("—")
+        self.lbl_payments_total = QLabel("—")
+        self.lbl_balance = QLabel("—")
+        self.grid.addWidget(QLabel("Проєкти:"), 3, 0)
+        self.grid.addWidget(self.lbl_projects_total, 3, 1)
+        self.grid.addWidget(QLabel("Оплачено:"), 4, 0)
+        self.grid.addWidget(self.lbl_payments_total, 4, 1)
+        self.grid.addWidget(QLabel("Борг / залишок:"), 5, 0)
+        self.grid.addWidget(self.lbl_balance, 5, 1)
         layout.addLayout(self.grid)
         layout.addWidget(QLabel("Проєкти клієнта:"))
         self.table_projects = QTableWidget()
@@ -156,6 +167,29 @@ class ClientCardDialog(QDialog):
         dlg.exec()
         self._load_data()
 
+    def _load_finance_summary(self):
+        try:
+            projects = ProjectRepository.list_by_client(self.client["id"])
+        except Exception:
+            projects = []
+        try:
+            payments = PaymentRepository.list_by_client(self.client["id"])
+        except Exception:
+            payments = []
+        projects_total = sum(
+            float(p.get("discounted_price") or 0) or float(p.get("customer_price") or 0)
+            for p in projects
+        )
+        payments_total = sum(
+            float(p.get("amount") or 0)
+            for p in payments
+            if (p.get("type") or "вхідний") == "вхідний"
+        )
+        balance = projects_total - payments_total
+        self.lbl_projects_total.setText(f"{projects_total:,.2f} UAH")
+        self.lbl_payments_total.setText(f"{payments_total:,.2f} UAH")
+        self.lbl_balance.setText(f"{balance:,.2f} UAH")
+
     def _load_projects(self):
         try:
             projects = ProjectRepository.list_by_client(self.client["id"])
@@ -182,6 +216,7 @@ class ClientCardDialog(QDialog):
 
     def _load_data(self):
         self._load_projects()
+        self._load_finance_summary()
         interactions = InteractionRepository.list_by_client(self.client["id"])
         payments = PaymentRepository.list_by_client(self.client["id"])
 
