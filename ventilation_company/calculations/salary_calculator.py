@@ -3,7 +3,7 @@ from ventilation_company.utils.logging_config import get_logger
 _logger = get_logger("salary")
 """Калькулятор зарплати з урахуванням податків."""
 
-from ventilation_company.config import POSITIONS
+from ventilation_company.services.business_settings import BusinessSettings
 
 
 class SalaryCalculator:
@@ -17,7 +17,7 @@ class SalaryCalculator:
         self.employees = []
 
     def add_employee(self, full_name: str, position: str):
-        pos_data = POSITIONS.get(position, {"ставка": 0, "премія_%": 0})
+        pos_data = BusinessSettings.get_instance().get_position(position)
         self.employees.append(
             {
                 "full_name": full_name,

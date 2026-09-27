@@ -17,7 +17,8 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 
-from ventilation_company.config import COMPONENTS, MATERIALS
+from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.pricing_settings import PricingSettings
 
 
 @dataclass
@@ -161,8 +162,11 @@ class MaterialCalculator:
             sheet_area_m2 = 1.25 * 2.5  # 3.125 м² для 1250×2500
             sheets_needed = int((area * 1.10 / sheet_area_m2) + 0.999)  # округлення вгору
 
-            material_key = f"{material.replace(' ', '_')}_{thickness}"
-            price = MATERIALS.get(material_key, {}).get("ціна_за_м2", 0)
+            # Ціни листового металу — з PricingSettings (матеріал + товщина).
+            # Невідомий матеріал/товщина → ціна 0, як і раніше.
+            pricing = PricingSettings.get_instance()
+            pricing.reload()
+            price = pricing.material_prices.get(material, {}).get(str(thickness), 0)
 
             self.items.append(
                 MaterialItem(
@@ -247,7 +251,9 @@ class MaterialCalculator:
                     specification="ISOVER Венті 50 мм, 1000×600 мм",
                     unit="м²",
                     quantity=round(insulated_m2, 1),
-                    price_per_unit=MATERIALS.get("ізоляція_мінвата", {}).get("ціна_за_м2", 180),
+                    price_per_unit=BusinessSettings.get_instance().get_extra_material_price(
+                        "ізоляція_мінвата", default=180
+                    ),
                     notes="З урахуванням 15% відходів",
                 )
             )
@@ -266,8 +272,9 @@ class MaterialCalculator:
         # 5. Комплектуючі
         for comp_name, qty in components_needed.items():
             comp_key = comp_name.lower().replace(" ", "_")
-            price = COMPONENTS.get(comp_key, {}).get("ціна", 0)
-            unit = COMPONENTS.get(comp_key, {}).get("одиниця", "шт")
+            comp_data = BusinessSettings.get_instance().get_component(comp_key)
+            price = comp_data.get("ціна", 0)
+            unit = comp_data.get("одиниця", "шт")
             self.items.append(
                 MaterialItem(
                     category="Комплектуючі",

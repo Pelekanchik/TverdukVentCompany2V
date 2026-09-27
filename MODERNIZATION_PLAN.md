@@ -26,7 +26,7 @@
 8. **Невідповідність документації**: README описує таблиці `production_orders`, `specifications` — у реальній схемі їх немає (перевірено запитом).
 9. Дублювання шарів моделей: `ventilation_company/models/` поруч із `ventilation_company/database/models/`.
 
-## Фаза 1 — Гігієна репозиторія (1 робочий день)
+## Фаза 1 — Гігієна репозиторія ✅ (виконано 2026-09-27, коміт `21656f2`)
 
 - Видалити сміттєві файли з кореня; `exports/*.csv` — у `.gitignore` (залишити як приклади через `products_template.csv`).
 - Звести запуск до однієї точки входу: лишити `main_pyside6.py` (він уже робить міграції → `launch_gui`), решту лаунчерів і демо — видалити.
@@ -35,12 +35,20 @@
 - Синхронізувати `requirements.txt` ↔ `pyproject.toml`: лишити один драйвер (`psycopg[binary]`), винести `pyautocad`/`pywebview`/3D у `requirements-optional.txt` з graceful-degradation у коді.
 - Оновити `.gitignore` (`venv/`, `data/`, `*.zip` у `updates/`, `__pycache__`).
 
-## Фаза 2 — Конфігурація і бізнес-дані (1–2 дні)
+## Фаза 2 — Конфігурація і бізнес-дані ✅ (виконано 2026-09-27)
 
-- `config.py` → тільки структурні константи (типи вентиляції, шляхи). Ціни/ставки — лише з БД (`calc_settings`) з дефолтами з `data/*.json`.
-- Прибрати `MATERIALS`/`COMPONENTS`/`WORKS`/`POSITIONS`-хардкод; перевірити, хто їх ще імпортує, і перевести на налаштування.
-- Актуалізувати ставки (`MIN_WAGE` тощо) через інтерфейс налаштувань, не код.
-- `database/db.py`: engine через lazy-ініціалізацію; чітка помилка при невалідному `DATABASE_URL` з підказкою.
+Зроблено:
+- Новий сервіс `services/business_settings.py` (патерн PricingSettings): ПДВ, комплектуючі,
+  додаткові матеріали (ізоляція), посади/ставки → `data/business_settings.json`, атомарний запис.
+- Листовий метал у `material_order.py` тепер береться з `PricingSettings.material_prices`
+  (замість плоского хардкоду; невідомий матеріал → ціна 0, як і раніше).
+- `pricing.py` — ПДВ з BusinessSettings; `salary_calculator.py` — посади з BusinessSettings.
+- `config.py` скорочено з 83 до ~30 рядків: лише шляхи + VENTILATION_TYPES.
+- Видалено мертві константи без споживачів: MARKUP_PERCENTAGE, OVERHEAD_PERCENTAGE,
+  MIN_WAGE, WORKING_HOURS_PER_MONTH, WORKS.
+- Додано `tests/unit/test_business_settings.py` (+8 тестів), усього 79/79 зелених, ruff чисто.
+
+Не зроблено (наступний крок): редактор цих налаштувань у GUI (зараз файл можна правити руками).
 
 ## Фаза 3 — Архітектура і стійкість (2–4 дні)
 
