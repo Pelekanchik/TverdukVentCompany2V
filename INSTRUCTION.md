@@ -9,7 +9,7 @@ docker-compose up -d
 # 2. Зачекай 10 секунд, поки БД підніметься
 
 # 3. Запусти програму
-python main.py
+python main_pyside6.py
 ```
 
 ## 2. Ручний старт (якщо PostgreSQL вже встановлено)
@@ -63,7 +63,7 @@ alembic history --verbose
 ### 2.6. Запусти програму
 
 ```bash
-python main.py
+python main_pyside6.py
 ```
 
 ## 3. Як створити нову міграцію
@@ -112,16 +112,10 @@ pip install alembic
 python -m alembic upgrade head
 ```
 
-## 5. Структура файлів (що замінити)
+## 5. Структура файлів
 
-| Файл | Дія |
-|------|-----|
-| `main.py` | Замінити повністю |
-| `setup_postgres.py` | Замінити повністю |
-| `migrations/README` | Створити (якщо немає) |
-| `migrations/versions/001_initial.py` | Створити (якщо немає) |
-| `docker-compose.yml` | Створити (опціонально) |
-| `.env` | Перевірити/оновити |
+Поточна точка входу — `main_pyside6.py` (виконує міграції Alembic і запускає GUI).
+Файли `setup_postgres.py`, `migrations/`, `docker-compose.yml`, `.env` — як у репозиторії.
 
 ## 6. Чек-лист перед запуском
 

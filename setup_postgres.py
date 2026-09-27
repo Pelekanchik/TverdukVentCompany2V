@@ -326,7 +326,7 @@ def main():
         print("  ✅ НАЛАШТУВАННЯ ЗАВЕРШЕНО!")
         print("=" * 55)
         print("\n  📋 Наступні кроки:")
-        print("     1. Запустіть програму: python main.py")
+        print("     1. Запустіть програму: python main_pyside6.py")
         print("     2. Перевірте data/.setup_credentials.json для стартового пароля admin")
         print("     3. ЗМІНІТЬ ПАРОЛЬ АДМІНІСТРАТОРА!")
         print('     4. Для нових міграцій: alembic revision --autogenerate -m "опис"')

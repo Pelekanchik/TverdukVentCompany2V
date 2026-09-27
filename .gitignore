@@ -45,3 +45,9 @@ Thumbs.db
 .vscode/
 *.swp
 release/ 
+
+# Експорт/релізи
+exports/*.csv
+!products_template.csv
+updates/
+*.zip
