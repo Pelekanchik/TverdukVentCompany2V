@@ -90,14 +90,14 @@ class BusinessSettingsTab(QWidget):
         # ── Комплектуючі ──
         self.tbl_components = self._make_table(COLUMNS_KEY_VALUE_UNIT)
         vlay.addWidget(
-            self._table_group("Комплектуючі (вентилятори, фільтри, клапани...)", self.tbl_components)
+            self._table_group(
+                "Комплектуючі (вентилятори, фільтри, клапани...)", self.tbl_components
+            )
         )
 
         # ── Додаткові матеріали ──
         self.tbl_materials = self._make_table(COLUMNS_KEY_VALUE_UNIT)
-        vlay.addWidget(
-            self._table_group("Додаткові матеріали (ізоляція)", self.tbl_materials)
-        )
+        vlay.addWidget(self._table_group("Додаткові матеріали (ізоляція)", self.tbl_materials))
 
         # ── Посади ──
         self.tbl_positions = self._make_table(COLUMNS_POSITIONS)
@@ -169,7 +169,9 @@ class BusinessSettingsTab(QWidget):
             s.vat_rate = float(self.spin_vat.value())
             s.components = self._read_table(self.tbl_components, ("ціна", "одиниця"))
             s.extra_materials = self._read_table(self.tbl_materials, ("ціна_за_м2", "одиниця"))
-            s.positions = self._read_table(self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%"))
+            s.positions = self._read_table(
+                self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
+            )
             s.save()
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти бізнес-налаштування:\n{e}")
@@ -188,7 +190,9 @@ class BusinessSettingsTab(QWidget):
         )
         return True
 
-    def _read_table(self, table: QTableWidget, fields: tuple[str, str], numeric: tuple[str, ...] = ("ціна",)) -> dict:
+    def _read_table(
+        self, table: QTableWidget, fields: tuple[str, str], numeric: tuple[str, ...] = ("ціна",)
+    ) -> dict:
         """Перетворити таблицю у dict. Порожні ключі пропускаються."""
         result = {}
         for row in range(table.rowCount()):
@@ -206,7 +210,9 @@ class BusinessSettingsTab(QWidget):
             value_raw = cell(1)
             if fields[0] in numeric:
                 try:
-                    value: float | int | str = float(value_raw) if "." in value_raw else int(value_raw)
+                    value: float | int | str = (
+                        float(value_raw) if "." in value_raw else int(value_raw)
+                    )
                 except ValueError:
                     value = 0
             else:

@@ -15,7 +15,11 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
@@ -28,5 +32,5 @@ jobs:
       - name: Black
         run: black --check .
 
-      - name: Pytest
+      - name: Pytest (no PostgreSQL needed — tests use fakes/SQLite)
         run: pytest -q

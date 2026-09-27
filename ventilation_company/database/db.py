@@ -1,5 +1,9 @@
 """Підключення до БД (PostgreSQL) з пулом з'єднань та конфігурацією через env.
 
+Engine створюється ліниво — при першому зверненні до engine / SessionLocal /
+db_session, а не на імпорті модуля. Якщо DATABASE_URL не налаштований
+(заглушка CHANGE_ME), перша спроба використання дає зрозумілу помилку.
+
 Використання:
     from ventilation_company.database.db import get_db, engine
     with get_db() as session:
@@ -43,24 +47,60 @@ POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
 MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    future=True,
-    pool_pre_ping=True,
-    pool_size=POOL_SIZE,
-    max_overflow=MAX_OVERFLOW,
-    pool_recycle=POOL_RECYCLE,
-)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db_session = scoped_session(SessionLocal)
+class DatabaseConfigurationError(RuntimeError):
+    """DATABASE_URL не налаштований або містить заглушку."""
+
+
+def _validate_database_url(url: str) -> None:
+    if "CHANGE_ME" in url:
+        raise DatabaseConfigurationError(
+            "DATABASE_URL не налаштований.\n\n"
+            "Створіть файл .env у корені проєкту з рядком:\n"
+            "  DATABASE_URL=postgresql://КОРИСТУВАЧ:ПАРОЛЬ@localhost:5432/ventcompany\n\n"
+            "Або запустіть: python setup_postgres.py"
+        )
+
+
+# ── Лінива ініціалізація engine ──
+_engine = None
+_SessionLocal = None
+_db_session = None
+
+
+def _init_engine() -> None:
+    """Створити engine і фабрику сесій (один раз, при першому використанні)."""
+    global _engine, _SessionLocal, _db_session
+    if _engine is not None:
+        return
+    _validate_database_url(DATABASE_URL)
+    _engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        future=True,
+        pool_pre_ping=True,
+        pool_size=POOL_SIZE,
+        max_overflow=MAX_OVERFLOW,
+        pool_recycle=POOL_RECYCLE,
+    )
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    _db_session = scoped_session(_SessionLocal)
+    logger.info("PostgreSQL engine ініціалізовано: %s", DATABASE_URL.split("@")[-1])
+
+
+def __getattr__(name: str):
+    """PEP 562: лінивий доступ до engine / SessionLocal / db_session."""
+    if name in ("engine", "SessionLocal", "db_session"):
+        _init_engine()
+        return {"engine": _engine, "SessionLocal": _SessionLocal, "db_session": _db_session}[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @contextmanager
 def get_db():
     """Контекстний менеджер для сесії БД. Автоматично commit/rollback/close."""
-    session = SessionLocal()
+    _init_engine()
+    session = _SessionLocal()
     try:
         yield session
         session.commit()
@@ -74,7 +114,8 @@ def get_db():
 def check_db_connection() -> bool:
     """Перевіряє чи доступна БД."""
     try:
-        with engine.connect() as conn:
+        _init_engine()
+        with _engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
@@ -91,4 +132,5 @@ def get_calc_db():
         DeprecationWarning,
         stacklevel=2,
     )
-    return engine.raw_connection()
+    _init_engine()
+    return _engine.raw_connection()
