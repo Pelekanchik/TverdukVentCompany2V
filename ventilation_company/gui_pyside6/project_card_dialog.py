@@ -285,12 +285,20 @@ class ProjectCardDialog(QDialog):
         worker = FunctionWorker(self._fetch_data)
         worker.result.connect(self._on_data_loaded)
         worker.error.connect(self._on_load_error)
+        # Життєвий цикл worker'а прив'язано до finished потоку (а не до result):
+        # посилання знімається лише після того, як run() справді завершився,
+        # інакше можливий крах "QThread: Destroyed while thread is still running".
         worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(self._on_worker_finished)
         self._worker = worker  # захист від збирання сміття
         worker.start()
 
+    def _on_worker_finished(self):
+        """Потік завершився — знімаємо посилання (лише якщо це поточний worker)."""
+        if self._worker is self.sender():
+            self._worker = None
+
     def _on_data_loaded(self, result: dict):
-        self._worker = None
         project = result.get("project")
         if project is None:
             self._set_busy(False)
@@ -311,7 +319,6 @@ class ProjectCardDialog(QDialog):
         self._set_busy(False)
 
     def _on_load_error(self, message: str):
-        self._worker = None
         self._set_busy(False)
         QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт:\n{message}")
 

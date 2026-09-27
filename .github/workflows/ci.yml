@@ -33,4 +33,6 @@ jobs:
         run: black --check .
 
       - name: Pytest (no PostgreSQL needed — tests use fakes/SQLite)
-        run: pytest -q
+        env:
+          QT_QPA_PLATFORM: minimal   # headless Qt на ранері — стабільніше для GUI-тестів
+        run: pytest -v --tb=short
