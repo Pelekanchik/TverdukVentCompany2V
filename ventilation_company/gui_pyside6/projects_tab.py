@@ -235,9 +235,18 @@ class ProjectsTab(QWidget):
         btn_new.setObjectName("primary")
         btn_new.clicked.connect(self._on_new_project)
         btn_duplicate = QPushButton("📄 Дублювати")
+        btn_status_work = QPushButton("▶ В роботі")
+        btn_status_ready = QPushButton("✅ Готовий")
+        btn_status_closed = QPushButton("🏁 Закрити")
+        btn_status_work.clicked.connect(lambda: self._set_selected_status("В роботі"))
+        btn_status_ready.clicked.connect(lambda: self._set_selected_status("Готовий"))
+        btn_status_closed.clicked.connect(lambda: self._set_selected_status("Закрито"))
         btn_duplicate.clicked.connect(self._on_duplicate_project)
         header.addWidget(btn_new)
         header.addWidget(btn_duplicate)
+        header.addWidget(btn_status_work)
+        header.addWidget(btn_status_ready)
+        header.addWidget(btn_status_closed)
 
         layout.addLayout(header)
 
@@ -389,6 +398,24 @@ class ProjectsTab(QWidget):
 
     def _audit_actor(self):
         return getattr(self.main_window, "user", None)
+
+    def _set_selected_status(self, status: str):
+        project_id = self._get_selected_id()
+        if not project_id:
+            QMessageBox.warning(self, "Увага", "Виберіть проєкт")
+            return
+        try:
+            ProjectRepository.update(project_id, {"status": status})
+            log_action(
+                "project.update",
+                entity_type="project",
+                entity_id=project_id,
+                details={"status": status},
+                actor=self._audit_actor(),
+            )
+            self._load_data()
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося змінити статус: {e}")
 
     def _on_duplicate_project(self):
         project_id = self._get_selected_id()
