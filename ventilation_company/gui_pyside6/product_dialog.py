@@ -27,9 +27,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ventilation_company.calculations.cost_engine import CostBreakdown, CostEngine
+from ventilation_company.calculations.cost_engine import (
+    METAL_DENSITY_KG_M3,
+    CostBreakdown,
+    CostEngine,
+)
 from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.business_settings import BusinessSettings
 
 SCHEMAS = {
     "Відвод круглий": "",
@@ -676,7 +681,9 @@ class ProductDialog(QDialog):
         flange_price = 0
         if self.chk_with_flanges.isChecked():
             flange_count = self.spin_flange_count.value()
-            flange_price = 150.0 if self.combo_flange_profile.currentText() == "P30" else 200.0
+            flange_price = BusinessSettings.get_instance().get_flange_price(
+                self.combo_flange_profile.currentText()
+            )
 
         result = self._engine.calculate(
             product_type=pt,
@@ -755,7 +762,9 @@ class ProductDialog(QDialog):
             material_area=self._calc_result.material_area_m2 / max(self._calc_result.quantity, 1),
             with_flanges=self.chk_with_flanges.isChecked(),
             flange_count=self.spin_flange_count.value() if self.chk_with_flanges.isChecked() else 0,
-            flange_price=150.0 if self.combo_flange_profile.currentText() == "P30" else 200.0,
+            flange_price=BusinessSettings.get_instance().get_flange_price(
+                self.combo_flange_profile.currentText()
+            ),
             markup_name=self.combo_category.currentText(),
             parent=self,
         )
@@ -829,8 +838,7 @@ class ProductDialog(QDialog):
             params["metal_area_m2"] = round(self._calc_result.surface_area_m2 / calc_qty, 4)
             params["blank_area_m2"] = round(self._calc_result.blank_area_m2 / calc_qty, 4)
             params["material_area_m2"] = round(self._calc_result.material_area_m2 / calc_qty, 4)
-            density_map = {"Оцинкована сталь": 7850, "Нержавіюча сталь": 7900, "Алюміній": 2700}
-            density = density_map.get(self.combo_material.currentText(), 7850)
+            density = METAL_DENSITY_KG_M3.get(self.combo_material.currentText().lower(), 7850)
             thickness_m = float(self.combo_thickness.currentText()) / 1000
             params["weight_kg"] = round(
                 (self._calc_result.material_area_m2 / calc_qty) * thickness_m * density, 4

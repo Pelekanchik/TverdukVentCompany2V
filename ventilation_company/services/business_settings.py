@@ -57,6 +57,12 @@ DEFAULT_POSITIONS = {
     "водій": {"ставка": 15000, "премія_%": 5},
 }
 
+# Ціни фланців за профілем, грн/шт.
+DEFAULT_FLANGE_PRICES = {
+    "P30": {"ціна": 150.0},
+    "P40": {"ціна": 200.0},
+}
+
 
 class BusinessSettings:
     """Менеджер бізнес-налаштувань (Singleton, файлове блокування)."""
@@ -90,6 +96,7 @@ class BusinessSettings:
         self.components: dict = {}
         self.extra_materials: dict = {}
         self.positions: dict = {}
+        self.flange_prices: dict = {}
 
         self.load()
 
@@ -130,6 +137,9 @@ class BusinessSettings:
             "extra_materials", json.loads(json.dumps(DEFAULT_EXTRA_MATERIALS))
         )
         self.positions = data.get("positions", json.loads(json.dumps(DEFAULT_POSITIONS)))
+        self.flange_prices = data.get(
+            "flange_prices", json.loads(json.dumps(DEFAULT_FLANGE_PRICES))
+        )
         if not data:
             self.save()
 
@@ -140,6 +150,7 @@ class BusinessSettings:
             "components": self.components,
             "extra_materials": self.extra_materials,
             "positions": self.positions,
+            "flange_prices": self.flange_prices,
         }
         with self._file_lock:
             self._atomic_write(data)
@@ -165,3 +176,11 @@ class BusinessSettings:
         """Ставка та премія посади; нульові значення, якщо невідомо."""
         self.reload()
         return self.positions.get(name, {"ставка": 0, "премія_%": 0})
+
+    def get_flange_price(self, profile: str, default: float = 150.0) -> float:
+        """Ціна фланця за профілем (P30/P40), грн/шт."""
+        self.reload()
+        raw = self.flange_prices.get(profile, {})
+        if isinstance(raw, dict):
+            return float(raw.get("ціна", default))
+        return float(raw) if raw else default

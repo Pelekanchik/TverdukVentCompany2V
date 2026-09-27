@@ -36,6 +36,7 @@ from ventilation_company.services.business_settings import BusinessSettings
 
 COLUMNS_KEY_VALUE_UNIT = ["Назва (ключ)", "Ціна, грн", "Одиниця"]
 COLUMNS_POSITIONS = ["Посада (ключ)", "Ставка, грн/міс", "Премія, %"]
+COLUMNS_FLANGES = ["Профіль", "Ціна, грн/шт"]
 
 
 class BusinessSettingsTab(QWidget):
@@ -103,10 +104,20 @@ class BusinessSettingsTab(QWidget):
         self.tbl_positions = self._make_table(COLUMNS_POSITIONS)
         vlay.addWidget(self._table_group("Посади та ставки зарплат", self.tbl_positions))
 
+        # ── Фланці ──
+        self.tbl_flanges = self._make_table(COLUMNS_FLANGES)
+        vlay.addWidget(self._table_group("Ціни фланців за профілем", self.tbl_flanges))
+
         scroll.setWidget(container)
 
         if not self.can_edit:
-            for w in (self.spin_vat, self.tbl_components, self.tbl_materials, self.tbl_positions):
+            for w in (
+                self.spin_vat,
+                self.tbl_components,
+                self.tbl_materials,
+                self.tbl_positions,
+                self.tbl_flanges,
+            ):
                 w.setEnabled(False)
 
     def _make_table(self, headers: list[str]) -> QTableWidget:
@@ -149,15 +160,16 @@ class BusinessSettingsTab(QWidget):
         self._fill_table(self.tbl_components, s.components, ("ціна", "одиниця"))
         self._fill_table(self.tbl_materials, s.extra_materials, ("ціна_за_м2", "одиниця"))
         self._fill_table(self.tbl_positions, s.positions, ("ставка", "премія_%"))
+        self._fill_table(self.tbl_flanges, s.flange_prices, ("ціна",))
 
-    def _fill_table(self, table: QTableWidget, data: dict, fields: tuple[str, str]):
+    def _fill_table(self, table: QTableWidget, data: dict, fields: tuple[str, ...]):
         table.setRowCount(0)
         for key, values in data.items():
             row = table.rowCount()
             table.insertRow(row)
             table.setItem(row, 0, QTableWidgetItem(str(key)))
-            table.setItem(row, 1, QTableWidgetItem(str(values.get(fields[0], 0))))
-            table.setItem(row, 2, QTableWidgetItem(str(values.get(fields[1], ""))))
+            for col, field in enumerate(fields, start=1):
+                table.setItem(row, col, QTableWidgetItem(str(values.get(field, ""))))
 
     def save(self) -> bool:
         """Зберегти таблиці у BusinessSettings. Повертає True при успіху."""
@@ -172,6 +184,12 @@ class BusinessSettingsTab(QWidget):
             s.positions = self._read_table(
                 self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
             )
+            s.flange_prices = {
+                key: values["ціна"]
+                for key, values in self._read_table(
+                    self.tbl_flanges, ("ціна",), numeric=("ціна",)
+                ).items()
+            }
             s.save()
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти бізнес-налаштування:\n{e}")
@@ -185,13 +203,14 @@ class BusinessSettingsTab(QWidget):
                 "components": len(s.components),
                 "extra_materials": len(s.extra_materials),
                 "positions": len(s.positions),
+                "flange_prices": len(s.flange_prices),
             },
             actor=self.current_user,
         )
         return True
 
     def _read_table(
-        self, table: QTableWidget, fields: tuple[str, str], numeric: tuple[str, ...] = ("ціна",)
+        self, table: QTableWidget, fields: tuple[str, ...], numeric: tuple[str, ...] = ("ціна",)
     ) -> dict:
         """Перетворити таблицю у dict. Порожні ключі пропускаються."""
         result = {}
@@ -207,15 +226,16 @@ class BusinessSettingsTab(QWidget):
                 item = table.item(_row, col)
                 return item.text().strip() if item else ""
 
-            value_raw = cell(1)
-            if fields[0] in numeric:
-                try:
-                    value: float | int | str = (
-                        float(value_raw) if "." in value_raw else int(value_raw)
-                    )
-                except ValueError:
-                    value = 0
-            else:
-                value = value_raw
-            result[key] = {fields[0]: value, fields[1]: cell(2)}
+            record = {}
+            for col, field in enumerate(fields, start=1):
+                raw = cell(col)
+                if field in numeric:
+                    try:
+                        value: float | int | str = float(raw) if "." in raw else int(raw)
+                    except ValueError:
+                        value = 0
+                else:
+                    value = raw
+                record[field] = value
+            result[key] = record
         return result

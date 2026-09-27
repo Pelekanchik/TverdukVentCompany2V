@@ -26,9 +26,17 @@ from typing import Any
 
 from ventilation_company.manufacturing_params import get_material_price
 from ventilation_company.paths import DATA_DIR
+from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.utils.logging_config import get_logger
 
 _logger = get_logger("cost_engine")
+
+# Густина металів, кг/м³ — для розрахунку ваги виробу.
+METAL_DENSITY_KG_M3 = {
+    "оцинкована сталь": 7850,
+    "нержавіюча сталь": 7900,
+    "алюміній": 2700,
+}
 
 _PRICING_PATH = DATA_DIR / "pricing_settings.json"
 
@@ -261,7 +269,8 @@ class CostEngine:
         return 0.0
 
     def _get_vat_rate(self) -> float:
-        return 20.0
+        """Ставка ПДВ з бізнес-налаштувань (редагується у 💼 Бізнес)."""
+        return BusinessSettings.get_instance().get_vat_rate()
 
     def calculate(
         self,
