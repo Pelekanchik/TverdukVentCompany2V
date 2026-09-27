@@ -8,6 +8,7 @@
 """
 
 import contextlib
+import csv
 from datetime import datetime
 
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -208,16 +210,20 @@ class ProjectsTab(QWidget):
         layout.setSpacing(16)
 
         header = QHBoxLayout()
+        buttons_row = QHBoxLayout()
+        buttons_row.setSpacing(6)
         lbl_title = QLabel("📁 Проєкти")
         lbl_title.setObjectName("title")
         header.addWidget(lbl_title)
         header.addStretch()
 
         self.edit_search = QLineEdit()
+        self.edit_search.setMaximumWidth(170)
         self.edit_search.setPlaceholderText("🔍 Пошук проєкту...")
         self.edit_search.setFixedWidth(250)
         self.edit_search.textChanged.connect(self._on_search)
         self.combo_status_filter = QComboBox()
+        self.combo_status_filter.setMaximumWidth(120)
         self.combo_status_filter.addItems(
             ["Всі", "Новий", "В роботі", "На виробництві", "Готовий", "Відвантажено", "Закрито"]
         )
@@ -228,27 +234,31 @@ class ProjectsTab(QWidget):
         header.addWidget(self.combo_status_filter)
 
         btn_refresh = QPushButton("🔄 Оновити")
+        btn_export_csv = QPushButton("💾 CSV")
+        btn_export_csv.clicked.connect(self._export_csv)
         btn_refresh.clicked.connect(self._load_data)
-        header.addWidget(btn_refresh)
+        buttons_row.addWidget(btn_refresh)
+        buttons_row.addWidget(btn_export_csv)
 
-        btn_new = QPushButton("➕ Новий проєкт")
+        btn_new = QPushButton("➕ Новий")
         btn_new.setObjectName("primary")
         btn_new.clicked.connect(self._on_new_project)
         btn_duplicate = QPushButton("📄 Дублювати")
-        btn_status_work = QPushButton("▶ В роботі")
-        btn_status_ready = QPushButton("✅ Готовий")
-        btn_status_closed = QPushButton("🏁 Закрити")
+        btn_status_work = QPushButton("▶ Робота")
+        btn_status_ready = QPushButton("✅ Готово")
+        btn_status_closed = QPushButton("🏁 Закрито")
         btn_status_work.clicked.connect(lambda: self._set_selected_status("В роботі"))
         btn_status_ready.clicked.connect(lambda: self._set_selected_status("Готовий"))
         btn_status_closed.clicked.connect(lambda: self._set_selected_status("Закрито"))
         btn_duplicate.clicked.connect(self._on_duplicate_project)
-        header.addWidget(btn_new)
-        header.addWidget(btn_duplicate)
-        header.addWidget(btn_status_work)
-        header.addWidget(btn_status_ready)
-        header.addWidget(btn_status_closed)
+        buttons_row.addWidget(btn_new)
+        buttons_row.addWidget(btn_duplicate)
+        buttons_row.addWidget(btn_status_work)
+        buttons_row.addWidget(btn_status_ready)
+        buttons_row.addWidget(btn_status_closed)
 
         layout.addLayout(header)
+        layout.addLayout(buttons_row)
 
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -311,6 +321,35 @@ class ProjectsTab(QWidget):
         if 0 <= row < len(self._projects):
             return self._projects[row].get("id")
         return None
+
+    def _export_csv(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт проєктів", "projects.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+        fieldnames = [
+            "id",
+            "project_number",
+            "name",
+            "client",
+            "status",
+            "created_at",
+            "cost_price",
+            "customer_price",
+            "discounted_price",
+            "profit",
+        ]
+        rows = getattr(self, "_projects", [])
+        try:
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({k: row.get(k, "") for k in fieldnames})
+            QMessageBox.information(self, "Успіх", f"Експортовано проєктів: {len(rows)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {e}")
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())
