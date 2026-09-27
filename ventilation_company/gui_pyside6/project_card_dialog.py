@@ -12,9 +12,11 @@ import os
 import tempfile
 from pathlib import Path
 
+from PySide6.QtCore import QDate
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QComboBox,
+    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -26,11 +28,14 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QTableView,
+    QTableWidget,
+    QTableWidgetItem,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
@@ -143,6 +148,54 @@ class ExpenseEditDialog(QDialog):
         }
 
 
+class PaymentEditDialog(QDialog):
+    def __init__(self, project_id: int, payment_data=None, parent=None):
+        super().__init__(parent)
+        self.project_id = project_id
+        self.payment_data = payment_data or {}
+        self.setWindowTitle("Редагувати оплату" if payment_data else "Нова оплата")
+        self.setMinimumWidth(380)
+        layout = QFormLayout(self)
+        self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
+        value = self.payment_data.get("date")
+        if value:
+            try:
+                self.date_edit.setDate(QDate(value.year, value.month, value.day))
+            except Exception:
+                self.date_edit.setDate(QDate.fromString(str(value)[:10], "yyyy-MM-dd"))
+        layout.addRow("Дата:", self.date_edit)
+        self.spin_amount = QDoubleSpinBox()
+        self.spin_amount.setRange(0, 999999999)
+        self.spin_amount.setDecimals(2)
+        self.spin_amount.setSuffix(" ₴")
+        self.spin_amount.setValue(float(self.payment_data.get("amount") or 0))
+        layout.addRow("Сума:", self.spin_amount)
+        self.combo_type = QComboBox()
+        self.combo_type.addItems(["вхідний", "вихідний"])
+        self.combo_type.setCurrentText(self.payment_data.get("type") or "вхідний")
+        layout.addRow("Тип:", self.combo_type)
+        self.edit_purpose = QLineEdit(self.payment_data.get("purpose") or "Оплата за проєкт")
+        layout.addRow("Призначення:", self.edit_purpose)
+        self.edit_notes = QLineEdit(self.payment_data.get("notes") or "")
+        layout.addRow("Нотатки:", self.edit_notes)
+        btn = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        btn.accepted.connect(self.accept)
+        btn.rejected.connect(self.reject)
+        layout.addRow(btn)
+
+    def get_data(self):
+        return {
+            "project_id": self.project_id,
+            "date": self.date_edit.date().toPython(),
+            "amount": self.spin_amount.value(),
+            "currency": "UAH",
+            "type": self.combo_type.currentText(),
+            "purpose": self.edit_purpose.text().strip(),
+            "notes": self.edit_notes.text().strip(),
+        }
+
+
 class ProjectCardDialog(QDialog):
     def __init__(self, project_id: int, parent=None):
         super().__init__(parent)
@@ -156,6 +209,7 @@ class ProjectCardDialog(QDialog):
         self._documents = []
         self._works = []
         self._expenses = []
+        self._payments = []
         self._load_data()
         self._build_ui()
 
@@ -169,6 +223,12 @@ class ProjectCardDialog(QDialog):
             works = ProjectWorkRepository.get_all(self.project_id)
             expenses = ProjectExpenseRepository.get_all(self.project_id)
             documents = ProjectDocumentRepository.get_by_project(self.project_id)
+            payments = PaymentRepository.list_by_project(self.project_id)
+            paid_total = sum(
+                float(p.get("amount") or 0)
+                for p in payments
+                if (p.get("type") or "вхідний") == "вхідний"
+            )
 
             cost = sum(
                 float(item.get("cost_price") or 0) * float(item.get("quantity") or 1)
@@ -201,10 +261,12 @@ class ProjectCardDialog(QDialog):
             self._project_data["plus_expenses_total"] = plus_expenses_total
             self._project_data["minus_expenses_total"] = minus_expenses_total
             self._project_data["expenses_total"] = minus_expenses_total
+            self._project_data["paid_total"] = paid_total
             self._products = products
             self._documents = documents
             self._works = works
             self._expenses = expenses
+            self._payments = payments
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
 
@@ -221,6 +283,7 @@ class ProjectCardDialog(QDialog):
         self.tabs.addTab(self._build_documents_tab(), "📄 Документи")
         self.tabs.addTab(self._build_works_tab(), "🔨 Роботи")
         self.tabs.addTab(self._build_expenses_tab(), "💸 Витрати")
+        self.tabs.addTab(self._build_payments_tab(), "💳 Оплати")
         layout.addWidget(self.tabs)
         btn_close = QPushButton("✅ Закрити")
         btn_close.setMinimumHeight(36)
@@ -273,6 +336,10 @@ class ProjectCardDialog(QDialog):
         layout.addRow(QLabel(""))
         layout.addRow("Сума виробів:", QLabel(f"₴ {base_price:,.2f}"))
         layout.addRow("Кількість виробів:", QLabel(str(len(self._products))))
+        paid_total = float(self._project_data.get("paid_total") or 0)
+        balance = total_customer - paid_total
+        layout.addRow("💳 Оплачено:", QLabel(f"₴ {paid_total:,.2f}"))
+        layout.addRow("💳 Залишок:", QLabel(f"₴ {balance:,.2f}"))
         if display_profit >= 0:
             lbl_profit = QLabel(f"₴ {display_profit:,.2f}  ✅")
             lbl_profit.setStyleSheet(
@@ -726,6 +793,100 @@ class ProjectCardDialog(QDialog):
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
+    def _build_payments_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        top = QHBoxLayout()
+        btn_add = QPushButton("➕ Додати оплату")
+        btn_add.clicked.connect(self._on_add_payment)
+        top.addWidget(btn_add)
+        top.addStretch()
+        layout.addLayout(top)
+        self.payments_table = QTableWidget()
+        self.payments_table.setColumnCount(5)
+        self.payments_table.setHorizontalHeaderLabels(
+            ["Дата", "Тип", "Сума", "Призначення", "Нотатки"]
+        )
+        self.payments_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.payments_table.setSelectionBehavior(QTableWidget.SelectRows)
+        layout.addWidget(self.payments_table)
+        self._populate_payments()
+        bottom = QHBoxLayout()
+        bottom.addStretch()
+        btn_edit = QPushButton("✏️ Редагувати")
+        btn_edit.clicked.connect(self._on_edit_payment)
+        bottom.addWidget(btn_edit)
+        btn_delete = QPushButton("🗑 Видалити")
+        btn_delete.setStyleSheet(f"color: {Theme.DANGER};")
+        btn_delete.clicked.connect(self._on_delete_payment)
+        bottom.addWidget(btn_delete)
+        layout.addLayout(bottom)
+        return tab
+
+    def _populate_payments(self):
+        self.payments_table.setRowCount(0)
+        for p in getattr(self, "_payments", []):
+            row = self.payments_table.rowCount()
+            self.payments_table.insertRow(row)
+            values = [
+                str(p.get("date"))[:10] if p.get("date") else "",
+                p.get("type") or "",
+                f"₴ {float(p.get('amount') or 0):,.2f}",
+                p.get("purpose") or "",
+                p.get("notes") or "",
+            ]
+            for col, value in enumerate(values):
+                self.payments_table.setItem(row, col, QTableWidgetItem(str(value)))
+
+    def _get_selected_payment(self):
+        row = self.payments_table.currentRow()
+        if row < 0 or row >= len(getattr(self, "_payments", [])):
+            QMessageBox.warning(self, "Увага", "Оберіть оплату")
+            return None
+        return self._payments[row]
+
+    def _on_add_payment(self):
+        dlg = PaymentEditDialog(self.project_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            try:
+                PaymentRepository.create(dlg.get_data())
+                self._reload_all()
+                QMessageBox.information(self, "Успіх", "Оплату додано")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося додати оплату: {e}")
+
+    def _on_edit_payment(self):
+        payment = self._get_selected_payment()
+        if not payment:
+            return
+        dlg = PaymentEditDialog(self.project_id, payment, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            try:
+                PaymentRepository.update(payment["id"], dlg.get_data())
+                self._reload_all()
+                QMessageBox.information(self, "Успіх", "Оплату оновлено")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося оновити оплату: {e}")
+
+    def _on_delete_payment(self):
+        payment = self._get_selected_payment()
+        if not payment:
+            return
+        reply = QMessageBox.question(
+            self,
+            "Видалення",
+            "Видалити обрану оплату?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            try:
+                PaymentRepository.delete(payment["id"])
+                self._reload_all()
+                QMessageBox.information(self, "Успіх", "Оплату видалено")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося видалити оплату: {e}")
+
     def _reload_all(self):
         self._load_data()
         while self.tabs.count() > 0:
@@ -735,3 +896,4 @@ class ProjectCardDialog(QDialog):
         self.tabs.addTab(self._build_documents_tab(), "📄 Документи")
         self.tabs.addTab(self._build_works_tab(), "🔨 Роботи")
         self.tabs.addTab(self._build_expenses_tab(), "💸 Витрати")
+        self.tabs.addTab(self._build_payments_tab(), "💳 Оплати")

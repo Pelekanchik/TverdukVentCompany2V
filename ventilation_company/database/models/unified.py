@@ -208,6 +208,7 @@ class Interaction(Base):
 
 
 class Payment(Base):
+    project_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     """Платежі."""
 
     __tablename__ = "payments"

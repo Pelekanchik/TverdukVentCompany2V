@@ -10,6 +10,7 @@ def _to_dict(item: Payment) -> dict:
     return {
         "id": item.id,
         "client_id": item.client_id,
+        "project_id": getattr(item, "project_id", None),
         "date": item.date,
         "amount": item.amount,
         "currency": item.currency,
@@ -42,7 +43,8 @@ class PaymentRepository:
     def create(data: dict) -> dict:
         with get_db() as session:
             item = Payment(
-                client_id=data["client_id"],
+                client_id=data.get("client_id"),
+                project_id=data.get("project_id"),
                 date=data.get("date"),
                 amount=data.get("amount") or 0,
                 currency=data.get("currency") or "UAH",
@@ -68,6 +70,7 @@ class PaymentRepository:
                 "currency": "currency",
                 "type": "payment_type",
                 "purpose": "purpose",
+                "project_id": "project_id",
                 "project_name": "project_name",
                 "notes": "notes",
             }
@@ -87,6 +90,17 @@ class PaymentRepository:
             session.delete(item)
             session.commit()
             return True
+
+    @staticmethod
+    def list_by_project(project_id: int) -> list[dict]:
+        with get_db() as session:
+            items = (
+                session.query(Payment)
+                .filter(Payment.project_id == project_id)
+                .order_by(Payment.date.desc())
+                .all()
+            )
+            return [_to_dict(p) for p in items]
 
     @staticmethod
     def list_all() -> list[dict]:
