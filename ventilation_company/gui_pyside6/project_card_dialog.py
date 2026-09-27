@@ -12,9 +12,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QDate
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -44,6 +45,7 @@ from ventilation_company.database.repositories.project_expense_repo import Proje
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
 class WorkEditDialog(QDialog):
@@ -210,73 +212,138 @@ class ProjectCardDialog(QDialog):
         self._works = []
         self._expenses = []
         self._payments = []
-        self._load_data()
+        self._worker = None
         self._build_ui()
+        self._start_load()
+
+    # ── Асинхронне завантаження даних ──
+
+    def _fetch_data(self) -> dict:
+        """Зібрати всі дані картки проєкту (виконується у фоновому потоці).
+
+        Не чіпає GUI-стану; у разі помилки виняток передається через worker.error.
+        """
+        p = ProjectRepository.get(self.project_id)
+        if not p:
+            return {"project": None}
+
+        products = ProductRepository.get_all(project_id=self.project_id)
+        works = ProjectWorkRepository.get_all(self.project_id)
+        expenses = ProjectExpenseRepository.get_all(self.project_id)
+        documents = ProjectDocumentRepository.get_by_project(self.project_id)
+        payments = PaymentRepository.list_by_project(self.project_id)
+        paid_total = sum(
+            float(p.get("amount") or 0)
+            for p in payments
+            if (p.get("type") or "вхідний") == "вхідний"
+        )
+
+        cost = sum(
+            float(item.get("cost_price") or 0) * float(item.get("quantity") or 1)
+            for item in products
+        )
+        base_price = sum(
+            (
+                float(item.get("discounted_price") or 0)
+                if float(item.get("discounted_price") or 0) > 0
+                else float(item.get("total_price") or 0)
+            )
+            for item in products
+        )
+        works_total = sum(float(item.get("total_price") or 0) for item in works)
+        plus_expenses_total = sum(
+            float(item.get("total_price") or 0)
+            for item in expenses
+            if (item.get("direction") or "minus") == "plus"
+        )
+        minus_expenses_total = sum(
+            float(item.get("total_price") or 0)
+            for item in expenses
+            if (item.get("direction") or "minus") != "plus"
+        )
+
+        project_data = dict(p)
+        project_data["cost_price"] = cost
+        project_data["customer_price"] = base_price
+        project_data["works_total"] = works_total
+        project_data["plus_expenses_total"] = plus_expenses_total
+        project_data["minus_expenses_total"] = minus_expenses_total
+        project_data["expenses_total"] = minus_expenses_total
+        project_data["paid_total"] = paid_total
+        return {
+            "project": project_data,
+            "products": products,
+            "documents": documents,
+            "works": works,
+            "expenses": expenses,
+            "payments": payments,
+        }
+
+    def _start_load(self):
+        """Запустити фонове завантаження даних картки."""
+        self._set_busy(True)
+        worker = FunctionWorker(self._fetch_data)
+        worker.result.connect(self._on_data_loaded)
+        worker.error.connect(self._on_load_error)
+        worker.finished.connect(worker.deleteLater)
+        self._worker = worker  # захист від збирання сміття
+        worker.start()
+
+    def _on_data_loaded(self, result: dict):
+        self._worker = None
+        project = result.get("project")
+        if project is None:
+            self._set_busy(False)
+            QMessageBox.warning(self, "Увага", f"Проєкт #{self.project_id} не знайдено")
+            return
+        self._project_data = project
+        self._products = result["products"]
+        self._documents = result["documents"]
+        self._works = result["works"]
+        self._expenses = result["expenses"]
+        self._payments = result["payments"]
+
+        name = self._project_data.get("name", "Проєкт")
+        self.setWindowTitle(f"📁 {name} (#{self.project_id})")
+        if hasattr(self, "lbl_title"):
+            self.lbl_title.setText(f"📁 {name}")
+        self._populate_all()
+        self._set_busy(False)
+
+    def _on_load_error(self, message: str):
+        self._worker = None
+        self._set_busy(False)
+        QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт:\n{message}")
+
+    def _set_busy(self, busy: bool):
+        if busy:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            if hasattr(self, "lbl_title"):
+                self.lbl_title.setText("⏳ Завантаження…")
+        else:
+            QApplication.restoreOverrideCursor()
+
+    def _populate_all(self):
+        """Оновити всі вкладки після завантаження/перезавантаження даних."""
+        self._populate_info_tab()
+        self._populate_products()
+        self._populate_documents()
+        self._populate_works()
+        self._populate_expenses()
+        self._populate_payments()
 
     def _load_data(self):
-        try:
-            p = ProjectRepository.get(self.project_id)
-            if not p:
-                return
-
-            products = ProductRepository.get_all(project_id=self.project_id)
-            works = ProjectWorkRepository.get_all(self.project_id)
-            expenses = ProjectExpenseRepository.get_all(self.project_id)
-            documents = ProjectDocumentRepository.get_by_project(self.project_id)
-            payments = PaymentRepository.list_by_project(self.project_id)
-            paid_total = sum(
-                float(p.get("amount") or 0)
-                for p in payments
-                if (p.get("type") or "вхідний") == "вхідний"
-            )
-
-            cost = sum(
-                float(item.get("cost_price") or 0) * float(item.get("quantity") or 1)
-                for item in products
-            )
-            base_price = sum(
-                (
-                    float(item.get("discounted_price") or 0)
-                    if float(item.get("discounted_price") or 0) > 0
-                    else float(item.get("total_price") or 0)
-                )
-                for item in products
-            )
-            works_total = sum(float(item.get("total_price") or 0) for item in works)
-            plus_expenses_total = sum(
-                float(item.get("total_price") or 0)
-                for item in expenses
-                if (item.get("direction") or "minus") == "plus"
-            )
-            minus_expenses_total = sum(
-                float(item.get("total_price") or 0)
-                for item in expenses
-                if (item.get("direction") or "minus") != "plus"
-            )
-
-            self._project_data = dict(p)
-            self._project_data["cost_price"] = cost
-            self._project_data["customer_price"] = base_price
-            self._project_data["works_total"] = works_total
-            self._project_data["plus_expenses_total"] = plus_expenses_total
-            self._project_data["minus_expenses_total"] = minus_expenses_total
-            self._project_data["expenses_total"] = minus_expenses_total
-            self._project_data["paid_total"] = paid_total
-            self._products = products
-            self._documents = documents
-            self._works = works
-            self._expenses = expenses
-            self._payments = payments
-        except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
+        """Сумісність: синхронне завантаження (використовується лише у тестах)."""
+        result = self._fetch_data()
+        self._on_data_loaded(result)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(16, 16, 16, 16)
-        lbl_title = QLabel(f"📁 {self._project_data.get('name', 'Проєкт')}")
-        lbl_title.setObjectName("title")
-        layout.addWidget(lbl_title)
+        self.lbl_title = QLabel("⏳ Завантаження…")
+        self.lbl_title.setObjectName("title")
+        layout.addWidget(self.lbl_title)
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_info_tab(), "ℹ️ Інформація")
         self.tabs.addTab(self._build_products_tab(), "🔧 Деталі")
@@ -294,72 +361,119 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QFormLayout(tab)
         layout.setSpacing(12)
-        cost = self._project_data.get("cost_price", 0)
-        base_price = self._project_data.get("customer_price", 0)
-        discounted = self._project_data.get("discounted_price", 0)
-        works_total = self._project_data.get("works_total", 0)
-        plus_expenses_total = self._project_data.get("plus_expenses_total", 0)
-        minus_expenses_total = self._project_data.get("minus_expenses_total", 0)
+        self._info_labels: dict[str, QLabel] = {}
+
+        def add_row(key: str, caption: str) -> QLabel:
+            lbl = QLabel("—")
+            layout.addRow(caption, lbl)
+            self._info_labels[key] = lbl
+            return lbl
+
+        add_row("project_number", "Номер:")
+        add_row("name", "Назва:")
+        add_row("client", "Клієнт:")
+        add_row("status", "Статус:")
+        add_row("created_at", "Дата створення:")
+        layout.addRow(QLabel(""))
+        add_row("cost_price", "🔧 Собівартість (вироби):")
+        add_row("works_total", "🔨 Додаткові роботи:")
+        add_row("expenses_total", "💸 Витрати:")
+        add_row("plus_expenses_total", "➕ Надходження:")
+        layout.addRow(QLabel(""))
+        add_row("customer_price", "💰 Ціна замовнику (з виробів):")
+        add_row("discounted_price", "🏷️ Ціна зі знижкою (проєкт):")
+        layout.addRow(QLabel(""))
+        add_row("products_total", "Сума виробів:")
+        add_row("products_count", "Кількість виробів:")
+        add_row("paid_total", "💳 Оплачено:")
+        add_row("balance", "💳 Залишок:")
+        add_row("profit", "📊 Прибуток (комплексний):")
+        self._lbl_discount_note = QLabel("")
+        self._lbl_discount_note.setStyleSheet(f"color: {Theme.WARNING}; font-size: 12px;")
+        layout.addRow("", self._lbl_discount_note)
+        self._info_tab = tab
+        self._populate_info_tab()
+        return tab
+
+    def _populate_info_tab(self):
+        d = self._project_data
+        if not d:
+            return
+        cost = d.get("cost_price", 0)
+        base_price = d.get("customer_price", 0)
+        discounted = d.get("discounted_price", 0)
+        works_total = d.get("works_total", 0)
+        plus_expenses_total = d.get("plus_expenses_total", 0)
+        minus_expenses_total = d.get("minus_expenses_total", 0)
         effective = discounted if discounted > 0 else base_price
         total_customer = effective + works_total + plus_expenses_total
         display_profit = total_customer - cost - minus_expenses_total
-        layout.addRow("Номер:", QLabel(self._project_data.get("project_number", "—")))
-        layout.addRow("Назва:", QLabel(self._project_data.get("name", "—")))
-        layout.addRow("Клієнт:", QLabel(self._project_data.get("client", "—")))
-        layout.addRow("Статус:", QLabel(self._project_data.get("status", "—")))
-        layout.addRow("Дата створення:", QLabel(str(self._project_data.get("created_at") or "—")))
-        layout.addRow(QLabel(""))
-        lbl_cost = QLabel(f"₴ {cost:,.2f}")
-        lbl_cost.setStyleSheet(f"color: {Theme.SUCCESS}; font-weight: bold;")
-        layout.addRow("🔧 Собівартість (вироби):", lbl_cost)
-        lbl_works = QLabel(f"₴ {works_total:,.2f}")
-        lbl_works.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
-        layout.addRow("🔨 Додаткові роботи:", lbl_works)
-        lbl_exp = QLabel(f"₴ {minus_expenses_total:,.2f}")
-        lbl_plus_exp = QLabel(f"₴ {plus_expenses_total:,.2f}")
-        lbl_plus_exp.setStyleSheet(f"color: {Theme.SUCCESS}; font-weight: bold;")
-        lbl_exp.setStyleSheet(f"color: {Theme.WARNING}; font-weight: bold;")
-        layout.addRow("💸 Витрати:", lbl_exp)
-        layout.addRow("➕ Надходження:", lbl_plus_exp)
-        layout.addRow(QLabel(""))
-        lbl_base = QLabel(f"₴ {base_price:,.2f}")
-        lbl_base.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
-        layout.addRow("💰 Ціна замовнику (з виробів):", lbl_base)
-        lbl_disc = QLabel(f"₴ {discounted:,.2f}")
-        if discounted > 0:
-            lbl_disc.setStyleSheet(f"color: {Theme.WARNING}; font-weight: bold; font-size: 15px;")
-            layout.addRow("🏷️ Ціна зі знижкою (проєкт):", lbl_disc)
-        else:
-            lbl_disc.setText("— (не вказано)")
-            lbl_disc.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
-            layout.addRow("🏷️ Ціна зі знижкою (проєкт):", lbl_disc)
-        layout.addRow(QLabel(""))
-        layout.addRow("Сума виробів:", QLabel(f"₴ {base_price:,.2f}"))
-        layout.addRow("Кількість виробів:", QLabel(str(len(self._products))))
-        paid_total = float(self._project_data.get("paid_total") or 0)
+        paid_total = float(d.get("paid_total") or 0)
         balance = total_customer - paid_total
-        layout.addRow("💳 Оплачено:", QLabel(f"₴ {paid_total:,.2f}"))
-        layout.addRow("💳 Залишок:", QLabel(f"₴ {balance:,.2f}"))
-        if display_profit >= 0:
-            lbl_profit = QLabel(f"₴ {display_profit:,.2f}  ✅")
-            lbl_profit.setStyleSheet(
-                f"color: {Theme.SUCCESS}; font-weight: bold; font-size: 16px; "
-                f"padding: 8px 16px; background: #1a3a1a; border-radius: 8px;"
+
+        def set_text(key: str, text: str, style: str | None = None):
+            lbl = self._info_labels.get(key)
+            if lbl is None:
+                return
+            lbl.setText(text)
+            if style:
+                lbl.setStyleSheet(style)
+
+        set_text("project_number", str(d.get("project_number", "—")))
+        set_text("name", str(d.get("name", "—")))
+        set_text("client", str(d.get("client", "—")))
+        set_text("status", str(d.get("status", "—")))
+        set_text("created_at", str(d.get("created_at") or "—"))
+        set_text("cost_price", f"₴ {cost:,.2f}", f"color: {Theme.SUCCESS}; font-weight: bold;")
+        set_text(
+            "works_total", f"₴ {works_total:,.2f}", f"color: {Theme.ACCENT}; font-weight: bold;"
+        )
+        set_text(
+            "expenses_total",
+            f"₴ {minus_expenses_total:,.2f}",
+            f"color: {Theme.WARNING}; font-weight: bold;",
+        )
+        set_text(
+            "plus_expenses_total",
+            f"₴ {plus_expenses_total:,.2f}",
+            f"color: {Theme.SUCCESS}; font-weight: bold;",
+        )
+        set_text(
+            "customer_price", f"₴ {base_price:,.2f}", f"color: {Theme.ACCENT}; font-weight: bold;"
+        )
+        if discounted > 0:
+            set_text(
+                "discounted_price",
+                f"₴ {discounted:,.2f}",
+                f"color: {Theme.WARNING}; font-weight: bold; font-size: 15px;",
             )
         else:
-            lbl_profit = QLabel(f"₴ {display_profit:,.2f}  ⚠️ ЗБИТОК")
-            lbl_profit.setStyleSheet(
-                f"color: {Theme.DANGER}; font-weight: bold; font-size: 16px; "
-                f"padding: 8px 16px; background: #3a1a1a; border-radius: 8px;"
+            set_text("discounted_price", "— (не вказано)", f"color: {Theme.TEXT_MUTED};")
+        set_text("products_total", f"₴ {base_price:,.2f}")
+        set_text("products_count", str(len(self._products)))
+        set_text("paid_total", f"₴ {paid_total:,.2f}")
+        set_text("balance", f"₴ {balance:,.2f}")
+        if display_profit >= 0:
+            set_text(
+                "profit",
+                f"₴ {display_profit:,.2f}  ✅",
+                f"color: {Theme.SUCCESS}; font-weight: bold; font-size: 16px; "
+                f"padding: 8px 16px; background: #1a3a1a; border-radius: 8px;",
             )
-        layout.addRow("📊 Прибуток (комплексний):", lbl_profit)
-        if discounted > 0 and abs(discounted - base_price) > 0.01:
+        else:
+            set_text(
+                "profit",
+                f"₴ {display_profit:,.2f}  ⚠️ ЗБИТОК",
+                f"color: {Theme.DANGER}; font-weight: bold; font-size: 16px; "
+                f"padding: 8px 16px; background: #3a1a1a; border-radius: 8px;",
+            )
+
+        if discounted > 0 and abs(discounted - base_price) > 0.01 and base_price > 0:
             diff = discounted - base_price
-            diff_pct = (diff / base_price * 100) if base_price > 0 else 0
-            lbl_note = QLabel(f"Знижка: ₴ {diff:,.2f} ({diff_pct:.1f}% від базової)")
-            lbl_note.setStyleSheet(f"color: {Theme.WARNING}; font-size: 12px;")
-            layout.addRow("", lbl_note)
-        return tab
+            diff_pct = diff / base_price * 100
+            self._lbl_discount_note.setText(f"Знижка: ₴ {diff:,.2f} ({diff_pct:.1f}% від базової)")
+        else:
+            self._lbl_discount_note.setText("")
 
     def _build_products_tab(self):
         tab = QWidget()
@@ -369,9 +483,9 @@ class ProjectCardDialog(QDialog):
         self.products_table.horizontalHeader().setStretchLastSection(True)
         self.products_table.verticalHeader().setVisible(False)
         layout.addWidget(self.products_table)
-        model = QStandardItemModel()
+        self.products_model = QStandardItemModel()
         # ← v2.4: додано колонку "Зі знижкою"
-        model.setHorizontalHeaderLabels(
+        self.products_model.setHorizontalHeaderLabels(
             [
                 "№",
                 "Назва",
@@ -385,7 +499,12 @@ class ProjectCardDialog(QDialog):
                 "Сума",
             ]
         )
-        self.products_table.setModel(model)
+        self.products_table.setModel(self.products_model)
+        self._populate_products()
+        return tab
+
+    def _populate_products(self):
+        self.products_model.removeRows(0, self.products_model.rowCount())
         for i, item in enumerate(self._products, 1):
             w = item.get("width", 0) or 0
             h = item.get("height", 0) or 0
@@ -415,16 +534,15 @@ class ProjectCardDialog(QDialog):
             # Зафарбовуємо знижку жовтим, якщо вона є
             if disc > 0:
                 row[8].setForeground(QBrush(QColor(Theme.WARNING)))
-            model.appendRow(row)
-        return tab
+            self.products_model.appendRow(row)
 
     def _build_documents_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         top = QHBoxLayout()
-        lbl = QLabel(f"📄 Документи проєкту ({len(self._documents)})")
-        lbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
-        top.addWidget(lbl)
+        self._lbl_docs_count = QLabel("📄 Документи проєкту (…)")
+        self._lbl_docs_count.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        top.addWidget(self._lbl_docs_count)
         top.addStretch()
         btn_refresh = QPushButton("🔄 Оновити")
         btn_refresh.clicked.connect(self._refresh_documents)
@@ -460,6 +578,7 @@ class ProjectCardDialog(QDialog):
         return tab
 
     def _populate_documents(self):
+        self._lbl_docs_count.setText(f"📄 Документи проєкту ({len(self._documents)})")
         self.docs_model.removeRows(0, self.docs_model.rowCount())
         type_names = {
             "spec": "Специфікація",
@@ -570,9 +689,9 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         top = QHBoxLayout()
-        lbl = QLabel(f"🔨 Додаткові роботи ({len(self._works)})")
-        lbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
-        top.addWidget(lbl)
+        self._lbl_works_count = QLabel("🔨 Додаткові роботи (…)")
+        self._lbl_works_count.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        top.addWidget(self._lbl_works_count)
         top.addStretch()
         btn_add = QPushButton("➕ Додати роботу")
         btn_add.clicked.connect(self._on_add_work)
@@ -609,6 +728,7 @@ class ProjectCardDialog(QDialog):
         return tab
 
     def _populate_works(self):
+        self._lbl_works_count.setText(f"🔨 Додаткові роботи ({len(self._works)})")
         self.works_model.removeRows(0, self.works_model.rowCount())
         for w in self._works:
             row = [
@@ -682,9 +802,9 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         top = QHBoxLayout()
-        lbl = QLabel(f"💸 Витрати / надходження ({len(self._expenses)})")
-        lbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
-        top.addWidget(lbl)
+        self._lbl_expenses_count = QLabel("💸 Витрати / надходження (…)")
+        self._lbl_expenses_count.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        top.addWidget(self._lbl_expenses_count)
         top.addStretch()
         btn_add = QPushButton("➕ Додати витрату")
         btn_add.clicked.connect(self._on_add_expense)
@@ -721,6 +841,7 @@ class ProjectCardDialog(QDialog):
         return tab
 
     def _populate_expenses(self):
+        self._lbl_expenses_count.setText(f"💸 Витрати / надходження ({len(self._expenses)})")
         self.expenses_model.removeRows(0, self.expenses_model.rowCount())
         for e in self._expenses:
             direction = e.get("direction") or "minus"
@@ -888,12 +1009,5 @@ class ProjectCardDialog(QDialog):
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити оплату: {e}")
 
     def _reload_all(self):
-        self._load_data()
-        while self.tabs.count() > 0:
-            self.tabs.removeTab(0)
-        self.tabs.addTab(self._build_info_tab(), "ℹ️ Інформація")
-        self.tabs.addTab(self._build_products_tab(), "🔧 Деталі")
-        self.tabs.addTab(self._build_documents_tab(), "📄 Документи")
-        self.tabs.addTab(self._build_works_tab(), "🔨 Роботи")
-        self.tabs.addTab(self._build_expenses_tab(), "💸 Витрати")
-        self.tabs.addTab(self._build_payments_tab(), "💳 Оплати")
+        """Перезавантажити дані картки у фоновому потоці та оновити вкладки."""
+        self._start_load()
