@@ -47,6 +47,7 @@ from ventilation_company.database.repositories.project_repo import ProjectReposi
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.services.business_settings import BusinessSettings
 
 
 class WorkEditDialog(QDialog):
@@ -60,6 +61,15 @@ class WorkEditDialog(QDialog):
 
     def _build_ui(self, work_data):
         layout = QFormLayout(self)
+
+        self.combo_position = QComboBox()
+        self.combo_position.addItem("— Вручну —", None)
+        self._positions = BusinessSettings.get_instance().positions
+        for key in self._positions:
+            self.combo_position.addItem(key.replace("_", " "), key)
+        self.combo_position.currentIndexChanged.connect(self._on_position_changed)
+        layout.addRow("Посада (з Бізнес)", self.combo_position)
+
         self.edit_name = QLineEdit()
         self.edit_name.setText(work_data.get("work_name", "") if work_data else "")
         layout.addRow("Назва роботи *", self.edit_name)
@@ -82,6 +92,27 @@ class WorkEditDialog(QDialog):
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addRow(btn)
+
+        if work_data:
+            self._preselect_position(work_data.get("work_name", ""))
+
+    def _on_position_changed(self, index: int):
+        key = self.combo_position.itemData(index)
+        if not key:
+            return
+        pos = BusinessSettings.get_instance().get_position(key)
+        self.edit_name.setText(key.replace("_", " "))
+        self.spin_price.setValue(float(pos.get("ставка", 0) or 0))
+
+    def _preselect_position(self, work_name: str):
+        """Якщо назва роботи збігається з посадою — підсвітити її у списку."""
+        self.combo_position.blockSignals(True)
+        for i in range(self.combo_position.count()):
+            key = self.combo_position.itemData(i)
+            if key and key.replace("_", " ") == work_name:
+                self.combo_position.setCurrentIndex(i)
+                break
+        self.combo_position.blockSignals(False)
 
     def get_data(self):
         qty = self.spin_qty.value()
@@ -147,6 +178,77 @@ class ExpenseEditDialog(QDialog):
             "unit_price": price,
             "total_price": round(qty * price, 2),
             "direction": self.direction_combo.currentData(),
+        }
+
+
+class ComponentPickerDialog(QDialog):
+    """Вибір комплектуючої з бізнес-налаштувань для додавання у витрати проєкту."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Комплектуючі системи вентиляції")
+        self.setMinimumSize(480, 380)
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        lbl = QLabel("Оберіть комплектуючу зі списку (ціни — з «Налаштування → Бізнес»):")
+        lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
+        layout.addWidget(lbl)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Назва", "Ціна, грн", "Од."])
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setAlternatingRowColors(True)
+        layout.addWidget(self.table)
+
+        self._keys: list[str] = []
+        components = BusinessSettings.get_instance().components
+        for key, data in components.items():
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(key.replace("_", " ")))
+            self.table.setItem(row, 1, QTableWidgetItem(str(data.get("ціна", ""))))
+            self.table.setItem(row, 2, QTableWidgetItem(str(data.get("одиниця", ""))))
+            self._keys.append(key)
+        self.table.resizeColumnsToContents()
+        self.table.horizontalHeader().setStretchLastSection(True)
+        if self.table.rowCount():
+            self.table.selectRow(0)
+
+        form = QFormLayout()
+        self.spin_qty = QDoubleSpinBox()
+        self.spin_qty.setRange(0.01, 99999)
+        self.spin_qty.setValue(1)
+        form.addRow("Кількість", self.spin_qty)
+        layout.addLayout(form)
+
+        btn = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btn.accepted.connect(self.accept)
+        btn.rejected.connect(self.reject)
+        layout.addWidget(btn)
+
+    def get_data(self) -> dict | None:
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self._keys):
+            return None
+        key = self._keys[row]
+        data = BusinessSettings.get_instance().get_component(key)
+        qty = self.spin_qty.value()
+        price = float(data.get("ціна", 0) or 0)
+        return {
+            "expense_name": key.replace("_", " "),
+            "quantity": qty,
+            "unit": str(data.get("одиниця", "шт")),
+            "unit_price": price,
+            "total_price": round(qty * price, 2),
+            "direction": "minus",
         }
 
 
@@ -821,6 +923,12 @@ class ProjectCardDialog(QDialog):
         btn_add = QPushButton("➕ Додати витрату")
         btn_add.clicked.connect(self._on_add_expense)
         top.addWidget(btn_add)
+        btn_components = QPushButton("🔩 Комплектуючі…")
+        btn_components.setToolTip(
+            "Додати комплектуючу з бізнес-налаштувань (вентилятор, фільтр, клапан…)"
+        )
+        btn_components.clicked.connect(self._on_add_component)
+        top.addWidget(btn_components)
         layout.addLayout(top)
         self.expenses_table = QTableView()
         self.expenses_table.setAlternatingRowColors(True)
@@ -885,6 +993,23 @@ class ProjectCardDialog(QDialog):
                 QMessageBox.information(self, "Успіх", "Витрату додано!")
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати: {e}")
+
+    def _on_add_component(self):
+        dlg = ComponentPickerDialog(parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        data = dlg.get_data()
+        if not data:
+            QMessageBox.warning(self, "Увага", "Оберіть комплектуючу зі списку")
+            return
+        try:
+            ProjectExpenseRepository.create(data)
+            self._reload_all()
+            QMessageBox.information(
+                self, "Успіх", f"Додано: {data['expense_name']} × {data['quantity']:g}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати: {e}")
 
     def _on_edit_expense(self):
         idx = self.expenses_table.currentIndex()
