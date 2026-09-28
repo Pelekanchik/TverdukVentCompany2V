@@ -14,7 +14,7 @@ import json
 import shutil
 from pathlib import Path
 
-from PySide6.QtGui import QColor, QPalette, QStandardItem, QStandardItemModel
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QStyledItemDelegate,
     QTableView,
     QTabWidget,
     QVBoxLayout,
@@ -146,23 +145,6 @@ def get_default_settings() -> dict:
 # ═══════════════════════════════════════════════════════════
 
 
-class DarkEditorDelegate(QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
-        editor = super().createEditor(parent, option, index)
-        palette = editor.palette()
-        palette.setColor(QPalette.ColorRole.Base, QColor("#232946"))
-        palette.setColor(QPalette.ColorRole.Text, QColor("#f4f4f4"))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor("#ff8c00"))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#111111"))
-        editor.setPalette(palette)
-        if hasattr(editor, "setStyleSheet"):
-            editor.setStyleSheet(
-                "background-color: #232946; color: #f4f4f4; "
-                "selection-background-color: #ff8c00; selection-color: #111111;"
-            )
-        return editor
-
-
 class MetalPricesTab(QWidget):
     """Таблиця цін на метал (матеріал × товщина)."""
 
@@ -182,10 +164,6 @@ class MetalPricesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setItemDelegate(DarkEditorDelegate(self.table))
-        self.table.setStyleSheet(
-            "QTableView { color: #f4f4f4; } QTableView QLineEdit { background: #232946; color: #f4f4f4; selection-background-color: #ff8c00; selection-color: #111; }"
-        )
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
@@ -369,10 +347,6 @@ class LaborRatesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setItemDelegate(DarkEditorDelegate(self.table))
-        self.table.setStyleSheet(
-            "QTableView { color: #f4f4f4; } QTableView QLineEdit { background: #232946; color: #f4f4f4; selection-background-color: #ff8c00; selection-color: #111; }"
-        )
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
