@@ -23,7 +23,7 @@
 5. **Розсинхрон залежностей**: `requirements.txt` ≠ `pyproject.toml`; дубль драйверів `psycopg2-binary` + `psycopg[binary]`; важкі опційні пакети (`pyautocad`, `pywebview`, 3D) у core-залежностях.
 6. **Side-effect на імпорті**: `database/db.py` створює engine при імпорті; дефолтний `DATABASE_URL` — заглушка `CHANGE_ME`.
 7. **Файл-опечатка**: `ventilation_company/database/models/__init___.py` (двійне підкреслення) поруч із `__init__.py`.
-8. **Невідповідність документації**: README описує таблиці `production_orders`, `specifications` — у реальній схемі їх немає (перевірено запитом).
+8. ~~**Невідповідність документації**~~ — **вирішено 2026-09-28**: схема БД у README звірена запитом (32/32 таблиці збігаються), лічильники модулів/тестів оновлено, застарілий `README_PYSIDE6.md` (скелет етапу розробки) видалено.
 9. Дублювання шарів моделей: `ventilation_company/models/` поруч із `ventilation_company/database/models/`.
 
 ## Фаза 1 — Гігієна репозиторія ✅ (виконано 2026-09-27, коміт `21656f2`)

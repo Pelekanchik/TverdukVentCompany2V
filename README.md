@@ -158,13 +158,13 @@ TverdukVentCompany2V/
 │   ├── auth/                       # Автентифікація, ролі, дозволи
 │   ├── database/
 │   │   ├── db.py                   # Ліниве підключення, пул з'єднань
-│   │   ├── models/                 # ORM-моделі (12 модулів)
+│   │   ├── models/                 # ORM-моделі (13 модулів)
 │   │   └── repositories/           # Репозиторії (get_db / ліниві синглтони)
-│   ├── services/                   # Бізнес-логіка (17 сервісів)
-│   ├── gui_pyside6/                # PySide6 GUI (~30 модулів)
+│   ├── services/                   # Бізнес-логіка (16 сервісів)
+│   ├── gui_pyside6/                # PySide6 GUI (28 модулів)
 │   ├── project3d/                  # 3D-геометрія, конвертери, прев'ю
 │   └── utils/                      # Бекапи, допоміжні функції
-└── tests/                          # 95 тестів (unit + integration)
+└── tests/                          # 108 тестів (unit + integration)
 ```
 
 ### Якості гейт
