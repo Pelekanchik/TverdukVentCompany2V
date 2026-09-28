@@ -142,6 +142,11 @@ class BusinessSettings:
         self.flange_prices = data.get(
             "flange_prices", json.loads(json.dumps(DEFAULT_FLANGE_PRICES))
         )
+        # Міграція: старий формат {"P30": 150.0} → канонічний {"P30": {"ціна": 150.0}}
+        self.flange_prices = {
+            key: ({"ціна": float(value)} if not isinstance(value, dict) else value)
+            for key, value in self.flange_prices.items()
+        }
         if not data:
             self.save()
 

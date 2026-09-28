@@ -67,6 +67,23 @@ class TestFlangePrices:
         reloaded = BusinessSettings.get_instance(str(tmp_path / "business_settings.json"))
         assert reloaded.get_flange_price("P30") == 175.0
 
+    def test_legacy_flat_flange_prices_migrated_on_load(self, tmp_path, monkeypatch):
+        """Старий формат {"P30": 150.0} має переїхати в {"P30": {"ціна": 150.0}}."""
+        filepath = tmp_path / "business_settings.json"
+        filepath.write_text(
+            '{"vat_rate": 20.0, "flange_prices": {"P30": 150.0, "P40": 200.0}}',
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(bs_module.BusinessSettings, "_instance", None)
+        settings = BusinessSettings.get_instance(str(filepath))
+        assert settings.flange_prices == {"P30": {"ціна": 150.0}, "P40": {"ціна": 200.0}}
+        assert settings.get_flange_price("P30") == 150.0
+        # Після збереження форма лишається канонічною (регресія: GUI чекає dict-of-dict)
+        settings.save()
+        reloaded = bs_module.json.loads(filepath.read_text(encoding="utf-8"))
+        assert reloaded["flange_prices"]["P30"] == {"ціна": 150.0}
+        monkeypatch.setattr(bs_module.BusinessSettings, "_instance", None)
+
 
 class TestMetalDensity:
     def test_density_constant(self):

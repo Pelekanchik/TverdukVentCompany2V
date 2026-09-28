@@ -184,12 +184,7 @@ class BusinessSettingsTab(QWidget):
             s.positions = self._read_table(
                 self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
             )
-            s.flange_prices = {
-                key: values["ціна"]
-                for key, values in self._read_table(
-                    self.tbl_flanges, ("ціна",), numeric=("ціна",)
-                ).items()
-            }
+            s.flange_prices = self._read_table(self.tbl_flanges, ("ціна",), numeric=("ціна",))
             s.save()
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти бізнес-налаштування:\n{e}")
