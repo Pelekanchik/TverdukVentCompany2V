@@ -150,7 +150,7 @@ class Project2DPreview:
         self.current_floor: Floor | None = None
 
         self.current_tool = DrawingTool.SELECT
-        self.drawing_state = None
+        self.drawing_state: str | None = None
         self.p1: tuple[float, float] | None = None
 
         self.selected_object = None
@@ -160,7 +160,7 @@ class Project2DPreview:
         self.ortho_mode = False
 
         self.background: BackgroundImage | None = None
-        self.bg_photo = None
+        self.bg_photo: Any = None
 
         self.layers = {
             "background": tk.BooleanVar(value=True),
@@ -197,7 +197,7 @@ class Project2DPreview:
                 width=10,
                 relief=tk.RAISED,
                 font=("Arial", 9),
-                command=lambda t=tool, k=key: self._set_tool(t, k),
+                command=lambda t=tool, k=key: self._set_tool(t, k),  # type: ignore[misc]
             )
             btn.pack(side=tk.LEFT, padx=1)
             self.tool_btns[key] = btn
@@ -211,7 +211,7 @@ class Project2DPreview:
         ttk.Combobox(
             sf,
             textvariable=self.snap_var,
-            values=[10, 25, 50, 100, 250, 500],
+            values=["10", "25", "50", "100", "250", "500"],
             state="readonly",
             width=5,
         ).pack(side=tk.LEFT, padx=2)
@@ -385,6 +385,8 @@ class Project2DPreview:
             self.p1 = (x, y)
             self.drawing_state = "p1"
         else:
+            if self.p1 is None:
+                return
             x2, y2 = self._ortho(self.p1[0], self.p1[1], x, y)
             self._make_wall(self.p1[0], self.p1[1], x2, y2)
             self.drawing_state = None
@@ -399,6 +401,8 @@ class Project2DPreview:
             self.p1 = (x, y)
             self.drawing_state = "p1"
         else:
+            if self.p1 is None:
+                return
             x2, y2 = self._ortho(self.p1[0], self.p1[1], x, y)
             self._make_duct(self.p1[0], self.p1[1], x2, y2)
             self.drawing_state = None
@@ -410,6 +414,8 @@ class Project2DPreview:
             self.p1 = (x, y)
             self.drawing_state = "p1"
         else:
+            if self.p1 is None:
+                return
             self._make_rect(self.p1[0], self.p1[1], x, y)
             self.drawing_state = None
             self.p1 = None
@@ -420,6 +426,8 @@ class Project2DPreview:
             self.p1 = (x, y)
             self.drawing_state = "p1"
         else:
+            if self.p1 is None:
+                return
             dist = math.hypot(x - self.p1[0], y - self.p1[1])
             messagebox.showinfo("Вимірювання", f"Відстань: {dist:.1f} мм = {dist/1000:.2f} м")
             self.drawing_state = None
@@ -704,14 +712,16 @@ class Project2DPreview:
                     return
                 doc = fitz.open(fp)
                 pix = doc[0].get_pixmap(dpi=150)
-                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
                 doc.close()
             else:
                 img = Image.open(fp).convert("RGB")
             mx = 3000
             if max(img.size) > mx:
                 r = mx / max(img.size)
-                img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
+                img = img.resize(
+                    (int(img.width * r), int(img.height * r)), Image.Resampling.LANCZOS
+                )
             self.background = BackgroundImage(
                 filepath=fp, pil_image=img, scale=1.0, opacity=0.45, visible=True
             )
@@ -733,7 +743,7 @@ class Project2DPreview:
         d = tk.Toplevel(self.parent)
         d.title("Калібрування")
         d.geometry("380x200")
-        d.transient(self.parent)
+        d.transient(self.parent.winfo_toplevel())
         d.grab_set()
         tk.Label(d, text="Відома відстань (мм):", font=("Arial", 10)).pack(pady=5)
         dv = tk.DoubleVar(value=6000)
@@ -743,6 +753,8 @@ class Project2DPreview:
         tk.Spinbox(d, from_=1, to=10000, textvariable=pv, width=12).pack()
 
         def apply():
+            if self.background is None:
+                return
             self.background.scale = dv.get() / pv.get()
             d.destroy()
             self.refresh()
@@ -787,6 +799,8 @@ class Project2DPreview:
 
     def _draw_bg(self):
         bg = self.background
+        if bg is None:
+            return
         w, h = bg.pil_image.size
         wmm, hmm = w * bg.scale, h * bg.scale
         sx1, sy1 = self.canvas.world_to_screen(bg.offset_x, bg.offset_y + hmm)
@@ -797,7 +811,7 @@ class Project2DPreview:
         # Масштабуємо під екран
         sw, sh = int(abs(sx2 - sx1)), int(abs(sy2 - sy1))
         if sw > 1 and sh > 1:
-            resized = bg.pil_image.resize((sw, sh), Image.LANCZOS)
+            resized = bg.pil_image.resize((sw, sh), Image.Resampling.LANCZOS)
             self.bg_photo = ImageTk.PhotoImage(resized)
             self.canvas.create_image(
                 min(sx1, sx2), min(sy1, sy2), anchor=tk.NW, image=self.bg_photo, tags="bg"

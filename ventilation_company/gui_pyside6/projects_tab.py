@@ -97,7 +97,7 @@ class ProjectEditDialog(QDialog):
             if idx >= 0:
                 self.combo_client.setCurrentIndex(idx)
         elif self.project_data.get("client"):
-            self.combo_client.setCurrentText(self.project_data.get("client"))
+            self.combo_client.setCurrentText(str(self.project_data.get("client")))
         layout.addRow("Клієнт", self.combo_client)
 
         self.combo_status = QComboBox()
@@ -470,10 +470,10 @@ class ProjectsTab(QWidget):
             self,
             "Дублювання проєкту",
             f"Створити копію проєкту '{source.get('name')}' з {len(products)} виробами?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if answer != QMessageBox.Yes:
+        if answer != QMessageBox.StandardButton.Yes:
             return
         data = {
             "name": f"{source.get('name') or 'Проєкт'} (копія)",

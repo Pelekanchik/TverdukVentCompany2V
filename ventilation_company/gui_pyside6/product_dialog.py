@@ -443,8 +443,11 @@ class ProductDialog(QDialog):
     def _clear_dynamic(self):
         while self.dynamic_layout.count():
             item = self.dynamic_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            if item is None:
+                break
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
         self.group_dynamic.setVisible(False)
 
     def _add_dynamic_field(self, label: str, widget, row: int, col: int = 0):
@@ -651,11 +654,11 @@ class ProductDialog(QDialog):
         h = self.spin_height.value() if self.spin_height.isEnabled() else 0
         l = self.spin_length.value() if self.spin_length.isEnabled() else 0
         qty = self.spin_qty.value()
-        bend_angle = 90
-        radius = 0
-        branch_w = 0
-        branch_h = 0
-        branch_l = 0
+        bend_angle = 90.0
+        radius = 0.0
+        branch_w = 0.0
+        branch_h = 0.0
+        branch_l = 0.0
         if hasattr(self, "spin_bend_angle"):
             bend_angle = self.spin_bend_angle.value()
         if hasattr(self, "spin_radius"):
@@ -678,7 +681,7 @@ class ProductDialog(QDialog):
         }
         custom_markup = markup_map.get(self.combo_category.currentText(), 30)
         flange_count = 0
-        flange_price = 0
+        flange_price = 0.0
         if self.chk_with_flanges.isChecked():
             flange_count = self.spin_flange_count.value()
             flange_price = BusinessSettings.get_instance().get_flange_price(

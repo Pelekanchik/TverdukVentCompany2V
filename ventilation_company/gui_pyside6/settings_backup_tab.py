@@ -128,21 +128,20 @@ class BackupSettingsTab(QWidget):
         if path:
             self.edit_backup_path.setText(path)
 
+    def _on_backup_created(self, msg: str, path: str) -> None:
+        QMessageBox.information(self, "Успіх", msg)
+        log_action(
+            "backup.create",
+            entity_type="database",
+            details={"path": path, "result": msg},
+            actor=self.current_user,
+        )
+
     def _create_backup_now(self):
         path = self.edit_backup_path.text().strip() or "backups"
         os.makedirs(path, exist_ok=True)
         self._backup_worker = FunctionWorker(self._create_backup_job, path)
-        self._backup_worker.result.connect(
-            lambda msg: (
-                QMessageBox.information(self, "Успіх", msg),
-                log_action(
-                    "backup.create",
-                    entity_type="database",
-                    details={"path": path, "result": msg},
-                    actor=self.current_user,
-                ),
-            )
-        )
+        self._backup_worker.result.connect(lambda msg: self._on_backup_created(msg, path))
         self._backup_worker.error.connect(
             lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося створити бекап: {err}")
         )
@@ -194,26 +193,25 @@ class BackupSettingsTab(QWidget):
             self,
             "⚠️ УВАГА",
             f"Відновити БД з бекапу: {filename}? ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply != QMessageBox.Yes:
+        if reply != QMessageBox.StandardButton.Yes:
             return
         self._restore_worker = FunctionWorker(self._restore_backup_job, full_path)
-        self._restore_worker.result.connect(
-            lambda msg: (
-                QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму."),
-                log_action(
-                    "backup.restore",
-                    entity_type="database",
-                    details={"path": full_path, "result": msg},
-                    actor=self.current_user,
-                ),
-            )
-        )
+        self._restore_worker.result.connect(lambda msg: self._on_backup_restored(msg, full_path))
         self._restore_worker.error.connect(
             lambda err: QMessageBox.critical(self, "Помилка", f"Не вдалося відновити: {err}")
         )
         self._restore_worker.start()
+
+    def _on_backup_restored(self, msg: str, full_path: str) -> None:
+        QMessageBox.information(self, "Успіх", f"{msg} Перезапустіть програму.")
+        log_action(
+            "backup.restore",
+            entity_type="database",
+            details={"path": full_path, "result": msg},
+            actor=self.current_user,
+        )
 
     def _restore_backup_job(self, full_path: str) -> str:
         if full_path.endswith(".sql"):

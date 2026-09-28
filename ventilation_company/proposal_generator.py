@@ -152,19 +152,27 @@ class ProposalPDF(FPDF):
             self._set_bold(16)
             self.set_text_color(255, 255, 255)
             self.set_xy(10, 10)
-            self.cell(0, 8, _clean(self.data.company_name), ln=False)
+            self.cell(0, 8, _clean(self.data.company_name), new_x="RIGHT", new_y="TOP")
 
         # Контакти праворуч
         self._set_regular(8)
         self.set_text_color(255, 255, 255)
         self.set_xy(120, 8)
-        self.cell(80, 5, f"📍 {_clean(self.data.company_address)}", align="R", ln=True)
+        self.cell(
+            80, 5, f"📍 {_clean(self.data.company_address)}", align="R", new_x="RIGHT", new_y="NEXT"
+        )
         self.set_x(120)
-        self.cell(80, 5, f"📞 {_clean(self.data.company_phone)}", align="R", ln=True)
+        self.cell(
+            80, 5, f"📞 {_clean(self.data.company_phone)}", align="R", new_x="RIGHT", new_y="NEXT"
+        )
         self.set_x(120)
-        self.cell(80, 5, f"✉ {_clean(self.data.company_email)}", align="R", ln=True)
+        self.cell(
+            80, 5, f"✉ {_clean(self.data.company_email)}", align="R", new_x="RIGHT", new_y="NEXT"
+        )
         self.set_x(120)
-        self.cell(80, 5, f"🌐 {_clean(self.data.company_website)}", align="R", ln=True)
+        self.cell(
+            80, 5, f"🌐 {_clean(self.data.company_website)}", align="R", new_x="RIGHT", new_y="NEXT"
+        )
 
         self.ln(20)
 
@@ -172,7 +180,7 @@ class ProposalPDF(FPDF):
         """Заголовок КП."""
         self._set_bold(20)
         self._color(21, 101, 192)
-        self.cell(0, 12, "КОМЕРЦІЙНА ПРОПОЗИЦІЯ", align="C", ln=True)
+        self.cell(0, 12, "КОМЕРЦІЙНА ПРОПОЗИЦІЯ", align="C", new_x="RIGHT", new_y="NEXT")
 
         self._set_regular(10)
         self._color(100, 100, 100)
@@ -181,9 +189,17 @@ class ProposalPDF(FPDF):
             6,
             f"№ {_clean(self.data.proposal_number)} від {_clean(self.data.date)}",
             align="C",
-            ln=True,
+            new_x="RIGHT",
+            new_y="NEXT",
         )
-        self.cell(0, 6, f"Дійсна до: {_clean(self.data.valid_until)}", align="C", ln=True)
+        self.cell(
+            0,
+            6,
+            f"Дійсна до: {_clean(self.data.valid_until)}",
+            align="C",
+            new_x="RIGHT",
+            new_y="NEXT",
+        )
         self.ln(4)
 
     def _client_info(self):
@@ -191,8 +207,8 @@ class ProposalPDF(FPDF):
         # Ліва колонка — клієнт
         self._set_bold(11)
         self._color(21, 101, 192)
-        self.cell(95, 7, "Клієнт:", ln=False)
-        self.cell(0, 7, "Проєкт:", ln=True)
+        self.cell(95, 7, "Клієнт:", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 7, "Проєкт:", new_x="RIGHT", new_y="NEXT")
 
         self._set_regular(10)
         self._color(50, 50, 50)
@@ -201,20 +217,24 @@ class ProposalPDF(FPDF):
         x = self.get_x()
         y = self.get_y()
         self.set_xy(x, y)
-        self.cell(95, 6, f"  {_clean(self.data.client_name)}", ln=False)
-        self.cell(0, 6, f"  {_clean(self.data.project_name)}", ln=True)
+        self.cell(95, 6, f"  {_clean(self.data.client_name)}", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 6, f"  {_clean(self.data.project_name)}", new_x="RIGHT", new_y="NEXT")
 
         if self.data.client_contact:
-            self.cell(95, 6, f"  Контакт: {_clean(self.data.client_contact)}", ln=False)
+            self.cell(
+                95, 6, f"  Контакт: {_clean(self.data.client_contact)}", new_x="RIGHT", new_y="TOP"
+            )
         if self.data.project_number:
-            self.cell(0, 6, f"  №: {_clean(self.data.project_number)}", ln=True)
+            self.cell(0, 6, f"  №: {_clean(self.data.project_number)}", new_x="RIGHT", new_y="NEXT")
         else:
             self.ln(6)
 
         if self.data.client_address:
-            self.cell(95, 6, f"  Адреса: {_clean(self.data.client_address)}", ln=False)
+            self.cell(
+                95, 6, f"  Адреса: {_clean(self.data.client_address)}", new_x="RIGHT", new_y="TOP"
+            )
         if self.data.client_phone:
-            self.cell(0, 6, f"  Тел: {_clean(self.data.client_phone)}", ln=True)
+            self.cell(0, 6, f"  Тел: {_clean(self.data.client_phone)}", new_x="RIGHT", new_y="NEXT")
         else:
             self.ln(6)
 
@@ -228,13 +248,13 @@ class ProposalPDF(FPDF):
         if not self.data.items:
             self._set_regular(10)
             self._color(150, 150, 150)
-            self.cell(0, 8, "(позиції не додано)", align="C", ln=True)
+            self.cell(0, 8, "(позиції не додано)", align="C", new_x="RIGHT", new_y="NEXT")
             self.ln(3)
             return
 
         self._set_bold(11)
         self._color(21, 101, 192)
-        self.cell(0, 8, "ПЕРЕЛІК ОБЛАДНАННЯ ТА ВИРОБІВ", ln=True)
+        self.cell(0, 8, "ПЕРЕЛІК ОБЛАДНАННЯ ТА ВИРОБІВ", new_x="RIGHT", new_y="NEXT")
         self.ln(1)
 
         # Заголовок таблиці
@@ -244,8 +264,8 @@ class ProposalPDF(FPDF):
 
         col_w = [10, 65, 20, 20, 25, 25, 25]  # №, Найменування, Од., К-ть, Ціна, Сума
         headers = ["№", "Найменування", "Од.", "К-ть", "Ціна, грн", "Сума, грн"]
-        for w, h in zip(col_w, headers, strict=False):
-            self.cell(w, 8, h, border=0, align="C", fill=True)
+        for w, h_text in zip(col_w, headers, strict=False):
+            self.cell(w, 8, h_text, border=0, align="C", fill=True)
         self.ln()
 
         # Рядки
@@ -291,22 +311,26 @@ class ProposalPDF(FPDF):
         self.set_x(120)
         self._set_regular(10)
         self._color(80, 80, 80)
-        self.cell(40, 7, "Всього без ПДВ:", align="R", ln=False)
+        self.cell(40, 7, "Всього без ПДВ:", align="R", new_x="RIGHT", new_y="TOP")
         self._set_bold(10)
-        self.cell(40, 7, f"{self.data.subtotal:,.2f} грн", align="R", ln=True)
+        self.cell(40, 7, f"{self.data.subtotal:,.2f} грн", align="R", new_x="RIGHT", new_y="NEXT")
 
         self.set_x(120)
         self._set_regular(10)
-        self.cell(40, 7, f"ПДВ {self.data.vat_percent:.0f}%:", align="R", ln=False)
+        self.cell(
+            40, 7, f"ПДВ {self.data.vat_percent:.0f}%:", align="R", new_x="RIGHT", new_y="TOP"
+        )
         self._set_bold(10)
-        self.cell(40, 7, f"{self.data.vat_amount:,.2f} грн", align="R", ln=True)
+        self.cell(40, 7, f"{self.data.vat_amount:,.2f} грн", align="R", new_x="RIGHT", new_y="NEXT")
 
         self.set_x(120)
         self.set_fill_color(21, 101, 192)
         self.set_text_color(255, 255, 255)
         self._set_bold(12)
-        self.cell(40, 10, "ВСЬОГО:", align="R", fill=True, ln=False)
-        self.cell(40, 10, f"{self.data.total:,.2f} грн", align="R", fill=True, ln=True)
+        self.cell(40, 10, "ВСЬОГО:", align="R", fill=True, new_x="RIGHT", new_y="TOP")
+        self.cell(
+            40, 10, f"{self.data.total:,.2f} грн", align="R", fill=True, new_x="RIGHT", new_y="NEXT"
+        )
 
         self.set_text_color(50, 50, 50)
         self.ln(5)
@@ -315,7 +339,7 @@ class ProposalPDF(FPDF):
         """Умови: терміни, гарантія, оплата."""
         self._set_bold(11)
         self._color(21, 101, 192)
-        self.cell(0, 8, "УМОВИ ПОСТАВКИ", ln=True)
+        self.cell(0, 8, "УМОВИ ПОСТАВКИ", new_x="RIGHT", new_y="NEXT")
         self.ln(1)
 
         self._set_regular(10)
@@ -330,14 +354,14 @@ class ProposalPDF(FPDF):
 
         for label, value in terms:
             self._set_bold(10)
-            self.cell(65, 7, label, ln=False)
+            self.cell(65, 7, label, new_x="RIGHT", new_y="TOP")
             self._set_regular(10)
-            self.cell(0, 7, value, ln=True)
+            self.cell(0, 7, value, new_x="RIGHT", new_y="NEXT")
 
         if self.data.notes:
             self.ln(2)
             self._set_bold(10)
-            self.cell(0, 7, "Примітки:", ln=True)
+            self.cell(0, 7, "Примітки:", new_x="RIGHT", new_y="NEXT")
             self._set_regular(9)
             self._color(80, 80, 80)
             self.multi_cell(0, 5, _clean(self.data.notes))
@@ -348,7 +372,7 @@ class ProposalPDF(FPDF):
         """Підписи."""
         self._set_bold(11)
         self._color(21, 101, 192)
-        self.cell(0, 8, "ПІДПИСИ", ln=True)
+        self.cell(0, 8, "ПІДПИСИ", new_x="RIGHT", new_y="NEXT")
         self.ln(2)
 
         self._set_regular(10)
@@ -356,11 +380,11 @@ class ProposalPDF(FPDF):
 
         y = self.get_y()
         # Від постачальника
-        self.cell(95, 7, "Від постачальника:", ln=False)
-        self.cell(0, 7, "Від замовника:", ln=True)
+        self.cell(95, 7, "Від постачальника:", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 7, "Від замовника:", new_x="RIGHT", new_y="NEXT")
 
-        self.cell(95, 7, f"{_clean(self.data.company_name)}", ln=False)
-        self.cell(0, 7, f"{_clean(self.data.client_name)}", ln=True)
+        self.cell(95, 7, f"{_clean(self.data.company_name)}", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 7, f"{_clean(self.data.client_name)}", new_x="RIGHT", new_y="NEXT")
 
         self.ln(8)
         self.set_draw_color(100, 100, 100)
@@ -369,8 +393,8 @@ class ProposalPDF(FPDF):
         self.ln(2)
         self._set_regular(8)
         self._color(120, 120, 120)
-        self.cell(95, 5, "підпис / М.П.", align="C", ln=False)
-        self.cell(0, 5, "підпис / М.П.", align="C", ln=True)
+        self.cell(95, 5, "підпис / М.П.", align="C", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 5, "підпис / М.П.", align="C", new_x="RIGHT", new_y="NEXT")
 
     def _footer(self):
         """Нижній колонтитул."""

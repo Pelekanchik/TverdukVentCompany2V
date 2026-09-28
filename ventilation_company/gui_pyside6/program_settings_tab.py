@@ -81,7 +81,7 @@ class ProgramSettingsTab(QWidget):
 
         top = QHBoxLayout()
         title = QLabel("⚙️ Налаштування програми")
-        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {Theme.ACCENT};")
         top.addWidget(title)
         top.addStretch()
@@ -136,11 +136,11 @@ class ProgramSettingsTab(QWidget):
     def _build_company_tab(self):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
 
         container = QWidget()
         vlay = QVBoxLayout(container)
-        vlay.setAlignment(Qt.AlignTop)
+        vlay.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         grp = QGroupBox("Основні реквізити")
         grid = QGridLayout(grp)
@@ -218,7 +218,7 @@ class ProgramSettingsTab(QWidget):
         grp_status = QGroupBox("Статус підключення")
         v = QVBoxLayout(grp_status)
         self.lbl_db_status = QLabel("⏳ Перевірка...")
-        self.lbl_db_status.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.lbl_db_status.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         v.addWidget(self.lbl_db_status)
         self.lbl_db_info = QLabel("")
         self.lbl_db_info.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
@@ -286,9 +286,9 @@ class ProgramSettingsTab(QWidget):
             self,
             "Підтвердження",
             "Створити всі таблиці (create_all)?\n\n" "Існуючі таблиці НЕ будуть видалені.",
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 SystemService.create_tables()
                 QMessageBox.information(self, "Успіх", "Таблиці створено / оновлено.")
@@ -325,10 +325,10 @@ class ProgramSettingsTab(QWidget):
 
     def _build_system_tab(self):
         vlay = QVBoxLayout(self.tab_sys)
-        vlay.setAlignment(Qt.AlignTop)
+        vlay.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         lbl = QLabel("ℹ️ Інформація про систему")
-        lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         vlay.addWidget(lbl)
         vlay.addSpacing(10)
 
@@ -360,7 +360,10 @@ class ProgramSettingsTab(QWidget):
         license_grp = QGroupBox("Ліцензія")
         v2 = QVBoxLayout(license_grp)
         v2.addWidget(
-            QLabel("VentCompany v2.0 — MIT License\n© Pelekanchik", alignment=Qt.AlignCenter)
+            QLabel(
+                "VentCompany v2.0 — MIT License\n© Pelekanchik",
+                alignment=Qt.AlignmentFlag.AlignCenter,
+            )
         )
         vlay.addWidget(license_grp)
         vlay.addStretch()

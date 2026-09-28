@@ -107,16 +107,19 @@ class DashboardTab(QWidget):
         layout.addWidget(chart_frame)
         layout.addStretch()
 
+    def _set_stat(self, card, text: str) -> None:
+        lbl = card.findChild(QLabel, "stat_value")
+        if lbl is not None:
+            lbl.setText(text)
+
     def refresh(self):
         """Оновити дані дашборду через DashboardService."""
         try:
             stats = DashboardService.done_dashboard(self.DONE_STATUSES)
-            self.card_projects.findChild(QLabel, "stat_value").setText(str(stats["done_count"]))
-            self.card_revenue.findChild(QLabel, "stat_value").setText(
-                f"₴ {stats['total_revenue']:,.0f}"
-            )
-            self.card_profit.findChild(QLabel, "stat_value").setText(f"₴ {stats['profit']:,.0f}")
-            self.card_clients.findChild(QLabel, "stat_value").setText(str(stats["clients"]))
+            self._set_stat(self.card_projects, str(stats["done_count"]))
+            self._set_stat(self.card_revenue, f"₴ {stats['total_revenue']:,.0f}")
+            self._set_stat(self.card_profit, f"₴ {stats['profit']:,.0f}")
+            self._set_stat(self.card_clients, str(stats["clients"]))
 
             month_names = [
                 "",
@@ -142,8 +145,8 @@ class DashboardTab(QWidget):
             else:
                 self.lbl_chart_value.setText("Немає завершених проєктів")
         except Exception as e:
-            self.card_projects.findChild(QLabel, "stat_value").setText("—")
-            self.card_revenue.findChild(QLabel, "stat_value").setText("—")
-            self.card_profit.findChild(QLabel, "stat_value").setText("—")
-            self.card_clients.findChild(QLabel, "stat_value").setText("—")
+            self._set_stat(self.card_projects, "—")
+            self._set_stat(self.card_revenue, "—")
+            self._set_stat(self.card_profit, "—")
+            self._set_stat(self.card_clients, "—")
             self.lbl_chart_value.setText(f"Помилка: {e}")

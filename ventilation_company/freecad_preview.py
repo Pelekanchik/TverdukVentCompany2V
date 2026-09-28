@@ -119,7 +119,7 @@ class FreeCADPreview:
 
     def refresh(self):
         """Redraw the 3D preview."""
-        if not MATPLOTLIB_OK or self.figure is None:
+        if not MATPLOTLIB_OK or self.figure is None or self.canvas is None:
             return
 
         self.figure.clear()

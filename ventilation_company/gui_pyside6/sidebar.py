@@ -138,7 +138,9 @@ class Sidebar(QFrame):
         btn = SidebarItem(icon, label, tab_id)
         btn.clicked.connect(lambda: self._on_tab_clicked(btn))
         self._buttons.append(btn)
-        self.layout().addWidget(btn)
+        lay = self.layout()
+        if lay is not None:
+            lay.addWidget(btn)
 
     def _on_tab_clicked(self, clicked):
         for btn in self._buttons:

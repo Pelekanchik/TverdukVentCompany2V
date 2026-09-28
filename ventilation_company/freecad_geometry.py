@@ -193,9 +193,9 @@ class VentGeometry:
     @staticmethod
     def _cylinder_wireframe(diameter, length, segments=16, t=0):
         r = diameter / 2
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
-        faces = []
+        faces: list[tuple[int, ...]] = []
         for z in [0, length]:
             base_idx = len(vertices)
             for i in range(segments):
@@ -251,7 +251,7 @@ class VentGeometry:
         bottom_ext = float(data.get("bottom_extension", 100))
         t = float(data.get("thickness", 0.7))
         segments = max(3, int(angle / 15))
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
         rad = math.radians(angle)
         ow, oh = w / 2, h / 2
@@ -319,7 +319,7 @@ class VentGeometry:
         t = float(data.get("thickness", 0.7))
         segments = max(8, int(angle / 5))
         ring_segments = 16
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
         r = d / 2
         rad = math.radians(angle)
@@ -411,9 +411,9 @@ class VentGeometry:
         l = float(data.get("length", 1000))
         t = float(data.get("thickness", 0.7))
         segments = 8
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
-        faces = []
+        faces: list[tuple[int, ...]] = []
         for i in range(segments + 1):
             z = l * i / segments
             frac = i / segments
@@ -438,9 +438,9 @@ class VentGeometry:
         t = float(data.get("thickness", 0.7))
         segments = 8
         ring_segments = 16
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
-        faces = []
+        faces: list[tuple[int, ...]] = []
         for i in range(segments + 1):
             z = l * i / segments
             frac = i / segments
@@ -501,7 +501,7 @@ class VentGeometry:
             (ow - 15, oh - 15),
             (-ow + 15, oh - 15),
         ]
-        v3 = []
+        v3: list[tuple[float, float, float]] = []
         e3 = []
         for bx, by in bolt_positions:
             base = len(v1) + len(v2) + len(v3)
@@ -526,9 +526,9 @@ class VentGeometry:
         outer_r = r + profile
         depth = profile
         segments = 32
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
-        faces = []
+        faces: list[tuple[int, ...]] = []
         for z in [0, depth]:
             base = len(vertices)
             for i in range(segments):
@@ -552,7 +552,7 @@ class VentGeometry:
         bolt_r = 5
         bolt_segments = 8
         bolt_circle_r = (r + outer_r) / 2
-        v3 = []
+        v3: list[tuple[float, float, float]] = []
         e3 = []
         for k in range(4):
             base = len(vertices) + len(v3)
@@ -597,9 +597,9 @@ class VentGeometry:
         w = float(data.get("width", 100))
         h = float(data.get("height", 100))
         l = float(data.get("length", 1000))
-        vertices = []
+        vertices: list[tuple[float, float, float]] = []
         edges = []
-        faces = []
+        faces: list[tuple[int, ...]] = []
         rings = max(4, int(l / 50))
         segments = 16
         amplitude = 3

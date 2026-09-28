@@ -26,7 +26,7 @@ class DatabaseContext:
 
     def __init__(self):
         self.session = get_session_local()()
-        self.products = ProductRepository(self.session)
+        self.products = ProductRepository()
         self.calculations = CalculationRepository(self.session)
         self.materials = MaterialRepository(self.session)
         self.overheads = OverheadRepository(self.session)

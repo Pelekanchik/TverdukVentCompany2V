@@ -72,8 +72,9 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, tab_name):
         if tab_name in self.tabs:
             self.stack.setCurrentWidget(self.tabs[tab_name])
-            if hasattr(self.tabs[tab_name], "refresh"):
-                self.tabs[tab_name].refresh()
+            refresh = getattr(self.tabs[tab_name], "refresh", None)
+            if callable(refresh):
+                refresh()
 
     def set_active_project(self, project_id):
         self.active_project_id = project_id
@@ -92,7 +93,7 @@ def run_app():
     app.setQuitOnLastWindowClosed(False)
 
     login = LoginDialog()
-    login.setAttribute(Qt.WA_QuitOnClose, False)
+    login.setAttribute(Qt.WidgetAttribute.WA_QuitOnClose, False)
     if login.exec() != LoginDialog.DialogCode.Accepted:
         sys.exit(0)
     user = login.authenticated_user
@@ -101,7 +102,7 @@ def run_app():
     login.hide()
 
     window = MainWindow(user)
-    window.setAttribute(Qt.WA_DeleteOnClose, True)
+    window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
     window.destroyed.connect(app.quit)
     window.show()
     sys.exit(app.exec())

@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -79,7 +80,9 @@ class AddInteractionDialog(QDialog):
         self.edit_description.setMaximumHeight(100)
         layout.addRow("Опис", self.edit_description)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
@@ -139,7 +142,9 @@ class AddPaymentDialog(QDialog):
         self.edit_notes.setMaximumHeight(80)
         layout.addRow("Нотатки", self.edit_notes)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
@@ -165,7 +170,7 @@ class ClientHistoryDialog(QDialog):
         self.client_id = client_id
         self._interactions: list[dict] = []
         self._payments: list[dict] = []
-        self._worker = None
+        self._worker: FunctionWorker | None = None
         self.setWindowTitle(f"Історія клієнта — {client_name}")
         self.resize(920, 560)
         self._build_ui()
@@ -210,8 +215,8 @@ class ClientHistoryDialog(QDialog):
         self.table_interactions.setHorizontalHeaderLabels(
             ["ID", "Дата", "Тип", "Тема", "Результат", "Наступна дія", "Дата дії", "Опис"]
         )
-        self.table_interactions.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table_interactions.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_interactions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table_interactions.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tabs.addTab(self.table_interactions, "Взаємодії")
 
         self.table_payments = QTableWidget()
@@ -219,8 +224,8 @@ class ClientHistoryDialog(QDialog):
         self.table_payments.setHorizontalHeaderLabels(
             ["ID", "Дата", "Сума", "Валюта", "Тип", "Призначення", "Проєкт", "Нотатки"]
         )
-        self.table_payments.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table_payments.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_payments.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table_payments.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tabs.addTab(self.table_payments, "Оплати")
 
     def _add_interaction(self):
@@ -279,10 +284,10 @@ class ClientHistoryDialog(QDialog):
             self,
             "Підтвердження",
             f'Видалити взаємодію #{item["id"]}?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 InteractionRepository.delete(item["id"])
                 self._start_load()
@@ -299,10 +304,10 @@ class ClientHistoryDialog(QDialog):
             self,
             "Підтвердження",
             f'Видалити оплату #{item["id"]}?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 PaymentRepository.delete(item["id"])
                 self._start_load()

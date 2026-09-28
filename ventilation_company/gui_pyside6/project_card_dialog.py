@@ -15,6 +15,7 @@ from pathlib import Path
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QComboBox,
     QDateEdit,
@@ -92,7 +93,6 @@ class WorkEditDialog(QDialog):
             "unit": self.edit_unit.text().strip(),
             "unit_price": price,
             "total_price": round(qty * price, 2),
-            "direction": self.direction_combo.currentData(),
         }
 
 
@@ -214,7 +214,7 @@ class ProjectCardDialog(QDialog):
         self._works: list[dict] = []
         self._expenses: list[dict] = []
         self._payments: list[dict] = []
-        self._worker = None
+        self._worker: FunctionWorker | None = None
         self._build_ui()
         self._start_load()
 
@@ -632,9 +632,12 @@ class ProjectCardDialog(QDialog):
         if not doc_id:
             QMessageBox.warning(self, "Увага", "Оберіть документ")
             return
-        get_doc = (
-            getattr(ProjectDocumentRepository, "get_by_id", None) or ProjectDocumentRepository.get
+        get_doc = getattr(ProjectDocumentRepository, "get_by_id", None) or getattr(
+            ProjectDocumentRepository, "get", None
         )
+        if get_doc is None:
+            QMessageBox.warning(self, "Увага", "Документ недоступний")
+            return
         doc = get_doc(doc_id)
         if not doc:
             QMessageBox.warning(self, "Увага", "Документ не знайдено")
@@ -937,8 +940,8 @@ class ProjectCardDialog(QDialog):
         self.payments_table.setHorizontalHeaderLabels(
             ["Дата", "Тип", "Сума", "Призначення", "Нотатки"]
         )
-        self.payments_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.payments_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.payments_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.payments_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         layout.addWidget(self.payments_table)
         self._populate_payments()
         bottom = QHBoxLayout()
@@ -1006,10 +1009,10 @@ class ProjectCardDialog(QDialog):
             self,
             "Видалення",
             "Видалити обрану оплату?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 PaymentRepository.delete(payment["id"])
                 self._reload_all()

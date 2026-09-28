@@ -7,6 +7,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QDialog,
     QFileDialog,
     QGridLayout,
@@ -77,7 +78,7 @@ class CRMDashboardDialog(QDialog):
         self.table_actions.setHorizontalHeaderLabels(
             ["Дата", "Клієнт", "Тип", "Тема", "Наступна дія"]
         )
-        self.table_actions.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_actions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table_actions)
 
         btn_refresh = QPushButton("🔄 Оновити")

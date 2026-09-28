@@ -61,11 +61,11 @@ class BusinessSettingsTab(QWidget):
 
         container = QWidget()
         vlay = QVBoxLayout(container)
-        vlay.setAlignment(Qt.AlignTop)
+        vlay.setAlignment(Qt.AlignmentFlag.AlignTop)
         vlay.setSpacing(12)
 
         header = QLabel("💼 Бізнес-налаштування: ПДВ, ціни, ставки")
-        header.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         vlay.addWidget(header)
 
         if not self.can_edit:

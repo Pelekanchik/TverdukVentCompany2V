@@ -184,13 +184,15 @@ class ProductsTab(QWidget):
         actions.setSpacing(4)
         for idx in range(actions.count()):
             item = actions.itemAt(idx)
-            if item is not None and item.widget() is not None:
-                btn = item.widget()
-                btn.setMaximumHeight(26)
-                btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
+            if item is None:
+                continue
+            action_btn = item.widget()
+            if action_btn is not None:
+                action_btn.setMaximumHeight(26)
+                action_btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
         if hasattr(self, "table"):
             self.table.setMinimumHeight(520)
-            self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.lbl_summary = QLabel("Всього: 0 виробів | Сума: ₴ 0")
         self.lbl_summary.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px; padding: 4px;")
@@ -512,10 +514,10 @@ class ProductsTab(QWidget):
             self,
             "Перерахунок цін",
             f"Перерахувати ціни для {len(items)} виробів за поточними налаштуваннями?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if answer != QMessageBox.Yes:
+        if answer != QMessageBox.StandardButton.Yes:
             return
 
         markup_map = {
@@ -567,7 +569,7 @@ class ProductsTab(QWidget):
                 flange_count = int(params.get("flange_count") or 0) if with_flanges else 0
                 flange_profile = params.get("flange_profile") or "P30"
                 flange_price = 150.0 if flange_profile == "P30" else 200.0
-                markup = markup_map.get(params.get("category"), 30)
+                markup = markup_map.get(params.get("category") or "", 30)
 
                 breakdown = engine.calculate(
                     product_type=product_type,
@@ -619,10 +621,10 @@ class ProductsTab(QWidget):
                     self,
                     "Можливий дублікат",
                     f"Схожий виріб уже є: {duplicate.get('name')}. Додати ще один?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
                 )
-                if answer != QMessageBox.Yes:
+                if answer != QMessageBox.StandardButton.Yes:
                     return
             try:
                 ProductRepository.create(data)

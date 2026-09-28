@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -48,7 +49,7 @@ class ClientCardDialog(QDialog):
     def __init__(self, client: dict, parent=None):
         super().__init__(parent)
         self.client = client
-        self._worker = None
+        self._worker: FunctionWorker | None = None
         self.setWindowTitle(f"🪪 Картка клієнта — {client.get('name', '')}")
         self.setWindowState(Qt.WindowState.WindowMaximized)
         self.resize(820, 640)
@@ -111,8 +112,8 @@ class ClientCardDialog(QDialog):
         self.table_projects = QTableWidget()
         self.table_projects.setColumnCount(5)
         self.table_projects.setHorizontalHeaderLabels(["ID", "Номер", "Назва", "Статус", "Сума"])
-        self.table_projects.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table_projects.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_projects.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table_projects.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         layout.addWidget(self.table_projects)
 
         btn_row = QHBoxLayout()
@@ -131,14 +132,14 @@ class ClientCardDialog(QDialog):
         self.table_interactions.setHorizontalHeaderLabels(
             ["Дата", "Тип", "Тема", "Результат", "Наступна дія"]
         )
-        self.table_interactions.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_interactions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table_interactions)
 
         layout.addWidget(QLabel("Останні оплати:"))
         self.table_payments = QTableWidget()
         self.table_payments.setColumnCount(4)
         self.table_payments.setHorizontalHeaderLabels(["Дата", "Сума", "Валюта", "Тип"])
-        self.table_payments.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_payments.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table_payments)
 
     def _save(self):
@@ -158,8 +159,10 @@ class ClientCardDialog(QDialog):
             updated = ClientRepository.update(self.client["id"], data)
             if updated:
                 self.client = updated
-            if self.parent() is not None and hasattr(self.parent(), "_load_data"):
-                self.parent()._load_data()
+            parent = self.parent()
+            loader = getattr(parent, "_load_data", None) if parent is not None else None
+            if callable(loader):
+                loader()
             QMessageBox.information(self, "Успіх", "Картку клієнта збережено")
         except Exception as exc:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти картку: {exc}")

@@ -96,5 +96,7 @@ known-first-party = ["ventilation_company"]
 # розслаблює перевірку; сумісність із 3.10 гарантують ruff/black target.
 python_version = "3.12"
 ignore_missing_imports = true
+# Перевіряти й тіла функцій без анотацій (наступний рівень суворості).
+check_untyped_defs = true
 # Статична типізація зовнішніх залежностей без stubs не перевіряється.
 # Область перевірки: весь пакет ventilation_company/ (залежності йдуть за імпортами).

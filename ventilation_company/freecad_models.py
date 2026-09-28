@@ -157,17 +157,17 @@ def _find_freecad():
         # PATH search
         if not FREECAD_CMD:
             for cmd in ["freecadcmd", "FreeCADCmd", "freecadcmd-daily"]:
-                p = shutil.which(cmd)
-                if p and os.path.exists(p):
-                    FREECAD_CMD = p
+                found_cmd = shutil.which(cmd)
+                if found_cmd and os.path.exists(found_cmd):
+                    FREECAD_CMD = found_cmd
                     FREECAD_AVAILABLE = True
                     break
 
         if not FREECAD_GUI:
             for cmd in ["freecad", "FreeCAD", "freecad-daily"]:
-                p = shutil.which(cmd)
-                if p and os.path.exists(p):
-                    FREECAD_GUI = p
+                found_gui = shutil.which(cmd)
+                if found_gui and os.path.exists(found_gui):
+                    FREECAD_GUI = found_gui
                     break
 
         # Windows where search

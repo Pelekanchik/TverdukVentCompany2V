@@ -215,7 +215,7 @@ class MetalPricesTab(QWidget):
             self.model.appendRow(row)
 
     def _on_save(self):
-        prices = {}
+        prices: dict[str, dict[str, float]] = {}
         for row in range(self.model.rowCount()):
             material = self.model.item(row, 0).text()
             prices[material] = {}

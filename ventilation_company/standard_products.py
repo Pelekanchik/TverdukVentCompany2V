@@ -679,8 +679,8 @@ class FlexibleConnector(StandardProduct):
 
     def __post_init__(self):
         super().__post_init__()
-        self.unit_price = float(self.unit_price)
-        self.total_price = float(self.total_price)
+        self.unit_price = Decimal(str(float(self.unit_price)))
+        self.total_price = Decimal(str(float(self.total_price)))
 
 
 # ═══════════════════════════════════════════════════════════

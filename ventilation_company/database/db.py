@@ -116,6 +116,7 @@ def __getattr__(name: str):
 def get_db():
     """Контекстний менеджер для сесії БД. Автоматично commit/rollback/close."""
     _init_engine()
+    assert _SessionLocal is not None
     session = _SessionLocal()
     try:
         yield session
@@ -149,4 +150,5 @@ def get_calc_db():
         stacklevel=2,
     )
     _init_engine()
+    assert _engine is not None
     return _engine.raw_connection()
