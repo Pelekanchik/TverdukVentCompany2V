@@ -26,6 +26,7 @@ from ventilation_company.database.repositories.interaction_repo import Interacti
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
 def _to_date(value) -> date | None:
@@ -47,11 +48,12 @@ class ClientCardDialog(QDialog):
     def __init__(self, client: dict, parent=None):
         super().__init__(parent)
         self.client = client
+        self._worker = None
         self.setWindowTitle(f"🪪 Картка клієнта — {client.get('name', '')}")
         self.setWindowState(Qt.WindowState.WindowMaximized)
         self.resize(820, 640)
         self._build_ui()
-        self._load_data()
+        self._start_load()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -165,17 +167,55 @@ class ClientCardDialog(QDialog):
     def _open_history(self):
         dlg = ClientHistoryDialog(self.client["id"], self.client.get("name") or "Клієнт", self)
         dlg.exec()
-        self._load_data()
+        self._start_load()
 
-    def _load_finance_summary(self):
+    # ── Асинхронне завантаження (worker-патерн, як у картки проєкту) ──
+
+    def _fetch_data(self) -> dict:
+        """Зібрати дані картки клієнта з БД (чиста функція, без UI)."""
+        client_id = self.client["id"]
         try:
-            projects = ProjectRepository.list_by_client(self.client["id"])
+            projects = ProjectRepository.list_by_client(client_id)
         except Exception:
             projects = []
         try:
-            payments = PaymentRepository.list_by_client(self.client["id"])
+            payments = PaymentRepository.list_by_client(client_id)
         except Exception:
             payments = []
+        interactions = InteractionRepository.list_by_client(client_id)
+        return {
+            "projects": projects,
+            "payments": payments,
+            "interactions": interactions,
+        }
+
+    def _start_load(self):
+        """Запустити фонове завантаження даних картки."""
+        worker = FunctionWorker(self._fetch_data)
+        worker.result.connect(self._on_data_loaded)
+        worker.error.connect(self._on_load_error)
+        # Життєвий цикл worker'а прив'язано до finished потоку (а не до result):
+        # посилання знімається лише після того, як run() справді завершився,
+        # інакше можливий крах "QThread: Destroyed while thread is still running".
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(self._on_worker_finished)
+        self._worker = worker  # захист від збирання сміття
+        worker.start()
+
+    def _on_worker_finished(self):
+        """Потік завершився — знімаємо посилання (лише якщо це поточний worker)."""
+        if self._worker is self.sender():
+            self._worker = None
+
+    def _on_load_error(self, message: str):
+        QMessageBox.critical(self, "Помилка БД", f"Не вдалося завантажити картку: {message}")
+
+    def _on_data_loaded(self, data: dict):
+        self._populate_finance_summary(data["projects"], data["payments"])
+        self._populate_projects(data["projects"])
+        self._populate_summary(data["interactions"], data["payments"])
+
+    def _populate_finance_summary(self, projects, payments):
         projects_total = sum(
             float(p.get("discounted_price") or 0) or float(p.get("customer_price") or 0)
             for p in projects
@@ -190,11 +230,7 @@ class ClientCardDialog(QDialog):
         self.lbl_payments_total.setText(f"{payments_total:,.2f} UAH")
         self.lbl_balance.setText(f"{balance:,.2f} UAH")
 
-    def _load_projects(self):
-        try:
-            projects = ProjectRepository.list_by_client(self.client["id"])
-        except Exception:
-            projects = []
+    def _populate_projects(self, projects):
         self.table_projects.setRowCount(0)
         for project in projects:
             row = self.table_projects.rowCount()
@@ -214,12 +250,7 @@ class ClientCardDialog(QDialog):
                     row, col, QTableWidgetItem("" if value is None else str(value))
                 )
 
-    def _load_data(self):
-        self._load_projects()
-        self._load_finance_summary()
-        interactions = InteractionRepository.list_by_client(self.client["id"])
-        payments = PaymentRepository.list_by_client(self.client["id"])
-
+    def _populate_summary(self, interactions, payments):
         payments_total = sum(
             float(p.get("amount") or 0) for p in payments if (p.get("currency") or "UAH") == "UAH"
         )

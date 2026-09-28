@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
 def _to_qdate(value) -> QDate:
@@ -164,10 +165,11 @@ class ClientHistoryDialog(QDialog):
         self.client_id = client_id
         self._interactions: list[dict] = []
         self._payments: list[dict] = []
+        self._worker = None
         self.setWindowTitle(f"Історія клієнта — {client_name}")
         self.resize(920, 560)
         self._build_ui()
-        self._load_data()
+        self._start_load()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -186,7 +188,7 @@ class ClientHistoryDialog(QDialog):
         btn_add_payment.clicked.connect(self._add_payment)
         btn_edit_payment.clicked.connect(self._edit_payment)
         btn_del_payment.clicked.connect(self._delete_payment)
-        btn_refresh.clicked.connect(self._load_data)
+        btn_refresh.clicked.connect(self._start_load)
         for btn in [
             btn_add_interaction,
             btn_edit_interaction,
@@ -226,7 +228,7 @@ class ClientHistoryDialog(QDialog):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
                 InteractionRepository.create(dlg.get_data())
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати взаємодію: {exc}")
 
@@ -240,7 +242,7 @@ class ClientHistoryDialog(QDialog):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
                 InteractionRepository.update(item["id"], dlg.get_data())
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося оновити взаємодію: {exc}")
 
@@ -249,7 +251,7 @@ class ClientHistoryDialog(QDialog):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
                 PaymentRepository.create(dlg.get_data())
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати оплату: {exc}")
 
@@ -263,7 +265,7 @@ class ClientHistoryDialog(QDialog):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
                 PaymentRepository.update(item["id"], dlg.get_data())
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося оновити оплату: {exc}")
 
@@ -283,7 +285,7 @@ class ClientHistoryDialog(QDialog):
         if reply == QMessageBox.Yes:
             try:
                 InteractionRepository.delete(item["id"])
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити взаємодію: {exc}")
 
@@ -303,7 +305,7 @@ class ClientHistoryDialog(QDialog):
         if reply == QMessageBox.Yes:
             try:
                 PaymentRepository.delete(item["id"])
-                self._load_data()
+                self._start_load()
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити оплату: {exc}")
 
@@ -311,8 +313,37 @@ class ClientHistoryDialog(QDialog):
     def _set_value(table, row, col, value):
         table.setItem(row, col, QTableWidgetItem("" if value is None else str(value)))
 
-    def _load_data(self):
-        self._interactions = InteractionRepository.list_by_client(self.client_id)
+    def _fetch_data(self) -> dict:
+        """Зібрати історію клієнта з БД (чиста функція, без UI)."""
+        return {
+            "interactions": InteractionRepository.list_by_client(self.client_id),
+            "payments": PaymentRepository.list_by_client(self.client_id),
+        }
+
+    def _start_load(self):
+        """Запустити фонове завантаження історії."""
+        worker = FunctionWorker(self._fetch_data)
+        worker.result.connect(self._on_data_loaded)
+        worker.error.connect(self._on_load_error)
+        # Посилання знімається лише після завершення потоку (див. картку проєкту).
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(self._on_worker_finished)
+        self._worker = worker  # захист від збирання сміття
+        worker.start()
+
+    def _on_worker_finished(self):
+        """Потік завершився — знімаємо посилання (лише якщо це поточний worker)."""
+        if self._worker is self.sender():
+            self._worker = None
+
+    def _on_load_error(self, message: str):
+        QMessageBox.critical(self, "Помилка БД", f"Не вдалося завантажити історію: {message}")
+
+    def _on_data_loaded(self, data: dict):
+        self._populate(data["interactions"], data["payments"])
+
+    def _populate(self, interactions, payments):
+        self._interactions = interactions
         self.table_interactions.setRowCount(0)
         for item in self._interactions:
             row = self.table_interactions.rowCount()
@@ -330,7 +361,7 @@ class ClientHistoryDialog(QDialog):
             for col, value in enumerate(values):
                 self._set_value(self.table_interactions, row, col, value)
 
-        self._payments = PaymentRepository.list_by_client(self.client_id)
+        self._payments = payments
         self.table_payments.setRowCount(0)
         for item in self._payments:
             row = self.table_payments.rowCount()

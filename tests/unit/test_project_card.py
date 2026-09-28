@@ -1,5 +1,7 @@
 """Тести діалогу картки проєкту (async-завантаження через FunctionWorker)."""
 
+import time
+
 import pytest
 
 pytest.importorskip("PySide6")
@@ -87,6 +89,9 @@ def _wait_worker(qapp, dlg, iterations=500):
         qapp.processEvents()
         if dlg._worker is None:
             return True
+        # Коротка пауза віддає GIL worker-потоку — інакше тісний цикл
+        # processEvents може його голодувати (флакі на повному наборі).
+        time.sleep(0.001)
     return False
 
 
