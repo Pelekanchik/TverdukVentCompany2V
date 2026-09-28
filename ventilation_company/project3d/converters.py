@@ -239,9 +239,9 @@ class IFCConverter(BaseConverter):
                         profile = item.SweptArea
 
                         # Розміри профілю
-                        width = 400
-                        height = 200
-                        diameter = 0
+                        width = 400.0
+                        height = 200.0
+                        diameter = 0.0
                         shape_str = "rect"
 
                         if profile.is_a("IfcRectangleProfileDef"):
@@ -317,11 +317,11 @@ class IFCConverter(BaseConverter):
             pos, direction = self._get_placement(element, scale)
             props = self._get_all_properties(element)
 
-            width = 400
-            height = 200
-            diameter = 0
+            width = 400.0
+            height = 200.0
+            diameter = 0.0
             shape_str = "rect"
-            length = 1000
+            length = 1000.0
 
             # Шукаємо розміри у властивостях
             for key, val in props.items():
@@ -344,7 +344,7 @@ class IFCConverter(BaseConverter):
                     with contextlib.suppress(ValueError, TypeError):
                         length = float(val) * (scale / 1000.0 if float(val) < 10 else 1.0)
 
-            dx, dy, dz = direction
+            dx, dy, dz = direction if direction is not None else (1.0, 0.0, 0.0)
             end = Point3D(
                 pos.x + dx * length,
                 pos.y + dy * length,
@@ -429,9 +429,9 @@ class IFCConverter(BaseConverter):
         )
 
         # ── Імпорт архітектури ──
-        floors_map = {}
+        floors_map: dict[str, Floor] = {}
         for storey in ifc_file.by_type("IfcBuildingStorey"):
-            level = 0
+            level = 0.0
             with contextlib.suppress(Exception):
                 level = float(storey.Elevation) * scale
             floor = Floor(
@@ -448,9 +448,9 @@ class IFCConverter(BaseConverter):
             try:
                 pos, direction = self._get_placement(wall, scale)
                 # Для стіни: використовуємо bounding box або довжину
-                length = 3000
-                height = 3000
-                thickness = 200
+                length = 3000.0
+                height = 3000.0
+                thickness = 200.0
 
                 # Спробуємо отримати розміри з геометрії
                 for rep in wall.Representation.Representations:
@@ -464,7 +464,7 @@ class IFCConverter(BaseConverter):
                             height = depth
                             break
 
-                dx, dy, dz = direction
+                dx, dy, dz = direction if direction is not None else (1.0, 0.0, 0.0)
                 # Проєкція на площину XY для 2D
                 end = Point3D(
                     pos.x + dx * length,
@@ -483,9 +483,9 @@ class IFCConverter(BaseConverter):
                     is_load_bearing=getattr(wall, "IsLoadBearing", True),
                 )
 
-                floor = self._get_storey_for_element(wall, floors_map)
-                if floor:
-                    floor.walls.append(wall_obj)
+                target_floor = self._get_storey_for_element(wall, floors_map)
+                if target_floor:
+                    target_floor.walls.append(wall_obj)
                 elif project.arch_context.floors:
                     project.arch_context.floors[0].walls.append(wall_obj)
             except Exception:
@@ -495,8 +495,8 @@ class IFCConverter(BaseConverter):
         for opening in ifc_file.by_type("IfcOpeningElement"):
             try:
                 pos, direction = self._get_placement(opening, scale)
-                width = 400
-                height = 300
+                width = 400.0
+                height = 300.0
 
                 for rep in opening.Representation.Representations:
                     for item in rep.Items:
@@ -524,9 +524,9 @@ class IFCConverter(BaseConverter):
 
         # ── Імпорт MEP (вентиляція) ──
         # Групуємо сегменти за системами
-        system_segments = {}
-        system_fittings = {}
-        system_equipment = {}
+        system_segments: dict[str, list[DuctSegment]] = {}
+        system_fittings: dict[str, list[Fitting]] = {}
+        system_equipment: dict[str, list[Equipment]] = {}
 
         # IfcFlowSegment — повітропроводи
         for elem in ifc_file.by_type("IfcFlowSegment"):
@@ -537,11 +537,11 @@ class IFCConverter(BaseConverter):
                 else:
                     # Fallback
                     pos, direction = self._get_placement(elem, scale)
-                    dx, dy, dz = direction
-                    length = 1000
+                    dx, dy, dz = direction if direction is not None else (1.0, 0.0, 0.0)
+                    length = 1000.0
                     end = Point3D(pos.x + dx * length, pos.y + dy * length, pos.z + dz * length)
                     start = pos
-                    width, height, diameter, shape_str = 400, 200, 0, "rect"
+                    width, height, diameter, shape_str = 400.0, 200.0, 0.0, "rect"
 
                 length = start.distance(end)
 
@@ -603,7 +603,7 @@ class IFCConverter(BaseConverter):
             try:
                 pos, _ = self._get_placement(elem, scale)
                 props = self._get_all_properties(elem)
-                air_flow = 0
+                air_flow = 0.0
                 for key, val in props.items():
                     if any(
                         k in key.lower() for k in ["airflow", "flow", "витрата", "потік", "air"]
@@ -611,9 +611,9 @@ class IFCConverter(BaseConverter):
                         with contextlib.suppress(ValueError, TypeError):
                             air_flow = float(val)
 
-                width = 400
-                height = 200
-                length = 300
+                width = 400.0
+                height = 200.0
+                length = 300.0
 
                 # Спробуємо отримати розміри з геометрії
                 for rep in elem.Representation.Representations:

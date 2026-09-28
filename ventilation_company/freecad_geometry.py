@@ -648,7 +648,7 @@ class ProductLayout:
             depth = bounds[2] if axis_idx == 2 else bounds[axis_idx]
             pos = [0.0, 0.0, 0.0]
             pos[axis_idx] = offset
-            self.positions.append(tuple(pos))
+            self.positions.append((pos[0], pos[1], pos[2]))
             offset += depth + self.spacing
         return self.positions
 

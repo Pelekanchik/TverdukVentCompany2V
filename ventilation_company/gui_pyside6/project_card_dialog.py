@@ -181,7 +181,9 @@ class PaymentEditDialog(QDialog):
         layout.addRow("Призначення:", self.edit_purpose)
         self.edit_notes = QLineEdit(self.payment_data.get("notes") or "")
         layout.addRow("Нотатки:", self.edit_notes)
-        btn = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        btn = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addRow(btn)
@@ -206,12 +208,12 @@ class ProjectCardDialog(QDialog):
         self.setMinimumWidth(900)
         self.setMinimumHeight(600)
         self.resize(1000, 700)
-        self._project_data = {}
-        self._products = []
-        self._documents = []
-        self._works = []
-        self._expenses = []
-        self._payments = []
+        self._project_data: dict = {}
+        self._products: list[dict] = []
+        self._documents: list[dict] = []
+        self._works: list[dict] = []
+        self._expenses: list[dict] = []
+        self._payments: list[dict] = []
         self._worker = None
         self._build_ui()
         self._start_load()

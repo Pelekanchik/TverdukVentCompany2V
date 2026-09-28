@@ -46,7 +46,7 @@ class ProjectDocumentRepository:
             }
 
     @staticmethod
-    def get_by_project(project_id: int, doc_type: str = None) -> list[dict]:
+    def get_by_project(project_id: int, doc_type: str | None = None) -> list[dict]:
         with get_db() as session:
             q = session.query(ProjectDocument).filter(ProjectDocument.project_id == project_id)
             if doc_type:

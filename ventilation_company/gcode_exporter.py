@@ -33,7 +33,7 @@ class PlasmaSettings:
 class GCodeExporter:
     """Генератор G-коду для плазменного різака."""
 
-    def __init__(self, settings: PlasmaSettings = None):
+    def __init__(self, settings: PlasmaSettings | None = None):
         self.settings = settings or PlasmaSettings()
 
     def export_cutting_plan(self, plan, filepath: str):

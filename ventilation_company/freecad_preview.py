@@ -24,7 +24,7 @@ from ventilation_company.freecad_geometry import MeshData, ProductLayout
 class FreeCADPreview:
     """3D preview panel using matplotlib — works without FreeCAD."""
 
-    def __init__(self, parent: tk.Widget):
+    def __init__(self, parent: tk.Misc):
         self.parent = parent
         self.figure: Figure | None = None
         self.canvas: FigureCanvasTkAgg | None = None
@@ -32,7 +32,7 @@ class FreeCADPreview:
         self._meshes: list[MeshData] = []
         self._show_labels = True
         self._show_axes = True
-        self._view_angle = (30, -60)  # elev, azim
+        self._view_angle = (30.0, -60.0)  # elev, azim
         self._wireframe_only = False
         self._spacing = 50.0
 

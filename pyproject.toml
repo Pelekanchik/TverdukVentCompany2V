@@ -91,7 +91,10 @@ python_functions = "test_*"
 known-first-party = ["ventilation_company"]
 
 [tool.mypy]
-python_version = "3.10"
+# 3.12+, а не 3.10: стуби numpy використовують type-стейтмент (3.12+),
+# а реальне середовище виконання — Python 3.13. Для нашого коду це лише
+# розслаблює перевірку; сумісність із 3.10 гарантують ruff/black target.
+python_version = "3.12"
 ignore_missing_imports = true
 # Статична типізація зовнішніх залежностей без stubs не перевіряється.
-# Область перевірки: ventilation_company/services/ (залежності йдуть за імпортами).
+# Область перевірки: весь пакет ventilation_company/ (залежності йдуть за імпортами).

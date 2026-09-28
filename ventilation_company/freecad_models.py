@@ -33,11 +33,11 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".ventcompany")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "freecad_config.json")
 
 FREECAD_AVAILABLE = False
-FREECAD_CMD = None
-FREECAD_GUI = None
-FREECAD_VERSION = None
+FREECAD_CMD: str | None = None
+FREECAD_GUI: str | None = None
+FREECAD_VERSION: str | None = None
 
-_log_lines = []
+_log_lines: list[str] = []
 
 
 def _log(msg):
@@ -317,6 +317,8 @@ def export_products_to_freecad(
             "FreeCAD не знайдено. Перевірте налаштування або встановіть FreeCAD.\n"
             "Деталі у файлі freecad_debug.log"
         )
+    if FREECAD_CMD is None:
+        raise RuntimeError("Шлях до FreeCAD не визначено (FREECAD_CMD is None).")
 
     data = []
     for p in products:

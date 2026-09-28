@@ -114,8 +114,8 @@ class ProposalPDF(FPDF):
         self.data = data
         self.regular_font, self.bold_font = _find_fonts()
         self.set_auto_page_break(auto=True, margin=20)
-        self.add_font("Main", "", self.regular_font, uni=True)
-        self.add_font("Main", "B", self.bold_font, uni=True)
+        self.add_font("Main", "", self.regular_font)
+        self.add_font("Main", "B", self.bold_font)
         self._build()
 
     def _set_regular(self, size: int = 10):

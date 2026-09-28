@@ -61,7 +61,7 @@ class SchemaWidget(QWidget):
         self._product_type = ""
         self._params = {}
 
-    def show_schema(self, product_type: str, params: dict = None):
+    def show_schema(self, product_type: str, params: dict | None = None):
         self._product_type = product_type
         self._params = params or {}
         self.update()
@@ -844,11 +844,9 @@ class ProductDialog(QDialog):
                 (self._calc_result.material_area_m2 / calc_qty) * thickness_m * density, 4
             )
 
-        project_id = (
-            self.parent().main_window.active_project_id
-            if self.parent() and hasattr(self.parent(), "main_window")
-            else None
-        )
+        parent = self.parent()
+        main_window = getattr(parent, "main_window", None) if parent is not None else None
+        project_id = main_window.active_project_id if main_window is not None else None
 
         return {
             "name": self.edit_name.text().strip(),
