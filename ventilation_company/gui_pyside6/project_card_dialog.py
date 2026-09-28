@@ -62,13 +62,13 @@ class WorkEditDialog(QDialog):
     def _build_ui(self, work_data):
         layout = QFormLayout(self)
 
-        self.combo_position = QComboBox()
-        self.combo_position.addItem("— Вручну —", None)
-        self._positions = BusinessSettings.get_instance().positions
-        for key in self._positions:
-            self.combo_position.addItem(key.replace("_", " "), key)
-        self.combo_position.currentIndexChanged.connect(self._on_position_changed)
-        layout.addRow("Посада (з Бізнес)", self.combo_position)
+        self.combo_work = QComboBox()
+        self.combo_work.addItem("— Вручну —", None)
+        self._work_rates = BusinessSettings.get_instance().work_rates
+        for key in self._work_rates:
+            self.combo_work.addItem(key.replace("_", " "), key)
+        self.combo_work.currentIndexChanged.connect(self._on_work_selected)
+        layout.addRow("Типова робота (з Бізнес)", self.combo_work)
 
         self.edit_name = QLineEdit()
         self.edit_name.setText(work_data.get("work_name", "") if work_data else "")
@@ -94,25 +94,26 @@ class WorkEditDialog(QDialog):
         layout.addRow(btn)
 
         if work_data:
-            self._preselect_position(work_data.get("work_name", ""))
+            self._preselect_work(work_data.get("work_name", ""))
 
-    def _on_position_changed(self, index: int):
-        key = self.combo_position.itemData(index)
+    def _on_work_selected(self, index: int):
+        key = self.combo_work.itemData(index)
         if not key:
             return
-        pos = BusinessSettings.get_instance().get_position(key)
+        rate = BusinessSettings.get_instance().get_work_rate(key)
         self.edit_name.setText(key.replace("_", " "))
-        self.spin_price.setValue(float(pos.get("ставка", 0) or 0))
+        self.edit_unit.setText(str(rate.get("одиниця", "год")))
+        self.spin_price.setValue(float(rate.get("ціна", 0) or 0))
 
-    def _preselect_position(self, work_name: str):
-        """Якщо назва роботи збігається з посадою — підсвітити її у списку."""
-        self.combo_position.blockSignals(True)
-        for i in range(self.combo_position.count()):
-            key = self.combo_position.itemData(i)
+    def _preselect_work(self, work_name: str):
+        """Якщо назва роботи збігається з типовою — підсвітити її у списку."""
+        self.combo_work.blockSignals(True)
+        for i in range(self.combo_work.count()):
+            key = self.combo_work.itemData(i)
             if key and key.replace("_", " ") == work_name:
-                self.combo_position.setCurrentIndex(i)
+                self.combo_work.setCurrentIndex(i)
                 break
-        self.combo_position.blockSignals(False)
+        self.combo_work.blockSignals(False)
 
     def get_data(self):
         qty = self.spin_qty.value()

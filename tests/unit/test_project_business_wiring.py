@@ -29,34 +29,36 @@ def business_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(bs_module.BusinessSettings, "_instance", None)
 
 
-class TestWorkEditDialogPositions:
-    def test_position_list_loaded(self, qapp, business_settings):
+class TestWorkEditDialogWorkRates:
+    def test_work_list_loaded(self, qapp, business_settings):
         dlg = WorkEditDialog(project_id=1)
-        keys = [dlg.combo_position.itemData(i) for i in range(dlg.combo_position.count())]
+        keys = [dlg.combo_work.itemData(i) for i in range(dlg.combo_work.count())]
         assert keys[0] is None  # «— Вручну —»
-        assert "зварник" in keys
-        assert "директор" in keys
+        assert "монтаж_повітропроводів" in keys
+        assert "доставка" in keys
+        assert "виїзд_на_замір" in keys
 
-    def test_selecting_position_fills_name_and_price(self, qapp, business_settings):
+    def test_selecting_work_fills_fields(self, qapp, business_settings):
         dlg = WorkEditDialog(project_id=1)
-        idx = dlg.combo_position.findData("зварник")
+        idx = dlg.combo_work.findData("монтаж_повітропроводів")
         assert idx > 0
-        dlg.combo_position.setCurrentIndex(idx)
-        assert dlg.edit_name.text() == "зварник"
-        assert dlg.spin_price.value() == pytest.approx(22000.0)
+        dlg.combo_work.setCurrentIndex(idx)
+        assert dlg.edit_name.text() == "монтаж повітропроводів"
+        assert dlg.edit_unit.text() == "м2"
+        assert dlg.spin_price.value() == pytest.approx(250.0)
 
     def test_manual_item_does_not_touch_fields(self, qapp, business_settings):
         dlg = WorkEditDialog(project_id=1)
         dlg.edit_name.setText("Ручна робота")
         dlg.spin_price.setValue(123.0)
-        dlg.combo_position.setCurrentIndex(0)
+        dlg.combo_work.setCurrentIndex(0)
         assert dlg.edit_name.text() == "Ручна робота"
         assert dlg.spin_price.value() == 123.0
 
-    def test_edit_mode_preselects_matching_position(self, qapp, business_settings):
-        dlg = WorkEditDialog(project_id=1, work_data={"work_name": "монтажник", "quantity": 2})
-        assert dlg.combo_position.currentData() == "монтажник"
-        # Ціна з роботи, а не з посади (сигнали заблоковані при преселекті)
+    def test_edit_mode_preselects_matching_work(self, qapp, business_settings):
+        dlg = WorkEditDialog(project_id=1, work_data={"work_name": "доставка", "quantity": 2})
+        assert dlg.combo_work.currentData() == "доставка"
+        # Ціна з роботи, а не з довідника (сигнали заблоковані при преселекті)
         assert dlg.spin_price.value() == 0
 
 

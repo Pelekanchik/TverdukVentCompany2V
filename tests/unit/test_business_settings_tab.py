@@ -47,8 +47,9 @@ class TestBusinessSettingsTab:
 
     def test_load_fills_tables(self, qapp, monkeypatch, tmp_path):
         tab = self._make_tab(qapp, monkeypatch, tmp_path, "admin")
-        # Комплектуючі та посади за замовчуванням мають бути завантажені
+        # Комплектуючі, типові роботи та посади за замовчуванням мають бути завантажені
         assert tab.tbl_components.rowCount() > 0
+        assert tab.tbl_works.rowCount() > 0
         assert tab.tbl_positions.rowCount() > 0
         assert tab.tbl_materials.rowCount() > 0
         first_key = tab.tbl_components.item(0, 0).text()

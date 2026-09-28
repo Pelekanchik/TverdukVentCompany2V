@@ -63,6 +63,15 @@ DEFAULT_FLANGE_PRICES = {
     "P40": {"ціна": 200.0},
 }
 
+# Типові роботи для проєктів (монтаж, доставка, заміри), грн за одиницю.
+DEFAULT_WORK_RATES = {
+    "монтаж_повітропроводів": {"ціна": 250, "одиниця": "м2"},
+    "монтаж_обладнання": {"ціна": 1500, "одиниця": "шт"},
+    "доставка": {"ціна": 800, "одиниця": "рейс"},
+    "виїзд_на_замір": {"ціна": 500, "одиниця": "виїзд"},
+    "пусконалагодження": {"ціна": 2000, "одиниця": "об'єкт"},
+}
+
 
 class BusinessSettings:
     """Менеджер бізнес-налаштувань (Singleton, файлове блокування)."""
@@ -99,6 +108,7 @@ class BusinessSettings:
         self.extra_materials: dict = {}
         self.positions: dict = {}
         self.flange_prices: dict = {}
+        self.work_rates: dict = {}
 
         self.load()
 
@@ -147,6 +157,7 @@ class BusinessSettings:
             key: ({"ціна": float(value)} if not isinstance(value, dict) else value)
             for key, value in self.flange_prices.items()
         }
+        self.work_rates = data.get("work_rates", json.loads(json.dumps(DEFAULT_WORK_RATES)))
         if not data:
             self.save()
 
@@ -158,6 +169,7 @@ class BusinessSettings:
             "extra_materials": self.extra_materials,
             "positions": self.positions,
             "flange_prices": self.flange_prices,
+            "work_rates": self.work_rates,
         }
         with self._file_lock:
             self._atomic_write(data)
@@ -191,3 +203,8 @@ class BusinessSettings:
         if isinstance(raw, dict):
             return float(raw.get("ціна", default))
         return float(raw) if raw else default
+
+    def get_work_rate(self, key: str) -> dict:
+        """Ціна та одиниця типової роботи; порожній dict, якщо невідомо."""
+        self.reload()
+        return self.work_rates.get(key, {})

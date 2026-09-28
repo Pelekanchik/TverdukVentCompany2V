@@ -3,6 +3,7 @@
 Редагує:
   • ставку ПДВ
   • ціни на комплектуючі (вентилятори, фільтри, клапани тощо)
+  • типові роботи (монтаж, доставка, виїзд на замір тощо)
   • додаткові матеріали (ізоляція)
   • посади та ставки зарплат
 
@@ -96,6 +97,12 @@ class BusinessSettingsTab(QWidget):
             )
         )
 
+        # ── Типові роботи ──
+        self.tbl_works = self._make_table(COLUMNS_KEY_VALUE_UNIT)
+        vlay.addWidget(
+            self._table_group("Типові роботи (монтаж, доставка, виїзд на замір...)", self.tbl_works)
+        )
+
         # ── Додаткові матеріали ──
         self.tbl_materials = self._make_table(COLUMNS_KEY_VALUE_UNIT)
         vlay.addWidget(self._table_group("Додаткові матеріали (ізоляція)", self.tbl_materials))
@@ -114,6 +121,7 @@ class BusinessSettingsTab(QWidget):
             for w in (
                 self.spin_vat,
                 self.tbl_components,
+                self.tbl_works,
                 self.tbl_materials,
                 self.tbl_positions,
                 self.tbl_flanges,
@@ -158,6 +166,7 @@ class BusinessSettingsTab(QWidget):
         s = BusinessSettings.get_instance()
         self.spin_vat.setValue(s.get_vat_rate())
         self._fill_table(self.tbl_components, s.components, ("ціна", "одиниця"))
+        self._fill_table(self.tbl_works, s.work_rates, ("ціна", "одиниця"))
         self._fill_table(self.tbl_materials, s.extra_materials, ("ціна_за_м2", "одиниця"))
         self._fill_table(self.tbl_positions, s.positions, ("ставка", "премія_%"))
         self._fill_table(self.tbl_flanges, s.flange_prices, ("ціна",))
@@ -180,6 +189,7 @@ class BusinessSettingsTab(QWidget):
             s = BusinessSettings.get_instance()
             s.vat_rate = float(self.spin_vat.value())
             s.components = self._read_table(self.tbl_components, ("ціна", "одиниця"))
+            s.work_rates = self._read_table(self.tbl_works, ("ціна", "одиниця"))
             s.extra_materials = self._read_table(self.tbl_materials, ("ціна_за_м2", "одиниця"))
             s.positions = self._read_table(
                 self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
@@ -196,6 +206,7 @@ class BusinessSettingsTab(QWidget):
             details={
                 "vat_rate": s.vat_rate,
                 "components": len(s.components),
+                "work_rates": len(s.work_rates),
                 "extra_materials": len(s.extra_materials),
                 "positions": len(s.positions),
                 "flange_prices": len(s.flange_prices),
