@@ -16,15 +16,15 @@
 
 ## Підтверджені проблеми (з першого огляду + аудиту)
 
-1. **Сміття в репозиторії**: файли-«привиди» `tyle: enable ruff UP rules"` і `tyle: enable ruff bugbear rules"` (обрізані назви комітів, всередині — дифи), `ventcompany_salary_fix.patch`, бінарник `updates/VentCompany-windows.zip`, `spec_*.xlsx`, демо-CSV у `exports/`.
-2. **Мертві точки входу**: `main.py`, `run_gui.py`, `launch_gui.py` (останні два ідентичні), `demo_stage3.py`, `demo_stage4.py`, `create_tables.py`, `add_user.py` (напівдублі функціоналу).
+1. ~~**Сміття в репозиторії**~~ — **вирішено у фазі 1** (коміт `21656f2`): файли-«привиди», патч, бінарник `updates/`, `spec_*.xlsx` видалено; демо-CSV у `exports/` — в `.gitignore`.
+2. ~~**Мертві точки входу**~~ — **вирішено у фазі 1**: запуск зведено до `main_pyside6.py`; `main.py`, `run_gui.py`, `launch_gui.py`, демо й скрипти видалено.
 3. ~~**`legacy/`** (~21 000 рядків старого GUI)~~ — **вирішено**: видалено у фазі 1, точка відкату — тег `v2.7.0-pre-cleanup`.
-4. **Хардкод бізнес-даних** у `ventilation_company/config.py`: ціни на метал/компоненти, ставки зарплат (`MIN_WAGE = 8000` — явно застаріло), дублюються з `ventilation_company/data/*.json`.
-5. **Розсинхрон залежностей**: `requirements.txt` ≠ `pyproject.toml`; дубль драйверів `psycopg2-binary` + `psycopg[binary]`; важкі опційні пакети (`pyautocad`, `pywebview`, 3D) у core-залежностях.
-6. **Side-effect на імпорті**: `database/db.py` створює engine при імпорті; дефолтний `DATABASE_URL` — заглушка `CHANGE_ME`.
-7. **Файл-опечатка**: `ventilation_company/database/models/__init___.py` (двійне підкреслення) поруч із `__init__.py`.
+4. ~~**Хардкод бізнес-даних**~~ — **вирішено у фазі 2**: ціни/ставки винесено з `config.py` у `data/business_settings.json` + `data/pricing_settings.json`; констант `MIN_WAGE`/`METAL_PRICE` у `config.py` немає (звірено grep'ом).
+5. ~~**Розсинхрон залежностей**~~ — **вирішено у фазі 2**: один драйвер `psycopg[binary]>=3.1` у обох файлах; `pyautocad`/`pywebview`/3D — у `requirements-optional.txt` із graceful-degradation у коді.
+6. ~~**Side-effect на імпорті**~~ — **вирішено у фазі 2**: `database/db.py` має лінивий engine (`_engine = None`, створення в аксесорі); неналаштований `DATABASE_URL` дає зрозумілу помилку з інструкцією.
+7. ~~**Файл-опечатка**~~ — **вирішено у фазі 1**: `__init___.py` видалено після перевірки, що не імпортується.
 8. ~~**Невідповідність документації**~~ — **вирішено 2026-09-28**: схема БД у README звірена запитом (32/32 таблиці збігаються), лічильники модулів/тестів оновлено, застарілий `README_PYSIDE6.md` (скелет етапу розробки) видалено.
-9. Дублювання шарів моделей: `ventilation_company/models/` поруч із `ventilation_company/database/models/`.
+9. ~~Дублювання шарів моделей~~ — **вирішено**: пакет `ventilation_company/models/` видалено з git раніше; 2026-09-28 прибрано залишок-`__pycache__` з диска. Живих імпортів не було.
 
 ## Фаза 1 — Гігієна репозиторія ✅ (виконано 2026-09-27, коміт `21656f2`)
 
