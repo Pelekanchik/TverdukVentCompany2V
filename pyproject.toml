@@ -59,7 +59,6 @@ exclude = '''
   | build
   | dist
   | __pycache__
-  | legacy
 )/
 '''
 
@@ -71,7 +70,7 @@ skip = ["venv", ".venv", "build", "dist"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-exclude = ["venv", ".venv", "build", "dist", "__pycache__", "legacy"]
+exclude = ["venv", ".venv", "build", "dist", "__pycache__"]
 
 [tool.ruff.lint]
 select = ["E9", "F821", "F401", "I001", "B", "SIM", "UP"]
@@ -81,7 +80,7 @@ ignore = ["E501"]
 convention = "google"
 
 [tool.pytest.ini_options]
-norecursedirs = ["legacy", "data", "logs", "documents"]
+norecursedirs = ["data", "logs", "documents"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"

@@ -18,7 +18,7 @@
 
 1. **Сміття в репозиторії**: файли-«привиди» `tyle: enable ruff UP rules"` і `tyle: enable ruff bugbear rules"` (обрізані назви комітів, всередині — дифи), `ventcompany_salary_fix.patch`, бінарник `updates/VentCompany-windows.zip`, `spec_*.xlsx`, демо-CSV у `exports/`.
 2. **Мертві точки входу**: `main.py`, `run_gui.py`, `launch_gui.py` (останні два ідентичні), `demo_stage3.py`, `demo_stage4.py`, `create_tables.py`, `add_user.py` (напівдублі функціоналу).
-3. **`legacy/`** (~21 000 рядків старого GUI) — не підтримується, але залишається в репозиторії; наразі ісключений з ruff/black, що маскує розклад.
+3. ~~**`legacy/`** (~21 000 рядків старого GUI)~~ — **вирішено**: видалено у фазі 1, точка відкату — тег `v2.7.0-pre-cleanup`.
 4. **Хардкод бізнес-даних** у `ventilation_company/config.py`: ціни на метал/компоненти, ставки зарплат (`MIN_WAGE = 8000` — явно застаріло), дублюються з `ventilation_company/data/*.json`.
 5. **Розсинхрон залежностей**: `requirements.txt` ≠ `pyproject.toml`; дубль драйверів `psycopg2-binary` + `psycopg[binary]`; важкі опційні пакети (`pyautocad`, `pywebview`, 3D) у core-залежностях.
 6. **Side-effect на імпорті**: `database/db.py` створює engine при імпорті; дефолтний `DATABASE_URL` — заглушка `CHANGE_ME`.
@@ -30,7 +30,7 @@
 
 - Видалити сміттєві файли з кореня; `exports/*.csv` — у `.gitignore` (залишити як приклади через `products_template.csv`).
 - Звести запуск до однієї точки входу: лишити `main_pyside6.py` (він уже робить міграції → `launch_gui`), решту лаунчерів і демо — видалити.
-- Вирішити долю `legacy/`: запропонувати винести в окремий архівний репозиторій або гілку `archive/legacy`, з основної гілки — видалити.
+- Вирішити долю `legacy/`: з основної гілки — видалено; архівна копія доступна за тегом `v2.7.0-pre-cleanup`. Виконано 2026-09-27; мертві виключення з ruff/black/pytest конфігів прибрано наступним кроком.
 - Видалити `__init___.py`-опечатку після перевірки, що він не імпортується.
 - Синхронізувати `requirements.txt` ↔ `pyproject.toml`: лишити один драйвер (`psycopg[binary]`), винести `pyautocad`/`pywebview`/3D у `requirements-optional.txt` з graceful-degradation у коді.
 - Оновити `.gitignore` (`venv/`, `data/`, `*.zip` у `updates/`, `__pycache__`).
@@ -103,6 +103,6 @@
 
 ## Ризики
 
-- Видалення `legacy/` незворотне — перед тим зробити тег `v2.7.0-pre-cleanup`.
+- ~~Видалення `legacy/` незворотне — перед тим зробити тег `v2.7.0-pre-cleanup`.~~ Виконано: тег створено (вказує на останній коміт з `legacy/` — `9761ac4`), видалення — коміт `21656f2`.
 - Перенесення цін/ставок у БД вимагає міграції початкових значень (009_seed_settings).
 - PySide6 у venv — 6.11.2, програма цільована на ≥6.5: сумісність підтверджено smoke-тестом, але повне тестування GUI — вручну.
