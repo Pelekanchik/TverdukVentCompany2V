@@ -1,3 +1,3 @@
 """TverdukVentCompany — модуль розрахунку виробів вентиляції."""
 
-__version__ = "2.0.0"
+from ventilation_company.version import __version__ as __version__
