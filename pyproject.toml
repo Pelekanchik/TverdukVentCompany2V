@@ -89,3 +89,9 @@ python_functions = "test_*"
 
 [tool.ruff.lint.isort]
 known-first-party = ["ventilation_company"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# Статична типізація зовнішніх залежностей без stubs не перевіряється.
+# Область перевірки: ventilation_company/services/ (залежності йдуть за імпортами).

@@ -16,7 +16,7 @@ import math
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from ventilation_company.calculations.cost_engine import CostEngine
 from ventilation_company.manufacturing_params import (
@@ -181,15 +181,6 @@ class StandardProduct:
         except Exception as e:
             _logger.warning("CostEngine failed: %s, fallback to legacy pricing", e)
             return self._legacy_calculate_price()
-
-    def recalculate_price(self) -> float:
-        """
-        Перерахувати ціну з актуальними ставками з pricing_settings.json.
-        Використовувати при завантаженні проєкту або зміні налаштувань.
-        """
-        self.unit_price = Decimal(str(self.calculate_price()))
-        self.total_price = self.unit_price * self.quantity
-        return float(self.unit_price)
 
     def recalculate_price(self) -> float:
         """
@@ -732,7 +723,7 @@ class ProductLibrary:
     def get_specification(self) -> list[dict]:
         from collections import defaultdict
 
-        grouped = defaultdict(lambda: {"quantity": 0, "products": []})
+        grouped: dict[tuple, dict[str, Any]] = defaultdict(lambda: {"quantity": 0, "products": []})
         for p in self.products:
             key = (
                 p.product_type,

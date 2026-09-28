@@ -87,11 +87,11 @@ def create_backup(
         logger.warning("Database not found for backup: %s", db_path)
         return None
 
-    backup_path = f"{db_path}.backup.{_timestamp()}"
+    sqlite_backup_path = f"{db_path}.backup.{_timestamp()}"
     try:
-        shutil.copy2(db_path, backup_path)
-        logger.info("SQLite backup created: %s", backup_path)
-        return backup_path
+        shutil.copy2(db_path, sqlite_backup_path)
+        logger.info("SQLite backup created: %s", sqlite_backup_path)
+        return sqlite_backup_path
     except Exception as e:
         logger.error("Backup failed: %s", e)
         return None

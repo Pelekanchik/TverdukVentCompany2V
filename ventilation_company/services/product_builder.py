@@ -460,6 +460,8 @@ class ProductBuilder:
         dynamic = dynamic_params or {}
 
         class CustomProduct(StandardProduct):
+            _dynamic_params: dict[str, Any]
+
             def __post_init__(self):
                 self.product_type = selected_name
                 super().__post_init__()

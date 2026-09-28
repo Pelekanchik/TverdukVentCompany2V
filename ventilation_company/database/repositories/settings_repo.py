@@ -15,7 +15,7 @@ class SettingsRepository:
     def get_all(self) -> list[CalcSetting]:
         return self.db.query(CalcSetting).all()
 
-    def get_value(self, key: str, default: str | None = None) -> str:
+    def get_value(self, key: str, default: str | None = None) -> str | None:
         setting = self.db.query(CalcSetting).filter(CalcSetting.key == key).first()
         return setting.value if setting else default
 

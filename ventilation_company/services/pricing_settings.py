@@ -216,6 +216,8 @@ class PricingSettings:
 
     _instance: PricingSettings | None = None
     _lock = threading.Lock()
+    # Встановлюється в __new__; анотація тут — для mypy.
+    _initialized: bool
 
     def __new__(cls, filepath: str = SETTINGS_FILE) -> PricingSettings:
         if cls._instance is None:

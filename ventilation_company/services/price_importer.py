@@ -57,7 +57,7 @@ class PriceRecord:
         return (
             bool(self.material)
             and self.thickness > 0
-            and (self.price_per_m2 > 0 or self.price_per_kg > 0)
+            and ((self.price_per_m2 or 0) > 0 or self.price_per_kg > 0)
         )
 
 
@@ -200,7 +200,9 @@ class PriceImporter:
         if header_map:
             # Excel формат з мапою
             idx = header_map.get("material")
-            record.material = self._normalize_material(row.get(idx, "")) if idx is not None else ""
+            record.material = (
+                self._normalize_material(row.get(idx, "")) or "" if idx is not None else ""
+            )
             idx = header_map.get("thickness")
             record.thickness = self._parse_thickness(row.get(idx, 0)) if idx is not None else 0
             idx = header_map.get("price_m2")
@@ -212,7 +214,7 @@ class PriceImporter:
         else:
             # CSV формат з іменованими колонками
             material_raw = row.get("Матеріал", row.get("Material", row.get("матеріал", "")))
-            record.material = self._normalize_material(material_raw)
+            record.material = self._normalize_material(material_raw) or ""
             record.thickness = self._parse_thickness(
                 row.get("Товщина", row.get("Thickness", row.get("товщина", 0)))
             )

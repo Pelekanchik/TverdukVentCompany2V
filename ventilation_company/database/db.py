@@ -131,7 +131,7 @@ def check_db_connection() -> bool:
     """Перевіряє чи доступна БД."""
     try:
         _init_engine()
-        with _engine.connect() as conn:
+        with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as e:

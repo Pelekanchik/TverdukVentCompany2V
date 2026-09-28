@@ -47,8 +47,8 @@ class User:
         full_name: str,
         role: str,
         is_active: int = 1,
-        created_at: str = None,
-        last_login: str = None,
+        created_at: str | None = None,
+        last_login: str | None = None,
     ):
         self.id = id
         self.username = username

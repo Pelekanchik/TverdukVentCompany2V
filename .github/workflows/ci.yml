@@ -32,6 +32,9 @@ jobs:
       - name: Black
         run: black --check .
 
+      - name: Mypy (services layer)
+        run: mypy ventilation_company/services/
+
       - name: Pytest (no PostgreSQL needed — tests use fakes/SQLite)
         env:
           QT_QPA_PLATFORM: minimal   # headless Qt на ранері — стабільніше для GUI-тестів

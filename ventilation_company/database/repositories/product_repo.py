@@ -46,7 +46,7 @@ def _extract_float(notes: str | None, key: str) -> float:
 
 class ProductRepository:
     @staticmethod
-    def get_all(project_id: int = None) -> list[dict]:
+    def get_all(project_id: int | None = None) -> list[dict]:
         with get_db() as session:
             q = session.query(ProductItem)
             if project_id:
@@ -131,7 +131,7 @@ class ProductRepository:
         product_type: str = "",
         material: str = "",
         thickness: str = "",
-        project_id: int = None,
+        project_id: int | None = None,
     ) -> list[dict]:
         with get_db() as session:
             q = session.query(ProductItem)

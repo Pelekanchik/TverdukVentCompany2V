@@ -8,6 +8,8 @@ import ast
 import math
 import operator
 import warnings
+from collections.abc import Callable
+from typing import Any
 
 # Пригнічуємо DeprecationWarning для ast.Num у Python ≥3.8
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=__name__)
@@ -34,7 +36,7 @@ class SafeFormulaEvaluator:
     """
 
     # Дозволені бінарні оператори
-    _BIN_OPS = {
+    _BIN_OPS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
         ast.Mult: operator.mul,
@@ -45,13 +47,13 @@ class SafeFormulaEvaluator:
     }
 
     # Дозволені унарні оператори
-    _UNARY_OPS = {
+    _UNARY_OPS: dict[type[ast.unaryop], Callable[[Any], Any]] = {
         ast.UAdd: operator.pos,
         ast.USub: operator.neg,
     }
 
     # Дозволені функції (ім'я → callable)
-    _ALLOWED_FUNCTIONS = {
+    _ALLOWED_FUNCTIONS: dict[str, Callable[..., Any]] = {
         "abs": abs,
         "round": round,
         "min": min,
@@ -62,7 +64,7 @@ class SafeFormulaEvaluator:
     }
 
     # Дозволені імена-константи
-    _ALLOWED_NAMES = {
+    _ALLOWED_NAMES: dict[str, Any] = {
         "pi": math.pi,
         "e": math.e,
         "True": True,
@@ -124,10 +126,10 @@ class SafeFormulaEvaluator:
         # ── Унарні операції (+, -) ──
         if isinstance(node, ast.UnaryOp):
             operand = self._eval_node(node.operand, variables)
-            op_type = type(node.op)
-            if op_type not in self._UNARY_OPS:
-                raise ValueError(f"Унарний оператор '{op_type.__name__}' не дозволений")
-            return self._UNARY_OPS[op_type](operand)
+            unary_type = type(node.op)
+            if unary_type not in self._UNARY_OPS:
+                raise ValueError(f"Унарний оператор '{unary_type.__name__}' не дозволений")
+            return self._UNARY_OPS[unary_type](operand)
 
         # ── Змінні (імена) ──
         if isinstance(node, ast.Name):
@@ -148,7 +150,11 @@ class SafeFormulaEvaluator:
                 if func_name not in self._ALLOWED_FUNCTIONS:
                     raise ValueError(f"Функція '{func_name}' не дозволена у формулі")
                 args = [self._eval_node(arg, variables) for arg in node.args]
-                kwargs = {kw.arg: self._eval_node(kw.value, variables) for kw in node.keywords}
+                kwargs: dict[str, Any] = {}
+                for kw in node.keywords:
+                    if kw.arg is None:
+                        raise ValueError("Розпакування **kwargs у формулі не дозволене")
+                    kwargs[kw.arg] = self._eval_node(kw.value, variables)
                 return self._ALLOWED_FUNCTIONS[func_name](*args, **kwargs)
 
             # Дозволяємо math.func(arg)

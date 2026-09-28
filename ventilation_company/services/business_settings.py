@@ -69,6 +69,8 @@ class BusinessSettings:
 
     _instance: BusinessSettings | None = None
     _lock = threading.Lock()
+    # Встановлюється в __new__; анотація тут — для mypy.
+    _initialized: bool
 
     def __new__(cls, filepath: str = SETTINGS_FILE) -> BusinessSettings:
         if cls._instance is None:
