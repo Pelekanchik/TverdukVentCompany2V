@@ -39,3 +39,43 @@ jobs:
         env:
           QT_QPA_PLATFORM: minimal   # headless Qt на ранері — стабільніше для GUI-тестів
         run: pytest -v --tb=short
+
+  e2e:
+    # Живий шлях користувача (логін→проєкт→виріб→PDF→аудит) на тимчасовій БД.
+    # Скрипт сам створює/видаляє ventcompany_e2e_* — основна база ventcompany не чіпається.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vent
+          POSTGRES_PASSWORD: vent
+          POSTGRES_DB: ventcompany
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vent -d ventcompany"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Живий E2E-сценарій (headless Qt + тимчасова БД)
+        env:
+          QT_QPA_PLATFORM: minimal
+          DATABASE_URL: postgresql://vent:vent@localhost:5432/ventcompany
+        run: python scripts/e2e_live_test.py

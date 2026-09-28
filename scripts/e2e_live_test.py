@@ -37,18 +37,14 @@ from ventilation_company.database import db as dbm
 
 _src_url = dbm.DATABASE_URL
 if "CHANGE_ME" in _src_url or "@" not in _src_url:
-    print("FATAL: DATABASE_URL у .env не налаштований — E2E потребує локального PostgreSQL")
+    print(
+        "FATAL: DATABASE_URL не налаштований — E2E потребує PostgreSQL (env DATABASE_URL або .env)"
+    )
     sys.exit(2)
 
-_host_part = _src_url.split("@", 1)[1]
-_admin_url = (
-    _src_url.split("://", 1)[0]
-    + "://"
-    + _src_url.split("://", 1)[1].split("@", 1)[0]
-    + "@localhost:5432/postgres"
-)
+_admin_url = _src_url.rsplit("/", 1)[0] + "/postgres"
 E2E_DB = f"ventcompany_e2e_{datetime.now():%Y%m%d_%H%M%S}"
-E2E_URL = _src_url.split("@", 1)[0] + "@" + _host_part.rsplit("/", 1)[0] + "/" + E2E_DB
+E2E_URL = _src_url.rsplit("/", 1)[0] + "/" + E2E_DB
 
 results = []  # (крок, ок, деталь)
 
