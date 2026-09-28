@@ -91,11 +91,9 @@
 
 ## Відомі проблеми (backlog)
 
-- **Циклічний імпорт** `calculations ↔ services`: імпорт підпакета
-  `ventilation_company.calculations.*` першим падає з ImportError
-  (partially initialized module). GUI й тести імпортують у порядку, що
-  обходить це. Лікування: прибрати імпорт CostEngine з `services/__init__.py`
-  або перенести BusinessSettings у нейтральний пакет.
+- ~~**Циклічний імпорт** `calculations ↔ services`~~ — виправлено (коміт `c0d3e00`):
+  обидва пакети перейдено на ледачий PEP 562 `__getattr__`; гарантують
+  тести `tests/unit/test_imports.py` (4 порядки імпорту в підпроцесах).
 - Worker-патерн для інших великих діалогів за потреби (аудит показав: ProductDialog —
   чиста форма без I/O; `ClientCardDialog`/`ClientHistoryDialog` — вже перейдено, див. коміт `5ccdad3`).
 - Розширення mypy за межі `services/` (зараз — 17 файлів, решта пакета необмежена).
