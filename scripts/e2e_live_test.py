@@ -297,7 +297,7 @@ def step_backup():
     result = tab._create_backup_job(str(out_dir))
     if not result or "error" in str(result).lower():
         raise RuntimeError(f"бекап повернув: {result!r}")
-    files = list(out_dir.glob("*.sql") | out_dir.glob("*.dump") | out_dir.glob("*.backup"))
+    files = [f for pat in ("*.sql", "*.dump", "*.backup") for f in out_dir.glob(pat)]
     if not files:
         raise RuntimeError("файл бекапу не створено")
     return f"{files[0].name} ({files[0].stat().st_size:,} байт)"
