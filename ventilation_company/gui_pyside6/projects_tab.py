@@ -236,9 +236,13 @@ class ProjectsTab(QWidget):
         btn_refresh = QPushButton("🔄 Оновити")
         btn_export_csv = QPushButton("💾 CSV")
         btn_export_csv.clicked.connect(self._export_csv)
+        btn_export_excel = QPushButton("📊 Excel")
+        btn_export_excel.setToolTip("Експорт списку проєктів у Excel з сумами та прибутком")
+        btn_export_excel.clicked.connect(self._export_excel)
         btn_refresh.clicked.connect(self._load_data)
         buttons_row.addWidget(btn_refresh)
         buttons_row.addWidget(btn_export_csv)
+        buttons_row.addWidget(btn_export_excel)
 
         btn_new = QPushButton("➕ Новий")
         btn_new.setObjectName("primary")
@@ -350,6 +354,70 @@ class ProjectsTab(QWidget):
             QMessageBox.information(self, "Успіх", f"Експортовано проєктів: {len(rows)}")
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {e}")
+
+    def _export_excel(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт проєктів у Excel", "projects.xlsx", "Excel (*.xlsx)"
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".xlsx"):
+            path += ".xlsx"
+        rows = getattr(self, "_projects", [])
+        headers = [
+            "ID",
+            "Номер",
+            "Назва",
+            "Клієнт",
+            "Статус",
+            "Дата створення",
+            "Собівартість",
+            "Ціна замовника",
+            "Зі знижкою",
+            "Прибуток",
+        ]
+        keys = [
+            "id",
+            "project_number",
+            "name",
+            "client",
+            "status",
+            "created_at",
+            "cost_price",
+            "customer_price",
+            "discounted_price",
+            "profit",
+        ]
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Alignment, Font, PatternFill
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Проєкти"
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+            for col, title in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=title)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center")
+            money_cols = {7, 8, 9, 10}
+            for r, row in enumerate(rows, 2):
+                for col, key in enumerate(keys, 1):
+                    value = row.get(key, "")
+                    cell = ws.cell(row=r, column=col, value=value)
+                    if col in money_cols:
+                        cell.number_format = "#,##0.00"
+                        cell.alignment = Alignment(horizontal="right")
+            widths = [6, 14, 30, 24, 12, 14, 14, 16, 12, 14]
+            for col, width in enumerate(widths, 1):
+                ws.column_dimensions[chr(64 + col)].width = width
+            ws.freeze_panes = "A2"
+            wb.save(path)
+            QMessageBox.information(self, "Успіх", f"Експортовано проєктів: {len(rows)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати Excel: {e}")
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())

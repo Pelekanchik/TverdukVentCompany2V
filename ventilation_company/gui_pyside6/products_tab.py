@@ -82,6 +82,13 @@ class ProductsTab(QWidget):
         btn_new.setMinimumHeight(36)
         btn_new.clicked.connect(self._on_add)
         left_layout.addWidget(btn_new)
+        btn_duplicate = QPushButton("⧉ Дублювати вибраний")
+        btn_duplicate.setToolTip(
+            "Створити копію вибраного виробу в цьому ж проєкті "
+            "(зручно для схожих виробів: труби різної довжини тощо)"
+        )
+        btn_duplicate.clicked.connect(self._on_duplicate)
+        left_layout.addWidget(btn_duplicate)
 
         filters_group = QGroupBox("🔍 Фільтри")
         filters_layout = QVBoxLayout(filters_group)
@@ -673,6 +680,25 @@ class ProductsTab(QWidget):
                 QMessageBox.information(self, "Успіх", "Виріб оновлено!")
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося оновити: {e}")
+
+    def _on_duplicate(self):
+        """Створити копію вибраного виробу в цьому ж проєкті."""
+        item_id = self._get_selected_id()
+        if not item_id:
+            QMessageBox.warning(self, "Увага", "Виберіть виріб для дублювання")
+            return
+        try:
+            item = ProductRepository.get_by_id(item_id)
+            if not item:
+                QMessageBox.warning(self, "Увага", "Виріб не знайдено")
+                return
+            copy_data = {k: v for k, v in item.items() if k != "id"}
+            copy_data["name"] = f"{item.get('name', 'Виріб')} (копія)"
+            created = ProductRepository.create(copy_data)
+            self._load_data()
+            QMessageBox.information(self, "Успіх", f"Створено копію виробу #{created.get('id')}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося дублювати: {e}")
 
     def _on_delete(self):
         item_id = self._get_selected_id()

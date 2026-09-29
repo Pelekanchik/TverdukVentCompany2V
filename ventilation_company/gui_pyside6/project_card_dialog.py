@@ -55,6 +55,7 @@ from ventilation_company.material_order import (
     calculate_material_order,
     export_material_order_to_excel,
 )
+from ventilation_company.proposal_generator import generate_proposal
 from ventilation_company.services.business_settings import BusinessSettings
 
 
@@ -661,6 +662,13 @@ class ProjectCardDialog(QDialog):
         self._populate_products()
         actions = QHBoxLayout()
         actions.addStretch()
+        btn_proposal = QPushButton("📄 КП (PDF)…")
+        btn_proposal.setToolTip(
+            "Згенерувати комерційну пропозицію для замовника: вироби, роботи, "
+            "підсумки з ПДВ, терміни та гарантія"
+        )
+        btn_proposal.clicked.connect(self._on_proposal_pdf)
+        actions.addWidget(btn_proposal)
         btn_materials = QPushButton("📦 Замовлення матеріалів…")
         btn_materials.setToolTip(
             "Розрахувати потребу в матеріалах за виробами проєкту "
@@ -711,6 +719,88 @@ class ProjectCardDialog(QDialog):
         cleaned = "".join("_" if ch in forbidden else ch for ch in name).strip()
         return cleaned[:60] or "проєкт"
 
+    def _register_document(self, doc_type: str, path: str):
+        """Додати збережений файл у вкладку «Документи» проєкту."""
+        try:
+            data = Path(path).read_bytes()
+            ProjectDocumentRepository.create(
+                self.project_id, doc_type, os.path.basename(path), data
+            )
+            self._refresh_documents()
+        except Exception as exc:  # noqa: BLE001 — файл уже збережено, це лише додатково
+            QMessageBox.warning(
+                self,
+                "Документи",
+                f"Файл збережено, але не вдалося додати його у «Документи»:\n{exc}",
+            )
+
+    def _on_proposal_pdf(self):
+        """Згенерувати комерційну пропозицію (PDF) для замовника."""
+        if not self._products and not self._works:
+            QMessageBox.information(
+                self,
+                "Комерційна пропозиція",
+                "У проєкті немає виробів і робіт — немає що пропонувати.",
+            )
+            return
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        items = []
+        for p in self._products:
+            qty = float(p.get("quantity") or 1) or 1
+            total = float(p.get("discounted_price") or 0) or float(p.get("total_price") or 0)
+            items.append(
+                {
+                    "name": p.get("name", ""),
+                    "description": str(p.get("product_type", "")),
+                    "quantity": qty,
+                    "unit": "шт",
+                    "price": round(total / qty, 2),
+                }
+            )
+        for w in self._works:
+            qty = float(w.get("quantity") or 1) or 1
+            total = float(w.get("total_price") or 0)
+            items.append(
+                {
+                    "name": w.get("work_name", ""),
+                    "description": "Монтажні роботи",
+                    "quantity": qty,
+                    "unit": w.get("unit", "шт"),
+                    "price": round(total / qty, 2),
+                }
+            )
+        default = f"КП_{self._safe_filename(name)}.pdf"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти комерційну пропозицію",
+            default,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        project_data = {
+            "name": name,
+            "project_number": self._project_data.get("project_number", ""),
+            "client": self._project_data.get("client", ""),
+            "address": self._project_data.get("address", ""),
+        }
+        try:
+            generate_proposal(project_data, items, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати КП:\n{exc}")
+            return
+        self._register_document("кп", path)
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Комерційну пропозицію збережено:\n{path}\n\nВідкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
     def _on_material_order(self):
         """Розрахувати заявку на матеріали за виробами проєкту та зберегти в Excel."""
         if not self._products:
@@ -747,6 +837,7 @@ class ProjectCardDialog(QDialog):
         except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати заявку:\n{exc}")
             return
+        self._register_document("заявка", path)
         answer = QMessageBox.question(
             self,
             "Готово",
@@ -788,6 +879,12 @@ class ProjectCardDialog(QDialog):
         self.docs_table.setColumnWidth(5, 100)
         self._populate_documents()
         actions = QHBoxLayout()
+        btn_add_doc = QPushButton("➕ Додати файл…")
+        btn_add_doc.setToolTip(
+            "Прикріпити довільний файл до документів проєкту (зберігається у базі)"
+        )
+        btn_add_doc.clicked.connect(self._on_add_document)
+        actions.addWidget(btn_add_doc)
         actions.addStretch()
         btn_export = QPushButton("💾 Експортувати вибраний")
         btn_export.clicked.connect(self._export_document)
@@ -807,6 +904,9 @@ class ProjectCardDialog(QDialog):
             "calc": "Калькуляція",
             "metal": "Метал",
             "order": "Наряд",
+            "заявка": "Заявка на матеріали",
+            "кп": "КП (PDF)",
+            "файл": "Файл",
         }
         for doc in self._documents:
             row = [
@@ -824,6 +924,31 @@ class ProjectCardDialog(QDialog):
     def _refresh_documents(self):
         self._documents = ProjectDocumentRepository.get_by_project(self.project_id)
         self._populate_documents()
+
+    MAX_DOC_FILE_MB = 25
+
+    def _on_add_document(self):
+        """Прикріпити файли з диску до документів проєкту."""
+        paths, _selected = QFileDialog.getOpenFileNames(
+            self,
+            "Додати файли у документи проєкту",
+            "",
+            "Усі файли (*.*)",
+        )
+        for path in paths:
+            try:
+                size = os.path.getsize(path)
+            except OSError as exc:
+                QMessageBox.warning(self, "Документи", f"Не вдалося прочитати файл:\n{path}\n{exc}")
+                continue
+            if size > self.MAX_DOC_FILE_MB * 1024 * 1024:
+                QMessageBox.warning(
+                    self,
+                    "Файл завеликий",
+                    f"Файл більший за {self.MAX_DOC_FILE_MB} МБ — пропущено:\n{path}",
+                )
+                continue
+            self._register_document("файл", path)
 
     # ── Креслення проєкту ──
 

@@ -159,19 +159,34 @@ class ProposalPDF(FPDF):
         self.set_text_color(255, 255, 255)
         self.set_xy(120, 8)
         self.cell(
-            80, 5, f"📍 {_clean(self.data.company_address)}", align="R", new_x="RIGHT", new_y="NEXT"
+            80, 5, f"{_clean(self.data.company_address)}", align="R", new_x="RIGHT", new_y="NEXT"
         )
         self.set_x(120)
         self.cell(
-            80, 5, f"📞 {_clean(self.data.company_phone)}", align="R", new_x="RIGHT", new_y="NEXT"
+            80,
+            5,
+            f"Тел.: {_clean(self.data.company_phone)}",
+            align="R",
+            new_x="RIGHT",
+            new_y="NEXT",
         )
         self.set_x(120)
         self.cell(
-            80, 5, f"✉ {_clean(self.data.company_email)}", align="R", new_x="RIGHT", new_y="NEXT"
+            80,
+            5,
+            f"E-mail: {_clean(self.data.company_email)}",
+            align="R",
+            new_x="RIGHT",
+            new_y="NEXT",
         )
         self.set_x(120)
         self.cell(
-            80, 5, f"🌐 {_clean(self.data.company_website)}", align="R", new_x="RIGHT", new_y="NEXT"
+            80,
+            5,
+            f"Web: {_clean(self.data.company_website)}",
+            align="R",
+            new_x="RIGHT",
+            new_y="NEXT",
         )
 
         self.ln(20)
@@ -346,10 +361,10 @@ class ProposalPDF(FPDF):
         self._color(50, 50, 50)
 
         terms = [
-            ("⏱️ Термін виготовлення:", f"{self.data.delivery_days} робочих днів"),
-            ("🔧 Термін монтажу:", f"{self.data.installation_days} робочих днів"),
-            ("🛡️ Гарантія:", f"{self.data.warranty_months} місяців"),
-            ("💳 Умови оплати:", _clean(self.data.payment_terms)),
+            ("Термін виготовлення:", f"{self.data.delivery_days} робочих днів"),
+            ("Термін монтажу:", f"{self.data.installation_days} робочих днів"),
+            ("Гарантія:", f"{self.data.warranty_months} місяців"),
+            ("Умови оплати:", _clean(self.data.payment_terms)),
         ]
 
         for label, value in terms:
