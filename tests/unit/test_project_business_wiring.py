@@ -64,19 +64,20 @@ class TestWorkEditDialogWorkRates:
 
 class TestComponentPickerDialog:
     def test_lists_components_with_prices(self, qapp, business_settings):
-        dlg = ComponentPickerDialog()
+        dlg = ComponentPickerDialog(project_id=1)
         assert dlg.table.rowCount() == len(business_settings.components)
         first_key = dlg._keys[0]
         display = dlg.table.item(0, 0).text()
         assert display == first_key.replace("_", " ")
 
     def test_get_data_returns_expense_fields(self, qapp, business_settings):
-        dlg = ComponentPickerDialog()
+        dlg = ComponentPickerDialog(project_id=1)
         idx = dlg._keys.index("фільтр_грубої_очистки")
         dlg.table.selectRow(idx)
         dlg.spin_qty.setValue(3)
         data = dlg.get_data()
         assert data is not None
+        assert data["project_id"] == 1
         assert data["expense_name"] == "фільтр грубої очистки"
         assert data["quantity"] == 3
         assert data["unit_price"] == pytest.approx(1200.0)
@@ -89,7 +90,7 @@ class TestComponentPickerDialog:
         filepath.write_text('{"components": {}}', encoding="utf-8")
         bs_module.BusinessSettings._instance = None
         BusinessSettings.get_instance(str(filepath))
-        dlg = ComponentPickerDialog()
+        dlg = ComponentPickerDialog(project_id=1)
         assert dlg.table.rowCount() == 0
         assert dlg.get_data() is None
         bs_module.BusinessSettings._instance = None

@@ -185,8 +185,9 @@ class ExpenseEditDialog(QDialog):
 class ComponentPickerDialog(QDialog):
     """Вибір комплектуючої з бізнес-налаштувань для додавання у витрати проєкту."""
 
-    def __init__(self, parent=None):
+    def __init__(self, project_id: int, parent=None):
         super().__init__(parent)
+        self.project_id = project_id
         self.setWindowTitle("Комплектуючі системи вентиляції")
         self.setMinimumSize(480, 380)
         self._build_ui()
@@ -244,6 +245,7 @@ class ComponentPickerDialog(QDialog):
         qty = self.spin_qty.value()
         price = float(data.get("ціна", 0) or 0)
         return {
+            "project_id": self.project_id,
             "expense_name": key.replace("_", " "),
             "quantity": qty,
             "unit": str(data.get("одиниця", "шт")),
@@ -996,7 +998,7 @@ class ProjectCardDialog(QDialog):
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати: {e}")
 
     def _on_add_component(self):
-        dlg = ComponentPickerDialog(parent=self)
+        dlg = ComponentPickerDialog(self.project_id, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         data = dlg.get_data()
