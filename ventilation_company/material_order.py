@@ -21,6 +21,18 @@ from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.pricing_settings import PricingSettings
 
 
+def _to_float(value: object, default: float = 0.0) -> float:
+    """Безпечне перетворення у float.
+
+    Ціни/кількості у файлах налаштувань можуть бути збережені рядками
+    («180», «1 598,15») — інакше float × str давав би TypeError.
+    """
+    try:
+        return float(str(value).replace(",", ".").replace(" ", ""))
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class MaterialItem:
     """Один рядок заявки на матеріали."""
@@ -166,7 +178,7 @@ class MaterialCalculator:
             # Невідомий матеріал/товщина → ціна 0, як і раніше.
             pricing = PricingSettings.get_instance()
             pricing.reload()
-            price = pricing.material_prices.get(material, {}).get(str(thickness), 0)
+            price = _to_float(pricing.material_prices.get(material, {}).get(str(thickness), 0))
 
             self.items.append(
                 MaterialItem(
@@ -251,8 +263,10 @@ class MaterialCalculator:
                     specification="ISOVER Венті 50 мм, 1000×600 мм",
                     unit="м²",
                     quantity=round(insulated_m2, 1),
-                    price_per_unit=BusinessSettings.get_instance().get_extra_material_price(
-                        "ізоляція_мінвата", default=180
+                    price_per_unit=_to_float(
+                        BusinessSettings.get_instance().get_extra_material_price(
+                            "ізоляція_мінвата", default=180
+                        )
                     ),
                     notes="З урахуванням 15% відходів",
                 )
@@ -273,7 +287,7 @@ class MaterialCalculator:
         for comp_name, comp_qty in components_needed.items():
             comp_key = comp_name.lower().replace(" ", "_")
             comp_data = BusinessSettings.get_instance().get_component(comp_key)
-            price = comp_data.get("ціна", 0)
+            price = _to_float(comp_data.get("ціна", 0))
             unit = comp_data.get("одиниця", "шт")
             self.items.append(
                 MaterialItem(

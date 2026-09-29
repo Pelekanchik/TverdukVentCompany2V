@@ -191,9 +191,17 @@ class BusinessSettings:
         return self.components.get(key, {})
 
     def get_extra_material_price(self, key: str, default: float = 0.0) -> float:
-        """Ціна за м² додаткового матеріалу (ізоляція тощо)."""
+        """Ціна за м² додаткового матеріалу (ізоляція тощо).
+
+        У JSON ціна може бути збережена рядком («180») — безпечно
+        перетворюємо на float, при помилці повертаємо default.
+        """
         self.reload()
-        return self.extra_materials.get(key, {}).get("ціна_за_м2", default)
+        raw = self.extra_materials.get(key, {}).get("ціна_за_м2", default)
+        try:
+            return float(str(raw).replace(",", ".").replace(" ", ""))
+        except (TypeError, ValueError):
+            return float(default)
 
     def get_position(self, name: str) -> dict:
         """Ставка та премія посади; нульові значення, якщо невідомо."""

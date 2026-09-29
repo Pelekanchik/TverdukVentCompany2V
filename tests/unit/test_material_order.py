@@ -46,6 +46,16 @@ class _BusinessStub:
         return {}
 
 
+class _BusinessStringStub(_BusinessStub):
+    """Імітує реальний файл, де ціни збережені рядками («180»)."""
+
+    def get_extra_material_price(self, key, default=0):
+        return "180"
+
+    def get_component(self, key):
+        return {"ціна": "1 598,15", "одиниця": "шт"}
+
+
 @pytest.fixture(autouse=True)
 def _stub_settings(monkeypatch):
     """Не читаємо реальні файли налаштувань у юніт-тестах."""
@@ -88,6 +98,19 @@ class TestMaterialCalculator:
         order = calculate_material_order([], project_name="Порожній")
         assert order.items
         assert all(i.category == "Розхідні матеріали" for i in order.items)
+
+    def test_string_prices_do_not_break_total(self, monkeypatch):
+        """Регресія: ціни-рядки з business_settings.json («180») не дають TypeError."""
+        monkeypatch.setattr(
+            "ventilation_company.services.business_settings.BusinessSettings.get_instance",
+            staticmethod(lambda: _BusinessStringStub()),
+        )
+        order = calculate_material_order(PRODUCTS, project_name="Тест")
+        assert isinstance(order.total_cost, float)
+        wool = [i for i in order.get_by_category("Ізоляція") if "вата" in i.name]
+        assert wool and wool[0].price_per_unit == 180.0
+        comp = order.get_by_category("Комплектуючі")
+        assert comp and comp[0].price_per_unit == 1598.15
 
 
 class TestMaterialOrderExporter:
