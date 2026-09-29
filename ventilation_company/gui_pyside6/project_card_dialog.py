@@ -12,8 +12,8 @@ import os
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
+from PySide6.QtCore import QDate, Qt, QUrl, Signal
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -41,6 +41,9 @@ from ventilation_company.database.repositories.payment_repo import PaymentReposi
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
+)
+from ventilation_company.database.repositories.project_drawing_repo import (
+    ProjectDrawingRepository,
 )
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
@@ -305,6 +308,36 @@ class PaymentEditDialog(QDialog):
         }
 
 
+class DrawingsTable(QTableWidget):
+    """Таблиця креслень із підтримкою drag-and-drop файлів."""
+
+    filesDropped = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
+        if paths:
+            self.filesDropped.emit(paths)
+            event.acceptProposedAction()
+
+
+DRAWING_FILE_FILTER = (
+    "Креслення та моделі (*.dwg *.dxf *.pdf *.rvt *.rfa *.ifc "
+    "*.fcstd *.step *.stp);;Всі файли (*)"
+)
+
+
 class ProjectCardDialog(QDialog):
     def __init__(self, project_id: int, parent=None):
         super().__init__(parent)
@@ -319,6 +352,7 @@ class ProjectCardDialog(QDialog):
         self._works: list[dict] = []
         self._expenses: list[dict] = []
         self._payments: list[dict] = []
+        self._drawings: list[dict] = []
         self._worker: FunctionWorker | None = None
         self._build_ui()
         self._start_load()
@@ -338,6 +372,7 @@ class ProjectCardDialog(QDialog):
         works = ProjectWorkRepository.get_all(self.project_id)
         expenses = ProjectExpenseRepository.get_all(self.project_id)
         documents = ProjectDocumentRepository.get_by_project(self.project_id)
+        drawings = ProjectDrawingRepository.get_by_project(self.project_id)
         payments = PaymentRepository.list_by_project(self.project_id)
         paid_total = sum(
             float(p.get("amount") or 0)
@@ -381,6 +416,7 @@ class ProjectCardDialog(QDialog):
             "project": project_data,
             "products": products,
             "documents": documents,
+            "drawings": drawings,
             "works": works,
             "expenses": expenses,
             "payments": payments,
@@ -414,6 +450,7 @@ class ProjectCardDialog(QDialog):
         self._project_data = project
         self._products = result["products"]
         self._documents = result["documents"]
+        self._drawings = result["drawings"]
         self._works = result["works"]
         self._expenses = result["expenses"]
         self._payments = result["payments"]
@@ -442,6 +479,7 @@ class ProjectCardDialog(QDialog):
         self._populate_info_tab()
         self._populate_products()
         self._populate_documents()
+        self._populate_drawings()
         self._populate_works()
         self._populate_expenses()
         self._populate_payments()
@@ -462,6 +500,7 @@ class ProjectCardDialog(QDialog):
         self.tabs.addTab(self._build_info_tab(), "ℹ️ Інформація")
         self.tabs.addTab(self._build_products_tab(), "🔧 Деталі")
         self.tabs.addTab(self._build_documents_tab(), "📄 Документи")
+        self.tabs.addTab(self._build_drawings_tab(), "📐 Креслення")
         self.tabs.addTab(self._build_works_tab(), "🔨 Роботи")
         self.tabs.addTab(self._build_expenses_tab(), "💸 Витрати")
         self.tabs.addTab(self._build_payments_tab(), "💳 Оплати")
@@ -716,6 +755,153 @@ class ProjectCardDialog(QDialog):
     def _refresh_documents(self):
         self._documents = ProjectDocumentRepository.get_by_project(self.project_id)
         self._populate_documents()
+
+    # ── Креслення проєкту ──
+
+    def _build_drawings_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        top = QHBoxLayout()
+        self._lbl_drawings_count = QLabel("📐 Креслення (…)")
+        self._lbl_drawings_count.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        top.addWidget(self._lbl_drawings_count)
+        top.addStretch()
+        btn_add = QPushButton("➕ Додати файли…")
+        btn_add.clicked.connect(self._on_add_drawings)
+        top.addWidget(btn_add)
+        layout.addLayout(top)
+
+        hint = QLabel(
+            "DWG · DXF · PDF · Revit · FreeCAD. Можна перетягнути файли мишкою прямо в таблицю. "
+            "Подвійний клік — відкрити."
+        )
+        hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        layout.addWidget(hint)
+
+        self.drawings_table = DrawingsTable()
+        self.drawings_table.setColumnCount(5)
+        self.drawings_table.setHorizontalHeaderLabels(["Назва", "Тип", "Шлях", "Примітка", "Дата"])
+        self.drawings_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.drawings_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.drawings_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.drawings_table.setAlternatingRowColors(True)
+        self.drawings_table.verticalHeader().setVisible(False)
+        self.drawings_table.itemDoubleClicked.connect(self._on_open_drawing)
+        self.drawings_table.filesDropped.connect(self._add_drawing_paths)
+        layout.addWidget(self.drawings_table)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        btn_open = QPushButton("📂 Відкрити")
+        btn_open.clicked.connect(self._on_open_drawing)
+        actions.addWidget(btn_open)
+        btn_del = QPushButton("🗑️ Видалити")
+        btn_del.setStyleSheet(f"color: {Theme.DANGER};")
+        btn_del.clicked.connect(self._on_delete_drawing)
+        actions.addWidget(btn_del)
+        layout.addLayout(actions)
+        return tab
+
+    def _populate_drawings(self):
+        self._lbl_drawings_count.setText(f"📐 Креслення ({len(self._drawings)})")
+        self.drawings_table.setRowCount(0)
+        for d in self._drawings:
+            row = self.drawings_table.rowCount()
+            self.drawings_table.insertRow(row)
+            values = [
+                d["filename"],
+                d["drawing_type"],
+                d["file_path"],
+                d.get("notes") or "",
+                str(d.get("created_at") or "")[:16] or "—",
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col == 0:
+                    item.setData(Qt.ItemDataRole.UserRole, d["id"])
+                self.drawings_table.setItem(row, col, item)
+        self.drawings_table.resizeColumnsToContents()
+        self.drawings_table.horizontalHeader().setStretchLastSection(True)
+
+    def _on_add_drawings(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Оберіть креслення або моделі", "", DRAWING_FILE_FILTER
+        )
+        if paths:
+            self._add_drawing_paths(paths)
+
+    def _add_drawing_paths(self, paths: list):
+        added = 0
+        for path in paths:
+            try:
+                ProjectDrawingRepository.create(
+                    project_id=self.project_id,
+                    filename=os.path.basename(path),
+                    file_path=os.path.abspath(path),
+                    drawing_type=self._guess_drawing_type(path),
+                )
+                added += 1
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося додати {path}:\n{e}")
+        if added:
+            QMessageBox.information(self, "Успіх", f"Додано креслень: {added}")
+            self._reload_all()
+
+    @staticmethod
+    def _guess_drawing_type(path: str) -> str:
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".rvt", ".rfa", ".ifc", ".fcstd", ".step", ".stp"):
+            return "модель"
+        if "детал" in os.path.basename(path).lower():
+            return "деталювання"
+        return "креслення"
+
+    def _selected_drawing(self) -> dict | None:
+        row = self.drawings_table.currentRow()
+        if row < 0:
+            return None
+        item = self.drawings_table.item(row, 0)
+        drawing_id = item.data(Qt.ItemDataRole.UserRole) if item else None
+        for d in self._drawings:
+            if d["id"] == drawing_id:
+                return d
+        return None
+
+    def _on_open_drawing(self, *_args):
+        drawing = self._selected_drawing()
+        if not drawing:
+            QMessageBox.warning(self, "Увага", "Оберіть креслення для відкриття")
+            return
+        path = drawing["file_path"]
+        if not os.path.exists(path):
+            QMessageBox.critical(
+                self,
+                "Файл не знайдено",
+                f"Файл не знайдено за шляхом:\n{path}\n\n"
+                "Можливо, його переміщено або перейменовано.",
+            )
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
+    def _on_delete_drawing(self):
+        drawing = self._selected_drawing()
+        if not drawing:
+            QMessageBox.warning(self, "Увага", "Оберіть креслення для видалення")
+            return
+        reply = QMessageBox.question(
+            self,
+            "Видалення",
+            f"Видалити посилання на «{drawing['filename']}»?\nФайл на диску не чіпатиметься.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                ProjectDrawingRepository.delete(drawing["id"])
+                self._reload_all()
+                QMessageBox.information(self, "Успіх", "Посилання видалено")
+            except Exception as e:
+                QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
     def _get_selected_doc_id(self):
         idx = self.docs_table.currentIndex()

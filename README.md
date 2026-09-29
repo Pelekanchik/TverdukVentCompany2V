@@ -30,7 +30,7 @@ VentCompany — desktop-додаток для автоматизації роб�
 | GUI | PySide6 (Qt6), QSS-теми (Catppuccin Mocha / Light) |
 | База даних | PostgreSQL 14+ (прод), фейки/SQLite у тестах |
 | ORM | SQLAlchemy 2.0 |
-| Міграції | Alembic (`migrations/`, поточна head — `008`) |
+| Міграції | Alembic (`migrations/`, поточна head — `009`) |
 | Аутентифікація | bcrypt, політика паролів, rate limiting, audit log |
 | Експорт | pandas, openpyxl, reportlab, fpdf2, matplotlib |
 | 3D / геометрія | Власні модулі `project3d/`, `freecad_geometry.py` (опційно VTK/pyvista) |
@@ -124,12 +124,12 @@ python main_pyside6.py
 
 ## 🗄️ База даних
 
-PostgreSQL, 32 таблиці (перевірено запитом до БД):
+PostgreSQL, 33 таблиці (перевірено запитом до БД):
 
 | Домен | Таблиці |
 |-------|---------|
 | Користувачі та аудит | `users`, `audit_logs` |
-| Проєкти | `projects`, `project_products`, `project_components`, `project_materials`, `project_works`, `project_expenses`, `project_documents`, `payments` |
+| Проєкти | `projects`, `project_products`, `project_components`, `project_materials`, `project_works`, `project_expenses`, `project_documents`, `project_drawings`, `payments` |
 | Клієнти (CRM) | `clients`, `interactions`, `client_projects`, `warranty_reminders` |
 | Вироби та каталоги | `product_types`, `product_subtypes`, `subtype_materials`, `size_ranges`, `product_items`, `standard_products_library`, `works_catalog` |
 | Розрахунки | `calculations`, `calc_calculations`, `calc_items`, `calc_templates` |
@@ -152,7 +152,7 @@ TverdukVentCompany2V/
 ├── requirements-optional.txt       # Опційні (3D, AutoCAD, вебв'ю)
 ├── pyproject.toml                  # Конфіг ruff/black
 ├── .github/workflows/ci.yml        # CI: ruff + black + pytest
-├── migrations/                     # Alembic-міграції (head: 008)
+├── migrations/                     # Alembic-міграції (head: 009)
 ├── data/                           # Локальні дані (business_settings.json, бекапи)
 ├── ventilation_company/
 │   ├── auth/                       # Автентифікація, ролі, дозволи

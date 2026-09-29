@@ -71,6 +71,7 @@ FAKE_DATA = {
         }
     ],
     "expenses": [],
+    "drawings": [],
     "payments": [
         {
             "id": 1,
