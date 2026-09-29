@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ventilation_company.material_order import (
     MaterialOrderExporter,
@@ -57,6 +57,13 @@ def _stub_settings(monkeypatch):
         "ventilation_company.services.business_settings.BusinessSettings.get_instance",
         staticmethod(lambda: _BusinessStub()),
     )
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    """Власна фікстура QApplication (pytest-qt у CI не встановлено)."""
+    app = QApplication.instance() or QApplication([])
+    yield app
 
 
 class TestMaterialCalculator:
