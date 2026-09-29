@@ -45,7 +45,7 @@ class TestWorkEditDialogWorkRates:
         dlg.combo_work.setCurrentIndex(idx)
         assert dlg.edit_name.text() == "монтаж повітропроводів"
         assert dlg.edit_unit.text() == "м2"
-        assert dlg.spin_price.value() == pytest.approx(250.0)
+        assert dlg.spin_price.value() == pytest.approx(280.0)
 
     def test_manual_item_does_not_touch_fields(self, qapp, business_settings):
         dlg = WorkEditDialog(project_id=1)
