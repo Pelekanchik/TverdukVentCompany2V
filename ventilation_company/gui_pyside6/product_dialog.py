@@ -35,6 +35,10 @@ from ventilation_company.calculations.cost_engine import (
 from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.pricing_settings import (
+    DEFAULT_MATERIAL_PRICES,
+    PricingSettings,
+)
 
 SCHEMAS = {
     "Відвод круглий": "",
@@ -320,17 +324,29 @@ class ProductDialog(QDialog):
         form.addRow(self.group_dynamic)
 
         self.group_material = QGroupBox("Матеріал")
-        mat_layout = QHBoxLayout(self.group_material)
+        mat_layout = QVBoxLayout(self.group_material)
+        mat_row = QHBoxLayout()
         self.combo_material = QComboBox()
-        self.combo_material.addItems(["Оцинкована сталь", "Нержавіюча сталь", "Алюміній"])
-        self.combo_material.setCurrentText(self._data.get("material", "Оцинкована сталь"))
-        mat_layout.addWidget(self.combo_material)
+        self._material_price_map = self._load_material_prices()
+        material_names = [m.capitalize() for m in self._material_price_map]
+        self.combo_material.addItems(material_names)
+        saved_material = str(self._data.get("material", "Оцинкована сталь"))
+        if saved_material.lower() not in [m.lower() for m in material_names]:
+            # Матеріалу немає в «Ціноутворенні» — додаємо, щоб не втратити дані
+            self.combo_material.addItem(saved_material)
+        self.combo_material.setCurrentText(saved_material)
+        mat_row.addWidget(self.combo_material)
         self.combo_thickness = QComboBox()
-        self.combo_thickness.addItems(["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"])
-        self.combo_thickness.setCurrentText(str(self._data.get("thickness", "0.7")))
-        mat_layout.addWidget(QLabel("Товщина:"))
-        mat_layout.addWidget(self.combo_thickness)
+        mat_row.addWidget(QLabel("Товщина:"))
+        mat_row.addWidget(self.combo_thickness)
+        mat_layout.addLayout(mat_row)
+        self.lbl_metal_price = QLabel("")
+        self.lbl_metal_price.setStyleSheet("font-size: 12px;")
+        mat_layout.addWidget(self.lbl_metal_price)
         form.addRow(self.group_material)
+        self._on_material_changed()
+        self.combo_material.currentTextChanged.connect(self._on_material_changed)
+        self.combo_thickness.currentTextChanged.connect(self._on_thickness_changed)
 
         self.group_flanges = QGroupBox("Фланці")
         fl_layout = QHBoxLayout(self.group_flanges)
@@ -453,6 +469,85 @@ class ProductDialog(QDialog):
     def _add_dynamic_field(self, label: str, widget, row: int, col: int = 0):
         self.dynamic_layout.addWidget(QLabel(label), row, col)
         self.dynamic_layout.addWidget(widget, row, col + 1)
+
+    # ── Матеріал і товщина: автопідтягування цін з «Ціноутворення» ──
+
+    @staticmethod
+    def _load_material_prices() -> dict[str, dict]:
+        """Ціни на метал з «Ціноутворення» (material → {thickness: price})."""
+        try:
+            pricing = PricingSettings.get_instance()
+            with contextlib.suppress(Exception):
+                pricing.reload()
+            data = pricing.material_prices or {}
+        except Exception:  # noqa: BLE001 — при будь-якій помилці працюємо на дефолтах
+            data = {}
+        if not data:
+            data = DEFAULT_MATERIAL_PRICES
+        return {
+            str(mat): {str(th): price for th, price in ths.items()}
+            for mat, ths in data.items()
+            if isinstance(ths, dict)
+        }
+
+    def _current_material_key(self) -> str:
+        text = self.combo_material.currentText().lower()
+        for key in self._material_price_map:
+            if key.lower() == text:
+                return key
+        return text
+
+    @staticmethod
+    def _to_price(value: object) -> float:
+        try:
+            return float(str(value).replace(",", ".").replace(" ", ""))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _current_metal_price(self) -> float:
+        ths = self._material_price_map.get(self._current_material_key(), {})
+        return self._to_price(ths.get(self.combo_thickness.currentText(), 0))
+
+    def _update_metal_price_label(self):
+        price = self._current_metal_price()
+        if price > 0:
+            self.lbl_metal_price.setText(f"💰 Ціна металу: ₴ {price:,.2f}/м² (з «Ціноутворення»)")
+            self.lbl_metal_price.setStyleSheet("font-size: 12px; color: #16a34a;")
+        else:
+            self.lbl_metal_price.setText(
+                "⚠️ Ціну для цієї пари матеріал/товщина не знайдено в «Ціноутворенні» — "
+                "у розрахунку буде резервна ціна"
+            )
+            self.lbl_metal_price.setStyleSheet("font-size: 12px; color: #d97706;")
+
+    def _on_material_changed(self, *_args):
+        """Матеріал змінився: оновлюємо список товщин і ціну."""
+        ths = self._material_price_map.get(self._current_material_key(), {})
+        prev = self.combo_thickness.currentText()
+        self.combo_thickness.clear()
+        thicknesses = sorted(ths, key=lambda t: self._to_price(t))
+        if not thicknesses:
+            thicknesses = ["0.5", "0.7", "0.9", "1.0", "1.2", "1.5", "2.0"]
+        self.combo_thickness.addItems(thicknesses)
+        if not getattr(self, "_material_initialized", False):
+            # Перше заповнення — відновлюємо товщину з даних виробу
+            self._material_initialized = True
+            saved = str(self._data.get("thickness", "0.7"))
+            target = saved if saved in thicknesses else "0.7"
+        else:
+            # Подальші зміни матеріалу — намагаємось зберегти поточну товщину
+            target = prev if prev in thicknesses else "0.7"
+        if target not in thicknesses:
+            # Найближча до попередньої доступна товщина
+            target = min(thicknesses, key=lambda t: abs(self._to_price(t) - self._to_price(prev)))
+        self.combo_thickness.setCurrentText(target)
+        self._update_metal_price_label()
+
+    def _on_thickness_changed(self, *_args):
+        self._update_metal_price_label()
+        # Якщо розрахунок уже виконано — автоматично перераховуємо з новою ціною
+        if self._calc_result is not None:
+            self._on_calc()
 
     def _on_type_changed(self, text: str):
         self._clear_dynamic()
