@@ -50,6 +50,10 @@ from ventilation_company.database.repositories.project_repo import ProjectReposi
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.material_order import (
+    calculate_material_order,
+    export_material_order_to_excel,
+)
 from ventilation_company.services.business_settings import BusinessSettings
 
 
@@ -654,6 +658,16 @@ class ProjectCardDialog(QDialog):
         )
         self.products_table.setModel(self.products_model)
         self._populate_products()
+        actions = QHBoxLayout()
+        actions.addStretch()
+        btn_materials = QPushButton("📦 Замовлення матеріалів…")
+        btn_materials.setToolTip(
+            "Розрахувати потребу в матеріалах за виробами проєкту "
+            "(метал, ущільнювачі, кріплення, ізоляція) та зберегти заявку в Excel"
+        )
+        btn_materials.clicked.connect(self._on_material_order)
+        actions.addWidget(btn_materials)
+        layout.addLayout(actions)
         return tab
 
     def _populate_products(self):
@@ -688,6 +702,52 @@ class ProjectCardDialog(QDialog):
             if disc > 0:
                 row[8].setForeground(QBrush(QColor(Theme.WARNING)))
             self.products_model.appendRow(row)
+
+    @staticmethod
+    def _safe_filename(name: str) -> str:
+        """Придатне для файлу ім'я проєкту."""
+        forbidden = '<>:"/\\|?*'
+        cleaned = "".join("_" if ch in forbidden else ch for ch in name).strip()
+        return cleaned[:60] or "проєкт"
+
+    def _on_material_order(self):
+        """Розрахувати заявку на матеріали за виробами проєкту та зберегти в Excel."""
+        if not self._products:
+            QMessageBox.information(
+                self,
+                "Замовлення матеріалів",
+                "У проєкті ще немає виробів — нічого розраховувати.\n"
+                "Спочатку додайте вироби на вкладці «Деталі».",
+            )
+            return
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        default = f"Заявка_матеріали_{self._safe_filename(name)}.xlsx"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти заявку на матеріали",
+            default,
+            "Excel (*.xlsx)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".xlsx"):
+            path += ".xlsx"
+        try:
+            order = calculate_material_order(self._products, project_name=name)
+            export_material_order_to_excel(order, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати заявку:\n{exc}")
+            return
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Заявку на матеріали збережено:\n{path}\n\n"
+            f"Позицій: {order.total_items}, орієнтовна сума: ₴ {order.total_cost:,.2f}\n\n"
+            "Відкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _build_documents_tab(self):
         tab = QWidget()

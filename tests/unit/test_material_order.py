@@ -1,0 +1,185 @@
+"""Тести заявки на матеріали: калькулятор, Excel-експортер, кнопка у картці проєкту."""
+
+import time
+
+import pytest
+
+pytest.importorskip("PySide6")
+
+from PySide6.QtWidgets import QMessageBox
+
+from ventilation_company.material_order import (
+    MaterialOrderExporter,
+    calculate_material_order,
+)
+
+PRODUCTS = [
+    {
+        "name": "Повітропровід",
+        "product_type": "повітропровід прямокутний",
+        "material": "оцинкована сталь",
+        "thickness": 0.7,
+        "width": 400,
+        "height": 200,
+        "length": 1000,
+        "quantity": 10,
+        "metal_area_m2": 1.2,
+        "has_flanges": True,
+        "flange_count": 2,
+        "components": ["Вентилятор"],
+    }
+]
+
+
+class _PricingStub:
+    material_prices: dict = {}
+
+    def reload(self):
+        return None
+
+
+class _BusinessStub:
+    def get_extra_material_price(self, key, default=0):
+        return default
+
+    def get_component(self, key):
+        return {}
+
+
+@pytest.fixture(autouse=True)
+def _stub_settings(monkeypatch):
+    """Не читаємо реальні файли налаштувань у юніт-тестах."""
+    monkeypatch.setattr(
+        "ventilation_company.services.pricing_settings.PricingSettings.get_instance",
+        staticmethod(lambda: _PricingStub()),
+    )
+    monkeypatch.setattr(
+        "ventilation_company.services.business_settings.BusinessSettings.get_instance",
+        staticmethod(lambda: _BusinessStub()),
+    )
+
+
+class TestMaterialCalculator:
+    def test_calculator_covers_all_categories(self):
+        order = calculate_material_order(PRODUCTS, project_name="Тест")
+        cats = {i.category for i in order.items}
+        assert "Листовий метал" in cats
+        assert "Ущільнювачі" in cats
+        assert "Кріплення" in cats
+        assert "Ізоляція" in cats
+        assert "Комплектуючі" in cats
+        assert "Розхідні матеріали" in cats
+        assert order.project_name == "Тест"
+
+    def test_bolt_count_medium_flange(self):
+        # max_dim = 400 → 6 болтів на фланець; 2 фланці × 10 виробів = 20 фланців → 120
+        order = calculate_material_order(PRODUCTS, project_name="Тест")
+        bolts = [i for i in order.get_by_category("Кріплення") if i.name.startswith("Болт")]
+        assert bolts and bolts[0].quantity == 120
+
+    def test_empty_products_gives_only_consumables(self):
+        order = calculate_material_order([], project_name="Порожній")
+        assert order.items
+        assert all(i.category == "Розхідні матеріали" for i in order.items)
+
+
+class TestMaterialOrderExporter:
+    def test_export_creates_excel(self, tmp_path):
+        from openpyxl import load_workbook
+
+        order = calculate_material_order(PRODUCTS, project_name="Тест")
+        path = tmp_path / "заявка.xlsx"
+        MaterialOrderExporter(order).export(str(path))
+        assert path.exists()
+        wb = load_workbook(path)
+        ws = wb.active
+        assert "ЗАЯВКА НА МАТЕРІАЛИ" in ws["A1"].value
+        assert "Тест" in ws["A1"].value
+
+
+CARD_DATA = {
+    "project": {
+        "id": 1,
+        "name": "Тестовий проєкт",
+        "project_number": "PRJ-2026-001",
+        "client": "ТОВ «Клієнт»",
+        "status": "в роботі",
+        "created_at": "2026-09-27 10:00",
+        "cost_price": 5000.0,
+        "customer_price": 8000.0,
+        "discounted_price": 0,
+        "works_total": 0.0,
+        "plus_expenses_total": 0.0,
+        "minus_expenses_total": 0.0,
+        "paid_total": 0.0,
+    },
+    "products": PRODUCTS,
+    "documents": [],
+    "drawings": [],
+    "works": [],
+    "expenses": [],
+    "payments": [],
+}
+
+
+def _wait_worker(qapp, dlg, iterations=500):
+    for _ in range(iterations):
+        qapp.processEvents()
+        if dlg._worker is None:
+            return True
+        time.sleep(0.001)
+    return False
+
+
+class TestMaterialOrderButton:
+    def test_button_saves_excel(self, qapp, monkeypatch, tmp_path):
+        from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+
+        monkeypatch.setattr(ProjectCardDialog, "_fetch_data", lambda self: CARD_DATA)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.warning", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.critical", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.information", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            staticmethod(lambda *a, **k: QMessageBox.StandardButton.No),
+        )
+        out = tmp_path / "заявка.xlsx"
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QFileDialog.getSaveFileName",
+            staticmethod(lambda *a, **k: (str(out), "Excel (*.xlsx)")),
+        )
+
+        dlg = ProjectCardDialog(1)
+        assert _wait_worker(qapp, dlg), "worker завис"
+        dlg._on_material_order()
+        assert out.exists()
+        dlg.close()
+
+    def test_no_products_shows_info_and_saves_nothing(self, qapp, monkeypatch, tmp_path):
+        from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+
+        data = dict(CARD_DATA)
+        data["products"] = []
+        monkeypatch.setattr(ProjectCardDialog, "_fetch_data", lambda self: data)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.warning", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.critical", staticmethod(lambda *a, **k: None)
+        )
+        called = {"info": False}
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.information",
+            staticmethod(lambda *a, **k: called.__setitem__("info", True)),
+        )
+        dlg = ProjectCardDialog(1)
+        assert _wait_worker(qapp, dlg), "worker завис"
+        dlg._on_material_order()
+        assert called["info"], "очікувалося вікно «немає виробів»"
+        dlg.close()
