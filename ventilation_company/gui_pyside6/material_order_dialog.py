@@ -1,0 +1,247 @@
+"""Діалог перевірки заявки на матеріали перед формуванням Excel.
+
+Розрахований список матеріалів показується у вигляді таблиці: користувач
+може змінити кількість, ціну, назву, специфікацію, видалити зайві позиції
+або додати власні — і лише потім сформувати Excel-файл заявки.
+"""
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.material_order import MaterialItem, MaterialOrder
+
+COLUMNS = [
+    "Категорія",
+    "Найменування",
+    "Специфікація",
+    "Од. вим.",
+    "Кількість",
+    "Ціна",
+    "Сума",
+    "Примітки",
+]
+# Колонки, доступні для редагування (сума — обчислювана)
+EDITABLE_COLUMNS = {0, 1, 2, 3, 4, 5, 7}
+QTY_COL = 4
+PRICE_COL = 5
+SUM_COL = 6
+
+
+def _parse_float(text: str) -> float:
+    try:
+        return float(text.replace(",", ".").replace(" ", ""))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+class MaterialOrderPreviewDialog(QDialog):
+    """Попередній перегляд і редагування заявки на матеріали."""
+
+    def __init__(self, order: MaterialOrder, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._order = order
+        self.setWindowTitle(f"Замовлення матеріалів — {order.project_name}")
+        self.setMinimumWidth(980)
+        self.setMinimumHeight(560)
+        self.resize(1050, 620)
+        self._updating_sum = False
+        self._build_ui()
+        self._populate()
+
+    # ── UI ──
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        self.lbl_info = QLabel()
+        self.lbl_info.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        layout.addWidget(self.lbl_info)
+
+        hint = QLabel(
+            "✏️ Відкорегуйте позиції: змініть кількість чи ціну, видаліть зайве "
+            "або додайте свій матеріал. Сума перераховується автоматично."
+        )
+        hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px;")
+        layout.addWidget(hint)
+
+        self.table = QTableWidget(0, len(COLUMNS))
+        self.table.setHorizontalHeaderLabels(COLUMNS)
+        self.table.setAlternatingRowColors(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.itemChanged.connect(self._on_item_changed)
+        self.table.setColumnWidth(0, 130)
+        self.table.setColumnWidth(1, 190)
+        self.table.setColumnWidth(2, 180)
+        self.table.setColumnWidth(3, 60)
+        self.table.setColumnWidth(4, 80)
+        self.table.setColumnWidth(5, 90)
+        self.table.setColumnWidth(6, 100)
+        self.table.setColumnWidth(7, 180)
+        layout.addWidget(self.table)
+
+        row_actions = QHBoxLayout()
+        btn_add = QPushButton("➕ Додати рядок")
+        btn_add.clicked.connect(self._add_row)
+        row_actions.addWidget(btn_add)
+        btn_del = QPushButton("🗑 Видалити рядок")
+        btn_del.setStyleSheet(f"color: {Theme.DANGER};")
+        btn_del.clicked.connect(self._delete_selected_row)
+        row_actions.addWidget(btn_del)
+        row_actions.addStretch()
+        self.lbl_total = QLabel()
+        self.lbl_total.setStyleSheet(
+            f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; font-size: 14px;"
+        )
+        row_actions.addWidget(self.lbl_total)
+        layout.addLayout(row_actions)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        btn_cancel = QPushButton("Скасувати")
+        btn_cancel.clicked.connect(self.reject)
+        buttons.addWidget(btn_cancel)
+        btn_ok = QPushButton("💾 Сформувати заявку")
+        btn_ok.setDefault(True)
+        btn_ok.clicked.connect(self._on_accept)
+        buttons.addWidget(btn_ok)
+        layout.addLayout(buttons)
+
+    def _populate(self):
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(0)
+            for item in self._order.items:
+                self._append_row(item)
+        finally:
+            self.table.blockSignals(False)
+        self._update_totals()
+
+    def _append_row(self, item: MaterialItem):
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        values = [
+            item.category,
+            item.name,
+            item.specification,
+            item.unit,
+            f"{item.quantity:g}",
+            f"{item.price_per_unit:g}" if item.price_per_unit else "",
+            "",
+            item.notes,
+        ]
+        for col, text in enumerate(values):
+            cell = QTableWidgetItem(text)
+            if col not in EDITABLE_COLUMNS:
+                cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            if col in (QTY_COL, PRICE_COL, SUM_COL):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, col, cell)
+        self._update_row_sum(row)
+
+    def _update_row_sum(self, row: int):
+        qty = _parse_float(self._cell_text(row, QTY_COL))
+        price = _parse_float(self._cell_text(row, PRICE_COL))
+        self._updating_sum = True
+        try:
+            cell = self.table.item(row, SUM_COL)
+            if cell is not None:
+                cell.setText(f"{qty * price:,.2f}")
+        finally:
+            self._updating_sum = False
+
+    def _update_totals(self):
+        total = 0.0
+        for row in range(self.table.rowCount()):
+            qty_item = self.table.item(row, QTY_COL)
+            price_item = self.table.item(row, PRICE_COL)
+            if qty_item and price_item:
+                total += _parse_float(qty_item.text()) * _parse_float(price_item.text())
+        self.lbl_info.setText(f"📦 {self._order.project_name} — позицій: {self.table.rowCount()}")
+        self.lbl_total.setText(f"Разом: ₴ {total:,.2f}")
+
+    def _on_item_changed(self, item: QTableWidgetItem):
+        if self._updating_sum:
+            return
+        if item.column() in (QTY_COL, PRICE_COL):
+            self._update_row_sum(item.row())
+        self._update_totals()
+
+    # ── Дії ──
+
+    def _add_row(self):
+        self.table.blockSignals(True)
+        try:
+            self._append_row(
+                MaterialItem(
+                    category="Розхідні матеріали",
+                    name="Новий матеріал",
+                    specification="",
+                    unit="шт",
+                    quantity=1,
+                    price_per_unit=0,
+                )
+            )
+        finally:
+            self.table.blockSignals(False)
+        self._update_totals()
+        last = self.table.rowCount() - 1
+        self.table.setCurrentCell(last, 1)
+        name_item = self.table.item(last, 1)
+        if name_item is not None:
+            self.table.editItem(name_item)
+
+    def _delete_selected_row(self):
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Видалення", "Спочатку виберіть рядок у таблиці.")
+            return
+        self.table.removeRow(row)
+        self._update_totals()
+
+    def _on_accept(self):
+        if self.table.rowCount() == 0:
+            QMessageBox.warning(
+                self, "Заявка порожня", "У заявці немає жодної позиції — додайте матеріали."
+            )
+            return
+        self.accept()
+
+    # ── Результат ──
+
+    def _cell_text(self, row: int, col: int) -> str:
+        cell = self.table.item(row, col)
+        return cell.text().strip() if cell else ""
+
+    def get_order(self) -> MaterialOrder:
+        """Заявка з урахуванням правок користувача."""
+        items: list[MaterialItem] = []
+        for row in range(self.table.rowCount()):
+            items.append(
+                MaterialItem(
+                    category=self._cell_text(row, 0) or "Матеріали",
+                    name=self._cell_text(row, 1) or "—",
+                    specification=self._cell_text(row, 2),
+                    unit=self._cell_text(row, 3) or "шт",
+                    quantity=_parse_float(self._cell_text(row, QTY_COL)),
+                    price_per_unit=_parse_float(self._cell_text(row, PRICE_COL)),
+                    notes=self._cell_text(row, 7),
+                )
+            )
+        return MaterialOrder(
+            project_name=self._order.project_name,
+            order_date=self._order.order_date,
+            items=items,
+            notes=self._order.notes,
+        )

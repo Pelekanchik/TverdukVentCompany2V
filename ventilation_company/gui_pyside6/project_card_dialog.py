@@ -48,6 +48,7 @@ from ventilation_company.database.repositories.project_drawing_repo import (
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.material_order_dialog import MaterialOrderPreviewDialog
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.material_order import (
@@ -721,6 +722,15 @@ class ProjectCardDialog(QDialog):
             )
             return
         name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        try:
+            order = calculate_material_order(self._products, project_name=name)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося розрахувати заявку:\n{exc}")
+            return
+        preview = MaterialOrderPreviewDialog(order, parent=self)
+        if preview.exec() != QDialog.DialogCode.Accepted:
+            return
+        order = preview.get_order()
         default = f"Заявка_матеріали_{self._safe_filename(name)}.xlsx"
         path, _selected = QFileDialog.getSaveFileName(
             self,
@@ -733,7 +743,6 @@ class ProjectCardDialog(QDialog):
         if not path.lower().endswith(".xlsx"):
             path += ".xlsx"
         try:
-            order = calculate_material_order(self._products, project_name=name)
             export_material_order_to_excel(order, path)
         except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати заявку:\n{exc}")

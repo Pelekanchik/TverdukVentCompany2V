@@ -184,6 +184,12 @@ class TestMaterialOrderButton:
             "PySide6.QtWidgets.QFileDialog.getSaveFileName",
             staticmethod(lambda *a, **k: (str(out), "Excel (*.xlsx)")),
         )
+        from PySide6.QtWidgets import QDialog
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_dialog.MaterialOrderPreviewDialog.exec",
+            lambda self: QDialog.DialogCode.Accepted,
+        )
 
         dlg = ProjectCardDialog(1)
         assert _wait_worker(qapp, dlg), "worker завис"
@@ -212,4 +218,72 @@ class TestMaterialOrderButton:
         assert _wait_worker(qapp, dlg), "worker завис"
         dlg._on_material_order()
         assert called["info"], "очікувалося вікно «немає виробів»"
+        dlg.close()
+
+
+class TestMaterialOrderPreviewDialog:
+    def _make_dialog(self, qapp, monkeypatch):
+        from ventilation_company.gui_pyside6.material_order_dialog import (
+            MaterialOrderPreviewDialog,
+        )
+        from ventilation_company.material_order import MaterialItem, MaterialOrder
+
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.information", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.warning", staticmethod(lambda *a, **k: None)
+        )
+        order = MaterialOrder(
+            project_name="Тест",
+            items=[
+                MaterialItem(
+                    category="Кріплення",
+                    name="Болт М8",
+                    specification="DIN 933",
+                    unit="шт",
+                    quantity=10,
+                    price_per_unit=3.5,
+                ),
+                MaterialItem(
+                    category="Ізоляція",
+                    name="Мінвата",
+                    specification="50 мм",
+                    unit="м²",
+                    quantity=20,
+                    price_per_unit=180,
+                ),
+            ],
+        )
+        return MaterialOrderPreviewDialog(order)
+
+    def test_edits_reflected_in_get_order(self, qapp, monkeypatch):
+        dlg = self._make_dialog(qapp, monkeypatch)
+        assert dlg.table.rowCount() == 2
+        # Змінюємо кількість болтів 10 → 25
+        dlg.table.item(0, 4).setText("25")
+        order = dlg.get_order()
+        assert order.items[0].quantity == 25
+        assert order.items[0].price_per_unit == 3.5
+        # Сума рядка перерахована
+        assert dlg.table.item(0, 6).text() == "87.50"
+        dlg.close()
+
+    def test_delete_and_add_row(self, qapp, monkeypatch):
+        dlg = self._make_dialog(qapp, monkeypatch)
+        dlg.table.setCurrentCell(1, 0)
+        dlg._delete_selected_row()
+        assert dlg.table.rowCount() == 1
+        dlg._add_row()
+        assert dlg.table.rowCount() == 2
+        order = dlg.get_order()
+        assert order.items[1].name == "Новий матеріал"
+        assert order.items[1].quantity == 1
+        dlg.close()
+
+    def test_get_order_handles_bad_numbers(self, qapp, monkeypatch):
+        dlg = self._make_dialog(qapp, monkeypatch)
+        dlg.table.item(0, 4).setText("abc")  # нечислове → 0
+        order = dlg.get_order()
+        assert order.items[0].quantity == 0.0
         dlg.close()
