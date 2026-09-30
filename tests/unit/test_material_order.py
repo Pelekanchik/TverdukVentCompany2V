@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox
 
 from ventilation_company.material_order import (
     MaterialOrderExporter,
@@ -328,4 +328,23 @@ class TestMaterialOrderPreviewDialog:
         dlg.table.item(0, 4).setText("abc")  # нечислове → 0
         order = dlg.get_order()
         assert order.items[0].quantity == 0.0
+        dlg.close()
+
+    def test_cell_editor_fits_row_height(self, qapp, monkeypatch):
+        """Редактор комірки поміщається у висоту рядка — текст не обрізається."""
+        from ventilation_company.gui_pyside6.theme import Theme
+
+        Theme.apply(qapp)
+        dlg = self._make_dialog(qapp, monkeypatch)
+        dlg.show()
+        qapp.processEvents()
+        dlg.table.editItem(dlg.table.item(0, 1))
+        qapp.processEvents()
+        editors = dlg.table.findChildren(QLineEdit)
+        assert editors, "редактор комірки не відкрився"
+        row_height = dlg.table.rowHeight(0)
+        for editor in editors:
+            assert (
+                editor.sizeHint().height() <= row_height
+            ), f"редактор ({editor.sizeHint().height()}px) вищий за рядок ({row_height}px)"
         dlg.close()

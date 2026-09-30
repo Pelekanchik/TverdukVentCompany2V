@@ -110,6 +110,13 @@ class Theme:
         QLineEdit:focus, QComboBox:focus {{
             border-color: {cls.ACCENT};
         }}
+        /* Редактори всередині таблиць — компактні, щоб поміщалися у висоту рядка */
+        QTableView QLineEdit, QTableView QComboBox,
+        QTableView QSpinBox, QTableView QDoubleSpinBox {{
+            padding: 1px 4px;
+            border-radius: 2px;
+            min-height: 0;
+        }}
         QTableView {{
             background-color: {cls.BG_CARD};
             color: {cls.TEXT};
