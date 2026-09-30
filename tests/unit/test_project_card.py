@@ -8,6 +8,8 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication
 
+from ventilation_company.gui_pyside6.project_card_dialog import payment_summary
+
 
 @pytest.fixture(scope="module")
 def qapp():
@@ -145,3 +147,52 @@ class TestProjectCardDialog:
         assert _wait_worker(qapp, dlg)
         assert dlg._project_data["name"] == "Тестовий проєкт"
         dlg.close()
+
+    def test_payments_summary_panel(self, qapp, monkeypatch):
+        """Панель підсумку: вартість = ціна + роботи; сплачено/залишок/% коректні."""
+        from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+
+        monkeypatch.setattr(ProjectCardDialog, "_fetch_data", lambda self: FAKE_DATA)
+        dlg = ProjectCardDialog(1)
+        assert _wait_worker(qapp, dlg)
+        # Вартість: customer_price 8000 + works_total 1000 = 9000; сплачено 4000.
+        assert "9,000.00" in dlg.lbl_pay_price.text()
+        assert "4,000.00" in dlg.lbl_pay_paid.text()
+        assert "5,000.00" in dlg.lbl_pay_left.text()
+        assert dlg.lbl_pay_percent.text() == "44 %"
+        assert dlg.progress_pay.value() == 44
+        dlg.close()
+
+
+class TestPaymentSummary:
+    def test_empty(self):
+        s = payment_summary([], 9000)
+        assert s["paid"] == 0.0
+        assert s["balance"] == 9000.0
+        assert s["percent"] == 0.0
+        assert s["overpaid"] is False
+
+    def test_incoming_minus_refund(self):
+        payments = [
+            {"amount": 5000, "type": "вхідний"},
+            {"amount": 1000, "type": "вихідний"},
+        ]
+        s = payment_summary(payments, 9000)
+        assert s["paid"] == 4000.0
+        assert s["balance"] == 5000.0
+        assert s["percent"] == 44.4
+
+    def test_full_payment(self):
+        s = payment_summary([{"amount": 9000}], 9000)
+        assert s["balance"] == 0.0
+        assert s["percent"] == 100.0
+        assert s["overpaid"] is False
+
+    def test_overpayment_capped(self):
+        s = payment_summary([{"amount": 10000}], 9000)
+        assert s["overpaid"] is True
+        assert s["percent"] == 100.0
+
+    def test_zero_price_no_division_error(self):
+        s = payment_summary([{"amount": 1000}], 0)
+        assert s["percent"] == 0.0

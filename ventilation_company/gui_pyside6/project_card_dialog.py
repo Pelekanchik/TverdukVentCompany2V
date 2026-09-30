@@ -24,10 +24,13 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QTableView,
     QTableWidget,
@@ -267,6 +270,39 @@ class ComponentPickerDialog(QDialog):
         }
 
 
+def payment_summary(payments: list[dict], total_customer: float) -> dict:
+    """Підсумок по оплатах проєкту.
+
+    «Сплачено» — надходження (вхідні) мінус повернення (вихідні).
+    Повертає paid, balance, percent (0..100) та overpaid.
+    """
+    paid = 0.0
+    for p in payments:
+        amount = float(p.get("amount") or 0)
+        if (p.get("type") or "вхідний") == "вхідний":
+            paid += amount
+        else:
+            paid -= amount
+    balance = total_customer - paid
+    percent = min(100.0, round(paid / total_customer * 100, 1)) if total_customer > 0 else 0.0
+    return {
+        "paid": round(paid, 2),
+        "balance": round(balance, 2),
+        "percent": percent,
+        "overpaid": total_customer > 0 and paid > total_customer,
+    }
+
+
+# Типові призначення оплат (випадаючий список у діалозі оплати).
+PAYMENT_PURPOSES = [
+    "Аванс",
+    "Проміжна оплата",
+    "Фінальний розрахунок",
+    "Повернення коштів",
+    "Оплата за проєкт",
+]
+
+
 class PaymentEditDialog(QDialog):
     def __init__(self, project_id: int, payment_data=None, parent=None):
         super().__init__(parent)
@@ -294,7 +330,11 @@ class PaymentEditDialog(QDialog):
         self.combo_type.addItems(["вхідний", "вихідний"])
         self.combo_type.setCurrentText(self.payment_data.get("type") or "вхідний")
         layout.addRow("Тип:", self.combo_type)
-        self.edit_purpose = QLineEdit(self.payment_data.get("purpose") or "Оплата за проєкт")
+        self.edit_purpose = QComboBox()
+        self.edit_purpose.setEditable(True)
+        self.edit_purpose.addItems(PAYMENT_PURPOSES)
+        current_purpose = self.payment_data.get("purpose") or "Оплата за проєкт"
+        self.edit_purpose.setCurrentText(current_purpose)
         layout.addRow("Призначення:", self.edit_purpose)
         self.edit_notes = QLineEdit(self.payment_data.get("notes") or "")
         layout.addRow("Нотатки:", self.edit_notes)
@@ -312,7 +352,7 @@ class PaymentEditDialog(QDialog):
             "amount": self.spin_amount.value(),
             "currency": "UAH",
             "type": self.combo_type.currentText(),
-            "purpose": self.edit_purpose.text().strip(),
+            "purpose": self.edit_purpose.currentText().strip(),
             "notes": self.edit_notes.text().strip(),
         }
 
@@ -463,6 +503,8 @@ class ProjectCardDialog(QDialog):
         self._works = result["works"]
         self._expenses = result["expenses"]
         self._payments = result["payments"]
+        # Новіші оплати — зверху (відповідність порядку рядків таблиці).
+        self._payments.sort(key=lambda p: str(p.get("date") or ""), reverse=True)
 
         name = self._project_data.get("name", "Проєкт")
         self.setWindowTitle(f"📁 {name} (#{self.project_id})")
@@ -1598,6 +1640,31 @@ class ProjectCardDialog(QDialog):
     def _build_payments_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+
+        # ── Підсумок по оплатах ──
+        summary = QGroupBox("Підсумок по оплатах")
+        sgrid = QGridLayout(summary)
+        sgrid.addWidget(QLabel("Вартість проєкту:"), 0, 0)
+        self.lbl_pay_price = QLabel("—")
+        self.lbl_pay_price.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_price, 0, 1)
+        sgrid.addWidget(QLabel("Сплачено:"), 0, 2)
+        self.lbl_pay_paid = QLabel("—")
+        self.lbl_pay_paid.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_paid, 0, 3)
+        sgrid.addWidget(QLabel("Залишок:"), 1, 0)
+        self.lbl_pay_left = QLabel("—")
+        self.lbl_pay_left.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_left, 1, 1)
+        sgrid.addWidget(QLabel("Оплачено:"), 1, 2)
+        self.lbl_pay_percent = QLabel("—")
+        self.lbl_pay_percent.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_percent, 1, 3)
+        self.progress_pay = QProgressBar()
+        self.progress_pay.setRange(0, 100)
+        sgrid.addWidget(self.progress_pay, 2, 0, 1, 4)
+        layout.addWidget(summary)
+
         top = QHBoxLayout()
         btn_add = QPushButton("➕ Додати оплату")
         btn_add.clicked.connect(self._on_add_payment)
@@ -1625,8 +1692,46 @@ class ProjectCardDialog(QDialog):
         layout.addLayout(bottom)
         return tab
 
+    def _update_payments_summary(self):
+        """Оновити панель підсумку оплат (вартість/сплачено/залишок/%)."""
+        if not hasattr(self, "lbl_pay_price"):
+            return
+        d = self._project_data or {}
+        base = float(d.get("customer_price") or 0)
+        discounted = float(d.get("discounted_price") or 0)
+        effective = discounted if discounted > 0 else base
+        total_customer = (
+            effective + float(d.get("works_total") or 0) + float(d.get("plus_expenses_total") or 0)
+        )
+        s = payment_summary(getattr(self, "_payments", []), total_customer)
+
+        self.lbl_pay_price.setText(f"₴ {total_customer:,.2f}")
+        self.lbl_pay_paid.setText(f"₴ {s['paid']:,.2f}")
+        if s["overpaid"]:
+            self.lbl_pay_left.setText(f"Переплата ₴ {-s['balance']:,.2f}")
+            self.lbl_pay_left.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
+        else:
+            self.lbl_pay_left.setText(f"₴ {s['balance']:,.2f}")
+            self.lbl_pay_left.setStyleSheet(
+                f"color: {Theme.SUCCESS if s['balance'] <= 0 else Theme.DANGER}; font-weight: bold;"
+            )
+        self.lbl_pay_percent.setText(f"{s['percent']:.0f} %")
+        self.progress_pay.setValue(int(s["percent"]))
+        if s["overpaid"] or (s["balance"] <= 0 and total_customer > 0):
+            color, label = Theme.SUCCESS, "Оплачено повністю"
+        elif s["paid"] > 0:
+            color, label = Theme.WARNING, "Частково оплачено"
+        else:
+            color, label = Theme.DANGER, "Не оплачено"
+        self.progress_pay.setStyleSheet(
+            f"QProgressBar::chunk {{ background-color: {color}; }}"
+            "QProgressBar { text-align: center; }"
+        )
+        self.progress_pay.setFormat(label + " — %p%")
+
     def _populate_payments(self):
         self.payments_table.setRowCount(0)
+        # self._payments відсортовано за датою (новіші — зверху) при завантаженні.
         for p in getattr(self, "_payments", []):
             row = self.payments_table.rowCount()
             self.payments_table.insertRow(row)
@@ -1639,6 +1744,7 @@ class ProjectCardDialog(QDialog):
             ]
             for col, value in enumerate(values):
                 self.payments_table.setItem(row, col, QTableWidgetItem(str(value)))
+        self._update_payments_summary()
 
     def _get_selected_payment(self):
         row = self.payments_table.currentRow()
