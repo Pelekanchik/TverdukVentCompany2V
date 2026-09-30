@@ -37,6 +37,20 @@ class _PricingStub:
     def reload(self):
         return None
 
+    def get_material_price(self, material, thickness, default=0):
+        """Як у production: нечутливо до регістру назви та формату товщини."""
+        wanted = str(material or "").strip().lower()
+        wanted_th = f"{float(thickness):g}"
+        for mat_name, thicknesses in self.material_prices.items():
+            if not isinstance(thicknesses, dict):
+                continue
+            if str(mat_name).strip().lower() != wanted:
+                continue
+            for th_key, price in thicknesses.items():
+                if f"{float(th_key):g}" == wanted_th:
+                    return float(price)
+        return float(default)
+
 
 class _BusinessStub:
     def get_extra_material_price(self, key, default=0):
@@ -111,6 +125,34 @@ class TestMaterialCalculator:
         assert wool and wool[0].price_per_unit == 180.0
         comp = order.get_by_category("Комплектуючі")
         assert comp and comp[0].price_per_unit == 1598.15
+
+    def test_capitalized_material_gets_price(self, monkeypatch):
+        """Регресія: «Оцинкована сталь» (з великої літери, як у виробі) знаходить
+        ціну «оцинкована сталь» з ціноутворення — раніше ціна була 0."""
+        pricing = _PricingStub()
+        pricing.material_prices = {"оцинкована сталь": {"0.7": 580.0}}
+        monkeypatch.setattr(
+            "ventilation_company.services.pricing_settings.PricingSettings.get_instance",
+            staticmethod(lambda: pricing),
+        )
+        products = [
+            {
+                "name": "Повітропровід",
+                "product_type": "повітропровід круглий",
+                "material": "Оцинкована сталь",
+                "thickness": 0.7,
+                "width": 400,
+                "height": 0,
+                "length": 1000,
+                "quantity": 10,
+                "metal_area_m2": 12.0,
+            }
+        ]
+        order = calculate_material_order(products, project_name="Тест")
+        metal = order.get_by_category("Листовий метал")
+        assert metal, "рядок металу має бути"
+        # 580 ₴/м² × 3.125 м² (лист 1250×2500) = 1812.50 ₴/лист
+        assert metal[0].price_per_unit == 1812.50
 
 
 class TestMaterialOrderExporter:

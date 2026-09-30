@@ -207,6 +207,14 @@ class PriceBreakdown:
         }
 
 
+def _norm_thickness(value) -> str:
+    """Нормалізація товщини: 0.5 = «0.50» = «0,5» = 0.5 → «0.5»."""
+    try:
+        return f"{float(str(value).strip().replace(',', '.')):g}"
+    except (TypeError, ValueError):
+        return str(value).strip()
+
+
 class PricingSettings:
     """Менеджер налаштувань ціноутворення (Singleton з файловим блокуванням).
 
@@ -328,10 +336,29 @@ class PricingSettings:
         with self._file_lock:
             self._atomic_write(data)
 
-    def get_material_price(self, material, thickness):
+    def get_material_price(self, material, thickness, default=55.0):
+        """Ціна металу за м², грн.
+
+        Пошук нечутливий до регістру назви матеріалу («Оцинкована сталь» =
+        «оцинкована сталь») та формату товщини (0.5 = 0.50 = «0,5»).
+        Якщо не знайдено — default.
+        """
         self.reload()
-        mat = self.material_prices.get(material, {})
-        return mat.get(str(thickness), 55.0)
+        wanted = str(material or "").strip().lower()
+        wanted_th = _norm_thickness(thickness)
+        for mat_name, thicknesses in self.material_prices.items():
+            if not isinstance(thicknesses, dict):
+                continue
+            if str(mat_name).strip().lower() != wanted:
+                continue
+            for th_key, price in thicknesses.items():
+                if _norm_thickness(th_key) != wanted_th:
+                    continue
+                try:
+                    return float(str(price).replace(",", ".").replace(" ", ""))
+                except (TypeError, ValueError):
+                    return float(default)
+        return float(default)
 
     def get_labor_rate(self, product_type: str) -> dict:
         """Отримати ставку зарплати та %% важкості для типу виробу.

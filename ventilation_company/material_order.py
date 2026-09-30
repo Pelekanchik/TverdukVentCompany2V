@@ -176,9 +176,9 @@ class MaterialCalculator:
 
             # Ціни листового металу — з PricingSettings (матеріал + товщина).
             # Невідомий матеріал/товщина → ціна 0, як і раніше.
+            # Пошук нечутливий до регістру («Оцинкована сталь» = «оцинкована сталь»).
             pricing = PricingSettings.get_instance()
-            pricing.reload()
-            price = _to_float(pricing.material_prices.get(material, {}).get(str(thickness), 0))
+            price = pricing.get_material_price(material, thickness, default=0)
 
             self.items.append(
                 MaterialItem(
