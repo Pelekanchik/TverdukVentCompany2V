@@ -76,3 +76,56 @@ class TestPersistence:
         filepath.write_text(json.dumps(data), encoding="utf-8")
         business_settings._last_modified = 0  # примусово застаріти
         assert business_settings.get_vat_rate() == 14.0
+
+
+class TestCompany:
+    """Реквізити фірми для КП/договорів/актів."""
+
+    def test_company_defaults(self, business_settings):
+        company = business_settings.get_company()
+        assert company["name"] == "ТОВ «ВентКомпані»"
+        assert company["edrpou"] == "12345678"
+        assert company["city"] == "м. Київ"
+        assert set(company) == {
+            "name",
+            "address",
+            "phone",
+            "email",
+            "website",
+            "edrpou",
+            "signatory",
+            "city",
+        }
+
+    def test_company_save_and_reload(self, business_settings, tmp_path):
+        business_settings.company = {
+            "name": "ПП «ВентБуд»",
+            "edrpou": "98765432",
+            "city": "м. Львів",
+        }
+        business_settings.save()
+
+        filepath = tmp_path / "business_settings.json"
+        data = json.loads(filepath.read_text(encoding="utf-8"))
+        assert data["company"]["name"] == "ПП «ВентБуд»"
+
+        # Перезапуск: злиття з дефолтами, незадані поля — дефолтні.
+        bs_module.BusinessSettings._instance = None
+        reloaded = BusinessSettings.get_instance(str(filepath))
+        company = reloaded.get_company()
+        assert company["name"] == "ПП «ВентБуд»"
+        assert company["edrpou"] == "98765432"
+        assert company["city"] == "м. Львів"
+        assert company["phone"] == "+38 (044) 123-45-67"
+
+    def test_company_merged_from_partial_json(self, business_settings, tmp_path):
+        """Старий файл без «company» (або з частковими полями) не ламає get_company."""
+        filepath = tmp_path / "business_settings.json"
+        filepath.write_text(
+            json.dumps({"company": {"name": "ФОП Твердух"}}),
+            encoding="utf-8",
+        )
+        business_settings._last_modified = 0
+        company = business_settings.get_company()
+        assert company["name"] == "ФОП Твердух"
+        assert company["address"]  # дефолт підтягнувся

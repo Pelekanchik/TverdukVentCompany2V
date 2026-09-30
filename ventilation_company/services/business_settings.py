@@ -20,6 +20,19 @@ SETTINGS_FILE = str(DATA_DIR / "business_settings.json")
 
 DEFAULT_VAT_RATE = 20.0
 
+# Реквізити фірми (Виконавця) — підставляються у КП, договір, акти.
+# Дефолти — шаблонні значення; редагуються у «Налаштування → Бізнес».
+DEFAULT_COMPANY = {
+    "name": "ТОВ «ВентКомпані»",
+    "address": "м. Київ, вул. Промислова, 15",
+    "phone": "+38 (044) 123-45-67",
+    "email": "info@ventcompany.ua",
+    "website": "www.ventcompany.ua",
+    "edrpou": "12345678",
+    "signatory": "Директор Іваненко І.І.",
+    "city": "м. Київ",
+}
+
 # Комплектуючі (вентилятори, фільтри, клапани тощо) — ключ: назва з _ замість пробілів.
 DEFAULT_COMPONENTS = {
     "вентилятор_осьовий": {"ціна": 3500, "одиниця": "шт"},
@@ -113,6 +126,7 @@ class BusinessSettings:
         self.positions: dict = {}
         self.flange_prices: dict = {}
         self.work_rates: dict = {}
+        self.company: dict = {}
 
         self.load()
 
@@ -162,6 +176,13 @@ class BusinessSettings:
             for key, value in self.flange_prices.items()
         }
         self.work_rates = data.get("work_rates", json.loads(json.dumps(DEFAULT_WORK_RATES)))
+        # Реквізити фірми: злиття з дефолтами, щоб нові поля з'являлись у старих файлах.
+        stored_company = data.get("company", {})
+        self.company = json.loads(json.dumps(DEFAULT_COMPANY))
+        if isinstance(stored_company, dict):
+            for key, value in stored_company.items():
+                if key in self.company and value is not None:
+                    self.company[key] = str(value)
         if not data:
             self.save()
 
@@ -174,6 +195,7 @@ class BusinessSettings:
             "positions": self.positions,
             "flange_prices": self.flange_prices,
             "work_rates": self.work_rates,
+            "company": self.company,
         }
         with self._file_lock:
             self._atomic_write(data)
@@ -220,3 +242,16 @@ class BusinessSettings:
         """Ціна та одиниця типової роботи; порожній dict, якщо невідомо."""
         self.reload()
         return self.work_rates.get(key, {})
+
+    def get_company(self) -> dict:
+        """Реквізити фірми (Виконавця) для КП, договорів і актів.
+
+        Завжди повертає копію з усіма ключами DEFAULT_COMPANY;
+        значення, не задані користувачем, — дефолтні (шаблонні).
+        """
+        self.reload()
+        company = json.loads(json.dumps(DEFAULT_COMPANY))
+        for key, value in self.company.items():
+            if key in company and value is not None:
+                company[key] = str(value)
+        return company

@@ -68,6 +68,15 @@ class ContractPDF(FPDF):
     def _bold(self, size: int = 11):
         self.set_font("Main", "B", size)
 
+    def _mc(self, h: float, text: str, align: str = "L"):
+        """Текстовий блок: завжди з лівого поля, після — новий рядок зліва.
+
+        Без цього multi_cell лишає x на правому краю й наступний блок
+        з'їжджає за межі сторінки.
+        """
+        self.set_x(self.l_margin)
+        self.multi_cell(170, h, text, align=align, new_x="LMARGIN", new_y="NEXT")
+
     def _build(self):
         self.add_page()
         self._header()
@@ -78,25 +87,23 @@ class ContractPDF(FPDF):
     def _header(self):
         self._bold(10)
         self.set_text_color(60, 60, 60)
-        self.multi_cell(170, 5, _clean(self.data.company_name), align="R")
-        self.multi_cell(170, 5, f"ЄДРПОУ {_clean(self.data.company_edrpou)}", align="R")
-        self.multi_cell(170, 5, _clean(self.data.company_address), align="R")
+        self._mc(5, _clean(self.data.company_name), align="R")
+        self._mc(5, f"ЄДРПОУ {_clean(self.data.company_edrpou)}", align="R")
+        self._mc(5, _clean(self.data.company_address), align="R")
         self.ln(4)
 
         self.set_text_color(0, 0, 0)
         self._bold(14)
-        self.multi_cell(170, 8, "ДОГОВІР", align="C")
+        self._mc(8, "ДОГОВІР", align="C")
         self._bold(11)
-        self.multi_cell(
-            170,
+        self._mc(
             6,
             f"№ {_clean(self.data.contract_number)} на виготовлення та монтаж "
             "вентиляційних систем",
             align="C",
         )
         self._regular(11)
-        self.multi_cell(
-            170,
+        self._mc(
             6,
             f"{_clean(self.data.city)}                                                                 "
             f"«{_clean(self.data.date)}»",
@@ -113,7 +120,7 @@ class ContractPDF(FPDF):
             f"в особі {_clean(self.data.client_signatory) or '____________________'}, "
             "з іншого боку, разом — «Сторони», уклали цей Договір про нижченаведене:"
         )
-        self.multi_cell(170, 5.5, text)
+        self._mc(5.5, text)
         self.ln(2)
 
     def _sections(self):
@@ -179,9 +186,9 @@ class ContractPDF(FPDF):
             if self.get_y() > 250:
                 self.add_page()
             self._bold(11)
-            self.multi_cell(170, 6, title)
+            self._mc(6, title)
             self._regular(11)
-            self.multi_cell(170, 5.5, body)
+            self._mc(5.5, body)
             self.ln(2)
 
     def _signatures(self):
@@ -189,7 +196,7 @@ class ContractPDF(FPDF):
             self.add_page()
         self.ln(4)
         self._bold(11)
-        self.multi_cell(170, 6, "9. АДРЕСИ ТА РЕКВІЗИТИ СТОРІН")
+        self._mc(6, "9. АДРЕСИ ТА РЕКВІЗИТИ СТОРІН")
         self.ln(2)
 
         col_w = 85
@@ -243,6 +250,14 @@ def generate_contract(project_data: dict, output_path: str) -> str:
     data.warranty_months = int(project_data.get("warranty_months") or 24)
     if project_data.get("payment_terms"):
         data.payment_terms = str(project_data["payment_terms"])
+    company = project_data.get("company") or {}
+    if isinstance(company, dict):
+        data.company_name = str(company.get("name") or data.company_name)
+        data.company_address = str(company.get("address") or data.company_address)
+        data.company_phone = str(company.get("phone") or data.company_phone)
+        data.company_edrpou = str(company.get("edrpou") or data.company_edrpou)
+        data.company_signatory = str(company.get("signatory") or data.company_signatory)
+        data.city = str(company.get("city") or data.city)
 
     pdf = ContractPDF(data)
     pdf.output(output_path)

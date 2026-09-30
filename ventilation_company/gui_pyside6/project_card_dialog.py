@@ -766,6 +766,7 @@ class ProjectCardDialog(QDialog):
             "client": self._project_data.get("client", ""),
             "address": self._project_data.get("address", ""),
             "total_amount": total,
+            "company": BusinessSettings.get_instance().get_company(),
         }
         try:
             generate_contract(project_data, path)
@@ -833,6 +834,7 @@ class ProjectCardDialog(QDialog):
             "project_number": self._project_data.get("project_number", ""),
             "client": self._project_data.get("client", ""),
             "address": self._project_data.get("address", ""),
+            "company": BusinessSettings.get_instance().get_company(),
         }
         try:
             generate_proposal(project_data, items, path)

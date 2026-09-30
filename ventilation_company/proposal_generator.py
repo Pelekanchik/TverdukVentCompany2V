@@ -482,6 +482,16 @@ def generate_proposal(project_data: dict, items: list[dict], output_path: str) -
     prop.payment_terms = project_data.get("payment_terms", "50% аванс, 50% після монтажу")
     prop.notes = project_data.get("notes", "")
 
+    # Реквізити фірми (Виконавця) — з «Налаштування → Бізнес», якщо передано.
+    company = project_data.get("company") or {}
+    if isinstance(company, dict):
+        prop.company_name = str(company.get("name") or prop.company_name)
+        prop.company_address = str(company.get("address") or prop.company_address)
+        prop.company_phone = str(company.get("phone") or prop.company_phone)
+        prop.company_email = str(company.get("email") or prop.company_email)
+        prop.company_website = str(company.get("website") or prop.company_website)
+        prop.company_edrpou = str(company.get("edrpou") or prop.company_edrpou)
+
     pdf = ProposalPDF(prop)
     pdf.save(output_path)
     return output_path

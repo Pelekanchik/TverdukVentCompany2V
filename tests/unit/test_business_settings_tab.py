@@ -70,3 +70,24 @@ class TestBusinessSettingsTab:
     def test_viewer_save_is_noop(self, qapp, monkeypatch, tmp_path):
         tab = self._make_tab(qapp, monkeypatch, tmp_path, "перегляд")
         assert tab.save() is False
+
+    def test_company_fields_roundtrip(self, qapp, monkeypatch, tmp_path):
+        """Реквізити фірми зберігаються через вкладку та повертаються у генератори."""
+        from ventilation_company.services import business_settings as bs_module
+        from ventilation_company.services.business_settings import BusinessSettings
+
+        tab = self._make_tab(qapp, monkeypatch, tmp_path, "admin")
+        assert tab.company_edits["name"].isEnabled()
+        tab.company_edits["name"].setText("ПП «ВентБуд»")
+        tab.company_edits["edrpou"].setText("98765432")
+        tab.company_edits["city"].setText("м. Львів")
+        assert tab.save() is True
+
+        bs_module.BusinessSettings._instance = None
+        s = BusinessSettings.get_instance(str(tmp_path / "business_settings.json"))
+        company = s.get_company()
+        assert company["name"] == "ПП «ВентБуд»"
+        assert company["edrpou"] == "98765432"
+        assert company["city"] == "м. Львів"
+        # Незаповнені поля — дефолтні.
+        assert company["phone"] == "+38 (044) 123-45-67"

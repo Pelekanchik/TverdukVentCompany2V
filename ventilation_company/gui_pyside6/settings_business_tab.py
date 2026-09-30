@@ -18,10 +18,12 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDoubleSpinBox,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -38,6 +40,22 @@ from ventilation_company.services.business_settings import BusinessSettings
 COLUMNS_KEY_VALUE_UNIT = ["Назва (ключ)", "Ціна, грн", "Одиниця"]
 COLUMNS_POSITIONS = ["Посада (ключ)", "Ставка, грн/міс", "Премія, %"]
 COLUMNS_FLANGES = ["Профіль", "Ціна, грн/шт"]
+
+# Поля реквізитів фірми: (ключ у JSON, підпис, placeholder).
+COMPANY_FIELDS = [
+    ("name", "Назва фірми:", "ТОВ «ВентКомпані»"),
+    ("edrpou", "ЄДРПОУ:", "12345678"),
+    ("address", "Адреса:", "м. Київ, вул. Промислова, 15"),
+    ("phone", "Телефон:", "+38 (044) 123-45-67"),
+    ("email", "E-mail:", "info@ventcompany.ua"),
+    ("website", "Сайт:", "www.ventcompany.ua"),
+    (
+        "signatory",
+        "Підписант (посада, П.І.Б.):",
+        "Директор Іваненко І.І.",
+    ),
+    ("city", "Місто (для договору):", "м. Київ"),
+]
 
 
 class BusinessSettingsTab(QWidget):
@@ -89,6 +107,17 @@ class BusinessSettingsTab(QWidget):
         h_vat.addStretch()
         vlay.addWidget(grp_vat)
 
+        # ── Реквізити фірми ──
+        grp_company = QGroupBox("🏢 Реквізити фірми (підставляються у КП, договір, акти)")
+        form_company = QFormLayout(grp_company)
+        self.company_edits: dict[str, QLineEdit] = {}
+        for key, label, placeholder in COMPANY_FIELDS:
+            edit = QLineEdit()
+            edit.setPlaceholderText(placeholder)
+            self.company_edits[key] = edit
+            form_company.addRow(label, edit)
+        vlay.addWidget(grp_company)
+
         # ── Комплектуючі ──
         self.tbl_components = self._make_table(COLUMNS_KEY_VALUE_UNIT)
         vlay.addWidget(
@@ -125,6 +154,7 @@ class BusinessSettingsTab(QWidget):
                 self.tbl_materials,
                 self.tbl_positions,
                 self.tbl_flanges,
+                *self.company_edits.values(),
             ):
                 w.setEnabled(False)
 
@@ -165,6 +195,9 @@ class BusinessSettingsTab(QWidget):
     def load(self):
         s = BusinessSettings.get_instance()
         self.spin_vat.setValue(s.get_vat_rate())
+        company = s.get_company()
+        for key, edit in self.company_edits.items():
+            edit.setText(str(company.get(key, "")))
         self._fill_table(self.tbl_components, s.components, ("ціна", "одиниця"))
         self._fill_table(self.tbl_works, s.work_rates, ("ціна", "одиниця"))
         self._fill_table(self.tbl_materials, s.extra_materials, ("ціна_за_м2", "одиниця"))
@@ -195,6 +228,7 @@ class BusinessSettingsTab(QWidget):
                 self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
             )
             s.flange_prices = self._read_table(self.tbl_flanges, ("ціна",), numeric=("ціна",))
+            s.company = {key: edit.text().strip() for key, edit in self.company_edits.items()}
             s.save()
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти бізнес-налаштування:\n{e}")
@@ -210,6 +244,7 @@ class BusinessSettingsTab(QWidget):
                 "extra_materials": len(s.extra_materials),
                 "positions": len(s.positions),
                 "flange_prices": len(s.flange_prices),
+                "company_fields": len(s.company),
             },
             actor=self.current_user,
         )
