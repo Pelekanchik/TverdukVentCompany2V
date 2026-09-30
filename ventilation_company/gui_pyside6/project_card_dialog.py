@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.act_generator import generate_act
 from ventilation_company.contract_generator import generate_contract
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.database.repositories.product_repo import ProductRepository
@@ -677,6 +678,13 @@ class ProjectCardDialog(QDialog):
         )
         btn_proposal.clicked.connect(self._on_proposal_pdf)
         actions.addWidget(btn_proposal)
+        btn_act = QPushButton("✅ Акт (PDF)…")
+        btn_act.setToolTip(
+            "Згенерувати акт виконаних робіт для підписання: перелік робіт та "
+            "виробів, сума прописом, реквізити та підписи сторін"
+        )
+        btn_act.clicked.connect(self._on_act_pdf)
+        actions.addWidget(btn_act)
         btn_materials = QPushButton("📦 Замовлення матеріалів…")
         btn_materials.setToolTip(
             "Розрахувати потребу в матеріалах за виробами проєкту "
@@ -846,6 +854,75 @@ class ProjectCardDialog(QDialog):
             self,
             "Готово",
             f"Комерційну пропозицію збережено:\n{path}\n\nВідкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
+    def _on_act_pdf(self):
+        """Згенерувати акт виконаних робіт (PDF) для підписання з замовником."""
+        if not self._products and not self._works:
+            QMessageBox.information(
+                self,
+                "Акт виконаних робіт",
+                "У проєкті немає виробів і робіт — немає що здавати.",
+            )
+            return
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        items = []
+        for p in self._products:
+            qty = float(p.get("quantity") or 1) or 1
+            total = float(p.get("discounted_price") or 0) or float(p.get("total_price") or 0)
+            items.append(
+                {
+                    "name": p.get("name", ""),
+                    "description": str(p.get("product_type", "")),
+                    "quantity": qty,
+                    "unit": "шт",
+                    "price": round(total / qty, 2),
+                }
+            )
+        for w in self._works:
+            qty = float(w.get("quantity") or 1) or 1
+            total = float(w.get("total_price") or 0)
+            items.append(
+                {
+                    "name": w.get("work_name", ""),
+                    "description": "Монтажні роботи",
+                    "quantity": qty,
+                    "unit": w.get("unit", "шт"),
+                    "price": round(total / qty, 2),
+                }
+            )
+        default = f"Акт_{self._safe_filename(name)}.pdf"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти акт виконаних робіт",
+            default,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        project_data = {
+            "name": name,
+            "project_number": self._project_data.get("project_number", ""),
+            "client": self._project_data.get("client", ""),
+            "address": self._project_data.get("address", ""),
+            "contract_number": self._project_data.get("contract_number", ""),
+            "company": BusinessSettings.get_instance().get_company(),
+        }
+        try:
+            generate_act(project_data, items, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати акт:\n{exc}")
+            return
+        self._register_document("акт", path)
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Акт виконаних робіт збережено:\n{path}\n\nВідкрити файл?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:
