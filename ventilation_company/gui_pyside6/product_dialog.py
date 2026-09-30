@@ -305,9 +305,14 @@ class ProductDialog(QDialog):
         sizes_layout.addWidget(QLabel("Ø/Ш:"), 0, 0)
         sizes_layout.addWidget(self.spin_width, 0, 1)
         self.spin_height = QDoubleSpinBox()
-        self.spin_height.setRange(50, 2000)
+        # 0 = круглий переріз (висота не використовується) — показуємо «—»
+        self.spin_height.setRange(0, 2000)
+        self.spin_height.setSpecialValueText("—")
         self.spin_height.setSuffix(" мм")
-        self.spin_height.setValue(self._data.get("height", 0))
+        self.spin_height.setToolTip(
+            "Висота перерізу (мм). Для круглих виробів не використовується — поле показує «—»"
+        )
+        self.spin_height.setValue(self._data.get("height", 0) or 0)
         sizes_layout.addWidget(QLabel("В:"), 0, 2)
         sizes_layout.addWidget(self.spin_height, 0, 3)
         self.spin_length = QDoubleSpinBox()

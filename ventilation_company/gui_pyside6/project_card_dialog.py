@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.contract_generator import generate_contract
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_document_repo import (
@@ -662,6 +663,13 @@ class ProjectCardDialog(QDialog):
         self._populate_products()
         actions = QHBoxLayout()
         actions.addStretch()
+        btn_contract = QPushButton("📑 Договір (PDF)…")
+        btn_contract.setToolTip(
+            "Згенерувати типовий договір на виготовлення та монтаж "
+            "з реквізитами сторін і сумою проєкту"
+        )
+        btn_contract.clicked.connect(self._on_contract_pdf)
+        actions.addWidget(btn_contract)
         btn_proposal = QPushButton("📄 КП (PDF)…")
         btn_proposal.setToolTip(
             "Згенерувати комерційну пропозицію для замовника: вироби, роботи, "
@@ -733,6 +741,46 @@ class ProjectCardDialog(QDialog):
                 "Документи",
                 f"Файл збережено, але не вдалося додати його у «Документи»:\n{exc}",
             )
+
+    def _on_contract_pdf(self):
+        """Згенерувати договір (PDF) з реквізитами сторін."""
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        default = f"Договір_{self._safe_filename(name)}.pdf"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти договір",
+            default,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        discounted = float(self._project_data.get("discounted_price") or 0)
+        total = (
+            discounted if discounted > 0 else float(self._project_data.get("customer_price") or 0)
+        )
+        project_data = {
+            "name": name,
+            "project_number": self._project_data.get("project_number", ""),
+            "client": self._project_data.get("client", ""),
+            "address": self._project_data.get("address", ""),
+            "total_amount": total,
+        }
+        try:
+            generate_contract(project_data, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати договір:\n{exc}")
+            return
+        self._register_document("договір", path)
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Договір збережено:\n{path}\n\nВідкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _on_proposal_pdf(self):
         """Згенерувати комерційну пропозицію (PDF) для замовника."""
@@ -906,6 +954,7 @@ class ProjectCardDialog(QDialog):
             "order": "Наряд",
             "заявка": "Заявка на матеріали",
             "кп": "КП (PDF)",
+            "договір": "Договір",
             "файл": "Файл",
         }
         for doc in self._documents:
