@@ -10,7 +10,6 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QGridLayout,
     QGroupBox,
@@ -24,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.receivables import build_receivables, receivables_totals
 
@@ -93,8 +93,7 @@ class MoneyTab(QWidget):
         self.table.setColumnCount(len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.table, select_rows=True, read_only=True, stretch_last=False)
         self.table.doubleClicked.connect(self._on_double_click)
         root.addWidget(self.table, 1)
 

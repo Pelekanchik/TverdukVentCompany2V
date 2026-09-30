@@ -16,7 +16,6 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
@@ -33,6 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.audit_service import log_action
 from ventilation_company.services.business_settings import BusinessSettings
@@ -165,7 +165,7 @@ class BusinessSettingsTab(QWidget):
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(table, select_rows=True, stretch_last=False)
         table.setMinimumHeight(160)
         return table
 

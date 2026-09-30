@@ -17,7 +17,6 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -35,6 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.metal_cutting import MetalCutter
 
@@ -384,10 +384,7 @@ class CuttingTab(QWidget):
         order_left.addWidget(lbl_order)
 
         self.table_order = QTableView()
-        self.table_order.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_order.setAlternatingRowColors(True)
-        self.table_order.horizontalHeader().setStretchLastSection(True)
-        self.table_order.verticalHeader().setVisible(False)
+        setup_table(self.table_order, select_rows=True)
         self.table_order.setMaximumHeight(200)
         order_left.addWidget(self.table_order)
 
@@ -462,11 +459,7 @@ class CuttingTab(QWidget):
         left_layout.addWidget(lbl_tbl)
 
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, select_rows=True, sorting=True)
         self.table.setMinimumWidth(440)
         left_layout.addWidget(self.table)
 

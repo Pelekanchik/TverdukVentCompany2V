@@ -6,7 +6,6 @@
 
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QHBoxLayout,
@@ -20,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.products_tab import ProductDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.specification_service import SpecificationService
 
@@ -76,12 +76,7 @@ class SpecificationTab(QWidget):
 
         # ── Таблиця виробів ──
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, select_rows=True, single_selection=True, sorting=True)
         self.table.setMinimumHeight(400)
         layout.addWidget(self.table)
 

@@ -6,7 +6,6 @@ from datetime import date, datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -27,6 +26,7 @@ from ventilation_company.database.repositories.interaction_repo import Interacti
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
@@ -112,8 +112,7 @@ class ClientCardDialog(QDialog):
         self.table_projects = QTableWidget()
         self.table_projects.setColumnCount(5)
         self.table_projects.setHorizontalHeaderLabels(["ID", "Номер", "Назва", "Статус", "Сума"])
-        self.table_projects.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table_projects.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.table_projects, select_rows=True, read_only=True)
         layout.addWidget(self.table_projects)
 
         btn_row = QHBoxLayout()
@@ -132,14 +131,14 @@ class ClientCardDialog(QDialog):
         self.table_interactions.setHorizontalHeaderLabels(
             ["Дата", "Тип", "Тема", "Результат", "Наступна дія"]
         )
-        self.table_interactions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        setup_table(self.table_interactions, read_only=True, alternating=False)
         layout.addWidget(self.table_interactions)
 
         layout.addWidget(QLabel("Останні оплати:"))
         self.table_payments = QTableWidget()
         self.table_payments.setColumnCount(4)
         self.table_payments.setHorizontalHeaderLabels(["Дата", "Сума", "Валюта", "Тип"])
-        self.table_payments.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        setup_table(self.table_payments, read_only=True, alternating=False)
         layout.addWidget(self.table_payments)
 
     def _save(self):

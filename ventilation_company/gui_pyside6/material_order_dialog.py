@@ -7,7 +7,6 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.material_order import MaterialItem, MaterialOrder
 
@@ -77,9 +77,7 @@ class MaterialOrderPreviewDialog(QDialog):
 
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
-        self.table.setAlternatingRowColors(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.table, select_rows=True)
         self.table.itemChanged.connect(self._on_item_changed)
         self.table.setColumnWidth(0, 130)
         self.table.setColumnWidth(1, 190)

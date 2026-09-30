@@ -13,7 +13,6 @@ from PySide6.QtGui import (
     QStandardItemModel,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -34,6 +33,7 @@ from PySide6.QtWidgets import (
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 
 SCHEMAS = {
@@ -134,12 +134,7 @@ class ProductsTab(QWidget):
         right_layout.setSpacing(12)
         right_layout.setContentsMargins(0, 0, 0, 0)
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, select_rows=True, extended_selection=True, sorting=True)
         self.table.doubleClicked.connect(self._on_edit)
         right_layout.addWidget(self.table)
 

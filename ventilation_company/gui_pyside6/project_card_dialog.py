@@ -15,7 +15,6 @@ from pathlib import Path
 from PySide6.QtCore import QDate, Qt, QUrl, Signal
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QApplication,
     QComboBox,
     QDateEdit,
@@ -54,6 +53,7 @@ from ventilation_company.database.repositories.project_expense_repo import Proje
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.material_order_dialog import MaterialOrderPreviewDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.invoice_generator import generate_invoice
@@ -217,11 +217,7 @@ class ComponentPickerDialog(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Назва", "Ціна, грн", "Од."])
-        self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setAlternatingRowColors(True)
+        setup_table(self.table, select_rows=True, single_selection=True, read_only=True)
         layout.addWidget(self.table)
 
         self._keys: list[str] = []
@@ -661,9 +657,7 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         self.products_table = QTableView()
-        self.products_table.setAlternatingRowColors(True)
-        self.products_table.horizontalHeader().setStretchLastSection(True)
-        self.products_table.verticalHeader().setVisible(False)
+        setup_table(self.products_table)
         layout.addWidget(self.products_table)
         self.products_model = QStandardItemModel()
         # ← v2.4: додано колонку "Зі знижкою"
@@ -1042,9 +1036,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_refresh)
         layout.addLayout(top)
         self.docs_table = QTableView()
-        self.docs_table.setAlternatingRowColors(True)
-        self.docs_table.horizontalHeader().setStretchLastSection(True)
-        self.docs_table.verticalHeader().setVisible(False)
+        setup_table(self.docs_table)
         layout.addWidget(self.docs_table)
         self.docs_model = QStandardItemModel()
         self.docs_model.setHorizontalHeaderLabels(["ID", "Тип", "Файл", "Розмір", "Дата", "Дії"])
@@ -1156,11 +1148,7 @@ class ProjectCardDialog(QDialog):
         self.drawings_table = DrawingsTable()
         self.drawings_table.setColumnCount(5)
         self.drawings_table.setHorizontalHeaderLabels(["Назва", "Тип", "Шлях", "Примітка", "Дата"])
-        self.drawings_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.drawings_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.drawings_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.drawings_table.setAlternatingRowColors(True)
-        self.drawings_table.verticalHeader().setVisible(False)
+        setup_table(self.drawings_table, select_rows=True, single_selection=True, read_only=True)
         self.drawings_table.itemDoubleClicked.connect(self._on_open_drawing)
         self.drawings_table.filesDropped.connect(self._add_drawing_paths)
         layout.addWidget(self.drawings_table)
@@ -1376,9 +1364,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_add)
         layout.addLayout(top)
         self.works_table = QTableView()
-        self.works_table.setAlternatingRowColors(True)
-        self.works_table.horizontalHeader().setStretchLastSection(True)
-        self.works_table.verticalHeader().setVisible(False)
+        setup_table(self.works_table)
         layout.addWidget(self.works_table)
         self.works_model = QStandardItemModel()
         self.works_model.setHorizontalHeaderLabels(
@@ -1495,9 +1481,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_components)
         layout.addLayout(top)
         self.expenses_table = QTableView()
-        self.expenses_table.setAlternatingRowColors(True)
-        self.expenses_table.horizontalHeader().setStretchLastSection(True)
-        self.expenses_table.verticalHeader().setVisible(False)
+        setup_table(self.expenses_table)
         layout.addWidget(self.expenses_table)
         self.expenses_model = QStandardItemModel()
         self.expenses_model.setHorizontalHeaderLabels(
@@ -1654,8 +1638,7 @@ class ProjectCardDialog(QDialog):
         self.payments_table.setHorizontalHeaderLabels(
             ["Дата", "Тип", "Сума", "Призначення", "Нотатки"]
         )
-        self.payments_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.payments_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.payments_table, select_rows=True, read_only=True)
         layout.addWidget(self.payments_table)
         self._populate_payments()
         bottom = QHBoxLayout()

@@ -7,7 +7,6 @@ import json
 from datetime import date, datetime
 
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -24,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.models.audit import AuditLog
 from ventilation_company.database.repositories.audit_log_repo import AuditLogRepository
+from ventilation_company.gui_pyside6.table_utils import setup_table
 
 
 def _to_date(value) -> date | None:
@@ -98,8 +98,7 @@ class AuditLogDialog(QDialog):
             1, QHeaderView.ResizeMode.ResizeToContents
         )
         self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        setup_table(self.table, select_rows=True, read_only=True, stretch_last=False)
         self.table.itemSelectionChanged.connect(self._show_selected_details)
         layout.addWidget(self.table)
 

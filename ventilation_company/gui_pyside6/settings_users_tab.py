@@ -5,7 +5,6 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -24,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.auth.service import auth
 from ventilation_company.database.repositories.app_settings_repository import get_role_label
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 
 
@@ -70,8 +70,7 @@ class UsersAdminTab(QWidget):
         self.users_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
-        self.users_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.users_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        setup_table(self.users_table, select_rows=True, read_only=True, stretch_last=False)
         vlay.addWidget(self.users_table)
 
         self._refresh_users()

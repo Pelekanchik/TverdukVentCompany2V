@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.paths import DATA_DIR
 
@@ -164,9 +165,7 @@ class MetalPricesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -347,9 +346,7 @@ class LaborRatesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()

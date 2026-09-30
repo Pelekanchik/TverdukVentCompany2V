@@ -7,7 +7,6 @@ from datetime import date, datetime
 from pathlib import Path
 
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDialog,
     QFileDialog,
     QGridLayout,
@@ -22,6 +21,7 @@ from PySide6.QtWidgets import (
 from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.paths import APP_ROOT
 
 
@@ -78,7 +78,7 @@ class CRMDashboardDialog(QDialog):
         self.table_actions.setHorizontalHeaderLabels(
             ["Дата", "Клієнт", "Тип", "Тема", "Наступна дія"]
         )
-        self.table_actions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        setup_table(self.table_actions, read_only=True, alternating=False)
         layout.addWidget(self.table_actions)
 
         btn_refresh = QPushButton("🔄 Оновити")

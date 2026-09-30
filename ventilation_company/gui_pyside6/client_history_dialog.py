@@ -6,7 +6,6 @@ from datetime import date, datetime
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -26,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
@@ -215,8 +215,7 @@ class ClientHistoryDialog(QDialog):
         self.table_interactions.setHorizontalHeaderLabels(
             ["ID", "Дата", "Тип", "Тема", "Результат", "Наступна дія", "Дата дії", "Опис"]
         )
-        self.table_interactions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table_interactions.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.table_interactions, select_rows=True, read_only=True)
         self.tabs.addTab(self.table_interactions, "Взаємодії")
 
         self.table_payments = QTableWidget()
@@ -224,8 +223,7 @@ class ClientHistoryDialog(QDialog):
         self.table_payments.setHorizontalHeaderLabels(
             ["ID", "Дата", "Сума", "Валюта", "Тип", "Призначення", "Проєкт", "Нотатки"]
         )
-        self.table_payments.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table_payments.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        setup_table(self.table_payments, select_rows=True, read_only=True)
         self.tabs.addTab(self.table_payments, "Оплати")
 
     def _add_interaction(self):

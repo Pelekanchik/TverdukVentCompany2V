@@ -13,7 +13,6 @@ from datetime import datetime
 
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -34,6 +33,7 @@ from ventilation_company.database.repositories.client_repo import ClientReposito
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.audit_service import log_action
 
@@ -265,12 +265,7 @@ class ProjectsTab(QWidget):
         layout.addLayout(buttons_row)
 
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, select_rows=True, single_selection=True, sorting=True)
         self.table.setMinimumHeight(400)
         self.table.doubleClicked.connect(self._on_double_click)
         layout.addWidget(self.table)
