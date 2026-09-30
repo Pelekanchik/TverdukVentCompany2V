@@ -100,6 +100,7 @@ class Sidebar(QFrame):
 
         self._add_item("💰", "Ціноутворення", "pricing")
         self._add_item("📄", "Документи", "documents")
+        self._add_item("💵", "Гроші", "money")
 
         layout.addSpacing(12)
 

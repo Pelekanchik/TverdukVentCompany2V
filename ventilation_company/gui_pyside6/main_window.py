@@ -10,6 +10,7 @@ from ventilation_company.gui_pyside6.cutting_tab import CuttingTab
 from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
 from ventilation_company.gui_pyside6.documents_tab import DocumentsTab
 from ventilation_company.gui_pyside6.login_dialog import LoginDialog
+from ventilation_company.gui_pyside6.money_tab import MoneyTab
 from ventilation_company.gui_pyside6.pricing_tab import PricingTab
 from ventilation_company.gui_pyside6.products_tab import ProductsTab
 from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
@@ -55,6 +56,7 @@ class MainWindow(QMainWindow):
             "cutting": lambda: CuttingTab(),
             "pricing": lambda: PricingTab(),
             "documents": lambda: DocumentsTab(main_window=self),
+            "money": lambda: MoneyTab(),
             "crm": lambda: CRMTab(),
             "settings": lambda: ProgramSettingsTab(current_user=self.user),
         }

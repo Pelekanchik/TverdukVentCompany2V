@@ -46,6 +46,9 @@ class Permission(str, Enum):
     DOCUMENTS_EDIT = "documents.edit"
     DOCUMENTS_DELETE = "documents.delete"
 
+    # Гроші (дебіторка)
+    MONEY_VIEW = "money.view"
+
 
 class Role(str, Enum):
     ADMIN = "admin"
@@ -83,6 +86,7 @@ ROLE_PERMISSIONS = {
         Permission.PRODUCTS_EDIT,
         Permission.PRICE_LIST_VIEW,
         Permission.PRICE_LIST_EDIT,
+        Permission.MONEY_VIEW,
     },
     Role.ENGINEER: {
         Permission.PROJECTS_VIEW,
@@ -109,6 +113,7 @@ ROLE_PERMISSIONS = {
         Permission.CRM_EDIT,
         Permission.PRICE_LIST_EDIT,
         Permission.PROJECTS_EDIT,
+        Permission.MONEY_VIEW,
     },
     Role.VIEWER: {
         Permission.SPEC_VIEW,
@@ -136,6 +141,7 @@ TAB_PERMISSIONS = {
     "cutting": Permission.SPEC_VIEW,
     "pricing": Permission.PRICE_LIST_VIEW,
     "documents": Permission.DOCUMENTS_VIEW,
+    "money": Permission.MONEY_VIEW,
     "crm": Permission.CRM_VIEW,
     "settings": Permission.SETTINGS_VIEW,
 }

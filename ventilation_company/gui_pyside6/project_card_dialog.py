@@ -63,6 +63,7 @@ from ventilation_company.material_order import (
 )
 from ventilation_company.proposal_generator import generate_proposal
 from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.receivables import payment_summary
 
 
 class WorkEditDialog(QDialog):
@@ -268,29 +269,6 @@ class ComponentPickerDialog(QDialog):
             "total_price": round(qty * price, 2),
             "direction": "minus",
         }
-
-
-def payment_summary(payments: list[dict], total_customer: float) -> dict:
-    """Підсумок по оплатах проєкту.
-
-    «Сплачено» — надходження (вхідні) мінус повернення (вихідні).
-    Повертає paid, balance, percent (0..100) та overpaid.
-    """
-    paid = 0.0
-    for p in payments:
-        amount = float(p.get("amount") or 0)
-        if (p.get("type") or "вхідний") == "вхідний":
-            paid += amount
-        else:
-            paid -= amount
-    balance = total_customer - paid
-    percent = min(100.0, round(paid / total_customer * 100, 1)) if total_customer > 0 else 0.0
-    return {
-        "paid": round(paid, 2),
-        "balance": round(balance, 2),
-        "percent": percent,
-        "overpaid": total_customer > 0 and paid > total_customer,
-    }
 
 
 # Типові призначення оплат (випадаючий список у діалозі оплати).
