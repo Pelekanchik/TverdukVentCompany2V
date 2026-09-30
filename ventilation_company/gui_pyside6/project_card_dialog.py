@@ -53,6 +53,7 @@ from ventilation_company.database.repositories.project_work_repo import ProjectW
 from ventilation_company.gui_pyside6.material_order_dialog import MaterialOrderPreviewDialog
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.invoice_generator import generate_invoice
 from ventilation_company.material_order import (
     calculate_material_order,
     export_material_order_to_excel,
@@ -685,6 +686,12 @@ class ProjectCardDialog(QDialog):
         )
         btn_act.clicked.connect(self._on_act_pdf)
         actions.addWidget(btn_act)
+        btn_invoice = QPushButton("🧾 Рахунок (PDF)…")
+        btn_invoice.setToolTip(
+            "Згенерувати рахунок на оплату з банківськими реквізитами " "та призначенням платежу"
+        )
+        btn_invoice.clicked.connect(self._on_invoice_pdf)
+        actions.addWidget(btn_invoice)
         btn_materials = QPushButton("📦 Замовлення матеріалів…")
         btn_materials.setToolTip(
             "Розрахувати потребу в матеріалах за виробами проєкту "
@@ -801,31 +808,7 @@ class ProjectCardDialog(QDialog):
             )
             return
         name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
-        items = []
-        for p in self._products:
-            qty = float(p.get("quantity") or 1) or 1
-            total = float(p.get("discounted_price") or 0) or float(p.get("total_price") or 0)
-            items.append(
-                {
-                    "name": p.get("name", ""),
-                    "description": str(p.get("product_type", "")),
-                    "quantity": qty,
-                    "unit": "шт",
-                    "price": round(total / qty, 2),
-                }
-            )
-        for w in self._works:
-            qty = float(w.get("quantity") or 1) or 1
-            total = float(w.get("total_price") or 0)
-            items.append(
-                {
-                    "name": w.get("work_name", ""),
-                    "description": "Монтажні роботи",
-                    "quantity": qty,
-                    "unit": w.get("unit", "шт"),
-                    "price": round(total / qty, 2),
-                }
-            )
+        items = self._collect_document_items()
         default = f"КП_{self._safe_filename(name)}.pdf"
         path, _selected = QFileDialog.getSaveFileName(
             self,
@@ -869,31 +852,7 @@ class ProjectCardDialog(QDialog):
             )
             return
         name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
-        items = []
-        for p in self._products:
-            qty = float(p.get("quantity") or 1) or 1
-            total = float(p.get("discounted_price") or 0) or float(p.get("total_price") or 0)
-            items.append(
-                {
-                    "name": p.get("name", ""),
-                    "description": str(p.get("product_type", "")),
-                    "quantity": qty,
-                    "unit": "шт",
-                    "price": round(total / qty, 2),
-                }
-            )
-        for w in self._works:
-            qty = float(w.get("quantity") or 1) or 1
-            total = float(w.get("total_price") or 0)
-            items.append(
-                {
-                    "name": w.get("work_name", ""),
-                    "description": "Монтажні роботи",
-                    "quantity": qty,
-                    "unit": w.get("unit", "шт"),
-                    "price": round(total / qty, 2),
-                }
-            )
+        items = self._collect_document_items()
         default = f"Акт_{self._safe_filename(name)}.pdf"
         path, _selected = QFileDialog.getSaveFileName(
             self,
@@ -923,6 +882,80 @@ class ProjectCardDialog(QDialog):
             self,
             "Готово",
             f"Акт виконаних робіт збережено:\n{path}\n\nВідкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
+    def _collect_document_items(self) -> list[dict]:
+        """Позиції для КП/акта/рахунка: виробі (зі знижкою, якщо є) + роботи."""
+        items = []
+        for p in self._products:
+            qty = float(p.get("quantity") or 1) or 1
+            total = float(p.get("discounted_price") or 0) or float(p.get("total_price") or 0)
+            items.append(
+                {
+                    "name": p.get("name", ""),
+                    "description": str(p.get("product_type", "")),
+                    "quantity": qty,
+                    "unit": "шт",
+                    "price": round(total / qty, 2),
+                }
+            )
+        for w in self._works:
+            qty = float(w.get("quantity") or 1) or 1
+            total = float(w.get("total_price") or 0)
+            items.append(
+                {
+                    "name": w.get("work_name", ""),
+                    "description": "Монтажні роботи",
+                    "quantity": qty,
+                    "unit": w.get("unit", "шт"),
+                    "price": round(total / qty, 2),
+                }
+            )
+        return items
+
+    def _on_invoice_pdf(self):
+        """Згенерувати рахунок на оплату (PDF) з банківськими реквізитами."""
+        if not self._products and not self._works:
+            QMessageBox.information(
+                self,
+                "Рахунок на оплату",
+                "У проєкті немає виробів і робіт — немає за що виставляти рахунок.",
+            )
+            return
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        items = self._collect_document_items()
+        default = f"Рахунок_{self._safe_filename(name)}.pdf"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти рахунок на оплату",
+            default,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        project_data = {
+            "name": name,
+            "project_number": self._project_data.get("project_number", ""),
+            "client": self._project_data.get("client", ""),
+            "address": self._project_data.get("address", ""),
+            "contract_number": self._project_data.get("contract_number", ""),
+            "company": BusinessSettings.get_instance().get_company(),
+        }
+        try:
+            generate_invoice(project_data, items, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати рахунок:\n{exc}")
+            return
+        self._register_document("рахунок", path)
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Рахунок на оплату збережено:\n{path}\n\nВідкрити файл?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:

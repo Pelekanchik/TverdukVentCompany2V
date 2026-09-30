@@ -95,6 +95,9 @@ class TestCompany:
             "edrpou",
             "signatory",
             "city",
+            "bank_name",
+            "iban",
+            "mfo",
         }
 
     def test_company_save_and_reload(self, business_settings, tmp_path):
