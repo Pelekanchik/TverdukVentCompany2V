@@ -131,3 +131,38 @@ class TestExcelKeys:
         qapp.processEvents()
         # Фільтр не встановлено — поточний індекс не змінюється нашою логікою
         assert table.model().item(0, 1).text() == "залишається"
+
+
+class TestTypeToEdit:
+    """Швидке редагування: друк на виділеній комірці відкриває редактор
+    із заміною тексту (типова поведінка Qt AnyKeyPressed — зафіксовано тестом,
+    щоб рефакторинг setup_table її не втратив)."""
+
+    def test_typing_replaces_cell_content(self, qapp):
+        table = QTableView()
+        table.setModel(_model())
+        setup_table(table, excel_keys=True)
+        table.show()
+        table.setFocus()
+        idx = table.model().index(0, 1)  # було "r0c1"
+        table.setCurrentIndex(idx)
+        qapp.processEvents()
+        event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_7, Qt.KeyboardModifier.NoModifier, "7")
+        QApplication.sendEvent(table.viewport(), event)
+        qapp.processEvents()
+        editors = table.findChildren(QLineEdit)
+        assert editors, "друк не відкрив редактор комірки"
+        assert editors[0].text() == "7", "друк не замінив вміст комірки"
+
+    def test_typing_on_readonly_column_opens_nothing(self, qapp):
+        table = QTableView()
+        table.setModel(_model())
+        setup_table(table, excel_keys=True)
+        table.show()
+        table.setFocus()
+        table.setCurrentIndex(table.model().index(0, 0))  # колонка 0 — не редагована
+        qapp.processEvents()
+        event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_7, Qt.KeyboardModifier.NoModifier, "7")
+        QApplication.sendEvent(table.viewport(), event)
+        qapp.processEvents()
+        assert not table.findChildren(QLineEdit), "відкрився редактор у read-only колонці"
