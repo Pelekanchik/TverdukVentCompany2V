@@ -14,6 +14,13 @@ from ventilation_company.gui_pyside6.table_utils import (
 )
 
 
+@pytest.fixture(scope="module")
+def qapp():
+    """Власна фікстура QApplication (pytest-qt у CI не встановлено)."""
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
 def _model(rows: int = 3, cols: int = 3) -> QStandardItemModel:
     """Модель 3×3: колонка 0 — не редагована, решта — редаговані."""
     model = QStandardItemModel(rows, cols)
