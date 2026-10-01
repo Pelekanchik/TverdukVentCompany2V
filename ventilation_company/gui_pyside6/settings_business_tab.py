@@ -165,7 +165,7 @@ class BusinessSettingsTab(QWidget):
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        setup_table(table, select_rows=True, stretch_last=False)
+        setup_table(table, select_rows=True, stretch_last=False, excel_keys=True)
         table.setMinimumHeight(160)
         return table
 

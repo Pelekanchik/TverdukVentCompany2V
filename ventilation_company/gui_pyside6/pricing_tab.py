@@ -165,7 +165,7 @@ class MetalPricesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        setup_table(self.table)
+        setup_table(self.table, excel_keys=True)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -346,7 +346,7 @@ class LaborRatesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        setup_table(self.table)
+        setup_table(self.table, excel_keys=True)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()

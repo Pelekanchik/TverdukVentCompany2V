@@ -77,7 +77,7 @@ class MaterialOrderPreviewDialog(QDialog):
 
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
-        setup_table(self.table, select_rows=True)
+        setup_table(self.table, select_rows=True, excel_keys=True)
         self.table.itemChanged.connect(self._on_item_changed)
         self.table.setColumnWidth(0, 130)
         self.table.setColumnWidth(1, 190)
