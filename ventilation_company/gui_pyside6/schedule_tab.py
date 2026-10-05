@@ -7,19 +7,29 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
+    QDateEdit,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.schedule_service import list_crews, list_scheduled_works
@@ -32,6 +42,84 @@ PERIODS = [
 ]
 
 COLUMNS = ["Дата", "Проєкт", "Робота", "Бригада", "Сума, ₴"]
+
+
+class QuickWorkDialog(QDialog):
+    """Швидке додавання монтажної роботи до проєкту без відкриття картки.
+
+    Дата — обов'язкова (це і є суть плану монтажів); назва й бригада —
+    довільні тексти; ціза за одиницю опційна.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Швидке додавання монтажної роботи")
+        self.setMinimumWidth(420)
+        layout = QFormLayout(self)
+
+        self.combo_project = QComboBox()
+        self._projects: list[dict] = []
+        try:
+            self._projects = [p for p in ProjectRepository.list_all() if int(p.get("id") or 0)]
+        except Exception:  # noqa: BLE001 — покажемо порожній список і помилку при збереженні
+            self._projects = []
+        for p in self._projects:
+            label = f"{p.get('project_number') or ''} {p.get('name') or ''}".strip()
+            self.combo_project.addItem(label, int(p["id"]))
+        layout.addRow("Проєкт:", self.combo_project)
+
+        self.edit_name = QLineEdit()
+        self.edit_name.setPlaceholderText("напр. Монтаж повітропроводів")
+        layout.addRow("Робота *:", self.edit_name)
+
+        self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        layout.addRow("Дата:", self.date_edit)
+
+        self.edit_crew = QLineEdit()
+        self.edit_crew.setPlaceholderText("напр. Бригада №2")
+        layout.addRow("Бригада:", self.edit_crew)
+
+        self.spin_price = QDoubleSpinBox()
+        self.spin_price.setRange(0, 999999)
+        self.spin_price.setSuffix(" ₴")
+        self.spin_price.setDecimals(2)
+        layout.addRow("Ціна за од.:", self.spin_price)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def create_work(self) -> bool:
+        """Створити роботу в БД. Повертає True при успіху."""
+        name = self.edit_name.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Увага", "Введіть назву роботи.")
+            return False
+        project_id = self.combo_project.currentData()
+        if not project_id:
+            QMessageBox.warning(self, "Увага", "Оберіть проєкт.")
+            return False
+        try:
+            ProjectWorkRepository.create(
+                {
+                    "project_id": int(project_id),
+                    "work_name": name,
+                    "quantity": 1,
+                    "unit": "шт",
+                    "unit_price": self.spin_price.value(),
+                    "work_date": self.date_edit.date().toString("yyyy-MM-dd"),
+                    "crew": self.edit_crew.text().strip(),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти роботу:\n{exc}")
+            return False
+        return True
 
 
 class ScheduleTab(QWidget):
@@ -55,13 +143,18 @@ class ScheduleTab(QWidget):
         root.addWidget(header)
 
         hint = QLabel(
-            "Дати й бригади задаються у картці проєкту → вкладка «Роботи» → "
-            "«➕ Додати» / «✏️ Змінити»."
+            "Додавайте монтажі кнопкою «➕ Швидко додати» — або у картці проєкту "
+            "→ вкладка «Роботи» → «➕ Додати» (там є календар)."
         )
         hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px;")
         root.addWidget(hint)
 
         filters = QHBoxLayout()
+        btn_quick = QPushButton("➕ Швидко додати роботу")
+        btn_quick.setToolTip("Додати монтажну роботу до будь-якого проєкту без відкриття картки")
+        btn_quick.clicked.connect(self._on_quick_add)
+        filters.addWidget(btn_quick)
+        filters.addSpacing(12)
         filters.addWidget(QLabel("Бригада:"))
         self.combo_crew = QComboBox()
         self.combo_crew.currentTextChanged.connect(self._refill_table)
@@ -142,6 +235,14 @@ class ScheduleTab(QWidget):
         self.lbl_count.setText(f"Робіт із датою: {len(self._rows)}")
 
     # ── Дії ──
+
+    def _on_quick_add(self):
+        """Швидке додавання монтажної роботи без відкриття картки проєкту."""
+        dlg = QuickWorkDialog(parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        if dlg.create_work():
+            self.refresh()
 
     def _on_double_click(self):
         row = self.table.currentRow()

@@ -16,6 +16,7 @@ from PySide6.QtCore import QDate, Qt, QUrl, Signal
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -102,13 +103,33 @@ class WorkEditDialog(QDialog):
         self.spin_price.setDecimals(2)
         self.spin_price.setValue(work_data.get("unit_price", 0) if work_data else 0)
         layout.addRow("Ціна за од.", self.spin_price)
-        # Планування (v2.9): дата виконання/монтажу та бригада
-        self.edit_date = QLineEdit()
-        self.edit_date.setPlaceholderText("РРРР-ММ-ДД")
-        self.edit_date.setInputMask("0000-00-00")
+        # Планування (v2.9): дата виконання/монтажу та бригада.
+        # QDateEdit із календарем — простіше, ніж ручний ввід, і не дає
+        # ввести невалідну дату.
+        date_row = QHBoxLayout()
+        self.chk_has_date = QCheckBox("Запланована дата:")
+        self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        date_row.addWidget(self.chk_has_date)
+        date_row.addWidget(self.date_edit, 1)
+        layout.addRow(date_row)
+
+        def _toggle_date(checked: bool):
+            self.date_edit.setEnabled(checked)
+
+        self.chk_has_date.toggled.connect(_toggle_date)
         if work_data:
-            self.edit_date.setText(str(work_data.get("work_date") or ""))
-        layout.addRow("Дата виконання", self.edit_date)
+            raw_date = str(work_data.get("work_date") or "")
+            has_date = bool(raw_date)
+            self.chk_has_date.setChecked(has_date)
+            if has_date:
+                self.date_edit.setDate(QDate.fromString(raw_date, "yyyy-MM-dd"))
+        else:
+            # Для нової роботи дата — основне поле (монтажі), тож увімкнена
+            self.chk_has_date.setChecked(True)
+        _toggle_date(self.chk_has_date.isChecked())
+
         self.edit_crew = QLineEdit()
         self.edit_crew.setPlaceholderText("напр. Бригада №2")
         if work_data:
@@ -125,18 +146,10 @@ class WorkEditDialog(QDialog):
             self._preselect_work(work_data.get("work_name", ""))
 
     def _normalize_date(self) -> str:
-        """Валідація дати; повертає '' або YYYY-MM-DD."""
-        text = self.edit_date.text().replace("-", "").strip()
-        if not text:
+        """Повертає '' (без дати) або YYYY-MM-DD з QDateEdit."""
+        if not self.chk_has_date.isChecked():
             return ""
-        raw = self.edit_date.text().strip()
-        try:
-            from datetime import date
-
-            parsed = date.fromisoformat(raw)
-            return parsed.isoformat()
-        except ValueError:
-            return ""
+        return self.date_edit.date().toString("yyyy-MM-dd")
 
     def _on_work_selected(self, index: int):
         key = self.combo_work.itemData(index)

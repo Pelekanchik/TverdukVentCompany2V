@@ -594,18 +594,86 @@ class TestNewTabsGui:
         assert "⏰" in tab.table.item(0, 6).text()
 
     def test_work_edit_dialog_date(self, qapp):
+        from PySide6.QtCore import QDate
+
         from ventilation_company.gui_pyside6.project_card_dialog import WorkEditDialog
 
         dlg = WorkEditDialog(project_id=1)
-        dlg.edit_date.setText("2026-10-20")
+        assert dlg.chk_has_date.isChecked()  # нова робота — з датою за замовчуванням
+        dlg.date_edit.setDate(QDate(2026, 10, 20))
         dlg.edit_crew.setText("Бригада №3")
         data = dlg.get_data()
         assert data["work_date"] == "2026-10-20"
         assert data["crew"] == "Бригада №3"
 
-    def test_work_edit_dialog_invalid_date_ignored(self, qapp):
+    def test_work_edit_dialog_without_date(self, qapp):
         from ventilation_company.gui_pyside6.project_card_dialog import WorkEditDialog
 
         dlg = WorkEditDialog(project_id=1)
-        dlg.edit_date.setText("99-99-99")
+        dlg.chk_has_date.setChecked(False)
         assert dlg.get_data()["work_date"] == ""
+
+    def test_work_edit_dialog_prefills_from_data(self, qapp):
+        from ventilation_company.gui_pyside6.project_card_dialog import WorkEditDialog
+
+        dlg = WorkEditDialog(
+            project_id=1,
+            work_data={
+                "id": 1,
+                "work_name": "Монтаж",
+                "work_date": "2026-09-15",
+                "crew": "Бригада №1",
+            },
+        )
+        assert dlg.chk_has_date.isChecked()
+        assert dlg.date_edit.date().toString("yyyy-MM-dd") == "2026-09-15"
+        assert dlg.edit_crew.text() == "Бригада №1"
+        assert dlg.get_data()["work_date"] == "2026-09-15"
+
+    def test_quick_work_dialog_create(self, qapp, monkeypatch):
+        from PySide6.QtCore import QDate
+
+        from ventilation_company.gui_pyside6.schedule_tab import QuickWorkDialog
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.schedule_tab.ProjectRepository.list_all",
+            staticmethod(
+                lambda: [{"id": 7, "name": "Кафе", "project_number": "ПР-7", "status": "в роботі"}]
+            ),
+        )
+        created = []
+
+        class _FakeRepo:
+            @staticmethod
+            def create(data):
+                created.append(data)
+                return data
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.schedule_tab.ProjectWorkRepository", _FakeRepo
+        )
+        dlg = QuickWorkDialog()
+        assert dlg.combo_project.currentData() == 7
+        dlg.edit_name.setText("Монтаж вентилятора")
+        dlg.date_edit.setDate(QDate(2026, 10, 25))
+        dlg.edit_crew.setText("Бригада №2")
+        dlg.spin_price.setValue(1500)
+        assert dlg.create_work()
+        assert created[0]["project_id"] == 7
+        assert created[0]["work_date"] == "2026-10-25"
+        assert created[0]["crew"] == "Бригада №2"
+
+    def test_quick_work_dialog_requires_name(self, qapp, monkeypatch):
+        from ventilation_company.gui_pyside6.schedule_tab import QuickWorkDialog
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.schedule_tab.ProjectRepository.list_all",
+            staticmethod(lambda: [{"id": 1, "name": "А", "project_number": "ПР-1"}]),
+        )
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.schedule_tab.QMessageBox.warning",
+            staticmethod(lambda *a, **k: None),
+        )
+        dlg = QuickWorkDialog()
+        dlg.edit_name.setText("")
+        assert not dlg.create_work()
