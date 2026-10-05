@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 pytest.importorskip("PySide6")
 
+import shiboken6
 from PySide6.QtWidgets import QApplication
 
 from ventilation_company.database.base import Base
@@ -25,6 +26,22 @@ def qapp():
     if app is None:
         app = QApplication([])
     return app
+
+
+@pytest.fixture(autouse=True)
+def _destroy_toplevel_widgets(qapp):
+    """Детерміновано знищити всі top-level віджети після кожного тесту.
+
+    Без цього непоказані діалоги (WorkEditDialog, вкладки) доживають до
+    завершення інтерпретатора і PySide6 падає з access violation при
+    розбиранні Qt (процес повертає ненульовий код попри «N passed»).
+    """
+    yield
+    for widget in qapp.topLevelWidgets():
+        if shiboken6.isValid(widget):
+            widget.hide()
+            shiboken6.delete(widget)
+    qapp.processEvents()
 
 
 # ── Фінансовий зріз проєкту ──────────────────────────────────────────────
