@@ -2,7 +2,8 @@
 
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from ventilation_company.gui_pyside6.crm_tab import CRMTab
@@ -21,6 +22,23 @@ from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.update_checker import UpdateChecker
 from ventilation_company.services.auth_service import AuthUser
 
+_SETTINGS_ORG = "VentCompany"
+_SETTINGS_APP = "VentCompany"
+
+
+def add_tab_shortcuts(parent: QWidget, tab_ids: list[str], on_activate) -> list[QShortcut]:
+    """Ctrl+1..Ctrl+9 — перейти на вкладку за порядком у sidebar.
+
+    Повертає створені shortcuts (тримати посилання, щоб не зібрались GC).
+    """
+    shortcuts = []
+    for i, tab_id in enumerate(tab_ids[:9]):
+        shortcut = QShortcut(QKeySequence(f"Ctrl+{i + 1}"), parent)
+        shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        shortcut.activated.connect(lambda tid=tab_id: on_activate(tid))
+        shortcuts.append(shortcut)
+    return shortcuts
+
 
 class MainWindow(QMainWindow):
     def __init__(self, user: AuthUser):
@@ -30,9 +48,24 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"VentCompany — {user.full_name} ({user.role})")
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
+        self._settings = QSettings(_SETTINGS_ORG, _SETTINGS_APP)
         self._build_ui()
+        # Ctrl+1..9 — перемикання вкладок
+        self._tab_shortcuts = add_tab_shortcuts(self, list(self.tabs.keys()), self._activate_tab)
+        # Відновлення розміру/положення вікна з попереднього запуску
+        geometry = self._settings.value("mainwindow/geometry")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
         self.update_checker = UpdateChecker(self)
         self.update_checker.start()
+
+    def _activate_tab(self, tab_id: str):
+        self.sidebar.set_active(tab_id)
+        self._on_tab_changed(tab_id)
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self._settings.setValue("mainwindow/geometry", self.saveGeometry())
+        super().closeEvent(event)
 
     def _build_ui(self):
         central = QWidget()

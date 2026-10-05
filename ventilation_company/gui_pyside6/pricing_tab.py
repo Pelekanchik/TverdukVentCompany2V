@@ -14,9 +14,11 @@ import json
 import shutil
 from pathlib import Path
 
-from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
+    QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -146,6 +148,46 @@ def get_default_settings() -> dict:
 # ═══════════════════════════════════════════════════════════
 
 
+def parse_price_grid(text: str, thicknesses: list[str]) -> tuple[dict[str, dict[str, float]], int]:
+    """Розібрати таблицю цін з буфера обміну (TSV/CSV із Excel).
+
+    Кожен рядок: матеріал у першій колонці, далі ціни за товщинами
+    позиційно у порядку thicknesses. Приймає кому чи крапку, пробіли.
+    Повертає (дані, кількість пропущених нечислових комірок).
+    """
+    data: dict[str, dict[str, float]] = {}
+    skipped = 0
+    for line in text.replace("\r", "").split("\n"):
+        if not line.strip():
+            continue
+        cells = line.split("\t") if "\t" in line else line.split(";")
+        material = cells[0].strip()
+        if not material:
+            continue
+        entry = data.setdefault(material, {})
+        for thick, raw in zip(thicknesses, cells[1:], strict=False):
+            raw = raw.strip().replace(" ", "").replace(",", ".")
+            if not raw:
+                continue
+            try:
+                entry[thick] = float(raw)
+            except ValueError:
+                skipped += 1
+    return data, skipped
+
+
+def metal_prices_to_csv(model: QStandardItemModel, thicknesses: list[str]) -> str:
+    """Звести модель цін у текст CSV (роздільник «;», для українського Excel)."""
+    lines = ["Матеріал;" + ";".join(thicknesses)]
+    for row in range(model.rowCount()):
+        cells = [model.item(row, 0).text() if model.item(row, 0) else ""]
+        for col in range(1, 1 + len(thicknesses)):
+            item = model.item(row, col)
+            cells.append(item.text() if item else "")
+        lines.append(";".join(cells))
+    return "\n".join(lines)
+
+
 class MetalPricesTab(QWidget):
     """Таблиця цін на метал (матеріал × товщина)."""
 
@@ -174,20 +216,87 @@ class MetalPricesTab(QWidget):
 
         self._load_data()
 
+        actions = QHBoxLayout()
+        btn_paste = QPushButton("📋 Вставити з Excel")
+        btn_paste.setToolTip(
+            "Скопіюйте у Excel блок: перший стовпець — матеріал, "
+            "далі ціни за товщинами (0.5; 0.7; 0.9; …) — і натисніть"
+        )
+        btn_paste.clicked.connect(self._on_paste)
+        actions.addWidget(btn_paste)
+        btn_export = QPushButton("⬇ Експорт CSV")
+        btn_export.setToolTip("Зберегти ціни у CSV-файлі (відкривається в Excel)")
+        btn_export.clicked.connect(self._on_export)
+        actions.addWidget(btn_export)
+        actions.addStretch()
         btn_save = QPushButton("💾 Зберегти зміни")
         btn_save.setObjectName("primary")
         btn_save.clicked.connect(self._on_save)
-        layout.addWidget(btn_save)
+        actions.addWidget(btn_save)
+        layout.addLayout(actions)
+
+    def _on_paste(self):
+        text = QGuiApplication.clipboard().text()
+        if not text.strip():
+            QMessageBox.information(
+                self, "Вставка з Excel", "Буфер обміну порожній. Скопіюйте блок цін у Excel."
+            )
+            return
+        data, skipped = parse_price_grid(text, self.THICKNESSES)
+        if not data:
+            QMessageBox.warning(
+                self,
+                "Вставка з Excel",
+                "Не вдалося розпізнати дані. Потрібен формат: матеріал у першому "
+                "стовпці, далі ціни за товщинами.",
+            )
+            return
+        by_key = {k.casefold(): v for k, v in data.items()}
+        applied = 0
+        for row in range(self.model.rowCount()):
+            name_item = self.model.item(row, 0)
+            if name_item is None:
+                continue
+            entry = by_key.get(name_item.text().casefold())
+            if not entry:
+                continue
+            for col, thick in enumerate(self.THICKNESSES, 1):
+                if thick in entry:
+                    item = self.model.item(row, col)
+                    if item is not None:
+                        item.setText(f"{entry[thick]:.2f}")
+                        applied += 1
+        msg = f"Вставлено цін: {applied}."
+        if skipped:
+            msg += f" Пропущено нечислових комірок: {skipped}."
+        if not applied:
+            msg += " Матеріали у буфері не збігаються з таблицею."
+        QMessageBox.information(self, "Вставка з Excel", msg)
+
+    def _on_export(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт цін на метал", "ціни_метал.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+        Path(path).write_text(
+            metal_prices_to_csv(self.model, self.THICKNESSES),
+            encoding="utf-8-sig",
+        )
+        QMessageBox.information(self, "Експорт", f"Ціни збережено у файл:\n{path}")
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())
         prices = self.settings.get("material_prices", {})
         for material in ["оцинкована сталь", "нержавіюча сталь", "алюміній"]:
-            row = [QStandardItem(material)]
+            name_item = QStandardItem(material)
+            name_item.setEditable(False)  # назву матеріалу не змінюємо
+            row = [name_item]
             for thick in self.THICKNESSES:
                 price = prices.get(material, {}).get(thick, 0)
                 item = QStandardItem(f"{price:.2f}")
                 item.setEditable(True)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 row.append(item)
             self.model.appendRow(row)
 
@@ -368,13 +477,16 @@ class LaborRatesTab(QWidget):
         self.model.removeRows(0, self.model.rowCount())
         rates = self.settings.get("labor_rates", {})
         for product_type, data in rates.items():
+            name_item = QStandardItem(product_type)
+            name_item.setEditable(False)  # тип виробу не змінюємо
             row = [
-                QStandardItem(product_type),
+                name_item,
                 QStandardItem(f"{data.get('rate_per_m2', 0):.2f}"),
                 QStandardItem(f"{data.get('difficulty', 0):.1f}"),
             ]
             for cell in row[1:]:
                 cell.setEditable(True)
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.model.appendRow(row)
 
     def _on_save(self):

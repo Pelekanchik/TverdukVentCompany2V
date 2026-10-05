@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QTableView
 
 from ventilation_company.gui_pyside6.table_utils import (
     DEFAULT_ROW_HEIGHT,
+    build_cell_menu,
+    quick_search,
     setup_table,
 )
 
@@ -227,3 +229,75 @@ class TestExcelCellActions:
         _press_on_viewport(table, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
         qapp.processEvents()
         assert table.model().item(0, 1).text() == "450.50"
+
+
+class TestQuickSearch:
+    """Ctrl+F — швидкий пошук по таблиці (quick_search)."""
+
+    def _table(self, qapp):
+        table = QTableView()
+        table.setModel(_model())
+        setup_table(table)  # Ctrl+F працює і без excel_keys
+        table.show()
+        return table
+
+    def test_finds_text_case_insensitive(self, qapp):
+        table = self._table(qapp)
+        assert quick_search(table, "R1C2") is True
+        assert table.currentIndex().row() == 1
+        assert table.currentIndex().column() == 2
+
+    def test_wraps_to_top_after_current_row(self, qapp):
+        table = self._table(qapp)
+        table.setCurrentIndex(table.model().index(2, 0))
+        # "r0c1" є лише у рядку 0 — пошук має перейти на початок
+        assert quick_search(table, "r0c1") is True
+        assert table.currentIndex().row() == 0
+
+    def test_not_found_returns_false(self, qapp):
+        table = self._table(qapp)
+        assert quick_search(table, "немає такого") is False
+
+    def test_empty_table_returns_false(self, qapp):
+        table = self._table(qapp)
+        table.model().removeRows(0, table.model().rowCount())
+        assert quick_search(table, "x") is False
+
+
+class TestCellMenu:
+    """Контекстне меню: Копіювати / Вставити / Очистити."""
+
+    def _table(self, qapp):
+        table = QTableView()
+        table.setModel(_model())
+        setup_table(table, excel_keys=True)
+        table.show()
+        return table
+
+    def test_menu_has_three_actions(self, qapp):
+        table = self._table(qapp)
+        menu = build_cell_menu(table)
+        assert len(menu.actions()) == 3
+
+    def test_menu_clear_empties_selected_cell(self, qapp):
+        table = self._table(qapp)
+        idx = table.model().index(0, 1)
+        table.setCurrentIndex(idx)
+        table.selectionModel().select(idx, table.selectionModel().SelectionFlag.ClearAndSelect)
+        qapp.processEvents()
+        menu = build_cell_menu(table)
+        menu.actions()[2].trigger()  # «Очистити»
+        qapp.processEvents()
+        assert table.model().item(0, 1).text() == ""
+
+    def test_menu_paste_fills_selected_cell(self, qapp):
+        table = self._table(qapp)
+        QGuiApplication.clipboard().setText("99.90")
+        idx = table.model().index(2, 2)
+        table.setCurrentIndex(idx)
+        table.selectionModel().select(idx, table.selectionModel().SelectionFlag.ClearAndSelect)
+        qapp.processEvents()
+        menu = build_cell_menu(table)
+        menu.actions()[1].trigger()  # «Вставити»
+        qapp.processEvents()
+        assert table.model().item(2, 2).text() == "99.90"

@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox
 
 from ventilation_company.material_order import (
@@ -313,6 +314,10 @@ class TestMaterialOrderPreviewDialog:
 
     def test_delete_and_add_row(self, qapp, monkeypatch):
         dlg = self._make_dialog(qapp, monkeypatch)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes),
+        )
         dlg.table.setCurrentCell(1, 0)
         dlg._delete_selected_row()
         assert dlg.table.rowCount() == 1
@@ -380,4 +385,115 @@ class TestMaterialOrderPreviewDialog:
             assert (
                 editor.sizeHint().height() <= row_height
             ), f"редактор ({editor.sizeHint().height()}px) вищий за рядок ({row_height}px)"
+        dlg.close()
+
+
+class TestOrderDialogImprovements:
+    """Підсвітка без ціни, підтвердження формування, сортування, видалення виділених."""
+
+    def _make_dialog(self, qapp, monkeypatch):
+        from ventilation_company.gui_pyside6.material_order_dialog import (
+            MaterialOrderPreviewDialog,
+        )
+        from ventilation_company.material_order import MaterialItem, MaterialOrder
+
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.information", staticmethod(lambda *a, **k: None)
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.warning", staticmethod(lambda *a, **k: None)
+        )
+        order = MaterialOrder(
+            project_name="Тест",
+            items=[
+                MaterialItem(
+                    category="Ізоляція",
+                    name="Мінвата",
+                    specification="50 мм",
+                    unit="м²",
+                    quantity=20,
+                    price_per_unit=0,  # без ціни → підсвітка
+                ),
+                MaterialItem(
+                    category="Кріплення",
+                    name="Болт М8",
+                    specification="DIN 933",
+                    unit="шт",
+                    quantity=10,
+                    price_per_unit=3.5,
+                ),
+            ],
+        )
+        return MaterialOrderPreviewDialog(order)
+
+    def test_row_without_price_highlighted_and_cleared_after_price_set(self, qapp, monkeypatch):
+        from ventilation_company.gui_pyside6.material_order_dialog import (
+            _NO_PRICE_BG,
+        )
+
+        dlg = self._make_dialog(qapp, monkeypatch)
+        bg = dlg.table.item(0, 0).background().color().name()
+        assert bg == QColor(_NO_PRICE_BG).name()
+        # Рядок із ціною не підсвічений
+        assert dlg.table.item(1, 0).background().color().name() != QColor(_NO_PRICE_BG).name()
+        # Після встановлення ціни підсвітка зникає
+        dlg.table.item(0, 5).setText("180")
+        qapp.processEvents()
+        assert dlg.table.item(0, 0).background().color().name() != QColor(_NO_PRICE_BG).name()
+        dlg.close()
+
+    def test_accept_asks_confirmation_when_zero_prices(self, qapp, monkeypatch):
+        from PySide6.QtWidgets import QDialog
+
+        dlg = self._make_dialog(qapp, monkeypatch)
+        answers = {"value": QMessageBox.StandardButton.No}
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            staticmethod(lambda *a, **k: answers["value"]),
+        )
+        dlg._on_accept()
+        assert dlg.result() != QDialog.DialogCode.Accepted  # користувач відмовився
+        answers["value"] = QMessageBox.StandardButton.Yes
+        dlg._on_accept()
+        assert dlg.result() == QDialog.DialogCode.Accepted
+        dlg.close()
+
+    def test_accept_without_zero_prices_skips_confirmation(self, qapp, monkeypatch):
+        from PySide6.QtWidgets import QDialog
+
+        dlg = self._make_dialog(qapp, monkeypatch)
+        dlg.table.item(0, 5).setText("180")  # тепер усі ціни > 0
+        called = {"asked": False}
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            staticmethod(lambda *a, **k: called.update(asked=True)),
+        )
+        dlg._on_accept()
+        assert not called["asked"]
+        assert dlg.result() == QDialog.DialogCode.Accepted
+        dlg.close()
+
+    def test_sort_rows_by_category_and_name(self, qapp, monkeypatch):
+        dlg = self._make_dialog(qapp, monkeypatch)
+        dlg._sort_rows()
+        order = dlg.get_order()
+        assert [i.category for i in order.items] == ["Кріплення", "Ізоляція"]
+        assert order.items[0].name == "Болт М8"
+        dlg.close()
+
+    def test_delete_multiple_selected_rows(self, qapp, monkeypatch):
+        from PySide6.QtCore import QItemSelectionModel
+
+        dlg = self._make_dialog(qapp, monkeypatch)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes),
+        )
+        for row in (0, 1):
+            dlg.table.selectionModel().select(
+                dlg.table.model().index(row, 0),
+                QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows,
+            )
+        dlg._delete_selected_row()
+        assert dlg.table.rowCount() == 0
         dlg.close()

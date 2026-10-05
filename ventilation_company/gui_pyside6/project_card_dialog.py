@@ -744,6 +744,9 @@ class ProjectCardDialog(QDialog):
             ]
             for cell in row:
                 cell.setEditable(False)
+            # Числові колонки (к-ть, ціни, сума) — вирівнювання праворуч
+            for cell in (row[5], row[6], row[7], row[8], row[9]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             # Зафарбовуємо знижку жовтим, якщо вона є
             if disc > 0:
                 row[8].setForeground(QBrush(QColor(Theme.WARNING)))
@@ -1406,6 +1409,9 @@ class ProjectCardDialog(QDialog):
             ]
             for cell in row:
                 cell.setEditable(False)
+            # К-ть, ціна, сума — праворуч
+            for cell in (row[2], row[4], row[5]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.works_model.appendRow(row)
 
     def _on_add_work(self):
@@ -1526,6 +1532,9 @@ class ProjectCardDialog(QDialog):
             ]
             for cell in row:
                 cell.setEditable(False)
+            # К-ть, ціна, сума — праворуч
+            for cell in (row[3], row[5], row[6]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.expenses_model.appendRow(row)
 
     def _on_add_expense(self):
@@ -1704,7 +1713,12 @@ class ProjectCardDialog(QDialog):
                 p.get("notes") or "",
             ]
             for col, value in enumerate(values):
-                self.payments_table.setItem(row, col, QTableWidgetItem(str(value)))
+                cell = QTableWidgetItem(str(value))
+                if col == 2:  # сума — праворуч
+                    cell.setTextAlignment(
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.payments_table.setItem(row, col, cell)
         self._update_payments_summary()
 
     def _get_selected_payment(self):

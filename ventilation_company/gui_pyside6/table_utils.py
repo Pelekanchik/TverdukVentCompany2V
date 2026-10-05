@@ -4,15 +4,17 @@
 однакова висота рядків (щоб редактори комірок поміщалися й текст не обрізався),
 смугастий фон, прихований вертикальний заголовок, єдина поведінка вибору.
 
-Опційно — Excel-подібна навігація клавіатурою (excel_keys=True):
+Клавіатурні дії (Excel-подібні):
   • друк символу на виділеній комірці — відкрити редактор із заміною
     (типова поведінка Qt AnyKeyPressed, зафіксована тестами);
-  • Enter — зберегти комірку й перейти на рядок нижче (та ж колонка);
-  • Tab — зберегти й перейти до наступної редагованої колонки,
-    з останньої — до першої колонки наступного рядка;
-  • Shift+Tab — назад (у т. ч. на попередній рядок);
-  • Delete/Backspace — очистити виділені редаговані комірки;
-  • Ctrl+C / Ctrl+V — скопіювати поточну комірку / вставити у виділені.
+  • Ctrl+F — швидкий пошук по таблиці (для всіх таблиць);
+  • у таблицях з excel_keys=True:
+      – Enter — зберегти комірку й перейти на рядок нижче (та ж колонка);
+      – Tab — наступна редагована колонка, з останньої — наступний рядок;
+      – Shift+Tab — назад (у т. ч. на попередній рядок);
+      – Delete/Backspace — очистити виділені редаговані комірки;
+      – Ctrl+C / Ctrl+V — копіювати поточну / вставити у виділені;
+      – правий клік — контекстне меню цих дій.
 """
 
 from typing import cast
@@ -24,7 +26,9 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDoubleSpinBox,
+    QInputDialog,
     QLineEdit,
+    QMenu,
     QSpinBox,
     QTableView,
 )
@@ -35,16 +39,116 @@ DEFAULT_ROW_HEIGHT = 32
 _EDITOR_TYPES = (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox)
 
 
-class _ExcelKeysFilter(QObject):
-    """Перехоплює Enter/Tab у редакторі комірки й рухає курсор як у Excel.
+# ── Дії над комірками (використовуються і фільтром, і контекстним меню) ──
 
-    Фільтр ставиться на QApplication, але реагує лише на редактори,
-    що належать «своїй» таблиці. Живе, поки жива таблиця (батько).
+
+def selected_editable_indexes(table: QTableView) -> list:
+    """Виділені комірки, які дозволяють редагування (без дублікатів)."""
+    model = table.model()
+    if model is None:
+        return []
+    seen: set = set()
+    result = []
+    for idx in table.selectedIndexes():
+        if idx in seen:
+            continue
+        seen.add(idx)
+        if model.flags(idx) & Qt.ItemFlag.ItemIsEditable:
+            result.append(idx)
+    return result
+
+
+def clear_selection(table: QTableView) -> None:
+    """Очистити виділені редаговані комірки (клавіша Delete)."""
+    model = table.model()
+    if model is None:
+        return
+    for idx in selected_editable_indexes(table):
+        model.setData(idx, "", Qt.ItemDataRole.EditRole)
+
+
+def copy_cell(table: QTableView) -> None:
+    """Скопіювати текст поточної комірки у системний буфер (Ctrl+C)."""
+    model = table.model()
+    idx = table.currentIndex()
+    if model is None or not idx.isValid():
+        return
+    text = str(model.data(idx, Qt.ItemDataRole.DisplayRole) or "")
+    QGuiApplication.clipboard().setText(text)
+
+
+def paste_to_selection(table: QTableView) -> None:
+    """Вставити буфер обміну у всі виділені редаговані комірки (Ctrl+V)."""
+    text = QGuiApplication.clipboard().text()
+    if not text:
+        return
+    model = table.model()
+    if model is None:
+        return
+    for idx in selected_editable_indexes(table):
+        model.setData(idx, text, Qt.ItemDataRole.EditRole)
+
+
+def quick_search(table: QTableView, text: str) -> bool:
+    """Знайти наступну комірку з текстом (без урахування регістру).
+
+    Пошук від поточного рядка вниз з переходом на початок (циклічно).
+    Повертає True, якщо знайшов і виділив комірку.
+    """
+    model = table.model()
+    if model is None or not text:
+        return False
+    rows, cols = model.rowCount(), model.columnCount()
+    if rows == 0 or cols == 0:
+        return False
+    needle = text.casefold()
+    current = table.currentIndex()
+    start_row = current.row() + 1 if current.isValid() else 0
+    order = [(r, c) for r in range(start_row, rows) for c in range(cols)]
+    order += [(r, c) for r in range(0, start_row) for c in range(cols)]
+    for r, c in order:
+        idx = model.index(r, c)
+        value = str(model.data(idx, Qt.ItemDataRole.DisplayRole) or "")
+        if needle in value.casefold():
+            table.setCurrentIndex(idx)
+            selection = table.selectionModel()
+            if selection is not None:
+                selection.select(idx, selection.SelectionFlag.ClearAndSelect)
+            table.scrollTo(idx)
+            return True
+    return False
+
+
+# ── Контекстне меню ──
+
+
+def build_cell_menu(table: QTableView) -> QMenu:
+    """Контекстне меню дій над комірками (показати через menu.exec(...))."""
+    menu = QMenu(table)
+    menu.addAction("Копіювати\tCtrl+C", lambda: copy_cell(table))
+    menu.addAction("Вставити\tCtrl+V", lambda: paste_to_selection(table))
+    menu.addAction("Очистити\tDelete", lambda: clear_selection(table))
+    return menu
+
+
+def show_cell_menu(table: QTableView, global_pos) -> None:
+    build_cell_menu(table).exec(global_pos)
+
+
+# ── Фільтр клавіатури ──
+
+
+class _ExcelKeysFilter(QObject):
+    """Перехоплює клавіші таблиці: Enter/Tab у редакторі, дії над комірками.
+
+    Фільтр ставиться на QApplication, але реагує лише на події «своєї»
+    таблиці (редактори та viewport як її нащадки). Живе, поки жива таблиця.
     """
 
-    def __init__(self, table: QTableView):
+    def __init__(self, table: QTableView, excel_keys: bool = False):
         super().__init__(table)
         self._table = table
+        self._excel = excel_keys
         app = QApplication.instance()
         if app is not None:
             app.installEventFilter(self)
@@ -55,6 +159,8 @@ class _ExcelKeysFilter(QObject):
         key_event = cast(QKeyEvent, event)
         # ── Клавіші у відкритому редакторі комірки: переходи Enter/Tab ──
         if isinstance(obj, _EDITOR_TYPES) and self._table.isAncestorOf(obj):
+            if not self._excel:
+                return False
             key = key_event.key()
             if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self._move(Qt.Key.Key_Down)
@@ -66,7 +172,7 @@ class _ExcelKeysFilter(QObject):
                 self._move(Qt.Key.Key_Backtab)
                 return True
             return False
-        # ── Клавіші на самій таблиці (без редактора): Excel-дії ──
+        # ── Клавіші на самій таблиці (viewport) ──
         if obj is not self._table.viewport():
             return False
         if self._table.state() == QAbstractItemView.State.EditingState:
@@ -74,60 +180,26 @@ class _ExcelKeysFilter(QObject):
         key = key_event.key()
         modifiers = key_event.modifiers()
         ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+        if ctrl and key == Qt.Key.Key_F:
+            self._search_dialog()
+            return True
+        if not self._excel:
+            return False
         if ctrl and key == Qt.Key.Key_C:
-            self._copy()
+            copy_cell(self._table)
             return True
         if ctrl and key == Qt.Key.Key_V:
-            self._paste()
+            paste_to_selection(self._table)
             return True
         if key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace) and not ctrl:
-            self._clear_selection()
+            clear_selection(self._table)
             return True
         return False
 
-    # ── Excel-дії над виділеними комірками ──
-
-    def _selected_editable(self) -> list:
-        model = self._table.model()
-        if model is None:
-            return []
-        seen: set = set()
-        result = []
-        for idx in self._table.selectedIndexes():
-            if idx in seen:
-                continue
-            seen.add(idx)
-            if model.flags(idx) & Qt.ItemFlag.ItemIsEditable:
-                result.append(idx)
-        return result
-
-    def _clear_selection(self) -> None:
-        """Delete/Backspace: очистити виділені редаговані комірки."""
-        model = self._table.model()
-        if model is None:
-            return
-        for idx in self._selected_editable():
-            model.setData(idx, "", Qt.ItemDataRole.EditRole)
-
-    def _copy(self) -> None:
-        """Ctrl+C: скопіювати текст поточної комірки у системний буфер."""
-        clipboard = QGuiApplication.clipboard()
-        idx = self._table.currentIndex()
-        if idx.isValid() and self._table.model() is not None:
-            text = str(self._table.model().data(idx, Qt.ItemDataRole.DisplayRole) or "")
-            clipboard.setText(text)
-
-    def _paste(self) -> None:
-        """Ctrl+V: вставити буфер у всі виділені редаговані комірки."""
-        clipboard = QGuiApplication.clipboard()
-        text = clipboard.text()
-        if not text:
-            return
-        model = self._table.model()
-        if model is None:
-            return
-        for idx in self._selected_editable():
-            model.setData(idx, text, Qt.ItemDataRole.EditRole)
+    def _search_dialog(self) -> None:
+        text, ok = QInputDialog.getText(self._table, "Пошук у таблиці", "Текст для пошуку:")
+        if ok and text:
+            quick_search(self._table, text)
 
     # ── Логіка переходу ──
 
@@ -189,6 +261,7 @@ def setup_table(
     alternating: bool = True,
     row_height: int = DEFAULT_ROW_HEIGHT,
     excel_keys: bool = False,
+    cell_context_menu: bool = True,
 ) -> None:
     """Застосувати єдиний стиль і поведінку до таблиці.
 
@@ -201,12 +274,10 @@ def setup_table(
         stretch_last: остання колонка розтягується на вільне місце.
         alternating: смугастий фон рядків.
         row_height: стандартна висота рядка в пікселях.
-        excel_keys: Enter/Tab у редакторі комірки переходять до наступної
-            комірки/рядка, як у Excel (для таблиць з вводом даних).
-            Швидке редагування друком (AnyKeyPressed) — типова поведінка Qt
-            і працює за замовчуванням: символ на виділеній комірці відкриває
-            редактор із заміною тексту; тести в test_table_utils.py
-            фіксують, що setup_table цю поведінку не ламає.
+        excel_keys: Enter/Tab/Delete/Ctrl+C/V у редакторі й над комірками,
+            як у Excel (для таблиць з вводом даних).
+        cell_context_menu: правий клік у таблиці з excel_keys відкриває
+            меню дій над комірками (вимкніть, якщо треба власне меню).
     """
     if alternating:
         table.setAlternatingRowColors(True)
@@ -226,5 +297,10 @@ def setup_table(
         table.setSortingEnabled(True)
     if read_only:
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-    if excel_keys:
-        _ExcelKeysFilter(table)
+    # Фільтр клавіатури — завжди (Ctrl+F для всіх, решта — з excel_keys)
+    _ExcelKeysFilter(table, excel_keys=excel_keys)
+    if excel_keys and cell_context_menu:
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        table.customContextMenuRequested.connect(
+            lambda pos, t=table: show_cell_menu(t, t.viewport().mapToGlobal(pos))
+        )
