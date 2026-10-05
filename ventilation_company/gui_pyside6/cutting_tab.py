@@ -384,7 +384,7 @@ class CuttingTab(QWidget):
         order_left.addWidget(lbl_order)
 
         self.table_order = QTableView()
-        setup_table(self.table_order, select_rows=True)
+        setup_table(self.table_order, select_rows=True, read_only=True)
         self.table_order.setMaximumHeight(200)
         order_left.addWidget(self.table_order)
 
@@ -459,7 +459,7 @@ class CuttingTab(QWidget):
         left_layout.addWidget(lbl_tbl)
 
         self.table = QTableView()
-        setup_table(self.table, select_rows=True, sorting=True)
+        setup_table(self.table, select_rows=True, sorting=True, read_only=True)
         self.table.setMinimumWidth(440)
         left_layout.addWidget(self.table)
 

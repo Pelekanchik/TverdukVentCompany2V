@@ -76,8 +76,16 @@ class SpecificationTab(QWidget):
 
         # ── Таблиця виробів ──
         self.table = QTableView()
-        setup_table(self.table, select_rows=True, single_selection=True, sorting=True)
+        setup_table(
+            self.table,
+            select_rows=True,
+            single_selection=True,
+            sorting=True,
+            read_only=True,
+        )
         self.table.setMinimumHeight(400)
+        # activated = Enter або подвійний клік → діалог виробу
+        self.table.activated.connect(lambda *_: self._on_edit())
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()

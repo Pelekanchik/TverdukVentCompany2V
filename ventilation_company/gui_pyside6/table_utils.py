@@ -5,16 +5,20 @@
 смугастий фон, прихований вертикальний заголовок, єдина поведінка вибору.
 
 Опційно — Excel-подібна навігація клавіатурою (excel_keys=True):
+  • друк символу на виділеній комірці — відкрити редактор із заміною
+    (типова поведінка Qt AnyKeyPressed, зафіксована тестами);
   • Enter — зберегти комірку й перейти на рядок нижче (та ж колонка);
   • Tab — зберегти й перейти до наступної редагованої колонки,
     з останньої — до першої колонки наступного рядка;
-  • Shift+Tab — назад (у т. ч. на попередній рядок).
+  • Shift+Tab — назад (у т. ч. на попередній рядок);
+  • Delete/Backspace — очистити виділені редаговані комірки;
+  • Ctrl+C / Ctrl+V — скопіювати поточну комірку / вставити у виділені.
 """
 
 from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QGuiApplication, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -48,22 +52,82 @@ class _ExcelKeysFilter(QObject):
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         if event.type() != QEvent.Type.KeyPress:
             return False
-        if not isinstance(obj, _EDITOR_TYPES):
-            return False
-        if not self._table.isAncestorOf(obj):
-            return False
         key_event = cast(QKeyEvent, event)
+        # ── Клавіші у відкритому редакторі комірки: переходи Enter/Tab ──
+        if isinstance(obj, _EDITOR_TYPES) and self._table.isAncestorOf(obj):
+            key = key_event.key()
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._move(Qt.Key.Key_Down)
+                return True
+            if key == Qt.Key.Key_Tab:
+                self._move(Qt.Key.Key_Tab)
+                return True
+            if key == Qt.Key.Key_Backtab:
+                self._move(Qt.Key.Key_Backtab)
+                return True
+            return False
+        # ── Клавіші на самій таблиці (без редактора): Excel-дії ──
+        if obj is not self._table.viewport():
+            return False
+        if self._table.state() == QAbstractItemView.State.EditingState:
+            return False  # редактор відкритий — його клавіші його й обробляють
         key = key_event.key()
-        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            self._move(Qt.Key.Key_Down)
+        modifiers = key_event.modifiers()
+        ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+        if ctrl and key == Qt.Key.Key_C:
+            self._copy()
             return True
-        if key == Qt.Key.Key_Tab:
-            self._move(Qt.Key.Key_Tab)
+        if ctrl and key == Qt.Key.Key_V:
+            self._paste()
             return True
-        if key == Qt.Key.Key_Backtab:
-            self._move(Qt.Key.Key_Backtab)
+        if key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace) and not ctrl:
+            self._clear_selection()
             return True
         return False
+
+    # ── Excel-дії над виділеними комірками ──
+
+    def _selected_editable(self) -> list:
+        model = self._table.model()
+        if model is None:
+            return []
+        seen: set = set()
+        result = []
+        for idx in self._table.selectedIndexes():
+            if idx in seen:
+                continue
+            seen.add(idx)
+            if model.flags(idx) & Qt.ItemFlag.ItemIsEditable:
+                result.append(idx)
+        return result
+
+    def _clear_selection(self) -> None:
+        """Delete/Backspace: очистити виділені редаговані комірки."""
+        model = self._table.model()
+        if model is None:
+            return
+        for idx in self._selected_editable():
+            model.setData(idx, "", Qt.ItemDataRole.EditRole)
+
+    def _copy(self) -> None:
+        """Ctrl+C: скопіювати текст поточної комірки у системний буфер."""
+        clipboard = QGuiApplication.clipboard()
+        idx = self._table.currentIndex()
+        if idx.isValid() and self._table.model() is not None:
+            text = str(self._table.model().data(idx, Qt.ItemDataRole.DisplayRole) or "")
+            clipboard.setText(text)
+
+    def _paste(self) -> None:
+        """Ctrl+V: вставити буфер у всі виділені редаговані комірки."""
+        clipboard = QGuiApplication.clipboard()
+        text = clipboard.text()
+        if not text:
+            return
+        model = self._table.model()
+        if model is None:
+            return
+        for idx in self._selected_editable():
+            model.setData(idx, text, Qt.ItemDataRole.EditRole)
 
     # ── Логіка переходу ──
 

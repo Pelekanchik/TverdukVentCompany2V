@@ -5,7 +5,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QKeyEvent, QStandardItem, QStandardItemModel
+from PySide6.QtGui import QGuiApplication, QKeyEvent, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QApplication, QLineEdit, QTableView
 
 from ventilation_company.gui_pyside6.table_utils import (
@@ -166,3 +166,64 @@ class TestTypeToEdit:
         QApplication.sendEvent(table.viewport(), event)
         qapp.processEvents()
         assert not table.findChildren(QLineEdit), "відкрився редактор у read-only колонці"
+
+
+def _press_on_viewport(
+    table, key: Qt.Key, modifier: Qt.KeyboardModifier = Qt.KeyboardModifier.NoModifier
+):
+    """Надіслати клавішу viewport таблиці (без відкритого редактора)."""
+    event = QKeyEvent(QEvent.Type.KeyPress, key, modifier)
+    QApplication.sendEvent(table.viewport(), event)
+
+
+class TestExcelCellActions:
+    """Delete очищає комірки, Ctrl+C/V — копіювати/вставити (як у Excel)."""
+
+    def _table(self, qapp):
+        table = QTableView()
+        table.setModel(_model())
+        setup_table(table, excel_keys=True)
+        table.show()
+        table.setFocus()
+        return table
+
+    def test_delete_clears_editable_cell(self, qapp):
+        table = self._table(qapp)
+        table.setCurrentIndex(table.model().index(0, 1))
+        table.selectionModel().select(
+            table.model().index(0, 1),
+            table.selectionModel().SelectionFlag.ClearAndSelect,
+        )
+        qapp.processEvents()
+        _press_on_viewport(table, Qt.Key.Key_Delete)
+        qapp.processEvents()
+        assert table.model().item(0, 1).text() == ""
+
+    def test_delete_keeps_readonly_column(self, qapp):
+        table = self._table(qapp)
+        idx = table.model().index(0, 0)  # колонка 0 — не редагована
+        table.setCurrentIndex(idx)
+        table.selectionModel().select(idx, table.selectionModel().SelectionFlag.ClearAndSelect)
+        qapp.processEvents()
+        _press_on_viewport(table, Qt.Key.Key_Delete)
+        qapp.processEvents()
+        assert table.model().item(0, 0).text() == "r0c0"
+
+    def test_ctrl_c_copies_current_cell_to_clipboard(self, qapp):
+        table = self._table(qapp)
+        table.setCurrentIndex(table.model().index(1, 2))
+        qapp.processEvents()
+        _press_on_viewport(table, Qt.Key.Key_C, Qt.KeyboardModifier.ControlModifier)
+        qapp.processEvents()
+        assert QGuiApplication.clipboard().text() == "r1c2"
+
+    def test_ctrl_v_pastes_into_selected_editable_cells(self, qapp):
+        table = self._table(qapp)
+        QGuiApplication.clipboard().setText("450.50")
+        idx = table.model().index(0, 1)
+        table.setCurrentIndex(idx)
+        table.selectionModel().select(idx, table.selectionModel().SelectionFlag.ClearAndSelect)
+        qapp.processEvents()
+        _press_on_viewport(table, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+        qapp.processEvents()
+        assert table.model().item(0, 1).text() == "450.50"

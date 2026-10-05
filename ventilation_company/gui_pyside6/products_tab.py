@@ -134,8 +134,15 @@ class ProductsTab(QWidget):
         right_layout.setSpacing(12)
         right_layout.setContentsMargins(0, 0, 0, 0)
         self.table = QTableView()
-        setup_table(self.table, select_rows=True, extended_selection=True, sorting=True)
-        self.table.doubleClicked.connect(self._on_edit)
+        setup_table(
+            self.table,
+            select_rows=True,
+            extended_selection=True,
+            sorting=True,
+            read_only=True,
+        )
+        # activated = Enter або подвійний клік → діалог редагування
+        self.table.activated.connect(self._on_edit)
         right_layout.addWidget(self.table)
 
         self.model = QStandardItemModel()

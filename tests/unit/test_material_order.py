@@ -330,6 +330,39 @@ class TestMaterialOrderPreviewDialog:
         assert order.items[0].quantity == 0.0
         dlg.close()
 
+    def test_duplicate_selected_row(self, qapp, monkeypatch):
+        dlg = self._make_dialog(qapp, monkeypatch)
+        assert dlg.table.rowCount() == 2
+        dlg.table.setCurrentCell(0, 1)
+        dlg._duplicate_selected_row()
+        assert dlg.table.rowCount() == 3
+        # Копія вставлена одразу після оригіналу
+        assert dlg.table.item(1, 1).text() == "Болт М8"
+        assert dlg.table.item(1, 4).text() == "10"
+        assert dlg.table.item(1, 5).text() == "3.5"
+        # Оригінальний другий рядок зсунуто вниз
+        assert dlg.table.item(2, 1).text() == "Мінвата"
+        order = dlg.get_order()
+        assert [i.name for i in order.items] == ["Болт М8", "Болт М8", "Мінвата"]
+        dlg.close()
+
+    def test_duplicate_without_selection_warns(self, qapp, monkeypatch):
+        from ventilation_company.gui_pyside6.material_order_dialog import (
+            MaterialOrderPreviewDialog,
+        )
+        from ventilation_company.material_order import MaterialOrder
+
+        called = {"info": False}
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.information",
+            staticmethod(lambda *a, **k: called.update(info=True)),
+        )
+        order = MaterialOrder(project_name="Тест", items=[])
+        dlg = MaterialOrderPreviewDialog(order)
+        dlg._duplicate_selected_row()  # currentRow() == -1
+        assert called["info"]
+        dlg.close()
+
     def test_cell_editor_fits_row_height(self, qapp, monkeypatch):
         """Редактор комірки поміщається у висоту рядка — текст не обрізається."""
         from ventilation_company.gui_pyside6.theme import Theme

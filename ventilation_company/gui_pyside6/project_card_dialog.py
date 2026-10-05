@@ -657,7 +657,7 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         self.products_table = QTableView()
-        setup_table(self.products_table)
+        setup_table(self.products_table, read_only=True)
         layout.addWidget(self.products_table)
         self.products_model = QStandardItemModel()
         # ← v2.4: додано колонку "Зі знижкою"
@@ -1036,7 +1036,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_refresh)
         layout.addLayout(top)
         self.docs_table = QTableView()
-        setup_table(self.docs_table)
+        setup_table(self.docs_table, read_only=True)
         layout.addWidget(self.docs_table)
         self.docs_model = QStandardItemModel()
         self.docs_model.setHorizontalHeaderLabels(["ID", "Тип", "Файл", "Розмір", "Дата", "Дії"])
@@ -1364,7 +1364,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_add)
         layout.addLayout(top)
         self.works_table = QTableView()
-        setup_table(self.works_table)
+        setup_table(self.works_table, read_only=True)
         layout.addWidget(self.works_table)
         self.works_model = QStandardItemModel()
         self.works_model.setHorizontalHeaderLabels(
@@ -1481,7 +1481,7 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_components)
         layout.addLayout(top)
         self.expenses_table = QTableView()
-        setup_table(self.expenses_table)
+        setup_table(self.expenses_table, read_only=True)
         layout.addWidget(self.expenses_table)
         self.expenses_model = QStandardItemModel()
         self.expenses_model.setHorizontalHeaderLabels(

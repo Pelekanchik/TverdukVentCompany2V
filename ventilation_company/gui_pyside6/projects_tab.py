@@ -265,9 +265,16 @@ class ProjectsTab(QWidget):
         layout.addLayout(buttons_row)
 
         self.table = QTableView()
-        setup_table(self.table, select_rows=True, single_selection=True, sorting=True)
+        setup_table(
+            self.table,
+            select_rows=True,
+            single_selection=True,
+            sorting=True,
+            read_only=True,
+        )
         self.table.setMinimumHeight(400)
-        self.table.doubleClicked.connect(self._on_double_click)
+        # activated = Enter або подвійний клік → картка проєкту
+        self.table.activated.connect(self._on_double_click)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()

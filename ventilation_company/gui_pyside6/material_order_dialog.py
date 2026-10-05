@@ -69,8 +69,9 @@ class MaterialOrderPreviewDialog(QDialog):
         layout.addWidget(self.lbl_info)
 
         hint = QLabel(
-            "✏️ Відкорегуйте позиції: змініть кількість чи ціну, видаліть зайве "
-            "або додайте свій матеріал. Сума перераховується автоматично."
+            "✏️ Відкорегуйте позиції: друк — замінити комірку, Enter — рядок нижче, "
+            "Tab — наступна колонка, Delete — очистити, Ctrl+C/V — копіювати/вставити. "
+            "Сума перераховується автоматично."
         )
         hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px;")
         layout.addWidget(hint)
@@ -93,6 +94,10 @@ class MaterialOrderPreviewDialog(QDialog):
         btn_add = QPushButton("➕ Додати рядок")
         btn_add.clicked.connect(self._add_row)
         row_actions.addWidget(btn_add)
+        btn_dup = QPushButton("⧉ Дублювати рядок")
+        btn_dup.setToolTip("Скопіювати виділений рядок нижче нього")
+        btn_dup.clicked.connect(self._duplicate_selected_row)
+        row_actions.addWidget(btn_dup)
         btn_del = QPushButton("🗑 Видалити рядок")
         btn_del.setStyleSheet(f"color: {Theme.DANGER};")
         btn_del.clicked.connect(self._delete_selected_row)
@@ -126,8 +131,9 @@ class MaterialOrderPreviewDialog(QDialog):
             self.table.blockSignals(False)
         self._update_totals()
 
-    def _append_row(self, item: MaterialItem):
-        row = self.table.rowCount()
+    def _append_row(self, item: MaterialItem, at_row: int | None = None):
+        """Додати рядок у кінець (at_row=None) або вставити після вказаного рядка."""
+        row = self.table.rowCount() if at_row is None else at_row + 1
         self.table.insertRow(row)
         values = [
             item.category,
@@ -207,6 +213,28 @@ class MaterialOrderPreviewDialog(QDialog):
             return
         self.table.removeRow(row)
         self._update_totals()
+
+    def _duplicate_selected_row(self):
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Дублювання", "Спочатку виберіть рядок у таблиці.")
+            return
+        item = MaterialItem(
+            category=self._cell_text(row, 0) or "Матеріали",
+            name=self._cell_text(row, 1) or "—",
+            specification=self._cell_text(row, 2),
+            unit=self._cell_text(row, 3) or "шт",
+            quantity=_parse_float(self._cell_text(row, QTY_COL)),
+            price_per_unit=_parse_float(self._cell_text(row, PRICE_COL)),
+            notes=self._cell_text(row, 7),
+        )
+        self.table.blockSignals(True)
+        try:
+            self._append_row(item, at_row=row)
+        finally:
+            self.table.blockSignals(False)
+        self._update_totals()
+        self.table.setCurrentCell(row + 1, 1)
 
     def _on_accept(self):
         if self.table.rowCount() == 0:
