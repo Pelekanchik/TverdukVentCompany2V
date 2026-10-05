@@ -25,9 +25,21 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.services.receivables import build_receivables, receivables_totals
+from ventilation_company.services.receivables import (
+    build_receivables,
+    is_overdue,
+    receivables_totals,
+)
 
-FILTERS = ["Усі", "Борг", "Оплачено повністю", "Частково оплачено", "Переплата", "Без оплат"]
+FILTERS = [
+    "Усі",
+    "Борг",
+    "Прострочено",
+    "Оплачено повністю",
+    "Частково оплачено",
+    "Переплата",
+    "Без оплат",
+]
 
 COLUMNS = [
     "№ проєкту",
@@ -143,6 +155,8 @@ class MoneyTab(QWidget):
         rows = self._rows
         if mode == "Борг":
             rows = [r for r in rows if not r["overpaid"] and r["balance"] > 0]
+        elif mode == "Прострочено":
+            rows = [r for r in rows if is_overdue(r.get("status"), r["balance"])]
         elif mode == "Оплачено повністю":
             rows = [r for r in rows if not r["overpaid"] and r["balance"] <= 0 and r["paid"] > 0]
         elif mode == "Частково оплачено":
@@ -167,9 +181,12 @@ class MoneyTab(QWidget):
         for r in rows:
             row = self.table.rowCount()
             self.table.insertRow(row)
+            overdue = is_overdue(r.get("status"), r["balance"])
             balance_text = (
                 f"Переплата {abs(r['balance']):,.2f}" if r["overpaid"] else f"{r['balance']:,.2f}"
             )
+            if overdue:
+                balance_text = f"{r['balance']:,.2f} ⏰"
             values = [
                 r["project_number"],
                 r["name"],
@@ -191,6 +208,11 @@ class MoneyTab(QWidget):
                     item.setForeground(QColor(Theme.DANGER))
                 if col == 6 and r["overpaid"]:
                     item.setForeground(QColor(Theme.ACCENT))
+                if overdue and col in (3, 6):
+                    item.setForeground(QColor(Theme.DANGER))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
                 self.table.setItem(row, col, item)
         # Підсумок відфільтрованих
         total = round(sum(r["total"] for r in rows), 2)

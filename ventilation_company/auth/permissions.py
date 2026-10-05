@@ -49,6 +49,10 @@ class Permission(str, Enum):
     # Гроші (дебіторка)
     MONEY_VIEW = "money.view"
 
+    # Склад (v2.9)
+    WAREHOUSE_VIEW = "warehouse.view"
+    WAREHOUSE_EDIT = "warehouse.edit"
+
 
 class Role(str, Enum):
     ADMIN = "admin"
@@ -87,6 +91,7 @@ ROLE_PERMISSIONS = {
         Permission.PRICE_LIST_VIEW,
         Permission.PRICE_LIST_EDIT,
         Permission.MONEY_VIEW,
+        Permission.WAREHOUSE_VIEW,
     },
     Role.ENGINEER: {
         Permission.PROJECTS_VIEW,
@@ -98,6 +103,7 @@ ROLE_PERMISSIONS = {
         Permission.PRODUCTS_VIEW,
         Permission.PRODUCTS_EDIT,
         Permission.SETTINGS_VIEW,
+        Permission.WAREHOUSE_VIEW,
     },
     Role.MASTER: {
         Permission.PROJECTS_VIEW,
@@ -105,6 +111,8 @@ ROLE_PERMISSIONS = {
         Permission.SPEC_EDIT,
         Permission.PRODUCTION_VIEW,
         Permission.PRODUCTION_EDIT,
+        Permission.WAREHOUSE_VIEW,
+        Permission.WAREHOUSE_EDIT,
     },
     Role.ACCOUNTANT: {
         Permission.PROJECTS_VIEW,
@@ -139,9 +147,11 @@ TAB_PERMISSIONS = {
     "products": Permission.PRODUCTS_VIEW,
     "specification": Permission.SPEC_VIEW,
     "cutting": Permission.SPEC_VIEW,
+    "schedule": Permission.PRODUCTION_VIEW,
     "pricing": Permission.PRICE_LIST_VIEW,
     "documents": Permission.DOCUMENTS_VIEW,
     "money": Permission.MONEY_VIEW,
+    "warehouse": Permission.WAREHOUSE_VIEW,
     "crm": Permission.CRM_VIEW,
     "settings": Permission.SETTINGS_VIEW,
 }

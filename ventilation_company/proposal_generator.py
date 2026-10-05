@@ -495,3 +495,84 @@ def generate_proposal(project_data: dict, items: list[dict], output_path: str) -
     pdf = ProposalPDF(prop)
     pdf.save(output_path)
     return output_path
+
+
+def export_proposal_to_excel(project_data: dict, items: list[dict], output_path: str) -> str:
+    """Експорт КП у Excel (xlsx) — ті самі позиції, що у PDF-версії.
+
+    Зручно для замовників, які хочуть редагований формат.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "КП"
+
+    company = project_data.get("company") or {}
+    bold = Font(bold=True)
+    header_fill = PatternFill("solid", fgColor="D9E2F3")
+    thin = Side(style="thin", color="999999")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws["A1"] = "КОМЕРЦІЙНА ПРОПОЗИЦІЯ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = (
+        f"Проєкт: {project_data.get('project_number', '')} {project_data.get('name', '')}".strip()
+    )
+    ws["A3"] = f"Замовник: {project_data.get('client', '—')}"
+    if company.get("name"):
+        ws["A4"] = f"Виконавець: {company.get('name')}"
+        contact = " ".join(str(x) for x in (company.get("phone"), company.get("email")) if x)
+        if contact:
+            ws["A5"] = contact
+
+    start_row = 7
+    headers = ["№", "Найменування", "Опис", "К-ть", "Од.", "Ціна, ₴", "Сума, ₴"]
+    for col, text in enumerate(headers, start=1):
+        cell = ws.cell(row=start_row, column=col, value=text)
+        cell.font = bold
+        cell.fill = header_fill
+        cell.border = border
+
+    subtotal = 0.0
+    for idx, it in enumerate(items, start=1):
+        qty = float(it.get("quantity") or 1)
+        price = float(it.get("price") or 0)
+        total = round(qty * price, 2)
+        subtotal += total
+        row = start_row + idx
+        values = [
+            idx,
+            it.get("name", ""),
+            it.get("description", ""),
+            qty,
+            it.get("unit", "шт"),
+            price,
+            total,
+        ]
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = border
+            if col in (6, 7):
+                cell.number_format = "#,##0.00"
+
+    total_row = start_row + len(items) + 1
+    ws.cell(row=total_row, column=6, value="Разом:").font = bold
+    total_cell = ws.cell(row=total_row, column=7, value=round(subtotal, 2))
+    total_cell.font = bold
+    total_cell.number_format = "#,##0.00"
+
+    ws.column_dimensions["A"].width = 5
+    ws.column_dimensions["B"].width = 40
+    ws.column_dimensions["C"].width = 28
+    ws.column_dimensions["D"].width = 8
+    ws.column_dimensions["E"].width = 6
+    ws.column_dimensions["F"].width = 12
+    ws.column_dimensions["G"].width = 14
+    for row in ws.iter_rows(min_row=start_row, max_row=total_row, max_col=7):
+        for cell in row:
+            cell.alignment = Alignment(vertical="center", wrap_text=(cell.column == 2))
+
+    wb.save(output_path)
+    return output_path

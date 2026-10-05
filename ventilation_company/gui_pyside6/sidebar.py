@@ -45,6 +45,7 @@ class SidebarItem(QPushButton):
 
 class Sidebar(QFrame):
     tab_changed = Signal(str)
+    search_requested = Signal()
 
     def __init__(self, user, parent=None):
         super().__init__(parent)
@@ -76,6 +77,29 @@ class Sidebar(QFrame):
         lbl_role.setStyleSheet(f"color: {Theme.ACCENT}; font-size: 10px; padding: 4px;")
         layout.addWidget(lbl_role)
 
+        layout.addSpacing(10)
+
+        btn_search = QPushButton("🔍  Пошук  (Ctrl+G)")
+        btn_search.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_search.setMinimumHeight(36)
+        btn_search.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.SIDEBAR_ACTIVE};
+                color: {Theme.TEXT};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 8px;
+                padding: 6px 12px;
+                text-align: left;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                border-color: {Theme.ACCENT};
+                color: {Theme.TEXT_BRIGHT};
+            }}
+        """)
+        btn_search.clicked.connect(self._on_search)
+        layout.addWidget(btn_search)
+
         layout.addSpacing(16)
 
         lbl_work = QLabel("РОБОТА")
@@ -89,6 +113,7 @@ class Sidebar(QFrame):
         self._add_item("🔧", "Вироби", "products")
         self._add_item("📋", "Специфікація", "specification")
         self._add_item("✂️", "Розкрій", "cutting")
+        self._add_item("📅", "Монтажі", "schedule")
 
         layout.addSpacing(12)
 
@@ -101,6 +126,7 @@ class Sidebar(QFrame):
         self._add_item("💰", "Ціноутворення", "pricing")
         self._add_item("📄", "Документи", "documents")
         self._add_item("💵", "Гроші", "money")
+        self._add_item("📦", "Склад", "warehouse")
 
         layout.addSpacing(12)
 
@@ -147,6 +173,9 @@ class Sidebar(QFrame):
         for btn in self._buttons:
             btn.setChecked(btn == clicked)
         self.tab_changed.emit(clicked.tab_id)
+
+    def _on_search(self):
+        self.search_requested.emit()
 
     def _on_logout(self):
         from PySide6.QtWidgets import QMessageBox

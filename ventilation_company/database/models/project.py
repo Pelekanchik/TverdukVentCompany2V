@@ -8,11 +8,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -128,6 +128,9 @@ class ProjectWork(Base):
     unit: Mapped[str | None] = mapped_column(String, nullable=True)
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # Планування (v2.9): дата виконання/монтажу та бригада/виконавець
+    work_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    crew: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="works")
 

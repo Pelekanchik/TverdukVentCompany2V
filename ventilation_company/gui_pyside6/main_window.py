@@ -1,6 +1,7 @@
 """Головне вікно VentCompany (PySide6)."""
 
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -10,20 +11,53 @@ from ventilation_company.gui_pyside6.crm_tab import CRMTab
 from ventilation_company.gui_pyside6.cutting_tab import CuttingTab
 from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
 from ventilation_company.gui_pyside6.documents_tab import DocumentsTab
+from ventilation_company.gui_pyside6.global_search_dialog import GlobalSearchDialog
 from ventilation_company.gui_pyside6.login_dialog import LoginDialog
 from ventilation_company.gui_pyside6.money_tab import MoneyTab
 from ventilation_company.gui_pyside6.pricing_tab import PricingTab
 from ventilation_company.gui_pyside6.products_tab import ProductsTab
 from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
 from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
+from ventilation_company.gui_pyside6.schedule_tab import ScheduleTab
 from ventilation_company.gui_pyside6.sidebar import Sidebar, can_open_tab
 from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.update_checker import UpdateChecker
+from ventilation_company.gui_pyside6.warehouse_tab import WarehouseTab
 from ventilation_company.services.auth_service import AuthUser
 
 _SETTINGS_ORG = "VentCompany"
 _SETTINGS_APP = "VentCompany"
+
+
+def _auto_backup_on_exit() -> None:
+    """Автобекап БД при закритті програми (якщо увімкнено в налаштуваннях).
+
+    Не більше однієї копії на день; старі копії ротаційно видаляються
+    згідно з «Зберігати останніх» у налаштуваннях бекапу.
+    """
+    try:
+        from datetime import date
+
+        from ventilation_company.database.repositories.app_settings_repository import (
+            AppSettingsRepository,
+        )
+        from ventilation_company.utils.backup import create_backup, list_backups
+
+        settings = AppSettingsRepository()
+        if settings.get("app.backup_auto", "0") != "1":
+            return
+        keep = int(settings.get("app.backup_keep", "10") or "10")
+        today = date.today().isoformat()
+        if any(today in Path(b).stem for b in list_backups()):
+            return  # сьогодні вже створювали
+        path = create_backup()
+        if path:
+            backups = sorted(list_backups())
+            for old in backups[:-keep] if keep > 0 else backups:
+                Path(old).unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 — бекап не має блокувати вихід
+        pass
 
 
 def add_tab_shortcuts(parent: QWidget, tab_ids: list[str], on_activate) -> list[QShortcut]:
@@ -52,6 +86,10 @@ class MainWindow(QMainWindow):
         self._build_ui()
         # Ctrl+1..9 — перемикання вкладок
         self._tab_shortcuts = add_tab_shortcuts(self, list(self.tabs.keys()), self._activate_tab)
+        # Ctrl+G — глобальний пошук
+        self._search_shortcut = QShortcut(QKeySequence("Ctrl+G"), self)
+        self._search_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self._search_shortcut.activated.connect(self._open_global_search)
         # Відновлення розміру/положення вікна з попереднього запуску
         geometry = self._settings.value("mainwindow/geometry")
         if geometry is not None:
@@ -65,6 +103,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:  # noqa: N802
         self._settings.setValue("mainwindow/geometry", self.saveGeometry())
+        _auto_backup_on_exit()
         super().closeEvent(event)
 
     def _build_ui(self):
@@ -76,6 +115,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar(self.user)
         self.sidebar.tab_changed.connect(self._on_tab_changed)
+        self.sidebar.search_requested.connect(self._open_global_search)
         layout.addWidget(self.sidebar)
 
         self.stack = QStackedWidget()
@@ -87,9 +127,11 @@ class MainWindow(QMainWindow):
             "products": lambda: ProductsTab(main_window=self),
             "specification": lambda: SpecificationTab(main_window=self),
             "cutting": lambda: CuttingTab(),
+            "schedule": lambda: ScheduleTab(),
             "pricing": lambda: PricingTab(),
             "documents": lambda: DocumentsTab(main_window=self),
             "money": lambda: MoneyTab(),
+            "warehouse": lambda: WarehouseTab(current_user=self.user),
             "crm": lambda: CRMTab(),
             "settings": lambda: ProgramSettingsTab(current_user=self.user),
         }
@@ -103,6 +145,11 @@ class MainWindow(QMainWindow):
         default_tab = "dashboard" if "dashboard" in self.tabs else next(iter(self.tabs), None)
         if default_tab:
             self._on_tab_changed(default_tab)
+
+    def _open_global_search(self):
+        """Відкрити діалог глобального пошуку (Ctrl+G / кнопка в sidebar)."""
+        dlg = GlobalSearchDialog(parent=self)
+        dlg.exec()
 
     def _on_tab_changed(self, tab_name):
         if tab_name in self.tabs:

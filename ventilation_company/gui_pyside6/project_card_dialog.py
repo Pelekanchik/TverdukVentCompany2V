@@ -61,7 +61,7 @@ from ventilation_company.material_order import (
     calculate_material_order,
     export_material_order_to_excel,
 )
-from ventilation_company.proposal_generator import generate_proposal
+from ventilation_company.proposal_generator import export_proposal_to_excel, generate_proposal
 from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.receivables import payment_summary
 
@@ -102,6 +102,18 @@ class WorkEditDialog(QDialog):
         self.spin_price.setDecimals(2)
         self.spin_price.setValue(work_data.get("unit_price", 0) if work_data else 0)
         layout.addRow("Ціна за од.", self.spin_price)
+        # Планування (v2.9): дата виконання/монтажу та бригада
+        self.edit_date = QLineEdit()
+        self.edit_date.setPlaceholderText("РРРР-ММ-ДД")
+        self.edit_date.setInputMask("0000-00-00")
+        if work_data:
+            self.edit_date.setText(str(work_data.get("work_date") or ""))
+        layout.addRow("Дата виконання", self.edit_date)
+        self.edit_crew = QLineEdit()
+        self.edit_crew.setPlaceholderText("напр. Бригада №2")
+        if work_data:
+            self.edit_crew.setText(str(work_data.get("crew") or ""))
+        layout.addRow("Бригада / виконавець", self.edit_crew)
         btn = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
@@ -111,6 +123,20 @@ class WorkEditDialog(QDialog):
 
         if work_data:
             self._preselect_work(work_data.get("work_name", ""))
+
+    def _normalize_date(self) -> str:
+        """Валідація дати; повертає '' або YYYY-MM-DD."""
+        text = self.edit_date.text().replace("-", "").strip()
+        if not text:
+            return ""
+        raw = self.edit_date.text().strip()
+        try:
+            from datetime import date
+
+            parsed = date.fromisoformat(raw)
+            return parsed.isoformat()
+        except ValueError:
+            return ""
 
     def _on_work_selected(self, index: int):
         key = self.combo_work.itemData(index)
@@ -141,6 +167,8 @@ class WorkEditDialog(QDialog):
             "unit": self.edit_unit.text().strip(),
             "unit_price": price,
             "total_price": round(qty * price, 2),
+            "work_date": self._normalize_date(),
+            "crew": self.edit_crew.text().strip(),
         }
 
 
@@ -632,9 +660,10 @@ class ProjectCardDialog(QDialog):
         set_text("paid_total", f"₴ {paid_total:,.2f}")
         set_text("balance", f"₴ {balance:,.2f}")
         if display_profit >= 0:
+            margin = display_profit / total_customer * 100 if total_customer > 0 else 0.0
             set_text(
                 "profit",
-                f"₴ {display_profit:,.2f}  ✅",
+                f"₴ {display_profit:,.2f}  ·  маржа {margin:.1f} %  ✅",
                 f"color: {Theme.SUCCESS}; font-weight: bold; font-size: 16px; "
                 f"padding: 8px 16px; background: #1a3a1a; border-radius: 8px;",
             )
@@ -693,6 +722,12 @@ class ProjectCardDialog(QDialog):
         )
         btn_proposal.clicked.connect(self._on_proposal_pdf)
         actions.addWidget(btn_proposal)
+        btn_proposal_xls = QPushButton("📗 КП (Excel)…")
+        btn_proposal_xls.setToolTip(
+            "Експорт комерційної пропозиції у Excel (зручно для редагування)"
+        )
+        btn_proposal_xls.clicked.connect(self._on_proposal_excel)
+        actions.addWidget(btn_proposal_xls)
         btn_act = QPushButton("✅ Акт (PDF)…")
         btn_act.setToolTip(
             "Згенерувати акт виконаних робіт для підписання: перелік робіт та "
@@ -859,6 +894,50 @@ class ProjectCardDialog(QDialog):
         if answer == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
+    def _on_proposal_excel(self):
+        """Експорт комерційної пропозиції у Excel."""
+        if not self._products and not self._works:
+            QMessageBox.information(
+                self,
+                "Комерційна пропозиція",
+                "У проєкті немає виробів і робіт — немає що пропонувати.",
+            )
+            return
+        name = self._project_data.get("name") or f"Проєкт #{self.project_id}"
+        items = self._collect_document_items()
+        default = f"КП_{self._safe_filename(name)}.xlsx"
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти комерційну пропозицію (Excel)",
+            default,
+            "Excel (*.xlsx)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".xlsx"):
+            path += ".xlsx"
+        project_data = {
+            "name": name,
+            "project_number": self._project_data.get("project_number", ""),
+            "client": self._project_data.get("client", ""),
+            "address": self._project_data.get("address", ""),
+            "company": BusinessSettings.get_instance().get_company(),
+        }
+        try:
+            export_proposal_to_excel(project_data, items, path)
+        except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
+            QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати КП:\n{exc}")
+            return
+        self._register_document("кп", path)
+        answer = QMessageBox.question(
+            self,
+            "Готово",
+            f"Комерційну пропозицію (Excel) збережено:\n{path}\n\nВідкрити файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
     def _on_act_pdf(self):
         """Згенерувати акт виконаних робіт (PDF) для підписання з замовником."""
         if not self._products and not self._works:
@@ -994,7 +1073,7 @@ class ProjectCardDialog(QDialog):
         except Exception as exc:  # noqa: BLE001 — показуємо будь-яку помилку користувачу
             QMessageBox.critical(self, "Помилка", f"Не вдалося розрахувати заявку:\n{exc}")
             return
-        preview = MaterialOrderPreviewDialog(order, parent=self)
+        preview = MaterialOrderPreviewDialog(order, parent=self, project_id=self.project_id)
         if preview.exec() != QDialog.DialogCode.Accepted:
             return
         order = preview.get_order()
@@ -1371,7 +1450,7 @@ class ProjectCardDialog(QDialog):
         layout.addWidget(self.works_table)
         self.works_model = QStandardItemModel()
         self.works_model.setHorizontalHeaderLabels(
-            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
+            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", "Дата", "Бригада", ""]
         )
         self.works_table.setModel(self.works_model)
         self.works_table.setColumnWidth(0, 40)
@@ -1380,7 +1459,9 @@ class ProjectCardDialog(QDialog):
         self.works_table.setColumnWidth(3, 60)
         self.works_table.setColumnWidth(4, 100)
         self.works_table.setColumnWidth(5, 100)
-        self.works_table.setColumnWidth(6, 80)
+        self.works_table.setColumnWidth(6, 90)
+        self.works_table.setColumnWidth(7, 120)
+        self.works_table.setColumnWidth(8, 40)
         self._populate_works()
         actions = QHBoxLayout()
         actions.addStretch()
@@ -1405,6 +1486,8 @@ class ProjectCardDialog(QDialog):
                 QStandardItem(w["unit"]),
                 QStandardItem(f"₴ {w['unit_price']:,.2f}"),
                 QStandardItem(f"₴ {w['total_price']:,.2f}"),
+                QStandardItem(str(w.get("work_date") or "")),
+                QStandardItem(str(w.get("crew") or "")),
                 QStandardItem(""),
             ]
             for cell in row:

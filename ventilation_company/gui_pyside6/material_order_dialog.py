@@ -53,14 +53,18 @@ def _parse_float(text: str) -> float:
 class MaterialOrderPreviewDialog(QDialog):
     """Попередній перегляд і редагування заявки на матеріали."""
 
-    def __init__(self, order: MaterialOrder, parent: QWidget | None = None):
+    def __init__(
+        self, order: MaterialOrder, parent: QWidget | None = None, project_id: int | None = None
+    ):
         super().__init__(parent)
         self._order = order
+        self._project_id = project_id
         self.setWindowTitle(f"Замовлення матеріалів — {order.project_name}")
         self.setMinimumWidth(980)
         self.setMinimumHeight(560)
         self.resize(1050, 620)
         self._updating_sum = False
+        self._filling_price = False
         self._build_ui()
         self._populate()
 
@@ -197,12 +201,42 @@ class MaterialOrderPreviewDialog(QDialog):
         self.lbl_total.setText(f"Разом: ₴ {total:,.2f}")
 
     def _on_item_changed(self, item: QTableWidgetItem):
-        if self._updating_sum:
+        if self._updating_sum or self._filling_price:
             return
         if item.column() in (QTY_COL, PRICE_COL):
             self._update_row_sum(item.row())
             self._highlight_row(item.row())
+        elif item.column() == 1:
+            # Зміна найменування → підставити останню відом ціну, якщо ціна порожня
+            self._apply_history_price(item.row())
         self._update_totals()
+
+    def _apply_history_price(self, row: int):
+        """Якщо для введеної назви є історія цін — підставити останню у порожню ціну."""
+        name = self._cell_text(row, 1)
+        if not name or _parse_float(self._cell_text(row, PRICE_COL)) > 0:
+            return
+        try:
+            from ventilation_company.database.repositories.purchase_price_repo import (
+                PurchasePriceRepository,
+            )
+
+            history = PurchasePriceRepository.latest_for(name, limit=1)
+        except Exception:  # noqa: BLE001 — історія не має блокувати редагування
+            return
+        if not history:
+            return
+        price = history[0]["price"]
+        price_item = self.table.item(row, PRICE_COL)
+        if price_item is None:
+            return
+        self._filling_price = True
+        try:
+            price_item.setText(f"{price:g}")
+            self._update_row_sum(row)
+            self._highlight_row(row)
+        finally:
+            self._filling_price = False
 
     # ── Дії ──
 
@@ -315,7 +349,26 @@ class MaterialOrderPreviewDialog(QDialog):
             )
             if reply != QMessageBox.StandardButton.Yes:
                 return
+        self._record_purchase_prices()
         self.accept()
+
+    def _record_purchase_prices(self):
+        """Зафіксувати ціни затвердженої заявки в історії закупівель."""
+        try:
+            from ventilation_company.database.repositories.purchase_price_repo import (
+                PurchasePriceRepository,
+            )
+
+            for item in self.get_order().items:
+                if item.price_per_unit > 0 and item.name and item.name != "—":
+                    PurchasePriceRepository.record(
+                        item_name=item.name,
+                        price=item.price_per_unit,
+                        supplier=item.supplier,
+                        project_id=self._project_id,
+                    )
+        except Exception:  # noqa: BLE001 — історія не має блокувати заявку
+            pass
 
     # ── Результат ──
 

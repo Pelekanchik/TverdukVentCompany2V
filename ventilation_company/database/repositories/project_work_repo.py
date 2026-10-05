@@ -1,7 +1,18 @@
-"""Репозиторій для робіт проєкту (ProjectWork) — v2.3."""
+"""Репозиторій для робіт проєкту (ProjectWork) — v2.3, планування v2.9."""
+
+from datetime import date
 
 from ventilation_company.database.db import get_db
 from ventilation_company.database.models.project import ProjectWork
+
+
+def _to_date(value) -> date | None:
+    """Нормалізація значення дати (date / datetime / 'YYYY-MM-DD' / None)."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
 
 
 def _work_to_dict(work: ProjectWork) -> dict:
@@ -13,6 +24,8 @@ def _work_to_dict(work: ProjectWork) -> dict:
         "unit": work.unit or "шт",
         "unit_price": float(work.unit_price or 0),
         "total_price": float(work.total_price or 0),
+        "work_date": work.work_date.isoformat() if work.work_date else "",
+        "crew": work.crew or "",
     }
 
 
@@ -40,6 +53,8 @@ class ProjectWorkRepository:
                 unit=data.get("unit", "шт"),
                 unit_price=unit_price,
                 total_price=qty * unit_price,
+                work_date=_to_date(data.get("work_date")),
+                crew=data.get("crew") or None,
             )
             session.add(work)
             session.flush()
@@ -54,10 +69,12 @@ class ProjectWorkRepository:
             if not work:
                 return False
             for key, value in data.items():
-                if hasattr(work, key):
+                if key == "work_date":
+                    work.work_date = _to_date(value)
+                elif hasattr(work, key):
                     setattr(work, key, value)
             # Перерахунок total_price
-            work.total_price = (work.quantity or 1) * (work.unit_price or 0)
+            work.total_price = float(work.quantity or 1) * float(work.unit_price or 0)
             session.commit()
             return True
 

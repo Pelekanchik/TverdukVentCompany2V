@@ -108,3 +108,11 @@ def receivables_totals(rows: list[dict]) -> dict:
         "debt": round(sum(max(r["balance"], 0.0) for r in rows), 2),
         "overpaid": round(sum(max(-r["balance"], 0.0) for r in rows), 2),
     }
+
+
+_DONE_STATUSES = {"завершено", "completed", "done", "закрито", "виконано"}
+
+
+def is_overdue(project_status: str | None, balance: float) -> bool:
+    """Прострочена заборгованість: проєкт завершено, а борг залишився."""
+    return (project_status or "").strip().lower() in _DONE_STATUSES and balance > 0
