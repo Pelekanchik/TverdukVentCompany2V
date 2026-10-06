@@ -74,6 +74,8 @@ class QuickWorkDialog(QDialog):
 
         self.date_edit = QDateEdit(QDate.currentDate())
         self.date_edit.setCalendarPopup(True)
+        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
+        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
         layout.addRow("Дата:", self.date_edit)
 

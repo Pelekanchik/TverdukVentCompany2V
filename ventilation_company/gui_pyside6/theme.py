@@ -68,6 +68,71 @@ class Theme:
         app.setStyleSheet(cls._stylesheet())
 
     @classmethod
+    def date_edit_stylesheet(cls) -> str:
+        """Стили для QDateEdit та його спливаючого календаря.
+
+        Застосовується як екземплярний QSS на конкретний QDateEdit,
+        щоб гарантовано дійти до popup-календаря незалежно від того,
+        чи встигли підхопитись глобальні стилі програми.
+        """
+        return f"""
+        QDateEdit {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT};
+            border: 1px solid {cls.BORDER};
+            border-radius: 6px;
+            padding: 6px 10px;
+        }}
+        QDateEdit:focus {{
+            border-color: {cls.ACCENT};
+        }}
+        /* Календар QDateEdit — чіткі числа та контрастна навігація */
+        QCalendarWidget {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT_BRIGHT};
+            border: 1px solid {cls.BORDER};
+        }}
+        QCalendarWidget QWidget#qt_calendar_navigationbar {{
+            background-color: {cls.BG_HOVER};
+        }}
+        QCalendarWidget QToolButton {{
+            background-color: {cls.BG_HOVER};
+            color: {cls.TEXT_BRIGHT};
+            border: 1px solid {cls.BORDER};
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-weight: bold;
+            font-size: 13px;
+        }}
+        QCalendarWidget QToolButton:hover {{
+            background-color: {cls.BG_ACTIVE};
+            border-color: {cls.ACCENT};
+        }}
+        QCalendarWidget QMenu {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT_BRIGHT};
+            border: 1px solid {cls.BORDER};
+        }}
+        QCalendarWidget QMenu::item:selected {{
+            background-color: {cls.ACCENT};
+            color: #ffffff;
+        }}
+        /* Сітка дат: великі жирні числа, добре читаються на сонці/проєкторі */
+        QCalendarWidget QAbstractItemView {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT_BRIGHT};
+            selection-background-color: {cls.ACCENT};
+            selection-color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+        }}
+        /* Вихідні — червоним, як у настінному календарі */
+        QCalendarWidget QAbstractItemView:disabled {{
+            color: {cls.TEXT_MUTED};
+        }}
+        """
+
+    @classmethod
     def _stylesheet(cls) -> str:
         return f"""
         QMainWindow {{
@@ -110,46 +175,8 @@ class Theme:
         QLineEdit:focus, QComboBox:focus, QDateEdit:focus {{
             border-color: {cls.ACCENT};
         }}
-        /* Календар QDateEdit — чіткі числа та контрастна навігація */
-        QCalendarWidget {{
-            background-color: {cls.BG_CARD};
-            color: {cls.TEXT};
-            border: 1px solid {cls.BORDER};
-        }}
-        QCalendarWidget QWidget#qt_calendar_navigationbar {{
-            background-color: {cls.BG_HOVER};
-        }}
-        QCalendarWidget QToolButton {{
-            background-color: {cls.BG_HOVER};
-            color: {cls.TEXT};
-            border: 1px solid {cls.BORDER};
-            border-radius: 6px;
-            padding: 4px 10px;
-            font-weight: bold;
-        }}
-        QCalendarWidget QToolButton:hover {{
-            background-color: {cls.BG_ACTIVE};
-            border-color: {cls.ACCENT};
-        }}
-        QCalendarWidget QMenu {{
-            background-color: {cls.BG_CARD};
-            color: {cls.TEXT};
-            border: 1px solid {cls.BORDER};
-        }}
-        QCalendarWidget QMenu::item:selected {{
-            background-color: {cls.ACCENT};
-            color: #ffffff;
-        }}
-        QCalendarWidget QAbstractItemView {{
-            background-color: {cls.BG_CARD};
-            color: {cls.TEXT};
-            selection-background-color: {cls.ACCENT};
-            selection-color: #ffffff;
-            font-size: 13px;
-        }}
-        QCalendarWidget QAbstractItemView:disabled {{
-            color: {cls.TEXT_MUTED};
-        }}
+        /* Календар QDateEdit — той самий блок, що й у date_edit_stylesheet() */
+        {cls.date_edit_stylesheet()}
         /* Редактори всередині таблиць — компактні, щоб поміщалися у висоту рядка */
         QTableView QLineEdit, QTableView QComboBox,
         QTableView QSpinBox, QTableView QDoubleSpinBox {{

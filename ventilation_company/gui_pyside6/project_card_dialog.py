@@ -110,6 +110,8 @@ class WorkEditDialog(QDialog):
         self.chk_has_date = QCheckBox("Запланована дата:")
         self.date_edit = QDateEdit(QDate.currentDate())
         self.date_edit.setCalendarPopup(True)
+        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
+        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
         date_row.addWidget(self.chk_has_date)
         date_row.addWidget(self.date_edit, 1)
@@ -328,6 +330,8 @@ class PaymentEditDialog(QDialog):
         layout = QFormLayout(self)
         self.date_edit = QDateEdit(QDate.currentDate())
         self.date_edit.setCalendarPopup(True)
+        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
+        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
         value = self.payment_data.get("date")
         if value:
             try:
