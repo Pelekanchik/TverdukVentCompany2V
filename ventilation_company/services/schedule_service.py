@@ -74,6 +74,8 @@ def list_scheduled_works(
                     "project_id": pid,
                     "project_number": p.get("project_number") or "",
                     "project_name": p.get("name") or "",
+                    "address": p.get("address") or "",
+                    "client": p.get("client") or "",
                     "work_name": w.get("work_name") or "—",
                     "work_date": w.get("work_date") or "",
                     "crew": w.get("crew") or "",

@@ -7,13 +7,16 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QColor, QFont
+import contextlib
+
+from PySide6.QtCore import QDate, Qt, QUrl
+from PySide6.QtGui import QColor, QDesktopServices, QFont
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QHeaderView,
@@ -32,7 +35,11 @@ from ventilation_company.database.repositories.project_work_repo import ProjectW
 from ventilation_company.gui_pyside6.calendar_picker import DatePicker
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.services.schedule_service import list_crews, list_scheduled_works
+from ventilation_company.services.schedule_service import (
+    list_crews,
+    list_scheduled_works,
+    period_bounds,
+)
 
 PERIODS = [
     ("all", "Усі дати"),
@@ -152,6 +159,12 @@ class ScheduleTab(QWidget):
         btn_quick.setToolTip("Додати монтажну роботу до будь-якого проєкту без відкриття картки")
         btn_quick.clicked.connect(self._on_quick_add)
         filters.addWidget(btn_quick)
+        btn_plan = QPushButton("🖨 План для бригад (PDF)")
+        btn_plan.setToolTip(
+            "Друкований план робіт за обраними фільтрами (бригада + період) для роздачі бригадам"
+        )
+        btn_plan.clicked.connect(self._on_export_plan)
+        filters.addWidget(btn_plan)
         filters.addSpacing(12)
         filters.addWidget(QLabel("Бригада:"))
         self.combo_crew = QComboBox()
@@ -241,6 +254,63 @@ class ScheduleTab(QWidget):
             return
         if dlg.create_work():
             self.refresh()
+
+    def _on_export_plan(self):
+        """PDF-план монтажів за поточними фільтрами (бригада + період)."""
+        from datetime import date as _date
+
+        from ventilation_company.crew_plan_generator import generate_crew_plan
+        from ventilation_company.services.business_settings import BusinessSettings
+
+        crew = self.combo_crew.currentText()
+        if crew == "Усі бригади":
+            crew = ""
+        period = self.combo_period.currentData() or "all"
+        note = ""
+        if period == "all":
+            period = "week"
+            note = "\n\nПеріод «Усі дати» — згенеровано план на поточний тиждень."
+        date_from, date_to = period_bounds(period)
+        # Для всіх режимів, крім "all" (який вище замінено на "week"), межі завжди є.
+        assert date_from is not None and date_to is not None
+
+        try:
+            works = list_scheduled_works(crew=crew, period=period)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", f"Не вдалося прочитати дані:\n{exc}")
+            return
+        if not works:
+            QMessageBox.information(
+                self,
+                "План для бригад",
+                "Немає робіт із датами за обраний період.",
+            )
+            return
+
+        week = _date.today().isocalendar()[1]
+        suggested = f"plan-bryhad-tyzhden-{week}.pdf"
+        path, _selected = QFileDialog.getSaveFileName(
+            self, "Зберегти план для бригад", suggested, "PDF (*.pdf)"
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+
+        company = {}
+        with contextlib.suppress(Exception):  # реквізити не критичні
+            company = BusinessSettings.get_instance().get_company()
+        try:
+            generate_crew_plan(works, crew, date_from, date_to, path, company)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", f"Не вдалося створити PDF:\n{exc}")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        QMessageBox.information(
+            self,
+            "План для бригад",
+            f"План збережено:\n{path}{note}",
+        )
 
     def _on_double_click(self):
         row = self.table.currentRow()
