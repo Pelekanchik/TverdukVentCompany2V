@@ -11,7 +11,6 @@ from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
-    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -30,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.calendar_picker import DatePicker
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.schedule_service import list_crews, list_scheduled_works
@@ -72,11 +72,7 @@ class QuickWorkDialog(QDialog):
         self.edit_name.setPlaceholderText("напр. Монтаж повітропроводів")
         layout.addRow("Робота *:", self.edit_name)
 
-        self.date_edit = QDateEdit(QDate.currentDate())
-        self.date_edit.setCalendarPopup(True)
-        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
-        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
-        self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.date_edit = DatePicker(QDate.currentDate())
         layout.addRow("Дата:", self.date_edit)
 
         self.edit_crew = QLineEdit()

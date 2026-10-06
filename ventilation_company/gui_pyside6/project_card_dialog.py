@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
-    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -53,6 +52,7 @@ from ventilation_company.database.repositories.project_drawing_repo import (
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.calendar_picker import DatePicker
 from ventilation_company.gui_pyside6.material_order_dialog import MaterialOrderPreviewDialog
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
@@ -104,15 +104,11 @@ class WorkEditDialog(QDialog):
         self.spin_price.setValue(work_data.get("unit_price", 0) if work_data else 0)
         layout.addRow("Ціна за од.", self.spin_price)
         # Планування (v2.9): дата виконання/монтажу та бригада.
-        # QDateEdit із календарем — простіше, ніж ручний ввід, і не дає
-        # ввести невалідну дату.
+        # DatePicker = поле дати + власний календар (стандартний
+        # QCalendarWidget ламається при наявності stylesheet).
         date_row = QHBoxLayout()
         self.chk_has_date = QCheckBox("Запланована дата:")
-        self.date_edit = QDateEdit(QDate.currentDate())
-        self.date_edit.setCalendarPopup(True)
-        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
-        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
-        self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.date_edit = DatePicker(QDate.currentDate())
         date_row.addWidget(self.chk_has_date)
         date_row.addWidget(self.date_edit, 1)
         layout.addRow(date_row)
@@ -328,10 +324,7 @@ class PaymentEditDialog(QDialog):
         self.setWindowTitle("Редагувати оплату" if payment_data else "Нова оплата")
         self.setMinimumWidth(380)
         layout = QFormLayout(self)
-        self.date_edit = QDateEdit(QDate.currentDate())
-        self.date_edit.setCalendarPopup(True)
-        # Екземплярний QSS, щоб стилі гарантовано дійшли до popup-календаря.
-        self.date_edit.setStyleSheet(Theme.date_edit_stylesheet())
+        self.date_edit = DatePicker(QDate.currentDate())
         value = self.payment_data.get("date")
         if value:
             try:

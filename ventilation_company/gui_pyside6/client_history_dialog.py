@@ -7,7 +7,6 @@ from datetime import date, datetime
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
     QComboBox,
-    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -25,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.interaction_repo import InteractionRepository
 from ventilation_company.database.repositories.payment_repo import PaymentRepository
+from ventilation_company.gui_pyside6.calendar_picker import DatePicker
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
@@ -50,8 +50,7 @@ class AddInteractionDialog(QDialog):
 
     def _build_ui(self):
         layout = QFormLayout(self)
-        self.date_edit = QDateEdit(_to_qdate(self._data.get("date")))
-        self.date_edit.setCalendarPopup(True)
+        self.date_edit = DatePicker(_to_qdate(self._data.get("date")))
         layout.addRow("Дата", self.date_edit)
 
         self.combo_type = QComboBox()
@@ -71,8 +70,7 @@ class AddInteractionDialog(QDialog):
         self.edit_next_action.setPlaceholderText("Що робити далі")
         layout.addRow("Наступна дія", self.edit_next_action)
 
-        self.next_action_date = QDateEdit(_to_qdate(self._data.get("next_action_date")))
-        self.next_action_date.setCalendarPopup(True)
+        self.next_action_date = DatePicker(_to_qdate(self._data.get("next_action_date")))
         layout.addRow("Дата наступної дії", self.next_action_date)
 
         self.edit_description = QTextEdit(self._data.get("description") or "")
@@ -111,8 +109,7 @@ class AddPaymentDialog(QDialog):
 
     def _build_ui(self):
         layout = QFormLayout(self)
-        self.date_edit = QDateEdit(_to_qdate(self._data.get("date")))
-        self.date_edit.setCalendarPopup(True)
+        self.date_edit = DatePicker(_to_qdate(self._data.get("date")))
         layout.addRow("Дата", self.date_edit)
 
         self.spin_amount = QDoubleSpinBox()
