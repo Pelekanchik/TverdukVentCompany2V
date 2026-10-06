@@ -100,15 +100,55 @@ class Theme:
         QPushButton#primary:hover {{
             background-color: {cls.ACCENT_HOVER};
         }}
-        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {{
             background-color: {cls.BG_CARD};
             color: {cls.TEXT};
             border: 1px solid {cls.BORDER};
             border-radius: 6px;
             padding: 6px 10px;
         }}
-        QLineEdit:focus, QComboBox:focus {{
+        QLineEdit:focus, QComboBox:focus, QDateEdit:focus {{
             border-color: {cls.ACCENT};
+        }}
+        /* Календар QDateEdit — чіткі числа та контрастна навігація */
+        QCalendarWidget {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT};
+            border: 1px solid {cls.BORDER};
+        }}
+        QCalendarWidget QWidget#qt_calendar_navigationbar {{
+            background-color: {cls.BG_HOVER};
+        }}
+        QCalendarWidget QToolButton {{
+            background-color: {cls.BG_HOVER};
+            color: {cls.TEXT};
+            border: 1px solid {cls.BORDER};
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-weight: bold;
+        }}
+        QCalendarWidget QToolButton:hover {{
+            background-color: {cls.BG_ACTIVE};
+            border-color: {cls.ACCENT};
+        }}
+        QCalendarWidget QMenu {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT};
+            border: 1px solid {cls.BORDER};
+        }}
+        QCalendarWidget QMenu::item:selected {{
+            background-color: {cls.ACCENT};
+            color: #ffffff;
+        }}
+        QCalendarWidget QAbstractItemView {{
+            background-color: {cls.BG_CARD};
+            color: {cls.TEXT};
+            selection-background-color: {cls.ACCENT};
+            selection-color: #ffffff;
+            font-size: 13px;
+        }}
+        QCalendarWidget QAbstractItemView:disabled {{
+            color: {cls.TEXT_MUTED};
         }}
         /* Редактори всередині таблиць — компактні, щоб поміщалися у висоту рядка */
         QTableView QLineEdit, QTableView QComboBox,
