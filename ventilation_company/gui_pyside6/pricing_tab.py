@@ -53,6 +53,21 @@ def load_settings() -> dict:
         return get_default_settings()
 
 
+# Категорії націнок (назва, значення за замовчуванням, %)
+MARKUP_CATEGORIES = ["Стандартна", "Преміум", "Економ", "Спецзамовлення"]
+MARKUP_DEFAULTS = {"Стандартна": 30.0, "Преміум": 40.0, "Економ": 20.0, "Спецзамовлення": 50.0}
+
+
+def get_markup_categories() -> list[tuple[str, float]]:
+    """Категорії націнок (назва, %) з поточних збережених налаштувань.
+
+    Єдине джерело правди для діалогів виробів — щоб зміна націнок
+    у «Ціноутворенні» одразу відображалася у розрахунках.
+    """
+    matrix = load_settings().get("markup_matrix") or {}
+    return [(name, float(matrix.get(name, MARKUP_DEFAULTS[name]))) for name in MARKUP_CATEGORIES]
+
+
 def save_settings(data: dict):
     """Зберегти налаштування цін і скинути кеш розрахунків."""
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -513,8 +528,8 @@ class LaborRatesTab(QWidget):
 class MarkupTab(QWidget):
     """Націнки по категоріях."""
 
-    CATEGORIES = ["Стандартна", "Преміум", "Економ", "Спецзамовлення"]
-    DEFAULTS = {"Стандартна": 30.0, "Преміум": 40.0, "Економ": 20.0, "Спецзамовлення": 50.0}
+    CATEGORIES = MARKUP_CATEGORIES
+    DEFAULTS = MARKUP_DEFAULTS
 
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)

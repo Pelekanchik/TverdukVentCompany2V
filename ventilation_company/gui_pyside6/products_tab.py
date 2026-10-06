@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
@@ -529,11 +530,11 @@ class ProductsTab(QWidget):
         if answer != QMessageBox.StandardButton.Yes:
             return
 
+        # Націнки з поточних налаштувань «Ціноутворення → Націнки».
+        # Ключі — обидва формати: повний лейбл і голі назви категорій.
         markup_map = {
-            "Стандартна (30%)": 30,
-            "Преміум (40%)": 40,
-            "Економ (20%)": 20,
-            "Спецзамовлення (50%)": 50,
+            **{f"{name} ({value:g}%)": value for name, value in get_markup_categories()},
+            **dict(get_markup_categories()),
         }
 
         updated = 0

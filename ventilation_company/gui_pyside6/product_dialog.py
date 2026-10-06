@@ -33,6 +33,7 @@ from ventilation_company.calculations.cost_engine import (
     CostEngine,
 )
 from ventilation_company.gui_pyside6.calc_details_dialog import CalcDetailsDialog
+from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.pricing_settings import (
@@ -377,9 +378,10 @@ class ProductDialog(QDialog):
         form.addRow("Кількість", self.spin_qty)
 
         self.combo_category = QComboBox()
-        self.combo_category.addItems(
-            ["Стандартна (30%)", "Преміум (40%)", "Економ (20%)", "Спецзамовлення (50%)"]
-        )
+        # Категорії з поточних налаштувань «Ціноутворення → Націнки» —
+        # щоб зміна націнок одразу відображалася тут.
+        self._markups = get_markup_categories()
+        self.combo_category.addItems([f"{name} ({value:g}%)" for name, value in self._markups])
         form.addRow("Категорія", self.combo_category)
 
         btn_calc = QPushButton("🧮 Розрахувати ціну")
@@ -713,7 +715,16 @@ class ProductDialog(QDialog):
         set_spin("spin_depth", "depth")
 
         if params.get("category") and hasattr(self, "combo_category"):
-            self.combo_category.setCurrentText(str(params["category"]))
+            text = str(params["category"])
+            idx = self.combo_category.findText(text)
+            if idx < 0 and " (" in text:
+                # Старий формат «Стандартна (30%)» при нових значеннях —
+                # шукаємо за назвою без відсотка.
+                idx = self.combo_category.findText(
+                    text.split(" (")[0], Qt.MatchFlag.MatchStartsWith
+                )
+            if idx >= 0:
+                self.combo_category.setCurrentIndex(idx)
 
         if hasattr(self, "chk_with_flanges") and "with_flanges" in params:
             self.chk_with_flanges.setChecked(bool(params.get("with_flanges")))
@@ -773,12 +784,7 @@ class ProductDialog(QDialog):
         surface = calc_surface_area(pt, w, h, l, bend_angle, radius, branch_w, branch_h, branch_l)
         blank = surface * 1.15
         material_area = blank * 1.05
-        markup_map = {
-            "Стандартна (30%)": 30,
-            "Преміум (40%)": 40,
-            "Економ (20%)": 20,
-            "Спецзамовлення (50%)": 50,
-        }
+        markup_map = {f"{name} ({value:g}%)": value for name, value in self._markups}
         custom_markup = markup_map.get(self.combo_category.currentText(), 30)
         flange_count = 0
         flange_price = 0.0
