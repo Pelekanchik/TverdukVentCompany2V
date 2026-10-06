@@ -48,7 +48,13 @@ PERIODS = [
     ("month", "Цей місяць"),
 ]
 
-COLUMNS = ["Дата", "Проєкт", "Робота", "Бригада", "Сума, ₴"]
+DONE_STATUSES = [
+    ("active", "Активні"),
+    ("done", "Виконані"),
+    ("all", "Усі"),
+]
+
+COLUMNS = ["✓", "Дата", "Проєкт", "Робота", "Бригада", "Сума, ₴"]
 
 
 class QuickWorkDialog(QDialog):
@@ -183,6 +189,12 @@ class ScheduleTab(QWidget):
             self.combo_period.addItem(label, key)
         self.combo_period.currentIndexChanged.connect(self._refill_table)
         filters.addWidget(self.combo_period)
+        filters.addWidget(QLabel("Статус:"))
+        self.combo_done = QComboBox()
+        for key, label in DONE_STATUSES:
+            self.combo_done.addItem(label, key)
+        self.combo_done.currentIndexChanged.connect(self._refill_table)
+        filters.addWidget(self.combo_done)
         filters.addStretch()
         self.lbl_count = QLabel("")
         self.lbl_count.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
@@ -192,9 +204,10 @@ class ScheduleTab(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         setup_table(self.table, select_rows=True, read_only=True, stretch_last=False)
         self.table.doubleClicked.connect(self._on_double_click)
+        self.table.itemChanged.connect(self._on_item_changed)
         root.addWidget(self.table, 1)
 
     # ── Дані ──
@@ -222,13 +235,15 @@ class ScheduleTab(QWidget):
         if crew == "Усі бригади":
             crew = ""
         period = self.combo_period.currentData() or "all"
+        done = self.combo_done.currentData() or "active"
         try:
-            self._rows = list_scheduled_works(crew=crew, period=period)
+            self._rows = list_scheduled_works(crew=crew, period=period, done=done)
         except Exception:  # noqa: BLE001
             self._rows = []
         self._refill_table()
 
     def _refill_table(self):
+        self.table.blockSignals(True)
         self.table.setRowCount(0)
         for r in self._rows:
             row = self.table.rowCount()
@@ -241,6 +256,14 @@ class ScheduleTab(QWidget):
                 r["crew"],
                 f"{r['total_price']:,.2f}",
             ]
+            # Колонка 0 — галочка «виконано»
+            check = QTableWidgetItem()
+            check.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+            check.setCheckState(
+                Qt.CheckState.Checked if r.get("is_done") else Qt.CheckState.Unchecked
+            )
+            check.setToolTip("Позначити роботу як виконану / повернути в план")
+            self.table.setItem(row, 0, check)
             for col, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 if col == 4:
@@ -249,8 +272,33 @@ class ScheduleTab(QWidget):
                     )
                 if not r["crew"] and col == 3:
                     item.setForeground(QColor(Theme.TEXT_MUTED))
-                self.table.setItem(row, col, item)
+                if r.get("is_done"):
+                    # Виконані роботи — сірим, щоб одразу кидалося в очі
+                    item.setForeground(QColor(Theme.TEXT_MUTED))
+                self.table.setItem(row, col + 1, item)
+        self.table.blockSignals(False)
         self.lbl_count.setText(f"Робіт із датою: {len(self._rows)}")
+
+    def _on_item_changed(self, item):
+        """Галочка «виконано» → одразу зберігаємо в БД."""
+        if item.column() != 0:
+            return
+        row = item.row()
+        if not (0 <= row < len(self._rows)):
+            return
+        work = self._rows[row]
+        is_done = item.checkState() == Qt.CheckState.Checked
+        try:
+            ProjectWorkRepository.update(int(work["work_id"]), {"is_done": is_done})
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти статус:\n{exc}")
+            return
+        work["is_done"] = is_done
+        # Оновлюємо відтінок рядка без повного перезавантаження
+        self._refill_table()
+        if self.combo_done.currentData() == "active" and is_done:
+            # Виконана робота зникає з активного плану
+            self._reload_rows()
 
     # ── Дії ──
 
@@ -299,9 +347,10 @@ class ScheduleTab(QWidget):
         date_from, date_to = period_bounds(period)
         # Для всіх режимів, крім "all" (який вище замінено на "week"), межі завжди є.
         assert date_from is not None and date_to is not None
+        done = self.combo_done.currentData() or "active"
 
         try:
-            works = list_scheduled_works(crew=crew, period=period)
+            works = list_scheduled_works(crew=crew, period=period, done=done)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Помилка", f"Не вдалося прочитати дані:\n{exc}")
             return

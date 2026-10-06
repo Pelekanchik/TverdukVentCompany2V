@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 pytest.importorskip("PySide6")
 
 import shiboken6
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from ventilation_company.database.base import Base
@@ -177,6 +178,74 @@ class TestScheduleService:
             staticmethod(lambda pid: works),
         )
         assert list_crews() == ["Бригада №1", "Бригада №2"]
+
+    def test_list_scheduled_works_done_filter(self, monkeypatch):
+        projects = [{"id": 1, "project_number": "ПР-1", "name": "А"}]
+        works = [
+            {"id": 1, "work_name": "Монтаж", "work_date": "2026-10-05", "is_done": False},
+            {"id": 2, "work_name": "Доставка", "work_date": "2026-10-06", "is_done": True},
+        ]
+        monkeypatch.setattr(
+            "ventilation_company.services.schedule_service.ProjectRepository.list_all",
+            staticmethod(lambda: projects),
+        )
+        monkeypatch.setattr(
+            "ventilation_company.services.schedule_service.ProjectWorkRepository.get_all",
+            staticmethod(lambda pid: works),
+        )
+        active = list_scheduled_works(done="active")
+        assert [r["work_name"] for r in active] == ["Монтаж"]
+        assert active[0]["is_done"] is False
+
+        done = list_scheduled_works(done="done")
+        assert [r["work_name"] for r in done] == ["Доставка"]
+        assert done[0]["is_done"] is True
+
+        all_rows = list_scheduled_works(done="all")
+        assert len(all_rows) == 2
+
+    def test_schedule_tab_toggle_done(self, qapp, monkeypatch):
+        """Галочка «виконано» у таблиці одразу зберігається в БД."""
+        from ventilation_company.gui_pyside6.schedule_tab import ScheduleTab
+
+        works = [
+            {
+                "id": 7,
+                "project_id": 1,
+                "work_name": "Монтаж",
+                "work_date": "2026-10-05",
+                "crew": "Бригада №1",
+                "total_price": 1000.0,
+                "is_done": False,
+            }
+        ]
+        monkeypatch.setattr(
+            "ventilation_company.services.schedule_service.ProjectRepository.list_all",
+            staticmethod(lambda: [{"id": 1, "name": "А", "project_number": "ПР-1"}]),
+        )
+        monkeypatch.setattr(
+            "ventilation_company.services.schedule_service.ProjectWorkRepository.get_all",
+            staticmethod(lambda pid: works),
+        )
+        updates = []
+
+        class _Repo:
+            @staticmethod
+            def update(work_id, data):
+                updates.append((work_id, data))
+                return True
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.schedule_tab.ProjectWorkRepository",
+            _Repo,
+        )
+        tab = ScheduleTab()
+        tab.combo_done.setCurrentIndex(2)  # «Усі» — рядок лишається після позначки
+        assert tab.table.rowCount() == 1
+        check = tab.table.item(0, 0)
+        assert check is not None and check.checkState() == Qt.CheckState.Unchecked
+        check.setCheckState(Qt.CheckState.Checked)
+        assert updates == [(7, {"is_done": True})]
 
 
 # ── Прострочена заборгованість ───────────────────────────────────────────
@@ -488,9 +557,9 @@ class TestNewTabsGui:
         )
         tab = ScheduleTab()
         assert tab.table.rowCount() == 1
-        assert tab.table.item(0, 2).text() == "Монтаж"
-        assert tab.table.item(0, 6) is None  # 5 колонок — індекси 0..4
-        assert tab.table.item(0, 3).text() == "Бригада №1"
+        assert tab.table.item(0, 3).text() == "Монтаж"  # 0=✓, 1=Дата, 2=Проєкт
+        assert tab.table.item(0, 6) is None  # 6 колонок — індекси 0..5
+        assert tab.table.item(0, 4).text() == "Бригада №1"
 
     def test_schedule_tab_empty_on_error(self, qapp, monkeypatch):
         from ventilation_company.gui_pyside6.schedule_tab import ScheduleTab

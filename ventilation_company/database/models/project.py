@@ -12,7 +12,18 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -131,6 +142,8 @@ class ProjectWork(Base):
     # Планування (v2.9): дата виконання/монтажу та бригада/виконавець
     work_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     crew: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Статус виконання (v2.10): виконані роботи не потрапляють у активний план
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     project: Mapped[Project] = relationship(back_populates="works")
 

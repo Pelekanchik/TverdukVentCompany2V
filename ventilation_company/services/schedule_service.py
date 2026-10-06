@@ -45,13 +45,16 @@ def list_scheduled_works(
     period: str = "all",
     today: date | None = None,
     projects: list[dict] | None = None,
+    done: str = "all",
 ) -> list[dict]:
     """Роботи з датами по всіх проєктах, відсортовані за датою.
 
     Параметри:
         crew — фільтр за бригадою (підрядок, case-insensitive);
         period — all | today | week | month;
-        projects — опційно вже завантажені проєкти (для тестів).
+        projects — опційно вже завантажені проєкти (для тестів);
+        done — статус виконання: "active" (лише невиконані),
+               "done" (лише виконані), "all" (усі).
     """
     date_from, date_to = period_bounds(period, today)
     if projects is None:
@@ -68,6 +71,11 @@ def list_scheduled_works(
                 continue
             if needle and needle not in (w.get("crew") or "").lower():
                 continue
+            is_done = bool(w.get("is_done") or False)
+            if done == "active" and is_done:
+                continue
+            if done == "done" and not is_done:
+                continue
             rows.append(
                 {
                     "work_id": w["id"],
@@ -80,6 +88,7 @@ def list_scheduled_works(
                     "work_date": w.get("work_date") or "",
                     "crew": w.get("crew") or "",
                     "total_price": float(w.get("total_price") or 0),
+                    "is_done": is_done,
                 }
             )
     rows.sort(key=lambda r: (r["work_date"] or "9999", r["project_name"]))

@@ -26,6 +26,7 @@ def _work_to_dict(work: ProjectWork) -> dict:
         "total_price": float(work.total_price or 0),
         "work_date": work.work_date.isoformat() if work.work_date else "",
         "crew": work.crew or "",
+        "is_done": bool(work.is_done),
     }
 
 
@@ -55,6 +56,7 @@ class ProjectWorkRepository:
                 total_price=qty * unit_price,
                 work_date=_to_date(data.get("work_date")),
                 crew=data.get("crew") or None,
+                is_done=bool(data.get("is_done") or False),
             )
             session.add(work)
             session.flush()
