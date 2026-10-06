@@ -165,6 +165,13 @@ class ScheduleTab(QWidget):
         )
         btn_plan.clicked.connect(self._on_export_plan)
         filters.addWidget(btn_plan)
+        btn_report = QPushButton("✅ Звіт бригади (PDF)")
+        btn_report.setToolTip(
+            "Чек-лист із квадратиками «виконано» — бригадир відмічає на папері, "
+            "відмічений звіт стає основою для актів"
+        )
+        btn_report.clicked.connect(self._on_export_report)
+        filters.addWidget(btn_report)
         filters.addSpacing(12)
         filters.addWidget(QLabel("Бригада:"))
         self.combo_crew = QComboBox()
@@ -257,9 +264,28 @@ class ScheduleTab(QWidget):
 
     def _on_export_plan(self):
         """PDF-план монтажів за поточними фільтрами (бригада + період)."""
+        from ventilation_company.crew_plan_generator import generate_crew_plan
+
+        self._export_pdf(
+            generator=generate_crew_plan,
+            title="План для бригад",
+            prefix="plan-bryhad",
+        )
+
+    def _on_export_report(self):
+        """PDF-звіт бригади про виконання (чек-лист) за поточними фільтрами."""
+        from ventilation_company.crew_report_generator import generate_crew_report
+
+        self._export_pdf(
+            generator=generate_crew_report,
+            title="Звіт бригади про виконання",
+            prefix="zvit-bryhady",
+        )
+
+    def _export_pdf(self, generator, title: str, prefix: str):
+        """Спільна логіка експорту: фільтри → вибір файлу → генерація → відкрити."""
         from datetime import date as _date
 
-        from ventilation_company.crew_plan_generator import generate_crew_plan
         from ventilation_company.services.business_settings import BusinessSettings
 
         crew = self.combo_crew.currentText()
@@ -269,7 +295,7 @@ class ScheduleTab(QWidget):
         note = ""
         if period == "all":
             period = "week"
-            note = "\n\nПеріод «Усі дати» — згенеровано план на поточний тиждень."
+            note = "\n\nПеріод «Усі дати» — згенеровано документ на поточний тиждень."
         date_from, date_to = period_bounds(period)
         # Для всіх режимів, крім "all" (який вище замінено на "week"), межі завжди є.
         assert date_from is not None and date_to is not None
@@ -280,17 +306,13 @@ class ScheduleTab(QWidget):
             QMessageBox.critical(self, "Помилка", f"Не вдалося прочитати дані:\n{exc}")
             return
         if not works:
-            QMessageBox.information(
-                self,
-                "План для бригад",
-                "Немає робіт із датами за обраний період.",
-            )
+            QMessageBox.information(self, title, "Немає робіт із датами за обраний період.")
             return
 
         week = _date.today().isocalendar()[1]
-        suggested = f"plan-bryhad-tyzhden-{week}.pdf"
+        suggested = f"{prefix}-tyzhden-{week}.pdf"
         path, _selected = QFileDialog.getSaveFileName(
-            self, "Зберегти план для бригад", suggested, "PDF (*.pdf)"
+            self, f"Зберегти: {title}", suggested, "PDF (*.pdf)"
         )
         if not path:
             return
@@ -301,16 +323,12 @@ class ScheduleTab(QWidget):
         with contextlib.suppress(Exception):  # реквізити не критичні
             company = BusinessSettings.get_instance().get_company()
         try:
-            generate_crew_plan(works, crew, date_from, date_to, path, company)
+            generator(works, crew, date_from, date_to, path, company)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Помилка", f"Не вдалося створити PDF:\n{exc}")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
-        QMessageBox.information(
-            self,
-            "План для бригад",
-            f"План збережено:\n{path}{note}",
-        )
+        QMessageBox.information(self, title, f"Документ збережено:\n{path}{note}")
 
     def _on_double_click(self):
         row = self.table.currentRow()
