@@ -148,14 +148,17 @@ def test_upload_backup_sends_telegram_only_with_credentials(monkeypatch, tmp_pat
         lambda *a, **kw: sent.append((a, kw)) or True,
     )
     monkeypatch.setattr(cloud_backup, "copy_to_cloud_folders", lambda p: [])
+    monkeypatch.setattr(cloud_backup, "build_backup_report", lambda p: str(tmp_path / "звіт.txt"))
 
     result = cloud_backup.upload_backup(str(file), token="T", chat="C")
     assert result["telegram"] is True
-    assert len(sent) == 1
+    assert len(sent) == 2  # дамп + звіт
+    assert sent[0][0][2] == str(file)
+    assert sent[1][0][2].endswith(".txt")
 
     result = cloud_backup.upload_backup(str(file), token="", chat="")
     assert result["telegram"] is None
-    assert len(sent) == 1  # додаткових викликів не було
+    assert len(sent) == 2  # додаткових викликів не було
 
 
 def test_upload_backup_never_raises(monkeypatch, tmp_path):
@@ -207,3 +210,63 @@ def test_cloud_upload_disabled_is_noop(monkeypatch):
 
     monkeypatch.setattr(cloud_backup, "cloud_backup_preferences", lambda: (False, "T", "C"))
     assert backup._cloud_upload("some.dump", 7) is None
+
+
+# ── Звіт до бекапу ──
+
+
+def test_build_backup_report_survives_broken_db(monkeypatch, tmp_path):
+    """Зламана БД не ламає звіт — лишаються дата й розмір дампу."""
+
+    def broken_stats():
+        raise RuntimeError("БД недоступна")
+
+    monkeypatch.setattr(cloud_backup, "_collect_backup_stats", broken_stats)
+    dump = tmp_path / "ventcompany_20261008_210000.dump"
+    dump.write_bytes(b"x" * 2048)
+
+    report = cloud_backup.build_backup_report(str(dump))
+
+    text = Path(report).read_text(encoding="utf-8")
+    assert "Дата створення копії" in text
+    assert "0,00 МБ" in text or "МБ" in text
+    assert "недоступна" in text
+
+
+def test_build_backup_report_contains_dump_size(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        cloud_backup, "_collect_backup_stats", lambda: ["Статистика БД", "Проєктів усього: 5"]
+    )
+    dump = tmp_path / "ventcompany_20261008_210000.dump"
+    dump.write_bytes(b"x" * 5 * 1024 * 1024)  # 5 МБ
+
+    report = cloud_backup.build_backup_report(str(dump))
+
+    text = Path(report).read_text(encoding="utf-8")
+    assert "5.00 МБ" in text
+    assert "ventcompany_20261008_210000.dump" in text
+    assert "Проєктів усього: 5" in text
+    # той самий штамп у назві звіту
+    assert Path(report).name == "ventcompany_20261008_210000_звіт.txt"
+
+
+def test_upload_backup_report_failure_keeps_result(monkeypatch, tmp_path):
+    """Помилка надсилання звіту не псує успішний результат дампу."""
+    file = tmp_path / "b.dump"
+    file.write_bytes(b"x")
+    sent = []
+
+    def fake_send(token, chat, path, caption=""):
+        sent.append(path)
+        if path.endswith(".txt"):
+            raise RuntimeError("Telegram відмовив")
+        return True
+
+    monkeypatch.setattr(cloud_backup, "send_telegram_document", fake_send)
+    monkeypatch.setattr(cloud_backup, "copy_to_cloud_folders", lambda p: [])
+    monkeypatch.setattr(cloud_backup, "build_backup_report", lambda p: str(tmp_path / "звіт.txt"))
+
+    result = cloud_backup.upload_backup(str(file), token="T", chat="C")
+
+    assert result["telegram"] is True
+    assert len(sent) == 2

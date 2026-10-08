@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import shutil
 import uuid
+from datetime import datetime
 from pathlib import Path
 from urllib import request as urlrequest
 
@@ -165,9 +166,80 @@ def cloud_backup_preferences() -> tuple[bool, str, str]:
     return enabled, token, chat
 
 
+def build_backup_report(backup_path: str) -> str:
+    """Створити читабельний TXT-звіт до дампу (дата, розмір, статистика БД).
+
+    Звіт кладеться поруч із дампом з тим самим штампом часу
+    (`ventcompany_<штамп>_звіт.txt`). Помилки читання БД лише логуються —
+    звіт завжди містить хоча б дату й розмір дампу. Повертає шлях до звіту.
+    """
+    path = Path(backup_path)
+    stamp = path.stem.removeprefix("ventcompany_")
+    report_path = path.with_name(f"ventcompany_{stamp}_звіт.txt")
+    size_mb = path.stat().st_size / (1024 * 1024)
+
+    lines = [
+        "VentCompany — звіт до резервної копії",
+        "=" * 40,
+        f"Дата створення копії: {datetime.now():%d.%m.%Y %H:%M}",
+        f"Файл копії: {path.name}",
+        f"Розмір копії: {size_mb:.2f} МБ",
+    ]
+    try:
+        from ventilation_company.version import __version__
+
+        lines.append(f"Версія програми: {__version__}")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Версія програми недоступна: %s", exc)
+    lines.append("")
+
+    try:
+        lines.extend(_collect_backup_stats())
+    except Exception as exc:  # noqa: BLE001 — звіт не повинен ламати бекап
+        logger.warning("Статистика БД для звіту недоступна: %s", exc)
+        lines.append("Статистика БД: недоступна (див. логи програми).")
+
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    logger.info("Створено звіт до бекапу: %s", report_path)
+    return str(report_path)
+
+
+def _collect_backup_stats() -> list[str]:
+    """Підсумки з БД для звіту: проєкти, клієнти, оплати, дебіторка."""
+    from ventilation_company.database.repositories.client_repo import ClientRepository
+    from ventilation_company.database.repositories.project_repo import ProjectRepository
+    from ventilation_company.services.receivables import (
+        _DONE_STATUSES,
+        build_receivables,
+        receivables_totals,
+    )
+
+    projects = ProjectRepository.list_all()
+    totals = receivables_totals(build_receivables(projects))
+    active = [p for p in projects if (p.get("status") or "").strip().lower() not in _DONE_STATUSES]
+    clients = ClientRepository.list_all()
+
+    def _fmt(amount: float) -> str:
+        return f"{amount:,.2f}".replace(",", " ")
+
+    return [
+        "Статистика бази даних",
+        "-" * 40,
+        f"Проєктів усього: {len(projects)}",
+        f"Активних проєктів: {len(active)}",
+        f"Клієнтів: {len(clients)}",
+        f"Договірна вартість проєктів: {_fmt(totals['total'])} грн",
+        f"Отримано оплат: {_fmt(totals['paid'])} грн",
+        f"Дебіторська заборгованість: {_fmt(totals['debt'])} грн",
+        f"Передоплати (переплати): {_fmt(totals['overpaid'])} грн",
+    ]
+
+
 def upload_backup(backup_path: str, token: str = "", chat: str = "") -> dict:
     """Відправити готовий дамп у хмару (Telegram і/або хмарні теки).
 
+    У Telegram разом із дампом надсилається читабельний TXT-звіт
+    (дата, розмір, кількість проєктів/клієнтів, дебіторка).
     Повертає {"telegram": bool|None, "folders": [шляхи]}. Ніколи не підіймає
     винятки — хмарний бекап не повинен ламати автобекап.
     """
@@ -178,6 +250,21 @@ def upload_backup(backup_path: str, token: str = "", chat: str = "") -> dict:
         try:
             caption = f"VentCompany backup: {Path(backup_path).name}"
             result["telegram"] = send_telegram_document(token, chat, backup_path, caption)
+            if result["telegram"]:
+                report_path = ""
+                try:
+                    report_path = build_backup_report(backup_path)
+                    send_telegram_document(
+                        token, chat, report_path, "Звіт до резервної копії VentCompany"
+                    )
+                except Exception as exc:  # noqa: BLE001 — звіт необов'язковий
+                    logger.error("Telegram report upload skipped: %s", exc)
+                finally:
+                    if report_path:
+                        try:
+                            Path(report_path).unlink(missing_ok=True)
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning("Не вдалося видалити звіт %s: %s", report_path, exc)
         except Exception as exc:  # noqa: BLE001
             logger.error("Telegram upload skipped: %s", exc)
             result["telegram"] = False
