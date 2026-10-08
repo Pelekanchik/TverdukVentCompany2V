@@ -17,7 +17,7 @@ from PySide6.QtCharts import (
     QPieSeries,
     QValueAxis,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -128,10 +128,22 @@ class _ChartCard(QFrame):
 class DashboardTab(QWidget):
     """Головна сторінка зі статистикою по всіх проєктах."""
 
+    # Як часто оновлювати дані без переходу на вкладку (1 хвилина).
+    REFRESH_INTERVAL_MS = 60_000
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._build_ui()
         self.refresh()
+        self._timer = QTimer(self)
+        self._timer.setInterval(self.REFRESH_INTERVAL_MS)
+        self._timer.timeout.connect(self._on_timer)
+        self._timer.start()
+
+    def _on_timer(self) -> None:
+        """Оновлення за таймером — лише коли вкладка видима на екрані."""
+        if self.isVisible():
+            self.refresh()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -142,7 +154,7 @@ class DashboardTab(QWidget):
         lbl_title.setObjectName("title")
         layout.addWidget(lbl_title)
 
-        lbl_sub = QLabel("Огляд проєктів, оплат та дебіторки компанії")
+        lbl_sub = QLabel("Огляд проєктів, оплат та дебіторки • оновлюється автоматично щохвилини")
         lbl_sub.setObjectName("subtitle")
         layout.addWidget(lbl_sub)
 

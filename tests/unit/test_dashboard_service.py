@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+import pytest
+
 from ventilation_company.services import dashboard_service
 from ventilation_company.services.dashboard_service import DashboardService
 
@@ -92,3 +94,44 @@ class TestOverview:
         stats = DashboardService.overview()
         assert stats["done_count"] == 2
         assert stats["active_count"] == 1
+
+
+# ── Автооновлення вкладки дашборду ──
+
+
+@pytest.fixture
+def qapp():
+    """Власна фікстура QApplication (pytest-qt у CI не встановлено)."""
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance() or QApplication([])
+    return app
+
+
+def test_dashboard_timer_active_and_interval(qapp, monkeypatch):
+    """Таймер автооновлення існує, активний і спрацьовує раз на хвилину."""
+    from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
+
+    monkeypatch.setattr(dashboard_service.ProjectRepository, "list_all", staticmethod(lambda: []))
+    monkeypatch.setattr(dashboard_service.ClientRepository, "list_all", staticmethod(lambda: []))
+    tab = DashboardTab()
+    assert tab._timer.isActive()
+    assert tab._timer.interval() == DashboardTab.REFRESH_INTERVAL_MS == 60_000
+
+
+def test_dashboard_timer_skips_hidden_tab(qapp, monkeypatch):
+    """Коли вкладка невидима, таймер не перечитує дані."""
+    from ventilation_company.gui_pyside6.dashboard_tab import DashboardTab
+
+    calls = []
+    monkeypatch.setattr(DashboardService, "overview", staticmethod(lambda: calls.append(1) or {}))
+    tab = DashboardTab()
+    tab.refresh = lambda: calls.append("refresh")  # type: ignore[method-assign]
+    calls.clear()  # скидаємо початкове refresh() з __init__
+    tab.hide()
+    assert not tab.isVisible()
+    tab._on_timer()
+    assert calls == []  # прихована вкладка — оновлення немає
+    tab.show()
+    tab._on_timer()
+    assert calls == ["refresh"]
