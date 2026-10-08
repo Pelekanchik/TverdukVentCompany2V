@@ -72,6 +72,73 @@ DEFAULT_CATEGORY_WASTE_FACTORS = {
 DEFAULT_MARKUP_PERCENT = 30.0
 DEFAULT_MARKUP_MATRIX = build_default_markup_matrix()
 
+# Плоскі категорії націнок (вибираються на виробі у вкладці «Вироби»).
+# Ключ «markup_categories» у файлі — канонічне сховище; властивість
+# «markup_matrix» — окрема вкладена матриця для покрокового розрахунку.
+DEFAULT_MARKUP_CATEGORIES = {
+    "Стандартна": 30.0,
+    "Преміум": 40.0,
+    "Економ": 20.0,
+    "Спецзамовлення": 50.0,
+}
+
+# Назви категорій у фіксованому порядку (для GUI-списків).
+MARKUP_CATEGORY_NAMES = tuple(DEFAULT_MARKUP_CATEGORIES)
+
+
+def get_markup_categories() -> list[tuple[str, float]]:
+    """Категорії націнок (назва, %) з поточних збережених налаштувань.
+
+    Єдине джерело правди для діалогів виробів — щоб зміна націнок
+    у «Ціноутворенні» одразу відображалася у розрахунках.
+    """
+    settings = PricingSettings.get_instance()
+    settings.reload()
+    return [
+        (name, float(settings.markup_categories.get(name, DEFAULT_MARKUP_CATEGORIES[name])))
+        for name in MARKUP_CATEGORY_NAMES
+    ]
+
+
+def _normalize_labor_rates(rates: dict) -> dict:
+    """Привести ставки до канонічного ключа «difficulty_percent».
+
+    Стара GUI-закладка писала ключ «difficulty» — без нормалізації
+    розрахунок мовчки ігнорував коефіцієнт важкості (0.0).
+    """
+    normalized = {}
+    for key, value in (rates or {}).items():
+        if not isinstance(value, dict):
+            continue
+        entry = dict(value)
+        if "difficulty_percent" not in entry and "difficulty" in entry:
+            entry["difficulty_percent"] = entry["difficulty"]
+        normalized[key] = entry
+    return normalized
+
+
+def _extract_markup_categories(data: dict) -> dict:
+    """Категорії націнок з сирих даних файлу (з міграцією старих схем).
+
+    Історично GUI писало плоскі значення у ключ «markup_matrix»;
+    канонічна вкладена матриця зберігається там само. Якщо бачимо
+    плоску схему — це категорії, для матриці беремо дефолт.
+    """
+    raw_matrix = data.get("markup_matrix")
+    if isinstance(raw_matrix, dict) and any(k in raw_matrix for k in MARKUP_CATEGORY_NAMES):
+        return {
+            name: float(raw_matrix.get(name, DEFAULT_MARKUP_CATEGORIES[name]))
+            for name in MARKUP_CATEGORY_NAMES
+        }
+    saved = data.get("markup_categories")
+    if isinstance(saved, dict):
+        return {
+            name: float(saved.get(name, DEFAULT_MARKUP_CATEGORIES[name]))
+            for name in MARKUP_CATEGORY_NAMES
+        }
+    return dict(DEFAULT_MARKUP_CATEGORIES)
+
+
 DEFAULT_LABOR_RATES = {
     "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty_percent": 0.0},
     "повітропровід круглий": {"rate_per_m2": 130.0, "difficulty_percent": 5.0},
@@ -256,6 +323,7 @@ class PricingSettings:
         self.depreciation: dict = {}
         self.markup_percent: float = DEFAULT_MARKUP_PERCENT
         self.markup_matrix: dict = {}
+        self.markup_categories: dict = {}
         self.products: list = []
         self.custom_params: dict = {}
         self.labor_rates: dict = {}
@@ -299,10 +367,18 @@ class PricingSettings:
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
             self.markup_percent = data.get("markup_percent", DEFAULT_MARKUP_PERCENT)
-            self.markup_matrix = data.get("markup_matrix", build_default_markup_matrix())
+            raw_matrix = data.get("markup_matrix", build_default_markup_matrix())
+            # Плоска (GUI) схема в «markup_matrix» → це категорії, матриця — дефолт
+            if any(k in raw_matrix for k in MARKUP_CATEGORY_NAMES):
+                self.markup_matrix = build_default_markup_matrix()
+            else:
+                self.markup_matrix = raw_matrix
+            self.markup_categories = _extract_markup_categories(data)
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
-            self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
+            self.labor_rates = _normalize_labor_rates(
+                data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
+            )
             self.category_waste_factors = data.get(
                 "category_waste_factors", DEFAULT_CATEGORY_WASTE_FACTORS.copy()
             )
@@ -314,6 +390,7 @@ class PricingSettings:
             self.depreciation = DEFAULT_DEPRECIATION.copy()
             self.markup_percent = DEFAULT_MARKUP_PERCENT
             self.markup_matrix = build_default_markup_matrix()
+            self.markup_categories = dict(DEFAULT_MARKUP_CATEGORIES)
             self.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
@@ -328,6 +405,7 @@ class PricingSettings:
             "depreciation": self.depreciation,
             "markup_percent": self.markup_percent,
             "markup_matrix": self.markup_matrix,
+            "markup_categories": self.markup_categories,
             "products": self.products,
             "custom_params": self.custom_params,
             "labor_rates": self.labor_rates,

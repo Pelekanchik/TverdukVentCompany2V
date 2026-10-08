@@ -22,6 +22,12 @@ CUSTOM_PRICES = {
 
 class _PricingStub:
     material_prices = CUSTOM_PRICES
+    markup_categories = {
+        "Стандартна": 30.0,
+        "Преміум": 40.0,
+        "Економ": 20.0,
+        "Спецзамовлення": 50.0,
+    }
 
     def reload(self):
         return None

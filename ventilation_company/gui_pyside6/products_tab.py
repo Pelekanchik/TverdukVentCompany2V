@@ -36,6 +36,8 @@ from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.pricing_settings import DEFAULT_MARKUP_PERCENT
 
 SCHEMAS = {
     "Відвод круглий": "",
@@ -572,14 +574,23 @@ class ProductsTab(QWidget):
                     branch_height=branch_h,
                     branch_length=branch_l,
                 )
-                blank = surface * 1.15
-                material_area = blank * 1.05
+                from ventilation_company.manufacturing_params import (
+                    blank_area,
+                    material_area_from_blank,
+                )
+
+                blank = blank_area(surface)
+                material_area = material_area_from_blank(blank)
 
                 with_flanges = bool(params.get("with_flanges"))
                 flange_count = int(params.get("flange_count") or 0) if with_flanges else 0
                 flange_profile = params.get("flange_profile") or "P30"
-                flange_price = 150.0 if flange_profile == "P30" else 200.0
-                markup = markup_map.get(params.get("category") or "", 30)
+                flange_price = (
+                    BusinessSettings.get_instance().get_flange_price(flange_profile)
+                    if with_flanges
+                    else 0.0
+                )
+                markup = markup_map.get(params.get("category") or "", DEFAULT_MARKUP_PERCENT)
 
                 breakdown = engine.calculate(
                     product_type=product_type,

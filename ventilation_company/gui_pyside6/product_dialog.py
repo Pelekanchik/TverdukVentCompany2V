@@ -37,6 +37,7 @@ from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.pricing_settings import (
+    DEFAULT_MARKUP_PERCENT,
     DEFAULT_MATERIAL_PRICES,
     PricingSettings,
 )
@@ -782,10 +783,15 @@ class ProductDialog(QDialog):
             branch_l = self.spin_branch_length.value()
 
         surface = calc_surface_area(pt, w, h, l, bend_angle, radius, branch_w, branch_h, branch_l)
-        blank = surface * 1.15
-        material_area = blank * 1.05
+        from ventilation_company.manufacturing_params import (
+            blank_area,
+            material_area_from_blank,
+        )
+
+        blank = blank_area(surface)
+        material_area = material_area_from_blank(blank)
         markup_map = {f"{name} ({value:g}%)": value for name, value in self._markups}
-        custom_markup = markup_map.get(self.combo_category.currentText(), 30)
+        custom_markup = markup_map.get(self.combo_category.currentText(), DEFAULT_MARKUP_PERCENT)
         flange_count = 0
         flange_price = 0.0
         if self.chk_with_flanges.isChecked():

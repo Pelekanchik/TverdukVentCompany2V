@@ -197,6 +197,22 @@ def get_labor_rate(product_type: str) -> dict[str, float]:
 # УТИЛІТИ
 # ═══════════════════════════════════════════════════════════
 
+# Коефіцієнти розкрою: припуск на обробку (згин, замок) та додатковий
+# запас площі заготівлі. Однакові у всіх місцях розрахунку ціни виробу —
+# зміна тут застосовується усюди (діалог виробу, перерахунок, деталі).
+BLANK_ALLOWANCE_FACTOR = 1.15
+MATERIAL_AREA_EXTRA_FACTOR = 1.05
+
+
+def blank_area(surface_area_m2: float) -> float:
+    """Площа заготівлі з припуском на обробку."""
+    return surface_area_m2 * BLANK_ALLOWANCE_FACTOR
+
+
+def material_area_from_blank(blank_area_m2: float) -> float:
+    """Площа матеріалу з додатковим запасом на заготівлю."""
+    return blank_area_m2 * MATERIAL_AREA_EXTRA_FACTOR
+
 
 def seam_allowance_for_thickness(
     base_mm: float, thickness_mm: float, factor: float = 20.0
