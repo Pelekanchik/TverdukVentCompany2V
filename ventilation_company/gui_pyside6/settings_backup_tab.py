@@ -78,6 +78,32 @@ class BackupSettingsTab(QWidget):
         f1.addRow(btn_save_backup_settings)
         vlay.addWidget(grp_auto)
 
+        grp_cloud = QGroupBox("☁️ Хмарний бекап")
+        f3 = QFormLayout(grp_cloud)
+        self.chk_cloud_backup = QCheckBox("Надсилати копію бекапу у хмару")
+        f3.addRow(self.chk_cloud_backup)
+        self.edit_tg_token = QLineEdit()
+        self.edit_tg_token.setEchoMode(QLineEdit.EchoMode.Password)
+        self.edit_tg_token.setPlaceholderText("123456:ABC-DEF…")
+        f3.addRow("🤖 Токен бота:", self.edit_tg_token)
+        self.edit_tg_chat = QLineEdit()
+        self.edit_tg_chat.setPlaceholderText("123456789")
+        f3.addRow("💬 Chat ID:", self.edit_tg_chat)
+        self.lbl_cloud_status = QLabel("")
+        self.lbl_cloud_status.setWordWrap(True)
+        f3.addRow(self.lbl_cloud_status)
+        h3 = QHBoxLayout()
+        btn_test_cloud = QPushButton("📤 Тестова відправка")
+        btn_test_cloud.setMinimumHeight(32)
+        btn_test_cloud.clicked.connect(self._test_cloud_backup)
+        h3.addWidget(btn_test_cloud)
+        btn_refresh_cloud = QPushButton("🔎 Знайти хмарні теки")
+        btn_refresh_cloud.setMinimumHeight(32)
+        btn_refresh_cloud.clicked.connect(self._refresh_cloud_status)
+        h3.addWidget(btn_refresh_cloud)
+        f3.addRow(h3)
+        vlay.addWidget(grp_cloud)
+
         grp_manual = QGroupBox("Ручний бекап / відновлення")
         f2 = QFormLayout(grp_manual)
         self.edit_backup_path = QLineEdit(str(BACKUP_DIR))
@@ -111,6 +137,15 @@ class BackupSettingsTab(QWidget):
         )
         lbl.setWordWrap(True)
         vlay.addWidget(lbl)
+        lbl_cloud_hint = QLabel(
+            "💡 Хмарний бекап: створіть бота через @BotFather у Telegram (команда /newbot) "
+            "і вставте токен. Свій chat ID дізнайтеся через @userinfobot. "
+            "Бекап надходитиме файлом у ваш чат при кожному автобекапі. "
+            "Якщо встановлено OneDrive / Google Drive / Dropbox — копія додатково "
+            "потрапить у теку VentCompanyBackups (синхронізується автоматично)."
+        )
+        lbl_cloud_hint.setWordWrap(True)
+        vlay.addWidget(lbl_cloud_hint)
 
     def load_settings(self, settings) -> None:
         self._settings = settings
@@ -118,7 +153,11 @@ class BackupSettingsTab(QWidget):
         self.chk_auto_backup.setChecked(settings.get("app.backup_auto", "1") == "1")
         with contextlib.suppress(ValueError):
             self.spin_auto_backup.setValue(int(settings.get("app.backup_keep", "7")))
+        self.chk_cloud_backup.setChecked(settings.get("app.cloud_backup_enabled", "0") == "1")
+        self.edit_tg_token.setText(settings.get("app.cloud_backup_telegram_token", ""))
+        self.edit_tg_chat.setText(settings.get("app.cloud_backup_telegram_chat", ""))
         self._refresh_backup_list()
+        self._refresh_cloud_status()
 
     def backup_settings(self):
         return (
@@ -132,6 +171,9 @@ class BackupSettingsTab(QWidget):
         settings.set("app.backup_path", path)
         settings.set("app.backup_keep", str(keep_count))
         settings.set("app.backup_auto", "1" if auto_backup else "0")
+        settings.set("app.cloud_backup_enabled", "1" if self.chk_cloud_backup.isChecked() else "0")
+        settings.set("app.cloud_backup_telegram_token", self.edit_tg_token.text().strip())
+        settings.set("app.cloud_backup_telegram_chat", self.edit_tg_chat.text().strip())
 
     def _save_backup_settings(self):
         if not self._settings:
@@ -139,6 +181,80 @@ class BackupSettingsTab(QWidget):
         self.save_settings(self._settings)
         self._settings.clear_cache()
         QMessageBox.information(self, "Успіх", "✅ Налаштування бекапу збережено")
+
+    def _refresh_cloud_status(self):
+        """Показати знайдені хмарні теки та стан налаштування Telegram."""
+        try:
+            from ventilation_company.utils import cloud_backup
+
+            folders = cloud_backup.detect_cloud_folders()
+        except Exception:  # noqa: BLE001 — статус некритичний
+            folders = []
+        parts = []
+        if folders:
+            names = ", ".join(name for name, _path in folders)
+            parts.append(f"Знайдено теки синхронізації: {names} ✅")
+        else:
+            parts.append("Теки синхронізації (OneDrive/Drive/Dropbox) не знайдено")
+        token = self.edit_tg_token.text().strip()
+        chat = self.edit_tg_chat.text().strip()
+        if token and chat:
+            parts.append("Telegram: налаштовано ✅")
+        elif self.chk_cloud_backup.isChecked():
+            parts.append("Telegram: не заповнено токен/chat ID ⚠️")
+        self.lbl_cloud_status.setText("\n".join(parts))
+
+    def _test_cloud_backup(self):
+        """Створити дамп і надіслати його у хмару (перевірка налаштувань)."""
+        token = self.edit_tg_token.text().strip()
+        chat = self.edit_tg_chat.text().strip()
+        if not token or not chat:
+            QMessageBox.warning(
+                self,
+                "Увага",
+                "Спочатку заповніть токен бота та chat ID — інструкція внизу вкладки.",
+            )
+            return
+        path = self.edit_backup_path.text().strip() or str(BACKUP_DIR)
+        os.makedirs(path, exist_ok=True)
+        self._cloud_worker = FunctionWorker(self._test_cloud_job, path, token, chat)
+        self._cloud_worker.result.connect(self._on_cloud_test_done)
+        self._cloud_worker.error.connect(
+            lambda err: QMessageBox.critical(
+                self, "Помилка", f"Тестова відправка не вдалася: {err}"
+            )
+        )
+        self._cloud_worker.start()
+
+    def _test_cloud_job(self, path: str, token: str, chat: str) -> str:
+        backup_path = create_backup(backup_dir=path)
+        if not backup_path:
+            raise RuntimeError("Не вдалося створити бекап — перевірте PostgreSQL")
+        from ventilation_company.utils import cloud_backup
+
+        result = cloud_backup.upload_backup(backup_path, token=token, chat=chat)
+        ok_tg = result["telegram"]
+        folders = result["folders"]
+        if ok_tg is False and not folders:
+            raise RuntimeError(
+                "Ні Telegram, ні хмарні теки не прийняли файл. Перевірте токен/chat ID та інтернет."
+            )
+        parts = [f"Бекап створено: {backup_path}"]
+        if ok_tg:
+            parts.append("✅ Надіслано у Telegram")
+        if folders:
+            parts.append("✅ Скопійовано: " + "; ".join(folders))
+        log_action(
+            "backup.cloud_test",
+            entity_type="database",
+            details=cloud_backup.summary_json(result),
+            actor=self.current_user,
+        )
+        return "\n".join(parts)
+
+    def _on_cloud_test_done(self, msg: str) -> None:
+        QMessageBox.information(self, "Успіх", msg)
+        self._refresh_backup_list()
 
     def _browse_backup_path(self):
         path = QFileDialog.getExistingDirectory(
@@ -171,6 +287,17 @@ class BackupSettingsTab(QWidget):
         """Створити бекап через utils.backup (той самий код, що й автобекап)."""
         backup_path = create_backup(backup_dir=path)
         if backup_path:
+            from ventilation_company.utils import cloud_backup
+
+            enabled, token, chat = cloud_backup.cloud_backup_preferences()
+            if enabled:
+                result = cloud_backup.upload_backup(backup_path, token=token, chat=chat)
+                log_action(
+                    "backup.cloud_upload",
+                    entity_type="database",
+                    details=cloud_backup.summary_json(result),
+                    actor=self.current_user,
+                )
             return f"Бекап створено: {backup_path}"
         raise RuntimeError(
             "Бекап не створено — перевірте, що PostgreSQL запущено, "

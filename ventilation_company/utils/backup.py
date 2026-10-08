@@ -281,7 +281,32 @@ def auto_backup_on_start(backup_dir: str | None = None, keep: int | None = None)
         cleanup_old_backups(backup_dir=backup_dir, keep=keep)
     except Exception as exc:  # noqa: BLE001 — ротація некритична
         logger.warning("Backup rotation skipped: %s", exc)
+    _cloud_upload(path, keep)
     return path
+
+
+def _cloud_upload(path: str | None, keep: int) -> None:
+    """Надіслати щойно створений дамп у хмару (якщо увімкнено в налаштуваннях).
+
+    Працює у тому самому фоновому потоці, що й автобекап; будь-яка помилка
+    лише пише у лог — старт програми і локальний бекап не зачіпає.
+    """
+    if not path:
+        return
+    try:
+        from ventilation_company.utils import cloud_backup
+
+        enabled, token, chat = cloud_backup.cloud_backup_preferences()
+        if not enabled:
+            return
+        result = cloud_backup.upload_backup(path, token=token, chat=chat)
+        logger.info("Cloud backup result: %s", cloud_backup.summary_json(result))
+        try:
+            cloud_backup.cleanup_cloud_folders(keep=keep)
+        except Exception as exc:  # noqa: BLE001 — ротація у хмарі некритична
+            logger.warning("Cloud rotation skipped: %s", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Cloud upload skipped: %s", exc)
 
 
 def restore_backup(backup_path: str, db_path: str = DEFAULT_SQLITE_DB) -> bool:
