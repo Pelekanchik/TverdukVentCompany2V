@@ -267,3 +267,33 @@ class TestMaterialOrder:
         qtbot.mouseClick(_button(card, "Замовлення матеріалів"), Qt.MouseButton.LeftButton)
         assert out.exists()
         assert ("заявка", str(out)) in registered
+
+
+class TestContract:
+    def test_contract_button_saves_pdf_and_registers_doc(self, qtbot, card, monkeypatch, tmp_path):
+        """Клік «📑 Договір (PDF)…» → PDF + реєстрація в документах."""
+        out = tmp_path / "договір.pdf"
+
+        def _fake_contract(data, path):
+            with open(path, "wb") as f:
+                f.write(b"%PDF-1.4 fake")
+            assert data["name"] == "Тестовий проєкт"
+            assert data["total_amount"] == 8000.0  # customer_price (знижки немає)
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_docs_mixin.generate_contract",
+            staticmethod(_fake_contract),
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QFileDialog.getSaveFileName",
+            staticmethod(lambda *a, **k: (str(out), "")),
+        )
+        registered = []
+        monkeypatch.setattr(
+            card,
+            "_register_document",
+            lambda doc_type, path: registered.append((doc_type, path)),
+        )
+        qtbot.mouseClick(_button(_tab(card, "Деталі"), "Договір"), Qt.MouseButton.LeftButton)
+        assert out.exists()
+        assert ("договір", str(out)) in registered
