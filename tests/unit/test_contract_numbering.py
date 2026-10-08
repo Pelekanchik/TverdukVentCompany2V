@@ -48,7 +48,7 @@ class TestEnsureContractNumber:
         import re
 
         updates = []
-        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda: ["ДГ-20990101-001"])
+        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda key: ["ДГ-20990101-001"])
         monkeypatch.setattr(
             contract_numbering.ProjectRepository,
             "update",
@@ -62,7 +62,7 @@ class TestEnsureContractNumber:
         assert data["contract_number"] == number
 
     def test_update_failure_does_not_block(self, monkeypatch):
-        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda: [])
+        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda key: [])
 
         def _boom(*_a, **_k):
             raise RuntimeError("БД недоступна")
@@ -72,3 +72,68 @@ class TestEnsureContractNumber:
         number = contract_numbering.ensure_contract_number(3, data)
         assert number.startswith("ДГ-")
         assert "contract_number" not in data  # не закріпився — але договір не заблоковано
+
+
+class TestEnsureDocumentNumber:
+    """Узагальнена нумерація: рахунок (Р) і акт (АК)."""
+
+    def test_invoice_prefix_and_key(self, monkeypatch):
+        import re
+
+        updates = []
+        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda key: [])
+        monkeypatch.setattr(
+            contract_numbering.ProjectRepository,
+            "update",
+            staticmethod(lambda pid, data: updates.append((pid, data)) or {"id": pid}),
+        )
+        data: dict = {}
+        number = contract_numbering.ensure_document_number(5, data, "invoice_number")
+        assert re.fullmatch(r"Р-\d{8}-001", number)
+        assert updates == [(5, {"invoice_number": number})]
+        assert data["invoice_number"] == number
+
+    def test_act_prefix(self, monkeypatch):
+        import re
+
+        monkeypatch.setattr(contract_numbering, "_taken_numbers", lambda key: [])
+        monkeypatch.setattr(
+            contract_numbering.ProjectRepository,
+            "update",
+            staticmethod(lambda pid, data: {"id": pid}),
+        )
+        number = contract_numbering.ensure_document_number(5, {}, "act_number")
+        assert re.fullmatch(r"АК-\d{8}-001", number)
+
+    def test_existing_returned_and_no_db_write(self, monkeypatch):
+        def _boom(*_a, **_k):  # pragma: no cover
+            raise AssertionError("update не має викликатись")
+
+        monkeypatch.setattr(contract_numbering.ProjectRepository, "update", _boom)
+        data = {"invoice_number": "Р-20260101-009"}
+        assert (
+            contract_numbering.ensure_document_number(1, data, "invoice_number") == "Р-20260101-009"
+        )
+
+    def test_sequences_independent_per_document_type(self, monkeypatch):
+        """Договір і рахунок того самого дня мають незалежні послідовності."""
+        import re
+
+        taken = {
+            "contract_number": ["ДГ-20990101-005"],
+            "invoice_number": ["Р-20990101-003"],
+        }
+        monkeypatch.setattr(
+            contract_numbering,
+            "_taken_numbers",
+            lambda key: taken[key],
+        )
+        monkeypatch.setattr(
+            contract_numbering.ProjectRepository,
+            "update",
+            staticmethod(lambda pid, data: {"id": pid}),
+        )
+        contract = contract_numbering.ensure_document_number(1, {}, "contract_number")
+        invoice = contract_numbering.ensure_document_number(1, {}, "invoice_number")
+        assert re.fullmatch(r"ДГ-\d{8}-001", contract)
+        assert re.fullmatch(r"Р-\d{8}-001", invoice)

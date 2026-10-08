@@ -85,6 +85,16 @@ class ProjectEditDialog(QDialog):
         self.edit_contract.setPlaceholderText("Автоматично при формуванні договору")
         layout.addRow("Договір", self.edit_contract)
 
+        self.edit_invoice = QLineEdit()
+        self.edit_invoice.setText(self.project_data.get("invoice_number") or "")
+        self.edit_invoice.setPlaceholderText("Автоматично при формуванні рахунку")
+        layout.addRow("Рахунок", self.edit_invoice)
+
+        self.edit_act = QLineEdit()
+        self.edit_act.setText(self.project_data.get("act_number") or "")
+        self.edit_act.setPlaceholderText("Автоматично при формуванні акту")
+        layout.addRow("Акт", self.edit_act)
+
         self.combo_client = QComboBox()
         self.combo_client.setEditable(True)
         try:
@@ -192,6 +202,8 @@ class ProjectEditDialog(QDialog):
             "name": self.edit_name.text().strip(),
             "project_number": self.edit_number.text().strip(),
             "contract_number": self.edit_contract.text().strip(),
+            "invoice_number": self.edit_invoice.text().strip(),
+            "act_number": self.edit_act.text().strip(),
             "client": self.combo_client.currentText().strip(),
             "client_id": self.combo_client.currentData(),
             "status": self.combo_status.currentText(),

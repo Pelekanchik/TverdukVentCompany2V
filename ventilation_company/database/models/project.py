@@ -70,6 +70,9 @@ class Project(Base):
     discounted_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)  # ← v2.2
     # Номер договору (v2.11): автонумерація ДГ-YYYYMMDD-NNN, зберігається в проєкті
     contract_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Номери рахунку й акту (v2.11): Р-/АК-YYYYMMDD-NNN
+    invoice_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    act_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     salary_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     profit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)

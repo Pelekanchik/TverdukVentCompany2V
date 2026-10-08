@@ -314,3 +314,93 @@ class TestContract:
         assert ("договір", str(out)) in registered
         assert audit and audit[0][0] == "project.contract"
         assert audit[0][1]["details"]["contract_number"] == "ДГ-20261008-001"
+
+
+class TestInvoiceAndAct:
+    def _run(
+        self,
+        qtbot,
+        card,
+        monkeypatch,
+        tmp_path,
+        *,
+        button_text: str,
+        gen_module_attr: str,
+        number_key: str,
+        number_value: str,
+        doc_type: str,
+        audit_action: str,
+    ):
+        out = tmp_path / f"{doc_type}.pdf"
+
+        def _fake_number(pid, data, key, prefix=None):
+            data[key] = number_value
+            return number_value
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_docs_mixin." "ensure_document_number",
+            staticmethod(_fake_number),
+        )
+
+        seen = {}
+
+        def _fake_gen(data, items, path):
+            seen.update(data)
+            with open(path, "wb") as f:
+                f.write(b"%PDF-1.4 fake")
+
+        monkeypatch.setattr(
+            f"ventilation_company.gui_pyside6.project_card_docs_mixin.{gen_module_attr}",
+            staticmethod(_fake_gen),
+        )
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QFileDialog.getSaveFileName",
+            staticmethod(lambda *a, **k: (str(out), "")),
+        )
+        registered = []
+        monkeypatch.setattr(
+            card,
+            "_register_document",
+            lambda doc_type_, path: registered.append((doc_type_, path)),
+        )
+        audit = []
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_docs_mixin.log_action",
+            staticmethod(lambda action, **kw: audit.append((action, kw))),
+        )
+        qtbot.mouseClick(_button(_tab(card, "Деталі"), button_text), Qt.MouseButton.LeftButton)
+        assert out.exists()
+        assert seen[number_key] == number_value
+        assert (doc_type, str(out)) in registered
+        assert audit and audit[0][0] == audit_action
+        assert audit[0][1]["details"][number_key] == number_value
+
+    def test_invoice_button_numbered_and_audited(self, qtbot, card, monkeypatch, tmp_path):
+        """Рахунок: номер Р-, реєстрація «рахунок», аудит project.invoice."""
+        self._run(
+            qtbot,
+            card,
+            monkeypatch,
+            tmp_path,
+            button_text="Рахунок",
+            gen_module_attr="generate_invoice",
+            number_key="invoice_number",
+            number_value="Р-20261008-001",
+            doc_type="рахунок",
+            audit_action="project.invoice",
+        )
+
+    def test_act_button_numbered_and_audited(self, qtbot, card, monkeypatch, tmp_path):
+        """Акт: номер АК-, реєстрація «акт», аудит project.act."""
+        self._run(
+            qtbot,
+            card,
+            monkeypatch,
+            tmp_path,
+            button_text="Акт",
+            gen_module_attr="generate_act",
+            number_key="act_number",
+            number_value="АК-20261008-001",
+            doc_type="акт",
+            audit_action="project.act",
+        )

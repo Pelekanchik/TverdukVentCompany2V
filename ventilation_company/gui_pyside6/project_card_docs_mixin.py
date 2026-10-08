@@ -50,7 +50,10 @@ from ventilation_company.material_order import (
 from ventilation_company.proposal_generator import export_proposal_to_excel, generate_proposal
 from ventilation_company.services.audit_service import log_action
 from ventilation_company.services.business_settings import BusinessSettings
-from ventilation_company.services.contract_numbering import ensure_contract_number
+from ventilation_company.services.contract_numbering import (
+    ensure_contract_number,
+    ensure_document_number,
+)
 
 
 class ProjectCardDocsMixin:
@@ -247,6 +250,7 @@ class ProjectCardDocsMixin:
             "client": self._project_data.get("client", ""),
             "address": self._project_data.get("address", ""),
             "contract_number": self._project_data.get("contract_number", ""),
+            "act_number": ensure_document_number(self.project_id, self._project_data, "act_number"),
             "company": BusinessSettings.get_instance().get_company(),
         }
         try:
@@ -255,10 +259,21 @@ class ProjectCardDocsMixin:
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати акт:\n{exc}")
             return
         self._register_document("акт", path)
+        log_action(
+            "project.act",
+            entity_type="project",
+            entity_id=self.project_id,
+            details={
+                "act_number": project_data["act_number"],
+                "path": path,
+                "contract_number": project_data["contract_number"],
+            },
+            message=f"Сформовано акт {project_data['act_number']}",
+        )
         answer = QMessageBox.question(
             self,
             "Готово",
-            f"Акт виконаних робіт збережено:\n{path}\n\nВідкрити файл?",
+            f"Акт {project_data['act_number']} збережено:\n{path}\n\nВідкрити файл?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:
@@ -321,6 +336,9 @@ class ProjectCardDocsMixin:
             "client": self._project_data.get("client", ""),
             "address": self._project_data.get("address", ""),
             "contract_number": self._project_data.get("contract_number", ""),
+            "invoice_number": ensure_document_number(
+                self.project_id, self._project_data, "invoice_number"
+            ),
             "company": BusinessSettings.get_instance().get_company(),
         }
         try:
@@ -329,10 +347,21 @@ class ProjectCardDocsMixin:
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати рахунок:\n{exc}")
             return
         self._register_document("рахунок", path)
+        log_action(
+            "project.invoice",
+            entity_type="project",
+            entity_id=self.project_id,
+            details={
+                "invoice_number": project_data["invoice_number"],
+                "path": path,
+                "contract_number": project_data["contract_number"],
+            },
+            message=f"Сформовано рахунок {project_data['invoice_number']}",
+        )
         answer = QMessageBox.question(
             self,
             "Готово",
-            f"Рахунок на оплату збережено:\n{path}\n\nВідкрити файл?",
+            f"Рахунок {project_data['invoice_number']} збережено:\n{path}\n\nВідкрити файл?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:
