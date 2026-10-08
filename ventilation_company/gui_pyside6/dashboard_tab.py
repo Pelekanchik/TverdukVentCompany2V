@@ -1,14 +1,60 @@
-"""Вкладка дашборду (PySide6) — дані з ЗАВЕРШЕНИХ проєктів.
+"""Вкладка дашборду (PySide6) — огляд усіх проєктів компанії.
 
-ВИПРАВЛЕННЯ: тепер агрегує дані з таблиці projects (завершені проєкти),
-а не з product_items (незавершена специфікація).
+Картки: проєкти, договірна вартість, отримані оплати, дебіторка.
+Графіки (QtCharts): динаміка по місяцях (стовпчики) та розподіл
+проєктів за статусами (кругова діаграма). Дані — з усіх проєктів,
+не тільки завершених.
 """
 
+from __future__ import annotations
+
+from PySide6.QtCharts import (
+    QBarCategoryAxis,
+    QBarSeries,
+    QBarSet,
+    QChart,
+    QChartView,
+    QPieSeries,
+    QValueAxis,
+)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.dashboard_service import DashboardService
+
+MONTH_NAMES = [
+    "",
+    "Січ",
+    "Лют",
+    "Бер",
+    "Кві",
+    "Тра",
+    "Чер",
+    "Лип",
+    "Сер",
+    "Вер",
+    "Жов",
+    "Лис",
+    "Гру",
+]
+
+# Кольори для сегментів кругової діаграми (циклічно).
+_STATUS_COLORS = [
+    Theme.ACCENT,
+    Theme.SUCCESS,
+    Theme.WARNING,
+    Theme.INFO,
+    Theme.DANGER,
+    "#7c3aed",
+    "#db2777",
+    "#059669",
+]
+
+
+def _fmt_uah(amount: float) -> str:
+    return "₴ " + f"{amount:,.0f}".replace(",", " ")
 
 
 class StatCard(QFrame):
@@ -36,7 +82,7 @@ class StatCard(QFrame):
 
         lbl_value = QLabel(value)
         lbl_value.setObjectName("stat_value")
-        lbl_value.setStyleSheet(f"color: {color}; font-size: 28px; font-weight: bold;")
+        lbl_value.setStyleSheet(f"color: {color}; font-size: 26px; font-weight: bold;")
         layout.addWidget(lbl_value)
 
         lbl_label = QLabel(label)
@@ -45,11 +91,42 @@ class StatCard(QFrame):
         layout.addWidget(lbl_label)
 
 
-class DashboardTab(QWidget):
-    """Головна сторінка зі статистикою — дані з ЗАВЕРШЕНИХ проєктів."""
+class _ChartCard(QFrame):
+    """Картка з заголовком і QChartView."""
 
-    # Статуси, які вважаються "завершеними"
-    DONE_STATUSES = ["Завершено", "Відвантажено", "Закрито"]
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Theme.BG_CARD};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 12px;
+            }}
+        """)
+        self.setMinimumHeight(320)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        lbl = QLabel(title)
+        lbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; font-size: 14px;")
+        layout.addWidget(lbl)
+
+        self.chart_view = QChartView()
+        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.chart_view.setMinimumHeight(240)
+        layout.addWidget(self.chart_view)
+
+    def set_chart(self, chart: QChart) -> None:
+        chart.setBackgroundVisible(False)
+        chart.legend().setLabelColor(QColor(Theme.TEXT))
+        font = QFont()
+        font.setPointSize(9)
+        chart.legend().setFont(font)
+        self.chart_view.setChart(chart)
+
+
+class DashboardTab(QWidget):
+    """Головна сторінка зі статистикою по всіх проєктах."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -65,88 +142,134 @@ class DashboardTab(QWidget):
         lbl_title.setObjectName("title")
         layout.addWidget(lbl_title)
 
-        lbl_sub = QLabel("Огляд завершених проєктів компанії")
+        lbl_sub = QLabel("Огляд проєктів, оплат та дебіторки компанії")
         lbl_sub.setObjectName("subtitle")
         layout.addWidget(lbl_sub)
 
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(16)
 
-        self.card_projects = StatCard("📁", "—", "Завершені проєкти", Theme.ACCENT)
-        self.card_revenue = StatCard("💰", "—", "Виручка (завершені)", Theme.SUCCESS)
-        self.card_profit = StatCard("📈", "—", "Прибуток (завершені)", Theme.WARNING)
-        self.card_clients = StatCard("👥", "—", "Унікальних клієнтів", Theme.INFO)
+        self.card_projects = StatCard("📁", "—", "Проєктів (активних)", Theme.ACCENT)
+        self.card_revenue = StatCard("💼", "—", "Договірна вартість", Theme.INFO)
+        self.card_paid = StatCard("💰", "—", "Отримано оплат", Theme.SUCCESS)
+        self.card_debt = StatCard("⏳", "—", "Дебіторка (баланс)", Theme.WARNING)
 
-        cards_layout.addWidget(self.card_projects)
-        cards_layout.addWidget(self.card_revenue)
-        cards_layout.addWidget(self.card_profit)
-        cards_layout.addWidget(self.card_clients)
+        for card in (
+            self.card_projects,
+            self.card_revenue,
+            self.card_paid,
+            self.card_debt,
+        ):
+            cards_layout.addWidget(card)
         layout.addLayout(cards_layout)
 
-        chart_frame = QFrame()
-        chart_frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Theme.BG_CARD};
-                border: 1px solid {Theme.BORDER};
-                border-radius: 12px;
-            }}
-        """)
-        chart_frame.setMinimumHeight(300)
-        chart_layout = QVBoxLayout(chart_frame)
-        chart_layout.setContentsMargins(16, 16, 16, 16)
+        charts_layout = QHBoxLayout()
+        charts_layout.setSpacing(16)
 
-        lbl_chart = QLabel("📈 Динаміка завершених проєктів по місяцях")
-        lbl_chart.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; font-size: 14px;")
-        chart_layout.addWidget(lbl_chart)
+        self.chart_monthly = _ChartCard("📈 Динаміка проєктів по місяцях (вартість, тис. ₴)")
+        self.chart_statuses = _ChartCard("🧭 Розподіл проєктів за статусами")
+        charts_layout.addWidget(self.chart_monthly, stretch=3)
+        charts_layout.addWidget(self.chart_statuses, stretch=2)
 
-        self.lbl_chart_value = QLabel("Завантаження...")
-        self.lbl_chart_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_chart_value.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
-        chart_layout.addWidget(self.lbl_chart_value)
+        layout.addLayout(charts_layout)
 
-        layout.addWidget(chart_frame)
+        self.lbl_footer = QLabel("")
+        self.lbl_footer.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        layout.addWidget(self.lbl_footer)
         layout.addStretch()
 
-    def _set_stat(self, card, text: str) -> None:
+    @staticmethod
+    def _set_stat(card, text: str) -> None:
         lbl = card.findChild(QLabel, "stat_value")
         if lbl is not None:
             lbl.setText(text)
 
+    def _build_monthly_chart(self, monthly: list[dict]) -> None:
+        if not monthly:
+            self.chart_monthly.chart_view.setChart(QChart())
+            return
+        bar_set = QBarSet("Вартість")
+        bar_set.setColor(QColor(Theme.ACCENT))
+        bar_set.setBorderColor(QColor(Theme.ACCENT))
+        categories = []
+        for row in monthly:
+            bar_set.append(round(row["sum"] / 1000.0, 1))
+            label = MONTH_NAMES[row["month"]]
+            if row["count"] != 1:
+                label += f" ({row['count']})"
+            categories.append(label)
+
+        series = QBarSeries()
+        series.append(bar_set)
+        series.setLabelsVisible(True)
+        series.setLabelsFormat("@Value")
+        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(categories)
+        axis_x.setLabelsColor(QColor(Theme.TEXT))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
+
+        axis_y = QValueAxis()
+        axis_y.setLabelsColor(QColor(Theme.TEXT))
+        axis_y.setGridLineColor(QColor(Theme.BORDER_LIGHT))
+        axis_y.setLabelFormat("%.0f")
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_y)
+        axis_y.applyNiceNumbers()
+
+        chart.legend().setVisible(False)
+        self.chart_monthly.set_chart(chart)
+
+    def _build_statuses_chart(self, statuses: list[dict]) -> None:
+        if not statuses:
+            self.chart_statuses.chart_view.setChart(QChart())
+            return
+        series = QPieSeries()
+        series.setHoleSize(0.45)
+        for i, row in enumerate(statuses):
+            slice_ = series.append(row["status"], row["count"])
+            color = QColor(_STATUS_COLORS[i % len(_STATUS_COLORS)])
+            slice_.setColor(color)
+            slice_.setBorderColor(color)
+            slice_.setLabel(f'{row["status"]}: {row["count"]}')
+            slice_.setLabelColor(QColor(Theme.TEXT))
+            slice_.setLabelVisible(True)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        chart.legend().setVisible(False)
+        self.chart_statuses.set_chart(chart)
+
     def refresh(self):
         """Оновити дані дашборду через DashboardService."""
         try:
-            stats = DashboardService.done_dashboard(self.DONE_STATUSES)
-            self._set_stat(self.card_projects, str(stats["done_count"]))
-            self._set_stat(self.card_revenue, f"₴ {stats['total_revenue']:,.0f}")
-            self._set_stat(self.card_profit, f"₴ {stats['profit']:,.0f}")
-            self._set_stat(self.card_clients, str(stats["clients"]))
+            stats = DashboardService.overview()
+            self._set_stat(self.card_projects, f"{stats['total_count']} ({stats['active_count']})")
+            self._set_stat(self.card_revenue, _fmt_uah(stats["total_revenue"]))
+            self._set_stat(self.card_paid, _fmt_uah(stats["paid"]))
+            self._set_stat(self.card_debt, _fmt_uah(stats["debt"]))
 
-            month_names = [
-                "",
-                "Січ",
-                "Лют",
-                "Бер",
-                "Кві",
-                "Тра",
-                "Чер",
-                "Лип",
-                "Сер",
-                "Вер",
-                "Жов",
-                "Лис",
-                "Гру",
-            ]
-            if stats["monthly"]:
-                lines = [
-                    f"{month_names[row['month']]}: {row['count']} проєктів, ₴ {row['sum']:,.0f}"
-                    for row in stats["monthly"]
-                ]
-                self.lbl_chart_value.setText("\n".join(lines))
-            else:
-                self.lbl_chart_value.setText("Немає завершених проєктів")
-        except Exception as e:
+            self._build_monthly_chart(stats["monthly"])
+            self._build_statuses_chart(stats["statuses"])
+
+            self.lbl_footer.setText(
+                f"Клієнтів: {stats['clients']}  •  Завершено проєктів: {stats['done_count']}"
+                + (
+                    f"  •  Передоплати: {_fmt_uah(stats['overpaid'])}"
+                    if stats["overpaid"] > 0
+                    else ""
+                )
+            )
+        except Exception as e:  # noqa: BLE001 — дашборд не повинен падати
             self._set_stat(self.card_projects, "—")
             self._set_stat(self.card_revenue, "—")
-            self._set_stat(self.card_profit, "—")
-            self._set_stat(self.card_clients, "—")
-            self.lbl_chart_value.setText(f"Помилка: {e}")
+            self._set_stat(self.card_paid, "—")
+            self._set_stat(self.card_debt, "—")
+            self.lbl_footer.setText(f"Помилка завантаження даних: {e}")

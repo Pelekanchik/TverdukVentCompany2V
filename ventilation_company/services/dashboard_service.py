@@ -1,57 +1,73 @@
-"""Dashboard aggregation service."""
+"""Агрегація даних для дашборду головної сторінки.
+
+Рахує по ВСІХ проєктах (не тільки завершених): договірна вартість,
+отримані оплати, дебіторка (через сервіс дебіторки — ті самі цифри,
+що у вкладці «Гроші»), динаміку по місяцях та розподіл за статусами.
+"""
 
 from __future__ import annotations
 
-from sqlalchemy import extract, func
+from collections import Counter
 
-from ventilation_company.database.db import get_db
-from ventilation_company.database.models.project import Project
-from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.database.repositories.client_repo import ClientRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.services.receivables import (
+    _DONE_STATUSES,
+    build_receivables,
+    receivables_totals,
+)
 
 
 class DashboardService:
     @staticmethod
-    def done_dashboard(done_statuses: list[str]) -> dict:
-        with get_db() as session:
-            done_projects = session.query(Project).filter(Project.status.in_(done_statuses)).all()
-            total_revenue = 0
-            total_cost = 0
-            for p in done_projects:
-                try:
-                    products = ProductRepository.get_all(project_id=p.id)
-                    for item in products:
-                        total_revenue += item.get("total_price", 0)
-                        total_cost += item.get("unit_price", 0) * item.get("quantity", 1)
-                except Exception:
-                    pass
+    def overview() -> dict:
+        """Підсумки для дашборду.
 
-            clients = (
-                session.query(Project.client)
-                .filter(Project.status.in_(done_statuses), Project.client != None)
-                .distinct()
-                .count()
-            )
+        Повертає {
+            total_count, active_count, done_count,
+            total_revenue, paid, debt, overpaid,
+            clients, monthly, statuses,
+        }:
+        - monthly: [{"month": 1..12, "count", "sum"}] — проєкти за місяцем
+          створення (лише ті, що мають дату);
+        - statuses: [{"status", "count"}] — розподіл проєктів за статусом.
+        """
+        projects = ProjectRepository.list_all()
+        receivables = build_receivables(projects)
+        totals = receivables_totals(receivables)
+        total_by_id = {row["project_id"]: row["total"] for row in receivables}
+        clients = ClientRepository.list_all()
 
-            monthly = (
-                session.query(
-                    extract("month", Project.created_at).label("month"),
-                    func.count(Project.id).label("cnt"),
-                    func.sum(Project.customer_price).label("sum"),
-                )
-                .filter(Project.status.in_(done_statuses))
-                .group_by("month")
-                .order_by("month")
-                .all()
-            )
-            monthly_rows = [
-                {"month": int(m), "count": int(c), "sum": float(s or 0)} for m, c, s in monthly
-            ]
+        statuses_counter: Counter[str] = Counter()
+        monthly_acc: dict[int, dict] = {}
+        for p in projects:
+            statuses_counter[(p.get("status") or "—").strip() or "—"] += 1
+            created = p.get("created_at")
+            if created is None:
+                continue
+            month = int(getattr(created, "month", 0) or 0)
+            if not month:
+                continue
+            bucket = monthly_acc.setdefault(month, {"month": month, "count": 0, "sum": 0.0})
+            bucket["count"] += 1
+            bucket["sum"] += float(total_by_id.get(int(p.get("id") or 0), 0.0))
 
-            return {
-                "done_count": len(done_projects),
-                "total_revenue": total_revenue,
-                "total_cost": total_cost,
-                "profit": total_revenue - total_cost,
-                "clients": clients,
-                "monthly": monthly_rows,
-            }
+        done_count = sum(
+            count for status, count in statuses_counter.items() if status.lower() in _DONE_STATUSES
+        )
+
+        return {
+            "total_count": len(projects),
+            "active_count": len(projects) - done_count,
+            "done_count": done_count,
+            "total_revenue": totals["total"],
+            "paid": totals["paid"],
+            "debt": totals["debt"],
+            "overpaid": totals["overpaid"],
+            "clients": len(clients),
+            "monthly": sorted(monthly_acc.values(), key=lambda row: row["month"]),
+            "statuses": [
+                {"status": status, "count": count}
+                for status, count in statuses_counter.most_common()
+            ],
+        }
