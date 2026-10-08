@@ -39,21 +39,7 @@ from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.pricing_settings import DEFAULT_MARKUP_PERCENT
 
-SCHEMAS = {
-    "Відвод круглий": "",
-    "Відвод прямокутний": "",
-    "Трійник круглий": "",
-    "Трійник прямокутний": "",
-    "Перехід круглий": "",
-    "Перехід прямокутний": "",
-    "Повітропровід круглий": "",
-    "Повітропровід прямокутний": "",
-    "Фланець круглий": "",
-    "Фланець прямокутний": "",
-    "Заглушка кругла": "",
-    "Заглушка прямокутна": "",
-    "Гнучка вставка": "",
-}
+# SCHEMAS імпортовано з product_dialog — єдине джерело списку типів.
 
 
 class ProductsTab(QWidget):

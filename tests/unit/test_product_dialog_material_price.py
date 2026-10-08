@@ -1,10 +1,14 @@
 """Тести автопідтягування цін на метал у діалозі виробу."""
 
+import math
+
 import pytest
 
 pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication
+
+from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, calc_surface_area
 
 
 @pytest.fixture(scope="module")
@@ -105,3 +109,74 @@ class TestMaterialAutoPrice:
         dlg.combo_thickness.setCurrentText("1.0")
         assert calls["n"] == 0
         dlg.close()
+
+
+# ── Нові типи виробів (v2.12): формули площі та схеми ──
+
+
+class TestNewProductTypesArea:
+    """Формули площі металу для нових типів деталей."""
+
+    def test_round_grille(self):
+        # π·d²/4 · 1.2
+        assert calc_surface_area("Решітка кругла", 300, 0, 0) == pytest.approx(
+            math.pi * 300 * 300 / 4 * 1.2 / 1_000_000, abs=1e-9
+        )
+
+    def test_rect_grille(self):
+        assert calc_surface_area("Решітка прямокутна", 400, 200, 0) == pytest.approx(
+            400 * 200 * 1.2 / 1_000_000, abs=1e-9
+        )
+
+    def test_diffuser(self):
+        assert calc_surface_area("Дифузор круглий", 250, 0, 0) == pytest.approx(
+            math.pi * 250 * 250 / 4 * 1.3 / 1_000_000, abs=1e-9
+        )
+
+    def test_round_spigot(self):
+        assert calc_surface_area("Раструб круглий", 200, 0, 500) == pytest.approx(
+            math.pi * 200 * 500 / 1_000_000, abs=1e-9
+        )
+
+    def test_round_damper_with_length(self):
+        area = calc_surface_area("Зворотний клапан круглий", 250, 0, 150)
+        expected = math.pi * 250 * 250 / 4 * 1.5 / 1_000_000 + math.pi * 250 * 150 / 1_000_000
+        assert area == pytest.approx(expected, abs=1e-9)
+
+    def test_rect_cross(self):
+        assert calc_surface_area("Хрестовина прямокутна", 400, 200, 0) == pytest.approx(
+            2 * (400 + 200) * 400 * 2.2 / 1_000_000, abs=1e-9
+        )
+
+    def test_saddle_with_branch(self):
+        area = calc_surface_area(
+            "Відгалуження кругле 45°", 315, 0, 0, branch_width=160, branch_length=250
+        )
+        expected = math.pi * 315 * 315 * 1.2 / 1_000_000 + math.pi * 160 * 250 / 1_000_000
+        assert area == pytest.approx(expected, abs=1e-9)
+
+
+class TestNewProductTypesInSchemaList:
+    """Нові типи присутні у списку та мають опис у діалозі."""
+
+    def test_new_types_in_schemas(self):
+        for pt in (
+            "Решітка кругла",
+            "Решітка прямокутна",
+            "Дифузор круглий",
+            "Раструб круглий",
+            "Раструб прямокутний",
+            "Зворотний клапан круглий",
+            "Зворотний клапан прямокутний",
+            "Хрестовина кругла",
+            "Хрестовина прямокутна",
+            "Відгалуження кругле 45°",
+        ):
+            assert pt in SCHEMAS
+
+    def test_labor_rates_defaults(self):
+        from ventilation_company.services.pricing_settings import DEFAULT_LABOR_RATES
+
+        assert "решітка кругла" in DEFAULT_LABOR_RATES
+        assert "зворотний клапан круглий" in DEFAULT_LABOR_RATES
+        assert "відгалуження кругле 45°" in DEFAULT_LABOR_RATES

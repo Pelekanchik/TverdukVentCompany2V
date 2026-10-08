@@ -17,6 +17,44 @@ def _stub_dashboard(monkeypatch, projects, rec_rows, totals, clients):
     monkeypatch.setattr(
         dashboard_service.ClientRepository, "list_all", staticmethod(lambda: clients)
     )
+    monkeypatch.setattr(DashboardService, "_payments_monthly", staticmethod(lambda: []))
+
+
+class TestPaymentsMonthly:
+    def test_groups_incoming_by_month(self, monkeypatch):
+        class _Query:
+            def filter(self, *a, **kw):
+                return self
+
+            def group_by(self, *a):
+                return self
+
+            def order_by(self, *a):
+                return self
+
+            def all(self):
+                return [(9, 15000.0), (10, 7000.0)]
+
+        class _Session:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def query(self, *a):
+                return _Query()
+
+        monkeypatch.setattr(dashboard_service, "get_db", lambda: _Session())
+        result = DashboardService._payments_monthly()
+        assert result == [{"month": 9, "sum": 15000.0}, {"month": 10, "sum": 7000.0}]
+
+    def test_returns_empty_on_db_error(self, monkeypatch):
+        def boom():
+            raise RuntimeError("БД недоступна")
+
+        monkeypatch.setattr(dashboard_service, "get_db", boom)
+        assert DashboardService._payments_monthly() == []
 
 
 class TestOverview:

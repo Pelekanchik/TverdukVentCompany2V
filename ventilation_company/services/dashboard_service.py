@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from collections import Counter
 
+from sqlalchemy import extract, func
+
+from ventilation_company.database.db import get_db
+from ventilation_company.database.models.unified import Payment
 from ventilation_company.database.repositories.client_repo import ClientRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.services.receivables import (
@@ -26,11 +30,12 @@ class DashboardService:
         Повертає {
             total_count, active_count, done_count,
             total_revenue, paid, debt, overpaid,
-            clients, monthly, statuses,
+            clients, monthly, statuses, payments_monthly,
         }:
         - monthly: [{"month": 1..12, "count", "sum"}] — проєкти за місяцем
           створення (лише ті, що мають дату);
-        - statuses: [{"status", "count"}] — розподіл проєктів за статусом.
+        - statuses: [{"status", "count"}] — розподіл проєктів за статусом;
+        - payments_monthly: [{"month", "sum"}] — вхідні оплати за місяцем.
         """
         projects = ProjectRepository.list_all()
         receivables = build_receivables(projects)
@@ -70,4 +75,24 @@ class DashboardService:
                 {"status": status, "count": count}
                 for status, count in statuses_counter.most_common()
             ],
+            "payments_monthly": DashboardService._payments_monthly(),
         }
+
+    @staticmethod
+    def _payments_monthly() -> list[dict]:
+        """Вхідні оплати згруповані за місяцем дати платежу."""
+        try:
+            with get_db() as session:
+                rows = (
+                    session.query(
+                        extract("month", Payment.date).label("month"),
+                        func.sum(Payment.amount).label("sum"),
+                    )
+                    .filter(Payment.payment_type == "вхідний", Payment.date.isnot(None))
+                    .group_by("month")
+                    .order_by("month")
+                    .all()
+                )
+            return [{"month": int(m), "sum": float(s or 0)} for m, s in rows if m is not None]
+        except Exception:
+            return []

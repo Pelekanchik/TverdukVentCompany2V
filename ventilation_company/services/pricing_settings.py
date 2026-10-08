@@ -165,6 +165,16 @@ DEFAULT_LABOR_RATES = {
     "заглушка прямокутна": {"rate_per_m2": 150.0, "difficulty_percent": 5.0},
     "заглушка кругла": {"rate_per_m2": 160.0, "difficulty_percent": 5.0},
     "гнучка вставка": {"rate_per_m2": 80.0, "difficulty_percent": 0.0},
+    "решітка прямокутна": {"rate_per_m2": 170.0, "difficulty_percent": 10.0},
+    "решітка кругла": {"rate_per_m2": 170.0, "difficulty_percent": 10.0},
+    "дифузор круглий": {"rate_per_m2": 190.0, "difficulty_percent": 15.0},
+    "раструб прямокутний": {"rate_per_m2": 140.0, "difficulty_percent": 5.0},
+    "раструб круглий": {"rate_per_m2": 140.0, "difficulty_percent": 5.0},
+    "зворотний клапан прямокутний": {"rate_per_m2": 260.0, "difficulty_percent": 25.0},
+    "зворотний клапан круглий": {"rate_per_m2": 260.0, "difficulty_percent": 25.0},
+    "хрестовина прямокутна": {"rate_per_m2": 270.0, "difficulty_percent": 30.0},
+    "хрестовина кругла": {"rate_per_m2": 290.0, "difficulty_percent": 30.0},
+    "відгалуження кругле 45°": {"rate_per_m2": 240.0, "difficulty_percent": 25.0},
 }
 
 DEFAULT_CUSTOM_PARAMS = {

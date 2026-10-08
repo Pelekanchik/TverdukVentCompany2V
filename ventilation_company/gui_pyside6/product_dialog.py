@@ -4,7 +4,7 @@ import contextlib
 import json
 import math
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, QRect, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygon
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -46,6 +46,7 @@ SCHEMAS = {
     "Відвод прямокутний": "",
     "Трійник круглий": "",
     "Трійник прямокутний": "",
+    "Відгалуження кругле 45°": "",
     "Перехід круглий": "",
     "Перехід прямокутний": "",
     "Повітропровід круглий": "",
@@ -54,22 +55,83 @@ SCHEMAS = {
     "Фланець прямокутний": "",
     "Заглушка кругла": "",
     "Заглушка прямокутна": "",
+    "Решітка кругла": "",
+    "Решітка прямокутна": "",
+    "Дифузор круглий": "",
+    "Раструб круглий": "",
+    "Раструб прямокутний": "",
+    "Зворотний клапан круглий": "",
+    "Зворотний клапан прямокутний": "",
+    "Хрестовина кругла": "",
+    "Хрестовина прямокутна": "",
     "Гнучка вставка": "",
 }
 
 
 class SchemaWidget(QWidget):
+    """Схематичне зображення виробу з розмірними стрілками.
+
+    Підписи показують не лише назву розміру, а й його фактичне значення
+    з полів діалогу (напр. «Ø = 250 мм»), щоб було видно, який саме
+    розмір у формі відповідає якому виміру на схемі.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(320, 240)
-        self.setMaximumHeight(280)
+        self.setMinimumSize(340, 260)
+        self.setMaximumHeight(300)
         self._product_type = ""
-        self._params = {}
+        self._params: dict = {}
 
     def show_schema(self, product_type: str, params: dict | None = None):
         self._product_type = product_type
         self._params = params or {}
         self.update()
+
+    # ── Підписи розмірів ──
+
+    def _lbl(self, key: str, name: str, unit: str = "мм") -> str:
+        """«Ø = 250 мм», якщо значення відоме, інакше просто «Ø, мм»."""
+        value = self._params.get(key)
+        if value not in (None, "", 0):
+            try:
+                num = float(value)
+                text = f"{num:g}"
+                return f"{name} = {text}{unit}" if unit == "°" else f"{name} = {text} {unit}"
+            except (TypeError, ValueError):
+                pass
+        return f"{name}, {unit}"
+
+    @staticmethod
+    def _arrow_head(p, x, y, angle_deg, size=7):
+        """Заповнений наконечник стрілки, спрямований за кутом angle_deg."""
+        pts = []
+        for delta in (150, -150):
+            rad = math.radians(angle_deg + delta)
+            pts.append(QPoint(int(x + size * math.cos(rad)), int(y + size * math.sin(rad))))
+        p.drawPolygon(QPolygon([QPoint(x, y), pts[0], pts[1]]))
+
+    def _dim_h(self, p, x1, x2, y, text):
+        """Горизонтальний розмір: засічки + лінія зі стрілками + підпис."""
+        p.drawLine(x1, y - 5, x1, y + 5)
+        p.drawLine(x2, y - 5, x2, y + 5)
+        p.drawLine(x1, y, x2, y)
+        self._arrow_head(p, x2, y, 0)
+        self._arrow_head(p, x1, y, 180)
+        left = max(2, min(self.width() - 142, (x1 + x2) // 2 - 70))
+        p.drawText(QRect(left, y - 20, 140, 14), Qt.AlignmentFlag.AlignCenter, text)
+
+    def _dim_v(self, p, x, y1, y2, text):
+        """Вертикальний розмір: засічки + лінія зі стрілками + підпис ліворуч."""
+        p.drawLine(x - 5, y1, x + 5, y1)
+        p.drawLine(x - 5, y2, x + 5, y2)
+        p.drawLine(x, y1, x, y2)
+        self._arrow_head(p, x, y2, 90)
+        self._arrow_head(p, x, y1, -90)
+        left = max(2, x - 105)
+        p.drawText(QRect(left, (y1 + y2) // 2 - 7, 95, 14), Qt.AlignmentFlag.AlignRight, text)
+
+    # ── Малювання ──
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -80,11 +142,34 @@ class SchemaWidget(QWidget):
         pen = QPen(QColor("#a0c4ff"))
         pen.setWidth(2)
         painter.setPen(pen)
-        font = QFont("Segoe UI", 10)
-        painter.setFont(font)
+        painter.setFont(QFont("Segoe UI", 10))
         pt = self._product_type.lower()
 
-        if "повітропровід круглий" in pt or "труба кругла" in pt:
+        if "зворотний клапан" in pt:
+            if "кругл" in pt:
+                self._draw_round_damper(painter, cx, cy)
+            else:
+                self._draw_rect_damper(painter, cx, cy)
+        elif "решітка" in pt:
+            if "кругл" in pt:
+                self._draw_round_grille(painter, cx, cy)
+            else:
+                self._draw_rect_grille(painter, cx, cy)
+        elif "дифузор" in pt:
+            self._draw_diffuser(painter, cx, cy)
+        elif "раструб" in pt:
+            if "кругл" in pt:
+                self._draw_round_spigot(painter, cx, cy)
+            else:
+                self._draw_rect_spigot(painter, cx, cy)
+        elif "хрестовина" in pt:
+            if "кругл" in pt:
+                self._draw_round_cross(painter, cx, cy)
+            else:
+                self._draw_rect_cross(painter, cx, cy)
+        elif "відгалуження" in pt:
+            self._draw_saddle(painter, cx, cy)
+        elif "повітропровід круглий" in pt or "труба кругла" in pt:
             self._draw_round_pipe(painter, cx, cy)
         elif "повітропровід прямокутний" in pt or "труба прямокутна" in pt:
             self._draw_rect_pipe(painter, cx, cy)
@@ -97,7 +182,10 @@ class SchemaWidget(QWidget):
         elif "трійник прямокутний" in pt:
             self._draw_rect_tee(painter, cx, cy)
         elif "перехід" in pt:
-            self._draw_transition(painter, cx, cy)
+            if "кругл" in pt:
+                self._draw_round_transition(painter, cx, cy)
+            else:
+                self._draw_rect_transition(painter, cx, cy)
         elif "фланець круглий" in pt:
             self._draw_round_flange(painter, cx, cy)
         elif "фланець прямокутний" in pt:
@@ -113,51 +201,80 @@ class SchemaWidget(QWidget):
         painter.end()
 
     def _draw_round_pipe(self, p, cx, cy):
-        p.drawEllipse(cx - 60, cy - 60, 120, 120)
-        p.drawLine(cx - 70, cy, cx + 70, cy)
-        p.drawText(cx - 10, cy - 75, "Ø")
-        p.drawText(cx - 40, cy + 85, "Довжина: L")
+        # Боковий вигляд циліндра: дві твірні + еліпс торця
+        p.drawLine(cx - 90, cy - 35, cx + 70, cy - 35)
+        p.drawLine(cx - 90, cy + 35, cx + 70, cy + 35)
+        p.drawLine(cx - 90, cy - 35, cx - 90, cy + 35)
+        p.drawEllipse(cx + 50, cy - 35, 40, 70)
+        self._dim_v(p, cx - 105, cy - 35, cy + 35, self._lbl("width", "Ø"))
+        self._dim_h(p, cx - 90, cx + 90, cy + 75, self._lbl("length", "Д", "мм"))
 
     def _draw_rect_pipe(self, p, cx, cy):
-        p.drawRect(cx - 80, cy - 40, 160, 80)
-        p.drawText(cx - 90, cy - 50, "Ш")
-        p.drawText(cx + 85, cy, "В")
-        p.drawText(cx - 40, cy + 65, "Довжина: L")
+        p.drawRect(cx - 90, cy - 40, 180, 80)
+        p.drawText(cx - 45, cy + 5, "Ш × В")
+        self._dim_v(p, cx + 115, cy - 40, cy + 40, self._lbl("height", "В"))
+        self._dim_h(p, cx - 90, cx + 90, cy + 80, self._lbl("length", "Д", "мм"))
 
     def _draw_round_bend(self, p, cx, cy):
         p.drawArc(cx - 80, cy - 80, 160, 160, 0, 90 * 16)
         p.drawLine(cx + 80, cy, cx + 80, cy - 80)
         p.drawLine(cx, cy + 80, cx + 80, cy + 80)
-        p.drawText(cx + 85, cy - 40, "Ø")
-        p.drawText(cx - 50, cy + 95, "Кут: 90°")
+        p.drawLine(cx + 80, cy - 80, cx + 105, cy - 80)
+        p.drawLine(cx, cy + 80, cx, cy + 105)
+        self._dim_v(p, cx + 125, cy - 80, cy, self._lbl("width", "Ø"))
+        p.drawText(cx - 90, cy + 125, self._lbl("bend_angle", "Кут", "°"))
 
     def _draw_rect_bend(self, p, cx, cy):
         p.drawLine(cx - 80, cy - 80, cx + 20, cy - 80)
         p.drawLine(cx + 20, cy - 80, cx + 20, cy + 80)
         p.drawLine(cx - 80, cy - 80, cx - 80, cy + 20)
         p.drawLine(cx - 80, cy + 20, cx + 80, cy + 20)
-        p.drawText(cx - 90, cy - 90, "Ш")
-        p.drawText(cx + 30, cy, "В")
-        p.drawText(cx - 50, cy + 95, "Кут: 90°")
+        p.drawText(cx - 75, cy - 55, "Ш × В")
+        self._dim_h(p, cx - 80, cx + 20, cy - 100, self._lbl("width", "Ш"))
+        p.drawText(cx + 40, cy - 90, self._lbl("bend_angle", "Кут", "°"))
 
     def _draw_round_tee(self, p, cx, cy):
         p.drawEllipse(cx - 80, cy - 20, 160, 40)
         p.drawEllipse(cx - 20, cy - 80, 40, 120)
-        p.drawText(cx - 90, cy, "Ø основний")
-        p.drawText(cx + 25, cy - 50, "Ø відгал.")
+        self._dim_h(p, cx - 80, cx + 80, cy + 55, self._lbl("width", "Ø основний"))
+        self._dim_v(p, cx + 60, cy - 80, cy, self._lbl("branch_width", "Ø відгал."))
+        p.drawText(cx + 40, cy - 95, self._lbl("branch_length", "Д відгал."))
 
     def _draw_rect_tee(self, p, cx, cy):
         p.drawRect(cx - 80, cy - 20, 160, 40)
         p.drawRect(cx - 20, cy - 80, 40, 100)
-        p.drawText(cx - 90, cy, "Ш x В")
-        p.drawText(cx + 25, cy - 50, "Ш_в x В_в")
+        p.drawText(cx - 75, cy + 5, "Ш × В")
+        self._dim_h(p, cx - 80, cx + 80, cy + 55, self._lbl("width", "Ш"))
+        self._dim_v(p, cx + 60, cy - 80, cy - 20, self._lbl("branch_height", "В відгал."))
+        p.drawText(cx + 40, cy - 95, self._lbl("branch_length", "Д відгал."))
 
-    def _draw_transition(self, p, cx, cy):
-        points = [(cx - 60, cy - 60), (cx + 60, cy - 60), (cx + 40, cy + 60), (cx - 40, cy + 60)]
-        polygon = QPolygon([QPoint(x, y) for x, y in points])
-        p.drawPolygon(polygon)
-        p.drawText(cx - 70, cy - 70, "Ш1 x В1")
-        p.drawText(cx - 30, cy + 80, "Ш2 x В2")
+    def _draw_saddle(self, p, cx, cy):
+        """Відгалуження (сідло) 45°: основна труба + похила гілка."""
+        p.drawLine(cx - 90, cy - 20, cx + 90, cy - 20)
+        p.drawLine(cx - 90, cy + 20, cx + 90, cy + 20)
+        p.drawLine(cx + 10, cy - 20, cx + 70, cy - 90)
+        p.drawLine(cx + 50, cy + 20, cx + 95, cy - 45)
+        p.drawLine(cx + 70, cy - 90, cx + 95, cy - 45)
+        self._dim_h(p, cx - 90, cx + 90, cy + 55, self._lbl("width", "Ø основний"))
+        self._dim_v(p, cx + 120, cy - 90, cy - 45, self._lbl("branch_width", "Ø відгал."))
+        p.drawText(cx - 60, cy - 105, self._lbl("bend_angle", "Кут", "°") + " (типово 45°)")
+
+    def _draw_round_transition(self, p, cx, cy):
+        # Усічений конус (боковий вигляд)
+        p.drawLine(cx - 90, cy - 50, cx + 90, cy - 25)
+        p.drawLine(cx - 90, cy + 50, cx + 90, cy + 25)
+        p.drawLine(cx - 90, cy - 50, cx - 90, cy + 50)
+        p.drawLine(cx + 90, cy - 25, cx + 90, cy + 25)
+        self._dim_v(p, cx - 115, cy - 50, cy + 50, self._lbl("width", "Ø початк."))
+        self._dim_v(p, cx + 115, cy - 25, cy + 25, self._lbl("end_width", "Ø кінцев."))
+        self._dim_h(p, cx - 90, cx + 90, cy + 85, self._lbl("length", "Д", "мм"))
+
+    def _draw_rect_transition(self, p, cx, cy):
+        points = [(cx - 70, cy - 55), (cx + 70, cy - 40), (cx + 45, cy + 55), (cx - 45, cy + 40)]
+        p.drawPolygon(QPolygon([QPoint(x, y) for x, y in points]))
+        self._dim_v(p, cx - 100, cy - 55, cy + 40, self._lbl("width", "Ш1 × В1"))
+        self._dim_v(p, cx + 100, cy - 40, cy + 55, self._lbl("end_width", "Ш2 × В2"))
+        self._dim_h(p, cx - 70, cx + 70, cy + 90, self._lbl("length", "Д", "мм"))
 
     def _draw_round_flange(self, p, cx, cy):
         p.drawEllipse(cx - 60, cy - 60, 120, 120)
@@ -166,28 +283,102 @@ class SchemaWidget(QWidget):
             x = cx + int(45 * math.cos(rad))
             y = cy + int(45 * math.sin(rad))
             p.drawEllipse(x - 4, y - 4, 8, 8)
-        p.drawText(cx - 10, cy - 75, "Ø")
-        p.drawText(cx - 40, cy + 85, "8 отворів")
+        self._dim_h(p, cx - 60, cx + 60, cy + 85, self._lbl("width", "Ø"))
+        p.drawText(cx - 60, cy - 75, f'Отворів: {self._params.get("holes") or "—"}')
 
     def _draw_rect_flange(self, p, cx, cy):
         p.drawRect(cx - 70, cy - 50, 140, 100)
         for dx, dy in [(-55, -35), (55, -35), (55, 35), (-55, 35)]:
             p.drawEllipse(cx + dx - 4, cy + dy - 4, 8, 8)
-        p.drawText(cx - 80, cy - 60, "Ш x В")
-        p.drawText(cx - 40, cy + 75, "4 отвори")
+        self._dim_h(p, cx - 70, cx + 70, cy + 80, self._lbl("width", "Ш"))
+        self._dim_v(p, cx + 95, cy - 50, cy + 50, self._lbl("height", "В"))
+        p.drawText(cx - 60, cy - 65, f'Отворів: {self._params.get("holes") or "—"}')
 
     def _draw_round_cap(self, p, cx, cy):
         p.drawEllipse(cx - 60, cy - 60, 120, 120)
         p.drawArc(cx - 70, cy - 70, 140, 140, 0, 180 * 16)
-        p.drawText(cx - 10, cy - 75, "Ø")
-        p.drawText(cx - 50, cy + 85, "Загин: 20 мм")
+        self._dim_h(p, cx - 60, cx + 60, cy + 85, self._lbl("width", "Ø"))
+        p.drawText(cx - 80, cy - 80, self._lbl("bend_width", "Загин"))
 
     def _draw_rect_cap(self, p, cx, cy):
         p.drawRect(cx - 70, cy - 50, 140, 100)
-        p.drawLine(cx - 80, cy - 60, cx - 70, cy - 50)
-        p.drawLine(cx + 70, cy - 50, cx + 80, cy - 60)
-        p.drawText(cx - 80, cy - 70, "Ш x В")
-        p.drawText(cx - 50, cy + 75, "Загин: 20 мм")
+        p.drawLine(cx - 82, cy - 62, cx - 70, cy - 50)
+        p.drawLine(cx + 70, cy - 50, cx + 82, cy - 62)
+        p.drawLine(cx - 82, cy - 62, cx + 82, cy - 62)
+        self._dim_h(p, cx - 70, cx + 70, cy + 80, self._lbl("width", "Ш"))
+        self._dim_v(p, cx + 100, cy - 50, cy + 50, self._lbl("height", "В"))
+        p.drawText(cx - 80, cy - 75, self._lbl("bend_width", "Загин"))
+
+    def _draw_round_grille(self, p, cx, cy):
+        p.drawEllipse(cx - 65, cy - 65, 130, 130)  # рамка
+        p.drawEllipse(cx - 55, cy - 55, 110, 110)
+        for i in range(-4, 5):  # ламелі
+            p.drawLine(cx - 50, cy + i * 11, cx + 50, cy + i * 11)
+        self._dim_h(p, cx - 65, cx + 65, cy + 90, self._lbl("width", "Ø"))
+
+    def _draw_rect_grille(self, p, cx, cy):
+        p.drawRect(cx - 85, cy - 55, 170, 110)
+        for i in range(-4, 5):
+            p.drawLine(cx - 75, cy + i * 11, cx + 75, cy + i * 11)
+        self._dim_h(p, cx - 85, cx + 85, cy + 85, self._lbl("width", "Ш"))
+        self._dim_v(p, cx + 115, cy - 55, cy + 55, self._lbl("height", "В"))
+
+    def _draw_diffuser(self, p, cx, cy):
+        p.drawEllipse(cx - 60, cy - 60, 120, 120)  # фланець
+        p.drawEllipse(cx - 40, cy - 40, 80, 80)
+        p.drawEllipse(cx - 15, cy - 15, 30, 30)
+        for angle in range(0, 360, 45):  # спиці
+            rad = math.radians(angle)
+            p.drawLine(
+                cx + int(18 * math.cos(rad)),
+                cy + int(18 * math.sin(rad)),
+                cx + int(55 * math.cos(rad)),
+                cy + int(55 * math.sin(rad)),
+            )
+        self._dim_h(p, cx - 60, cx + 60, cy + 85, self._lbl("width", "Ø"))
+
+    def _draw_round_spigot(self, p, cx, cy):
+        # Раструб: циліндр із розтрубом на торці
+        p.drawLine(cx - 80, cy - 30, cx + 60, cy - 30)
+        p.drawLine(cx - 80, cy + 30, cx + 60, cy + 30)
+        p.drawLine(cx - 80, cy - 30, cx - 80, cy + 30)
+        p.drawLine(cx + 60, cy - 30, cx + 80, cy - 45)
+        p.drawLine(cx + 60, cy + 30, cx + 80, cy + 45)
+        p.drawLine(cx + 80, cy - 45, cx + 80, cy + 45)
+        self._dim_v(p, cx - 105, cy - 30, cy + 30, self._lbl("width", "Ø"))
+        self._dim_h(p, cx - 80, cx + 80, cy + 80, self._lbl("length", "Д", "мм"))
+
+    def _draw_rect_spigot(self, p, cx, cy):
+        p.drawRect(cx - 80, cy - 40, 140, 80)
+        points = [(cx + 60, cy - 40), (cx + 90, cy - 55), (cx + 90, cy + 55), (cx + 60, cy + 40)]
+        p.drawPolygon(QPolygon([QPoint(x, y) for x, y in points]))
+        p.drawText(cx - 75, cy + 5, "Ш × В")
+        self._dim_v(p, cx + 125, cy - 55, cy + 55, self._lbl("height", "В"))
+        self._dim_h(p, cx - 80, cx + 90, cy + 90, self._lbl("length", "Д", "мм"))
+
+    def _draw_round_damper(self, p, cx, cy):
+        p.drawEllipse(cx - 60, cy - 60, 120, 120)
+        p.drawLine(cx - 60, cy, cx + 60, cy)  # лопать
+        p.drawEllipse(cx - 5, cy - 5, 10, 10)  # вісь
+        self._dim_h(p, cx - 60, cx + 60, cy + 85, self._lbl("width", "Ø"))
+        p.drawText(cx - 70, cy - 75, self._lbl("length", "Д корпусу"))
+
+    def _draw_rect_damper(self, p, cx, cy):
+        p.drawRect(cx - 80, cy - 50, 160, 100)
+        p.drawLine(cx - 70, cy + 35, cx + 70, cy - 35)  # лопать
+        self._dim_h(p, cx - 80, cx + 80, cy + 85, self._lbl("width", "Ш"))
+        self._dim_v(p, cx + 115, cy - 50, cy + 50, self._lbl("height", "В"))
+
+    def _draw_round_cross(self, p, cx, cy):
+        p.drawEllipse(cx - 80, cy - 20, 160, 40)
+        p.drawEllipse(cx - 20, cy - 80, 40, 160)
+        self._dim_h(p, cx - 80, cx + 80, cy + 55, self._lbl("width", "Ø (усі 4 виходи)"))
+
+    def _draw_rect_cross(self, p, cx, cy):
+        p.drawRect(cx - 80, cy - 20, 160, 40)
+        p.drawRect(cx - 20, cy - 80, 40, 160)
+        p.drawText(cx - 75, cy + 5, "Ш × В")
+        self._dim_h(p, cx - 80, cx + 80, cy + 55, self._lbl("width", "Ш"))
 
     def _draw_flexible(self, p, cx, cy):
         points = []
@@ -197,8 +388,10 @@ class SchemaWidget(QWidget):
             points.append(QPoint(x, y))
         for i in range(len(points) - 1):
             p.drawLine(points[i], points[i + 1])
-        p.drawText(cx - 10, cy - 35, "Ø")
-        p.drawText(cx - 40, cy + 45, "Тканина: ПВХ")
+        self._dim_v(p, cx - 125, cy - 20, cy + 20, self._lbl("width", "Ø"))
+        self._dim_h(p, cx - 100, cx + 100, cy + 60, self._lbl("length", "Д", "мм"))
+        fabric = self._params.get("fabric")
+        p.drawText(cx - 60, cy - 45, f"Тканина: {fabric}" if fabric else "Тканина: ПВХ")
 
 
 def calc_surface_area(
@@ -253,6 +446,37 @@ def calc_surface_area(
         return width * height / 1_000_000
     elif "гнучка" in pt:
         return math.pi * width * length / 1_000_000
+    elif "решітка кругла" in pt:
+        # Диск + рамка (~20 % додатково)
+        return math.pi * width * width / 4 * 1.2 / 1_000_000
+    elif "решітка прямокутна" in pt:
+        return width * height * 1.2 / 1_000_000
+    elif "дифузор" in pt:
+        # Диск + корпус + фланець
+        return math.pi * width * width / 4 * 1.3 / 1_000_000
+    elif "раструб круглий" in pt:
+        return math.pi * width * length / 1_000_000
+    elif "раструб прямокутний" in pt:
+        return 2 * (width + height) * length / 1_000_000
+    elif "зворотний клапан круглий" in pt:
+        base = math.pi * width * width / 4 * 1.5 / 1_000_000  # корпус + лопать
+        if length > 0:
+            base += math.pi * width * length / 1_000_000
+        return base
+    elif "зворотний клапан прямокутний" in pt:
+        base = width * height * 1.5 / 1_000_000
+        if length > 0:
+            base += 2 * (width + height) * length / 1_000_000
+        return base
+    elif "хрестовина кругла" in pt:
+        return math.pi * width * width * 2.0 / 1_000_000
+    elif "хрестовина прямокутна" in pt:
+        return 2 * (width + height) * width * 2.2 / 1_000_000
+    elif "відгалуження" in pt:
+        base = math.pi * width * width * 1.2 / 1_000_000  # сідло на трубі
+        if branch_width > 0:
+            base += math.pi * branch_width * branch_length / 1_000_000
+        return base
     return 0.0
 
 
@@ -323,6 +547,9 @@ class ProductDialog(QDialog):
         sizes_layout.addWidget(QLabel("Д:"), 1, 0)
         sizes_layout.addWidget(self.spin_length, 1, 1)
         form.addRow(self.group_sizes)
+        # Зміна основних розмірів — одразу оновлює підписи на схемі
+        for spin in (self.spin_width, self.spin_height, self.spin_length):
+            spin.valueChanged.connect(self._update_schema)
 
         self.group_dynamic = QGroupBox("Додаткові параметри")
         self.dynamic_layout = QGridLayout(self.group_dynamic)
@@ -476,6 +703,45 @@ class ProductDialog(QDialog):
     def _add_dynamic_field(self, label: str, widget, row: int, col: int = 0):
         self.dynamic_layout.addWidget(QLabel(label), row, col)
         self.dynamic_layout.addWidget(widget, row, col + 1)
+        # Зміна динамічного параметра — одразу оновлюємо схему
+        signal = getattr(widget, "valueChanged", None) or getattr(
+            widget, "currentTextChanged", None
+        )
+        if signal is not None:
+            signal.connect(self._update_schema)
+
+    # ── Схема: актуальні значення з полів діалогу ──
+
+    def _schema_params(self) -> dict:
+        """Поточні значення всіх полів для підписів на схемі."""
+        params: dict = {
+            "width": self.spin_width.value(),
+            "height": self.spin_height.value() if self.spin_height.isEnabled() else 0,
+            "length": self.spin_length.value() if self.spin_length.isEnabled() else 0,
+        }
+        for attr, key in (
+            ("spin_bend_angle", "bend_angle"),
+            ("spin_radius", "radius"),
+            ("spin_branch_dist", "branch_dist"),
+            ("spin_branch_width", "branch_width"),
+            ("spin_branch_height", "branch_height"),
+            ("spin_branch_length", "branch_length"),
+            ("spin_end_width", "end_width"),
+            ("spin_end_height", "end_height"),
+            ("spin_bend_width", "bend_width"),
+            ("spin_depth", "depth"),
+            ("spin_holes", "holes"),
+        ):
+            widget = getattr(self, attr, None)
+            if widget is not None:
+                params[key] = widget.value()
+        fabric = getattr(self, "combo_fabric", None)
+        if fabric is not None:
+            params["fabric"] = fabric.currentText()
+        return params
+
+    def _update_schema(self, *_args):
+        self.schema_widget.show_schema(self.combo_type.currentText(), self._schema_params())
 
     # ── Матеріал і товщина: автопідтягування цін з «Ціноутворення» ──
 
@@ -569,12 +835,12 @@ class ProductDialog(QDialog):
     def _on_type_changed(self, text: str):
         self._clear_dynamic()
         pt = text.lower()
-        self.schema_widget.show_schema(text, {})
         descriptions = {
             "Відвод круглий": "Ø — діаметр відводу. Кут згину (15-180°). Радіус — радіус згину (0 = гострий кут). Подовження — додаткові прямі відрізки.",
             "Відвод прямокутний": "Ш × В — розміри перерізу. Кут згину. Радіус. Подовження — додаткові прямі відрізки.",
             "Трійник круглий": "Ø — основний діаметр. Відгалуження: Ø_відг, Д_відг — діаметр і довжина бокової гілки. Відстань від краю — зміщення відгалуження.",
             "Трійник прямокутний": "Ш × В — основний переріз. Відгалуження: Ш_відг × В_відг, Д_відг. Відстань від краю.",
+            "Відгалуження кругле 45°": "Ø — діаметр основної труби. Відгалуження: Ø_відг, Д_відг — діаметр і довжина похилої гілки. Кут — 30/45/60°.",
             "Перехід круглий": "Ø₁ — початковий діаметр. Ø₂ — кінцевий діаметр. Довжина переходу.",
             "Перехід прямокутний": "Ш₁ × В₁ — початковий переріз. Ш₂ × В₂ — кінцевий переріз. Довжина переходу.",
             "Повітропровід круглий": "Ø — діаметр труби. Д — довжина труби. Можна додати фланці.",
@@ -583,11 +849,25 @@ class ProductDialog(QDialog):
             "Фланець прямокутний": "Ш × В — розміри фланця. К-ть отворів. Профіль P30/P40.",
             "Заглушка кругла": "Ø — діаметр. Ширина загину — ширина загнутого краю. Глибина — глибина заглушки.",
             "Заглушка прямокутна": "Ш × В — розміри. Ширина загину. Глибина.",
+            "Решітка кругла": "Ø — зовнішній діаметр рамки. Площа: диск + рамка (~20 %).",
+            "Решітка прямокутна": "Ш × В — зовнішні розміри рамки. Площа: панель + рамка (~20 %).",
+            "Дифузор круглий": "Ø — діаметр фланця дифузора. Площа: диск + корпус + фланець (~30 %).",
+            "Раструб круглий": "Ø — діаметр труби. Д — довжина з розтрубом.",
+            "Раструб прямокутний": "Ш × В — переріз. Д — довжина з розтрубом.",
+            "Зворотний клапан круглий": "Ø — діаметр корпусу. Д — довжина корпусу (0 = лише площина клапана).",
+            "Зворотний клапан прямокутний": "Ш × В — переріз корпусу. Д — довжина корпусу.",
+            "Хрестовина кругла": "Ø — діаметр (усі 4 виходи однакові).",
+            "Хрестовина прямокутна": "Ш × В — переріз (усі 4 виходи однакові).",
             "Гнучка вставка": "Ø — діаметр. Д — довжина. Тканина — тип матеріалу (ПВХ, тефлон, силікон).",
         }
         self.lbl_description.setText(descriptions.get(text, ""))
 
-        if "кругл" in pt or "фланець кругл" in pt or "заглушка кругл" in pt:
+        if (
+            "кругл" in pt
+            or "фланець кругл" in pt
+            or "заглушка кругл" in pt
+            or "решітка кругл" in pt
+        ):
             self.spin_width.setPrefix("Ø ")
             self.spin_height.setEnabled(False)
             self.spin_height.setValue(0)
@@ -595,13 +875,16 @@ class ProductDialog(QDialog):
             self.spin_width.setPrefix("")
             self.spin_height.setEnabled(True)
 
-        if "відвод" in pt:
+        # Для цих типів довжина основна не використовується
+        if any(k in pt for k in ("відвод", "відгалуження", "решітка", "дифузор", "хрестовина")):
             self.spin_length.setEnabled(False)
             self.spin_length.setValue(0)
             self.spin_length.setSuffix(" (не використовується)")
         else:
             self.spin_length.setEnabled(True)
             self.spin_length.setSuffix(" мм")
+
+        self._update_schema()
 
         row = 0
         if "відвод" in pt:
@@ -648,6 +931,25 @@ class ProductDialog(QDialog):
             self.spin_branch_height.setSuffix(" мм")
             self.spin_branch_height.setValue(0)
             self._add_dynamic_field("В відгал.:", self.spin_branch_height, row)
+            row += 1
+            self.spin_branch_length = QDoubleSpinBox()
+            self.spin_branch_length.setRange(100, 2000)
+            self.spin_branch_length.setSuffix(" мм")
+            self.spin_branch_length.setValue(200)
+            self._add_dynamic_field("Довжина відгал.:", self.spin_branch_length, row)
+        elif "відгалуження" in pt:
+            self.group_dynamic.setVisible(True)
+            self.spin_bend_angle = QDoubleSpinBox()
+            self.spin_bend_angle.setRange(30, 60)
+            self.spin_bend_angle.setSuffix("°")
+            self.spin_bend_angle.setValue(45)
+            self._add_dynamic_field("Кут гілки:", self.spin_bend_angle, row)
+            row += 1
+            self.spin_branch_width = QDoubleSpinBox()
+            self.spin_branch_width.setRange(50, 2000)
+            self.spin_branch_width.setSuffix(" мм")
+            self.spin_branch_width.setValue(0)
+            self._add_dynamic_field("Ø відгал.:", self.spin_branch_width, row)
             row += 1
             self.spin_branch_length = QDoubleSpinBox()
             self.spin_branch_length.setRange(100, 2000)

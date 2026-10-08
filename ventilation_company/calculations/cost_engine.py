@@ -213,7 +213,17 @@ class CostEngine:
         """
         labor = self.pricing.get("labor_rates", {})
         pt = product_type.lower().strip()
-        data = labor.get(pt, {"rate_per_m2": 100.0, "difficulty_percent": 0.0})
+        # 1) збережені налаштування; 2) дефолти для нових типів; 3) універсальний резерв
+        from ventilation_company.services.pricing_settings import DEFAULT_LABOR_RATES
+
+        data = (
+            labor.get(pt)
+            or DEFAULT_LABOR_RATES.get(pt)
+            or {
+                "rate_per_m2": 100.0,
+                "difficulty_percent": 0.0,
+            }
+        )
         return data.get("rate_per_m2", 100.0), data.get("difficulty_percent", 0.0)
 
     def _get_overhead_percent(self) -> float:

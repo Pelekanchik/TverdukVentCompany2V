@@ -185,6 +185,9 @@ class DashboardTab(QWidget):
 
         layout.addLayout(charts_layout)
 
+        self.chart_payments = _ChartCard("💵 Надходження оплат по місяцях (тис. ₴)")
+        layout.addWidget(self.chart_payments)
+
         self.lbl_footer = QLabel("")
         self.lbl_footer.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
         layout.addWidget(self.lbl_footer)
@@ -196,20 +199,19 @@ class DashboardTab(QWidget):
         if lbl is not None:
             lbl.setText(text)
 
-    def _build_monthly_chart(self, monthly: list[dict]) -> None:
-        if not monthly:
-            self.chart_monthly.chart_view.setChart(QChart())
+    @staticmethod
+    def _build_bar_chart(
+        card: _ChartCard, categories: list[str], values: list[float], color: str
+    ) -> None:
+        """Стовпчова діаграма з підписами значень; порожні дані — чиста картка."""
+        if not values:
+            card.chart_view.setChart(QChart())
             return
-        bar_set = QBarSet("Вартість")
-        bar_set.setColor(QColor(Theme.ACCENT))
-        bar_set.setBorderColor(QColor(Theme.ACCENT))
-        categories = []
-        for row in monthly:
-            bar_set.append(round(row["sum"] / 1000.0, 1))
-            label = MONTH_NAMES[row["month"]]
-            if row["count"] != 1:
-                label += f" ({row['count']})"
-            categories.append(label)
+        bar_set = QBarSet("Сума")
+        bar_set.setColor(QColor(color))
+        bar_set.setBorderColor(QColor(color))
+        for value in values:
+            bar_set.append(round(value, 1))
 
         series = QBarSeries()
         series.append(bar_set)
@@ -236,7 +238,22 @@ class DashboardTab(QWidget):
         axis_y.applyNiceNumbers()
 
         chart.legend().setVisible(False)
-        self.chart_monthly.set_chart(chart)
+        card.set_chart(chart)
+
+    def _build_monthly_chart(self, monthly: list[dict]) -> None:
+        categories, values = [], []
+        for row in monthly:
+            label = MONTH_NAMES[row["month"]]
+            if row["count"] != 1:
+                label += f" ({row['count']})"
+            categories.append(label)
+            values.append(row["sum"] / 1000.0)
+        self._build_bar_chart(self.chart_monthly, categories, values, Theme.ACCENT)
+
+    def _build_payments_chart(self, payments_monthly: list[dict]) -> None:
+        categories = [MONTH_NAMES[row["month"]] for row in payments_monthly]
+        values = [row["sum"] / 1000.0 for row in payments_monthly]
+        self._build_bar_chart(self.chart_payments, categories, values, Theme.SUCCESS)
 
     def _build_statuses_chart(self, statuses: list[dict]) -> None:
         if not statuses:
@@ -270,6 +287,7 @@ class DashboardTab(QWidget):
 
             self._build_monthly_chart(stats["monthly"])
             self._build_statuses_chart(stats["statuses"])
+            self._build_payments_chart(stats.get("payments_monthly", []))
 
             self.lbl_footer.setText(
                 f"Клієнтів: {stats['clients']}  •  Завершено проєктів: {stats['done_count']}"
