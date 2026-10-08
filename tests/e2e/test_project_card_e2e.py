@@ -271,14 +271,24 @@ class TestMaterialOrder:
 
 class TestContract:
     def test_contract_button_saves_pdf_and_registers_doc(self, qtbot, card, monkeypatch, tmp_path):
-        """Клік «📑 Договір (PDF)…» → PDF + реєстрація в документах."""
+        """Клік «📑 Договір (PDF)…» → номер + PDF + аудит + реєстрація."""
         out = tmp_path / "договір.pdf"
+
+        def _fake_number(pid, data):
+            data["contract_number"] = "ДГ-20261008-001"
+            return "ДГ-20261008-001"
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_docs_mixin.ensure_contract_number",
+            staticmethod(_fake_number),
+        )
 
         def _fake_contract(data, path):
             with open(path, "wb") as f:
                 f.write(b"%PDF-1.4 fake")
             assert data["name"] == "Тестовий проєкт"
             assert data["total_amount"] == 8000.0  # customer_price (знижки немає)
+            assert data["contract_number"] == "ДГ-20261008-001"
 
         monkeypatch.setattr(
             "ventilation_company.gui_pyside6.project_card_docs_mixin.generate_contract",
@@ -294,6 +304,13 @@ class TestContract:
             "_register_document",
             lambda doc_type, path: registered.append((doc_type, path)),
         )
+        audit = []
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.project_card_docs_mixin.log_action",
+            staticmethod(lambda action, **kw: audit.append((action, kw))),
+        )
         qtbot.mouseClick(_button(_tab(card, "Деталі"), "Договір"), Qt.MouseButton.LeftButton)
         assert out.exists()
         assert ("договір", str(out)) in registered
+        assert audit and audit[0][0] == "project.contract"
+        assert audit[0][1]["details"]["contract_number"] == "ДГ-20261008-001"

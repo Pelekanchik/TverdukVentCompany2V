@@ -48,7 +48,9 @@ from ventilation_company.material_order import (
     export_material_order_to_excel,
 )
 from ventilation_company.proposal_generator import export_proposal_to_excel, generate_proposal
+from ventilation_company.services.audit_service import log_action
 from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.contract_numbering import ensure_contract_number
 
 
 class ProjectCardDocsMixin:
@@ -100,6 +102,7 @@ class ProjectCardDocsMixin:
             "client": self._project_data.get("client", ""),
             "address": self._project_data.get("address", ""),
             "total_amount": total,
+            "contract_number": ensure_contract_number(self.project_id, self._project_data),
             "company": BusinessSettings.get_instance().get_company(),
         }
         try:
@@ -108,10 +111,21 @@ class ProjectCardDocsMixin:
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати договір:\n{exc}")
             return
         self._register_document("договір", path)
+        log_action(
+            "project.contract",
+            entity_type="project",
+            entity_id=self.project_id,
+            details={
+                "contract_number": project_data["contract_number"],
+                "path": path,
+                "total_amount": total,
+            },
+            message=f"Сформовано договір {project_data['contract_number']}",
+        )
         answer = QMessageBox.question(
             self,
             "Готово",
-            f"Договір збережено:\n{path}\n\nВідкрити файл?",
+            f"Договір {project_data['contract_number']} збережено:\n{path}\n\nВідкрити файл?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:
