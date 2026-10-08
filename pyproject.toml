@@ -99,3 +99,10 @@ ignore_missing_imports = true
 check_untyped_defs = true
 # Статична типізація зовнішніх залежностей без stubs не перевіряється.
 # Область перевірки: весь пакет ventilation_company/ (залежності йдуть за імпортами).
+
+# Docs-міксин картки проєкту: методи винесено з ProjectCardDialog (QWidget),
+# тож mypy не бачить, що self у міксині — це насправді діалог. arg-type —
+# QMessageBox.*(self, ...); attr-defined — звернення до атрибутів діалога.
+[[tool.mypy.overrides]]
+module = "ventilation_company.gui_pyside6.project_card_docs_mixin"
+disable_error_code = ["arg-type", "attr-defined"]

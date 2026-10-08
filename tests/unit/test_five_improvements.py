@@ -106,7 +106,7 @@ def _make_card(qapp, monkeypatch, tmp_path, out_name="out"):
 
 class TestProposalPdf:
     def test_proposal_button_saves_pdf_and_registers_doc(self, qapp, monkeypatch, tmp_path):
-        from ventilation_company.gui_pyside6 import project_card_dialog as mod
+        from ventilation_company.gui_pyside6 import project_card_docs_mixin as mod
 
         def _fake_proposal(data, items, path):
             with open(path, "wb") as f:
