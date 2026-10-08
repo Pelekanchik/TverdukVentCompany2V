@@ -1,0 +1,10 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.13, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Admin\Documents\kimi\tasks\2026-09-27\17-07-02-e2161efe\TverdukVentCompany2V\venv\Scripts\python.exe
+cachedir: .pytest_cache
+PySide6 6.11.2 -- Qt runtime 6.11.2 -- Qt compiled 6.11.2
+rootdir: C:\Users\Admin\Documents\kimi\tasks\2026-09-27\17-07-02-e2161efe\TverdukVentCompany2V
+configfile: pyproject.toml
+plugins: platformdirs-4.12.0, qt-4.5.0
+collecting ... collected 9 items
+
+tests/e2e/test_product_dialog_e2e.py::TestFullUserFlow::test_create_product_end_to_end 
