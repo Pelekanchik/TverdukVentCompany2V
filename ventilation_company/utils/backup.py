@@ -45,7 +45,7 @@ def _database_url() -> str:
     return DATABASE_URL
 
 
-def _find_pg_tool(name: str) -> str | None:
+def find_pg_tool(name: str) -> str | None:
     """Знайти pg_dump/pg_restore: спочатку PATH, потім типові теки Windows.
 
     Інсталятор PostgreSQL не додає bin\\ у PATH, тому на чистих ПК
@@ -80,7 +80,7 @@ def _run_pg_tool(args: list[str], url: str) -> subprocess.CompletedProcess:
     if parsed.password:
         env["PGPASSWORD"] = parsed.password
 
-    tool = _find_pg_tool(args[0])
+    tool = find_pg_tool(args[0])
     if tool is None:
         raise FileNotFoundError(
             f"Інструмент {args[0]} не знайдено ні в PATH, ні у {os.environ.get('PROGRAMFILES')}\\PostgreSQL"
@@ -227,16 +227,51 @@ def cleanup_old_backups(
     return deleted
 
 
-def auto_backup_on_start(backup_dir: str | None = None, keep: int = 7) -> str | None:
+def _auto_backup_preferences() -> tuple[bool, int, str | None]:
+    """Налаштування автобекапу з БД (app.backup_*); дефолти: увімкнено, 7 копій.
+
+    Повертає (enabled, keep, path|None). Якщо БД недоступна — дефолти.
+    """
+    enabled, keep, path = True, 7, None
+    try:
+        from ventilation_company.database.repositories.app_settings_repository import (
+            AppSettingsRepository,
+        )
+
+        repo = AppSettingsRepository()
+        enabled = repo.get("app.backup_auto", "1") == "1"
+        raw_keep = repo.get("app.backup_keep", "7")
+        keep = max(1, int(raw_keep))
+        raw_path = repo.get("app.backup_path", "").strip()
+        if raw_path:
+            path = raw_path
+    except Exception as exc:  # noqa: BLE001 — автобекап працює і на дефолтах
+        logger.warning("Backup preferences unreadable, using defaults: %s", exc)
+    return enabled, keep, path
+
+
+def auto_backup_on_start(backup_dir: str | None = None, keep: int | None = None) -> str | None:
     """Автобекап при запуску програми (dump БД + JSON-налаштування, ротація).
 
     Виконується у фоновому потоці з launch_gui: ніколи не піднімає винятки —
     у разі помилки лише пише у лог і повертає None, щоб не блокувати старт.
-    """
-    if backup_dir is None:
-        from ventilation_company.bootstrap import BACKUP_DIR
 
-        backup_dir = str(BACKUP_DIR)
+    Коли backup_dir/keep не передані — читає налаштування з БД
+    (вкладка «Резервні копії»); автобекап можна вимкнути там само.
+    """
+    enabled, pref_keep, pref_path = _auto_backup_preferences()
+    if not enabled:
+        logger.info("Auto backup disabled in settings")
+        return None
+    if keep is None:
+        keep = pref_keep
+    if backup_dir is None:
+        if pref_path:
+            backup_dir = pref_path
+        else:
+            from ventilation_company.bootstrap import BACKUP_DIR
+
+            backup_dir = str(BACKUP_DIR)
     try:
         path = create_backup(backup_dir=backup_dir)
     except Exception as exc:  # noqa: BLE001 — автобекап не повинен ламати старт

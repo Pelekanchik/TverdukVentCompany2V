@@ -24,25 +24,25 @@ def _fake_pg_tool(dump: Path):
 # ── Резолвінг інструментів PostgreSQL ──
 
 
-def test_find_pg_tool_prefers_path(monkeypatch):
+def testfind_pg_tool_prefers_path(monkeypatch):
     monkeypatch.setattr(backup.shutil, "which", lambda name: f"/usr/bin/{name}")
-    assert backup._find_pg_tool("pg_dump") == "/usr/bin/pg_dump"
+    assert backup.find_pg_tool("pg_dump") == "/usr/bin/pg_dump"
 
 
-def test_find_pg_tool_falls_back_to_program_files(monkeypatch, tmp_path):
+def testfind_pg_tool_falls_back_to_program_files(monkeypatch, tmp_path):
     monkeypatch.setattr(backup.shutil, "which", lambda name: None)
     monkeypatch.setenv("PROGRAMFILES", str(tmp_path))
     tool = tmp_path / "PostgreSQL" / "16" / "bin" / "pg_dump.exe"
     tool.parent.mkdir(parents=True)
     tool.write_text("", encoding="utf-8")
 
-    assert backup._find_pg_tool("pg_dump") == str(tool)
+    assert backup.find_pg_tool("pg_dump") == str(tool)
 
 
-def test_find_pg_tool_returns_none_when_absent(monkeypatch, tmp_path):
+def testfind_pg_tool_returns_none_when_absent(monkeypatch, tmp_path):
     monkeypatch.setattr(backup.shutil, "which", lambda name: None)
     monkeypatch.setenv("PROGRAMFILES", str(tmp_path))
-    assert backup._find_pg_tool("pg_dump") is None
+    assert backup.find_pg_tool("pg_dump") is None
 
 
 # ── Створення бекапу ──
@@ -61,7 +61,7 @@ def test_create_backup_pg_failure_returns_none(monkeypatch, tmp_path):
 
 def test_create_backup_missing_tool_returns_none(monkeypatch, tmp_path):
     monkeypatch.setattr(backup, "_database_url", lambda: _pg_url())
-    monkeypatch.setattr(backup, "_find_pg_tool", lambda name: None)
+    monkeypatch.setattr(backup, "find_pg_tool", lambda name: None)
     assert backup.create_backup(backup_dir=str(tmp_path)) is None
 
 
@@ -118,6 +118,7 @@ def test_auto_backup_never_raises(monkeypatch, tmp_path):
 
 def test_auto_backup_success_rotates(monkeypatch, tmp_path):
     monkeypatch.setattr(backup, "_database_url", lambda: _pg_url())
+    monkeypatch.setattr(backup, "_auto_backup_preferences", lambda: (True, 7, str(tmp_path)))
     dump = tmp_path / "ventcompany_20261008_130000.dump"
     monkeypatch.setattr(
         backup,
@@ -144,3 +145,45 @@ def test_backup_paths_are_plain_strings(monkeypatch, tmp_path):
     assert len(backups) == 2
     assert all(isinstance(p, str) for p in backups)
     assert json.dumps(backups)  # серіалізується без помилок
+
+
+# ── Налаштування автобекапу (app.backup_*) ──
+
+
+def test_auto_backup_disabled_skips(monkeypatch, tmp_path):
+    monkeypatch.setattr(backup, "_auto_backup_preferences", lambda: (False, 7, str(tmp_path)))
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("create_backup не повинен викликатися")
+
+    monkeypatch.setattr(backup, "create_backup", _boom)
+    assert backup.auto_backup_on_start() is None
+
+
+def test_auto_backup_uses_preferences(monkeypatch, tmp_path):
+    monkeypatch.setattr(backup, "_auto_backup_preferences", lambda: (True, 3, str(tmp_path)))
+    dump = tmp_path / "ventcompany_20261008_140000.dump"
+    monkeypatch.setattr(backup, "_run_pg_tool", _fake_pg_tool(dump))
+    monkeypatch.setattr(backup, "_settings_data_dir", lambda: tmp_path / "no_data")
+
+    result = backup.auto_backup_on_start()
+
+    assert result is not None and result.endswith(".dump")
+
+
+def test_preferences_defaults_when_db_unavailable(monkeypatch):
+    # Імітуємо недоступність репозиторію: ламаємо імпорт всередині
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if "app_settings_repository" in name:
+            raise ImportError("no module")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    enabled, keep, path = backup._auto_backup_preferences()
+    assert enabled is True
+    assert keep == 7
+    assert path is None

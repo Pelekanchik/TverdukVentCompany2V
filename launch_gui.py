@@ -40,7 +40,7 @@ def _auto_backup() -> None:
     try:
         from ventilation_company.utils.backup import auto_backup_on_start
 
-        auto_backup_on_start(keep=7)
+        auto_backup_on_start()
     except Exception:
         logging.exception("Auto backup failed")
 

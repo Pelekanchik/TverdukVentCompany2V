@@ -1,13 +1,17 @@
-"""Backup settings tab extracted from ProgramSettingsTab."""
+"""Backup settings tab extracted from ProgramSettingsTab.
+
+Вся робота з бекапами делегує до ventilation_company.utils.backup —
+єдиного джерела правди (той самий код, що й автобекап при старті).
+"""
 
 from __future__ import annotations
 
 import contextlib
 import os
-import subprocess
 from datetime import datetime
 from urllib.parse import urlparse
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -17,6 +21,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -24,10 +29,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.bootstrap import BACKUP_DIR
 from ventilation_company.database.db import DATABASE_URL
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
-from ventilation_company.utils.backup import create_backup, restore_backup
+from ventilation_company.utils.backup import (
+    cleanup_old_backups,
+    create_backup,
+    find_pg_tool,
+    restore_backup,
+)
+
+
+def _format_size(size_bytes: int) -> str:
+    """Людиночитаний розмір файлу."""
+    if size_bytes >= 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} МБ"
+    if size_bytes >= 1024:
+        return f"{size_bytes / 1024:.0f} КБ"
+    return f"{size_bytes} Б"
 
 
 class BackupSettingsTab(QWidget):
@@ -48,7 +68,7 @@ class BackupSettingsTab(QWidget):
         self.chk_auto_backup.setChecked(True)
         self.spin_auto_backup = QSpinBox()
         self.spin_auto_backup.setRange(1, 100)
-        self.spin_auto_backup.setValue(10)
+        self.spin_auto_backup.setValue(7)
         self.spin_auto_backup.setSuffix(" копій")
         f1.addRow(self.chk_auto_backup)
         f1.addRow("Зберігати останніх:", self.spin_auto_backup)
@@ -60,7 +80,7 @@ class BackupSettingsTab(QWidget):
 
         grp_manual = QGroupBox("Ручний бекап / відновлення")
         f2 = QFormLayout(grp_manual)
-        self.edit_backup_path = QLineEdit("backups")
+        self.edit_backup_path = QLineEdit(str(BACKUP_DIR))
         btn_browse_backup = QPushButton("📂")
         btn_browse_backup.setFixedWidth(40)
         btn_browse_backup.clicked.connect(self._browse_backup_path)
@@ -85,22 +105,24 @@ class BackupSettingsTab(QWidget):
         f2.addRow(h2)
         vlay.addWidget(grp_manual)
         lbl = QLabel(
-            "💡 Бекап SQLite — файл копія. Бекап PostgreSQL — pg_dump. Для restore потрібен pg_restore/psql."
+            "💡 Бекап PostgreSQL — pg_dump (custom-формат .dump), відновлення — pg_restore. "
+            "Поруч із дампом автоматично копіюються ціни та реквізити (JSON). "
+            "Після відновлення перезапустіть програму."
         )
         lbl.setWordWrap(True)
         vlay.addWidget(lbl)
 
     def load_settings(self, settings) -> None:
         self._settings = settings
-        self.edit_backup_path.setText(settings.get("app.backup_path", "data/backups"))
-        self.chk_auto_backup.setChecked(settings.get("app.backup_auto", "0") == "1")
+        self.edit_backup_path.setText(settings.get("app.backup_path", str(BACKUP_DIR)))
+        self.chk_auto_backup.setChecked(settings.get("app.backup_auto", "1") == "1")
         with contextlib.suppress(ValueError):
-            self.spin_auto_backup.setValue(int(settings.get("app.backup_keep", "10")))
+            self.spin_auto_backup.setValue(int(settings.get("app.backup_keep", "7")))
         self._refresh_backup_list()
 
     def backup_settings(self):
         return (
-            self.edit_backup_path.text().strip() or "backups",
+            self.edit_backup_path.text().strip() or str(BACKUP_DIR),
             self.chk_auto_backup.isChecked(),
             self.spin_auto_backup.value(),
         )
@@ -114,10 +136,7 @@ class BackupSettingsTab(QWidget):
     def _save_backup_settings(self):
         if not self._settings:
             return
-        path, auto_backup, keep_count = self.backup_settings()
-        self._settings.set("backup.path", path)
-        self._settings.set("backup.auto", auto_backup)
-        self._settings.set("backup.keep", keep_count)
+        self.save_settings(self._settings)
         self._settings.clear_cache()
         QMessageBox.information(self, "Успіх", "✅ Налаштування бекапу збережено")
 
@@ -138,7 +157,7 @@ class BackupSettingsTab(QWidget):
         )
 
     def _create_backup_now(self):
-        path = self.edit_backup_path.text().strip() or "backups"
+        path = self.edit_backup_path.text().strip() or str(BACKUP_DIR)
         os.makedirs(path, exist_ok=True)
         self._backup_worker = FunctionWorker(self._create_backup_job, path)
         self._backup_worker.result.connect(lambda msg: self._on_backup_created(msg, path))
@@ -149,50 +168,29 @@ class BackupSettingsTab(QWidget):
         self._backup_worker.start()
 
     def _create_backup_job(self, path: str) -> str:
-        if "postgresql" in DATABASE_URL:
-            parsed = urlparse(DATABASE_URL)
-            db_name = parsed.path.lstrip("/")
-            host = parsed.hostname or "localhost"
-            port = parsed.port or 5432
-            user = parsed.username or "vent"
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dump_file = os.path.join(path, f"ventcompany_backup_{timestamp}.sql")
-            env = os.environ.copy()
-            env["PGPASSWORD"] = parsed.password or ""
-            cmd = [
-                "pg_dump",
-                "-h",
-                host,
-                "-p",
-                str(port),
-                "-U",
-                user,
-                "-d",
-                db_name,
-                "-f",
-                dump_file,
-                "-F",
-                "p",
-            ]
-            subprocess.run(cmd, env=env, check=True, capture_output=True)
-            return f"Бекап PostgreSQL створено: {dump_file}"
-        backup_path = create_backup("data/company.db", path)
+        """Створити бекап через utils.backup (той самий код, що й автобекап)."""
+        backup_path = create_backup(backup_dir=path)
         if backup_path:
             return f"Бекап створено: {backup_path}"
-        raise RuntimeError("БД не знайдено для бекапу")
+        raise RuntimeError(
+            "Бекап не створено — перевірте, що PostgreSQL запущено, "
+            "а pg_dump доступний (див. лог)."
+        )
 
     def _restore_selected_backup(self):
         item = self.list_backups.currentItem()
         if not item:
             QMessageBox.warning(self, "Увага", "Оберіть бекап для відновлення")
             return
-        filename = item.text()
-        path = self.edit_backup_path.text().strip() or "backups"
+        filename = item.data(Qt.ItemDataRole.UserRole) or item.text()
+        path = self.edit_backup_path.text().strip() or str(BACKUP_DIR)
         full_path = os.path.join(path, filename)
         reply = QMessageBox.warning(
             self,
             "⚠️ УВАГА",
-            f"Відновити БД з бекапу: {filename}? ПОТОЧНІ ДАНІ МОЖУТЬ БУТИ ВТРАЧЕНІ!",
+            f"Відновити БД з бекапу: {filename}?\n\n"
+            "ПОТОЧНІ ДАНІ БУДУТЬ ПЕРЕЗАПИСАНІ! Перед відновленням автоматично "
+            "створиться бекап поточної бази.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -214,7 +212,10 @@ class BackupSettingsTab(QWidget):
         )
 
     def _restore_backup_job(self, full_path: str) -> str:
+        """Відновити через utils.backup; legacy .sql — через psql (з резолвінгом шляху)."""
         if full_path.endswith(".sql"):
+            import subprocess
+
             parsed = urlparse(DATABASE_URL)
             db_name = parsed.path.lstrip("/")
             host = parsed.hostname or "localhost"
@@ -222,7 +223,10 @@ class BackupSettingsTab(QWidget):
             user = parsed.username or "vent"
             env = os.environ.copy()
             env["PGPASSWORD"] = parsed.password or ""
-            cmd = ["psql", "-h", host, "-p", str(port), "-U", user, "-d", db_name, "-f", full_path]
+            tool = find_pg_tool("psql")
+            if tool is None:
+                raise RuntimeError("psql не знайдено (встановіть PostgreSQL клієнт)")
+            cmd = [tool, "-h", host, "-p", str(port), "-U", user, "-d", db_name, "-f", full_path]
             subprocess.run(cmd, env=env, check=True, capture_output=True)
             return "БД відновлено."
         if restore_backup(full_path, "data/company.db"):
@@ -231,26 +235,35 @@ class BackupSettingsTab(QWidget):
 
     def _refresh_backup_list(self):
         self.list_backups.clear()
-        path = self.edit_backup_path.text().strip() or "backups"
+        path = self.edit_backup_path.text().strip() or str(BACKUP_DIR)
         if not os.path.exists(path):
             return
-        backups = sorted(
-            [f for f in os.listdir(path) if f.endswith((".db", ".sqlite", ".sql", ".dump"))],
-            reverse=True,
-        )
-        self.list_backups.addItems(backups)
+        entries = []
+        for name in os.listdir(path):
+            if not name.endswith((".db", ".sqlite", ".sql", ".dump")):
+                continue
+            full = os.path.join(path, name)
+            try:
+                stat = os.stat(full)
+            except OSError:
+                continue
+            modified = datetime.fromtimestamp(stat.st_mtime).strftime("%d.%m.%Y %H:%M")
+            entries.append((stat.st_mtime, name, modified, stat.st_size))
+        # Найновіші — перші; settings-JSON не показуємо (службові копії)
+        entries.sort(reverse=True)
+        for _mtime, name, modified, size in entries:
+            item = QListWidgetItem(f"{name}  —  {modified}  —  {_format_size(size)}")
+            item.setData(Qt.ItemDataRole.UserRole, name)
+            self.list_backups.addItem(item)
 
     def _cleanup_backups(self):
-        path = self.edit_backup_path.text().strip() or "backups"
+        path = self.edit_backup_path.text().strip() or str(BACKUP_DIR)
         keep = self.spin_auto_backup.value()
         if not os.path.exists(path):
             QMessageBox.information(self, "Інформація", "Папка бекапів не існує")
             return
-        backups = sorted(
-            [f for f in os.listdir(path) if f.endswith((".db", ".sqlite", ".sql", ".dump"))],
-            reverse=True,
+        deleted = cleanup_old_backups(backup_dir=path, keep=keep)
+        QMessageBox.information(
+            self, "Успіх", f"Видалено файлів: {deleted}. Залишено комплектів: {keep}."
         )
-        for old in backups[keep:]:
-            os.remove(os.path.join(path, old))
-        QMessageBox.information(self, "Успіх", f"Залишено {keep} бекапів")
         self._refresh_backup_list()
