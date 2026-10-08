@@ -12,7 +12,6 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QDialogButtonBox,
     QLineEdit,
@@ -20,14 +19,14 @@ from PySide6.QtWidgets import (
 
 
 def _type(qtbot, widget: QLineEdit, text: str) -> None:
-    """Див. test_product_dialog_e2e._type — QTest.keyClick падає з кирилицею."""
+    """Див. test_product_dialog_e2e._type — QTest.keyClick падає з кирилицею,
+    а буфер обміну на Windows спрацьовує лише раз (Qt bug) → insert()."""
     widget.setFocus()
     qtbot.waitUntil(widget.hasFocus, timeout=2000)
     if text.isascii():
         qtbot.keyClicks(widget, text)
     else:
-        QApplication.clipboard().setText(text)
-        qtbot.keyClick(widget, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+        widget.insert(text)
 
 
 @pytest.fixture
@@ -107,6 +106,7 @@ class TestProjectEditDialog:
     def test_create_project_end_to_end(self, qtbot, project_dlg):
         _type(qtbot, project_dlg.edit_name, "Вентиляція кафе «Смак»")
         _type(qtbot, project_dlg.edit_number, "PRJ-TEST-1")
+        _type(qtbot, project_dlg.edit_contract, "ДГ-20260101-007")
         box = _save(project_dlg)
         qtbot.mouseClick(
             box.button(QDialogButtonBox.StandardButton.Save), Qt.MouseButton.LeftButton
@@ -115,6 +115,7 @@ class TestProjectEditDialog:
         data = project_dlg.get_data()
         assert data["name"] == "Вентиляція кафе «Смак»"
         assert data["project_number"] == "PRJ-TEST-1"
+        assert data["contract_number"] == "ДГ-20260101-007"
         assert data["status"] == "Новий"
 
     def test_cancel_rejects(self, qtbot, project_dlg):
@@ -139,6 +140,7 @@ class TestProjectEditDialog:
             {
                 "name": "Склад ТОВ «Логіст»",
                 "project_number": "PRJ-77",
+                "contract_number": "ДГ-20260101-042",
                 "status": "В роботі",
                 "discounted_price": 12000,
             }
@@ -146,8 +148,57 @@ class TestProjectEditDialog:
         qtbot.addWidget(dlg)
         assert dlg.edit_name.text() == "Склад ТОВ «Логіст»"
         assert dlg.edit_number.text() == "PRJ-77"
+        assert dlg.edit_contract.text() == "ДГ-20260101-042"
         assert dlg.combo_status.currentText() == "В роботі"
         assert dlg.spin_discounted.value() == 12000
         data = dlg.get_data()
         assert data["profit"] == pytest.approx(12000.0)
+        assert data["contract_number"] == "ДГ-20260101-042"
         dlg.close()
+
+
+class TestProjectsTable:
+    def test_contract_number_column(self, qtbot, monkeypatch):
+        """Колонка «Договір» у списку проєктів заповнюється з даних."""
+        from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
+
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.projects_tab.ProjectRepository.list_all",
+            staticmethod(
+                lambda: [
+                    {
+                        "id": 1,
+                        "name": "Кафе «Смак»",
+                        "project_number": "PRJ-1",
+                        "client": "ТОВ «Смак»",
+                        "status": "В роботі",
+                        "contract_number": "ДГ-20261008-001",
+                        "created_at": "2026-10-01",
+                        "discounted_price": 0,
+                    },
+                    {
+                        "id": 2,
+                        "name": "Без договору",
+                        "project_number": "PRJ-2",
+                        "client": "",
+                        "status": "Новий",
+                        "contract_number": None,
+                        "created_at": "2026-10-02",
+                        "discounted_price": 0,
+                    },
+                ]
+            ),
+        )
+        monkeypatch.setattr(
+            "ventilation_company.gui_pyside6.projects_tab.ProductRepository.get_all",
+            staticmethod(lambda project_id: []),
+        )
+        tab = ProjectsTab()
+        qtbot.addWidget(tab)
+        headers = [
+            tab.model.headerData(i, Qt.Orientation.Horizontal)
+            for i in range(tab.model.columnCount())
+        ]
+        col = headers.index("Договір")
+        assert tab.model.item(0, col).text() == "ДГ-20261008-001"
+        assert tab.model.item(1, col).text() == "—"

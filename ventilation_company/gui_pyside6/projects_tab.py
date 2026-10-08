@@ -80,6 +80,11 @@ class ProjectEditDialog(QDialog):
         self.edit_number.setText(self.project_data.get("project_number", ""))
         layout.addRow("Номер", self.edit_number)
 
+        self.edit_contract = QLineEdit()
+        self.edit_contract.setText(self.project_data.get("contract_number") or "")
+        self.edit_contract.setPlaceholderText("Автоматично при формуванні договору")
+        layout.addRow("Договір", self.edit_contract)
+
         self.combo_client = QComboBox()
         self.combo_client.setEditable(True)
         try:
@@ -186,6 +191,7 @@ class ProjectEditDialog(QDialog):
         return {
             "name": self.edit_name.text().strip(),
             "project_number": self.edit_number.text().strip(),
+            "contract_number": self.edit_contract.text().strip(),
             "client": self.combo_client.currentText().strip(),
             "client_id": self.combo_client.currentData(),
             "status": self.combo_status.currentText(),
@@ -285,6 +291,7 @@ class ProjectsTab(QWidget):
                 "Назва",
                 "Клієнт",
                 "Статус",
+                "Договір",
                 "Дата створення",
                 "Сума виробів",
                 "Ціна зам.",
@@ -298,11 +305,12 @@ class ProjectsTab(QWidget):
         self.table.setColumnWidth(2, 180)
         self.table.setColumnWidth(3, 130)
         self.table.setColumnWidth(4, 90)
-        self.table.setColumnWidth(5, 90)
+        self.table.setColumnWidth(5, 120)
         self.table.setColumnWidth(6, 90)
         self.table.setColumnWidth(7, 90)
         self.table.setColumnWidth(8, 90)
         self.table.setColumnWidth(9, 90)
+        self.table.setColumnWidth(10, 90)
 
         actions = QHBoxLayout()
         actions.addStretch()
@@ -340,6 +348,7 @@ class ProjectsTab(QWidget):
             "name",
             "client",
             "status",
+            "contract_number",
             "created_at",
             "cost_price",
             "customer_price",
@@ -372,6 +381,7 @@ class ProjectsTab(QWidget):
             "Назва",
             "Клієнт",
             "Статус",
+            "Договір",
             "Дата створення",
             "Собівартість",
             "Ціна замовника",
@@ -384,6 +394,7 @@ class ProjectsTab(QWidget):
             "name",
             "client",
             "status",
+            "contract_number",
             "created_at",
             "cost_price",
             "customer_price",
@@ -404,7 +415,7 @@ class ProjectsTab(QWidget):
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = Alignment(horizontal="center")
-            money_cols = {7, 8, 9, 10}
+            money_cols = {8, 9, 10, 11}
             for r, row in enumerate(rows, 2):
                 for col, key in enumerate(keys, 1):
                     value = row.get(key, "")
@@ -412,7 +423,7 @@ class ProjectsTab(QWidget):
                     if col in money_cols:
                         cell.number_format = "#,##0.00"
                         cell.alignment = Alignment(horizontal="right")
-            widths = [6, 14, 30, 24, 12, 14, 14, 16, 12, 14]
+            widths = [6, 14, 30, 24, 12, 16, 14, 14, 16, 12, 14]
             for col, width in enumerate(widths, 1):
                 ws.column_dimensions[chr(64 + col)].width = width
             ws.freeze_panes = "A2"
@@ -451,6 +462,7 @@ class ProjectsTab(QWidget):
                     "project_number": p.get("project_number") or "—",
                     "client": p.get("client") or "—",
                     "status": p.get("status") or "Новий",
+                    "contract_number": p.get("contract_number") or "",
                     "created_at": str(p.get("created_at"))[:10] if p.get("created_at") else "—",
                     "cost_price": cost,
                     "customer_price": base,
@@ -466,6 +478,7 @@ class ProjectsTab(QWidget):
                     QStandardItem(data["name"]),
                     QStandardItem(data["client"]),
                     QStandardItem(data["status"]),
+                    QStandardItem(data["contract_number"] or "—"),
                     QStandardItem(data["created_at"]),
                     QStandardItem("₴ " + f"{cost:,.0f}"),
                     QStandardItem("₴ " + f"{base:,.0f}"),

@@ -206,6 +206,7 @@ class TestProjectsExcelExport:
                 "name": "Проєкт А",
                 "client": "ТОВ «А»",
                 "status": "В роботі",
+                "contract_number": "ДГ-20261008-001",
                 "created_at": "2026-09-27",
                 "cost_price": 5000.0,
                 "customer_price": 8000.0,
@@ -222,4 +223,5 @@ class TestProjectsExcelExport:
         assert out.exists()
         ws = load_workbook(out).active
         assert ws.cell(row=2, column=3).value == "Проєкт А"
-        assert ws.cell(row=2, column=10).value == 3000.0
+        assert ws.cell(row=2, column=6).value == "ДГ-20261008-001"
+        assert ws.cell(row=2, column=11).value == 3000.0

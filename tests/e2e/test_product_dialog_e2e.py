@@ -13,7 +13,6 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QDialogButtonBox,
     QLineEdit,
@@ -76,16 +75,19 @@ def dlg(qtbot, monkeypatch):
 
 
 def _type(qtbot, widget: QLineEdit, text: str) -> None:
-    """Ввід тексту як користувач. ASCII — подіями клавіатури (keyClicks);
-    кирилиця — через буфер обміну + Ctrl+V, бо QTest.keyClick з не-ASCII
-    символами падає з сегфолтом у PySide6 6.11 (Windows)."""
+    """Ввід тексту як користувач. ASCII — подіями клавіатури (keyClicks).
+
+    Не-ASCII — через widget.insert(): QTest.keyClick з не-ASCII падає з
+    сегфолтом (PySide6 6.11, Windows), а вставка буфером спрацьовує лише
+    раз — після першої paste() Qt на Windows не дає перезаписати буфер
+    у цьому процесі (known Qt bug). insert() іде тим самим шляхом
+    редагування QLineEdit, що й вставлений текст (textChanged тощо)."""
     widget.setFocus()
     qtbot.waitUntil(widget.hasFocus, timeout=2000)
     if text.isascii():
         qtbot.keyClicks(widget, text)
     else:
-        QApplication.clipboard().setText(text)
-        qtbot.keyClick(widget, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+        widget.insert(text)
 
 
 def _save_button(dialog) -> QPushButton:
