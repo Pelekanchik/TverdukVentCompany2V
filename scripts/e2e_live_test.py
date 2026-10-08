@@ -205,12 +205,12 @@ check("4. Створення виробу з розрахунком ціни", s
 def step_dashboard_stats():
     from ventilation_company.services.dashboard_service import DashboardService
 
-    stats = DashboardService.done_dashboard(["Готовий", "Закритий"])
-    keys = ("done_count", "total_revenue", "profit", "clients", "monthly")
+    stats = DashboardService.overview()
+    keys = ("total_count", "active_count", "total_revenue", "paid", "debt", "clients", "monthly")
     missing = [k for k in keys if k not in stats]
     if missing:
         raise RuntimeError(f"у stats бракує ключів: {missing}")
-    return f"done_count={stats['done_count']}, clients={stats['clients']}"
+    return f"проєктів={stats['total_count']}, клієнтів={stats['clients']}"
 
 
 check("5. Фінансовий звіт DashboardService", step_dashboard_stats)
