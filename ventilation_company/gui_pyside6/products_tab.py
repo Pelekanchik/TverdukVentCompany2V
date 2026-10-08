@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
-from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories
+from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories, load_settings
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
@@ -120,7 +120,9 @@ class ProductsTab(QWidget):
         mat_row = QHBoxLayout()
         self.filter_material = QComboBox()
         self.filter_material.addItem("Всі матеріали")
-        self.filter_material.addItems(["Оцинкована сталь", "Нержавіюча сталь", "Алюміній"])
+        # Матеріали — з «Ціноутворення» (користувач може додавати свої)
+        _materials = [m.capitalize() for m in load_settings().get("material_prices", {})]
+        self.filter_material.addItems(sorted(_materials, key=str.lower))
         self.filter_material.currentTextChanged.connect(self._apply_filters)
         mat_row.addWidget(QLabel("Мат.:"))
         mat_row.addWidget(self.filter_material)

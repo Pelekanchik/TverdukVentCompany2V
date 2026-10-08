@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ventilation_company.manufacturing_params import get_material_price
+from ventilation_company.materials import DEFAULT_MATERIAL_DENSITIES
 from ventilation_company.paths import DATA_DIR
 from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.utils.logging_config import get_logger
@@ -32,11 +33,9 @@ from ventilation_company.utils.logging_config import get_logger
 _logger = get_logger("cost_engine")
 
 # Густина металів, кг/м³ — для розрахунку ваги виробу.
-METAL_DENSITY_KG_M3 = {
-    "оцинкована сталь": 7850,
-    "нержавіюча сталь": 7900,
-    "алюміній": 2700,
-}
+# Реєстр — ventilation_company.materials; користувацькі густини
+# зберігаються у pricing_settings.json (ключ material_densities).
+METAL_DENSITY_KG_M3 = dict(DEFAULT_MATERIAL_DENSITIES)
 
 _PRICING_PATH = DATA_DIR / "pricing_settings.json"
 

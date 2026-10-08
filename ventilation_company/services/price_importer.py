@@ -42,6 +42,15 @@ DENSITIES = {
 }
 
 
+def _resolve_density(densities: dict | None, material: str) -> float:
+    """Густина: користувацькі налаштування → відомі матеріали → сталь."""
+    from ventilation_company.materials import resolve_density
+
+    merged = dict(DENSITIES)
+    merged.update(densities or {})
+    return resolve_density(merged, material)
+
+
 @dataclass
 class PriceRecord:
     """Один запис ціни з файлу постачальника."""
@@ -261,7 +270,7 @@ class PriceImporter:
                 price_to_save = record.price_per_m2
             else:
                 # Обчислити з грн/кг
-                density = DENSITIES.get(record.material, 7850)
+                density = _resolve_density(data.get("material_densities"), record.material)
                 weight_per_m2 = (record.thickness / 1000) * density
                 price_to_save = record.price_per_kg * weight_per_m2
 

@@ -363,7 +363,11 @@ class CuttingTab(QWidget):
         header.addWidget(lbl_mat)
 
         self.combo_material = QComboBox()
-        self.combo_material.addItems(["оцинкована сталь", "нержавіюча сталь", "алюміній"])
+        # Матеріали — з «Ціноутворення» (користувач може додавати свої)
+        from ventilation_company.gui_pyside6.pricing_tab import load_settings
+
+        _materials = [m.lower() for m in load_settings().get("material_prices", {})]
+        self.combo_material.addItems(sorted(_materials, key=str.lower))
         header.addWidget(self.combo_material)
 
         btn_calc = QPushButton("🧮 Розрахувати")

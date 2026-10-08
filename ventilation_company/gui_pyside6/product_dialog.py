@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.calculations.cost_engine import (
-    METAL_DENSITY_KG_M3,
     CostBreakdown,
     CostEngine,
 )
@@ -512,6 +511,16 @@ class ProductDialog(QDialog):
         except (TypeError, ValueError):
             return 0.0
 
+    @staticmethod
+    def _material_density(material: str) -> float:
+        """Густина матеріалу з «Ціноутворення» (кг/м³); резерв — сталь."""
+        try:
+            return float(PricingSettings.get_instance().get_material_density(material))
+        except Exception:  # noqa: BLE001 — тестові стаби без методу
+            from ventilation_company.materials import resolve_density
+
+            return resolve_density({}, material)
+
     def _current_metal_price(self) -> float:
         ths = self._material_price_map.get(self._current_material_key(), {})
         return self._to_price(ths.get(self.combo_thickness.currentText(), 0))
@@ -953,7 +962,7 @@ class ProductDialog(QDialog):
             params["metal_area_m2"] = round(self._calc_result.surface_area_m2 / calc_qty, 4)
             params["blank_area_m2"] = round(self._calc_result.blank_area_m2 / calc_qty, 4)
             params["material_area_m2"] = round(self._calc_result.material_area_m2 / calc_qty, 4)
-            density = METAL_DENSITY_KG_M3.get(self.combo_material.currentText().lower(), 7850)
+            density = self._material_density(self.combo_material.currentText())
             thickness_m = float(self.combo_thickness.currentText()) / 1000
             params["weight_kg"] = round(
                 (self._calc_result.material_area_m2 / calc_qty) * thickness_m * density, 4

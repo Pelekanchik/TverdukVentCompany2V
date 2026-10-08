@@ -56,6 +56,7 @@ def load_settings() -> dict:
             }
     return {
         "material_prices": copy.deepcopy(pricing.material_prices),
+        "material_densities": copy.deepcopy(pricing.material_densities),
         "overhead": copy.deepcopy(pricing.overhead),
         "depreciation": copy.deepcopy(pricing.depreciation),
         "markup_percent": pricing.markup_percent,
@@ -78,9 +79,16 @@ def get_markup_categories() -> list[tuple[str, float]]:
 def save_settings(data: dict):
     """Зберегти налаштування цін через сервіс і скинути кеш розрахунків."""
     pricing = PricingSettings.get_instance()
-    for attr in ("material_prices", "overhead", "depreciation", "markup_percent"):
+    for attr in (
+        "material_prices",
+        "material_densities",
+        "overhead",
+        "depreciation",
+        "markup_percent",
+    ):
         if attr in data:
             setattr(pricing, attr, data[attr])
+    pricing.sync_material_densities()
     if "labor_rates" in data:
         pricing.labor_rates = {
             name: {
@@ -111,6 +119,7 @@ def get_default_settings() -> dict:
     """Початкові налаштування (з канонічних дефолтів сервісу)."""
     return {
         "material_prices": copy.deepcopy(_pricing.DEFAULT_MATERIAL_PRICES),
+        "material_densities": copy.deepcopy(_pricing.DEFAULT_MATERIAL_DENSITIES),
         "overhead": copy.deepcopy(_pricing.DEFAULT_OVERHEAD),
         "depreciation": copy.deepcopy(_pricing.DEFAULT_DEPRECIATION),
         "markup_percent": _pricing.DEFAULT_MARKUP_PERCENT,
@@ -193,6 +202,18 @@ class MetalPricesTab(QWidget):
         self._load_data()
 
         actions = QHBoxLayout()
+        btn_add = QPushButton("➕ Додати матеріал")
+        btn_add.setToolTip(
+            "Новий матеріал (напр. мідь, титан) — з'явиться у всіх списках "
+            "програми: вироби, розкрій, фільтри"
+        )
+        btn_add.clicked.connect(self._on_add_material)
+        actions.addWidget(btn_add)
+        btn_del = QPushButton("✖ Видалити матеріал")
+        btn_del.setToolTip("Видалити вибраний рядок матеріалу (з цінами)")
+        btn_del.clicked.connect(self._on_remove_material)
+        actions.addWidget(btn_del)
+        actions.addStretch()
         btn_paste = QPushButton("📋 Вставити з Excel")
         btn_paste.setToolTip(
             "Скопіюйте у Excel блок: перший стовпець — матеріал, "
@@ -263,18 +284,73 @@ class MetalPricesTab(QWidget):
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())
-        prices = self.settings.get("material_prices", {})
-        for material in ["оцинкована сталь", "нержавіюча сталь", "алюміній"]:
-            name_item = QStandardItem(material)
-            name_item.setEditable(False)  # назву матеріалу не змінюємо
-            row = [name_item]
-            for thick in self.THICKNESSES:
-                price = prices.get(material, {}).get(thick, 0)
-                item = QStandardItem(f"{price:.2f}")
-                item.setEditable(True)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                row.append(item)
-            self.model.appendRow(row)
+        # Порожні налаштування (тести/перший запуск) → стандартні три матеріали
+        # з цінами 0.00; порядок рядків — як у налаштуваннях, нові — в кінець.
+        saved = self.settings.get("material_prices") or {}
+        names = [m for m in saved if str(m).strip()] or list(_pricing.DEFAULT_MATERIAL_PRICES)
+        for material in names:
+            self._append_material_row(material, saved.get(material, {}))
+
+    def _append_material_row(self, material: str, prices: dict) -> None:
+        name_item = QStandardItem(material)
+        name_item.setEditable(False)  # назву матеріалу не змінюємо (видалення — кнопкою)
+        row = [name_item]
+        for thick in self.THICKNESSES:
+            try:
+                price = float(prices.get(thick, 0) or 0)
+            except (TypeError, ValueError):
+                price = 0.0
+            item = QStandardItem(f"{price:.2f}")
+            item.setEditable(True)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            row.append(item)
+        self.model.appendRow(row)
+
+    def _on_add_material(self):
+        from PySide6.QtWidgets import QInputDialog
+
+        name, ok = QInputDialog.getText(self, "Новий матеріал", "Назва матеріалу:")
+        name = name.strip()
+        if not ok or not name:
+            return
+        existing = {self.model.item(r, 0).text().casefold() for r in range(self.model.rowCount())}
+        if name.casefold() in existing:
+            QMessageBox.warning(self, "Дублікат", f"Матеріал «{name}» уже є у таблиці.")
+            return
+        density, ok = QInputDialog.getDouble(
+            self,
+            "Густина матеріалу",
+            f"Густина «{name}», кг/м³\n(потрібна для розрахунку ваги виробу)",
+            7850.0,
+            1.0,
+            30000.0,
+            0,
+        )
+        if not ok:
+            return
+        self._append_material_row(name, {})
+        densities = self.settings.setdefault("material_densities", {})
+        densities[name] = float(density)
+        self.model.layoutChanged.emit()
+
+    def _on_remove_material(self):
+        row = self.table.currentIndex().row()
+        if row < 0:
+            QMessageBox.information(self, "Видалення", "Спочатку виділіть рядок матеріалу.")
+            return
+        material = self.model.item(row, 0).text()
+        reply = QMessageBox.question(
+            self,
+            "Видалення матеріалу",
+            f"Видалити «{material}» зі списку цін?\n\n"
+            "У виробах, де він використовується, назва залишиться, "
+            "але цін для розрахунку не буде.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self.model.removeRow(row)
+        self.settings.get("material_densities", {}).pop(material, None)
 
     def _on_save(self):
         prices: dict[str, dict[str, float]] = {}
@@ -293,7 +369,7 @@ class MetalPricesTab(QWidget):
         QMessageBox.information(
             self,
             "Успіх",
-            "Ціни на метал збережено! Тепер розрахунок використовує нові ціни одразу.",
+            "Ціни на метал збережено! Нові матеріали доступні у всіх вкладках.",
         )
 
 

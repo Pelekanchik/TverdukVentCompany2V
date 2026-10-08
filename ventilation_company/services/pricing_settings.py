@@ -8,6 +8,16 @@ import threading
 from dataclasses import dataclass, field
 
 from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
+from ventilation_company.materials import (
+    DEFAULT_MATERIAL_DENSITIES as _DEFAULT_DENSITIES,
+)
+from ventilation_company.materials import (
+    FALLBACK_DENSITY_KG_M3,
+    resolve_density,
+)
+from ventilation_company.materials import (
+    list_materials as _material_names,
+)
 from ventilation_company.paths import DATA_DIR
 from ventilation_company.services.markup_matrix import (
     PRODUCT_TYPE_LABELS,
@@ -15,6 +25,8 @@ from ventilation_company.services.markup_matrix import (
     classify_product,
     is_standard_size,
 )
+
+DEFAULT_MATERIAL_DENSITIES: dict = dict(_DEFAULT_DENSITIES)
 
 SETTINGS_FILE = str(DATA_DIR / "pricing_settings.json")
 
@@ -319,6 +331,7 @@ class PricingSettings:
 
         # Дані
         self.material_prices: dict = {}
+        self.material_densities: dict = {}
         self.overhead: dict = {}
         self.depreciation: dict = {}
         self.markup_percent: float = DEFAULT_MARKUP_PERCENT
@@ -364,6 +377,10 @@ class PricingSettings:
         data = self._read_file()
         if data:
             self.material_prices = data.get("material_prices", DEFAULT_MATERIAL_PRICES)
+            self.material_densities = data.get(
+                "material_densities", DEFAULT_MATERIAL_DENSITIES.copy()
+            )
+            self.sync_material_densities()
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
             self.markup_percent = data.get("markup_percent", DEFAULT_MARKUP_PERCENT)
@@ -386,6 +403,7 @@ class PricingSettings:
             self.save()
         else:
             self.material_prices = DEFAULT_MATERIAL_PRICES.copy()
+            self.material_densities = DEFAULT_MATERIAL_DENSITIES.copy()
             self.overhead = DEFAULT_OVERHEAD.copy()
             self.depreciation = DEFAULT_DEPRECIATION.copy()
             self.markup_percent = DEFAULT_MARKUP_PERCENT
@@ -401,6 +419,7 @@ class PricingSettings:
         """Зберегти налаштування атомарно."""
         data = {
             "material_prices": self.material_prices,
+            "material_densities": self.material_densities,
             "overhead": self.overhead,
             "depreciation": self.depreciation,
             "markup_percent": self.markup_percent,
@@ -413,6 +432,30 @@ class PricingSettings:
         }
         with self._file_lock:
             self._atomic_write(data)
+
+    def sync_material_densities(self) -> None:
+        """У кожного матеріалу з material_prices має бути густина.
+
+        Нові матеріали (додані у вкладці «Ціни на метал») отримують
+        дефолтну густину сталі, якщо користувач не задав іншу.
+        """
+        for material in self.material_prices:
+            key = str(material).strip().lower()
+            if any(str(k).strip().lower() == key for k in self.material_densities):
+                continue
+            default = resolve_density(DEFAULT_MATERIAL_DENSITIES, material)
+            self.material_densities[str(material)] = default
+
+    def list_materials(self) -> list[str]:
+        """Усі матеріали з цінами, у порядку відображення (за абеткою)."""
+        self.reload()
+        return _material_names(self.material_prices)
+
+    def get_material_density(self, material, default=None) -> float:
+        """Густина матеріалу, кг/м³ (нечутливо до регістру)."""
+        self.reload()
+        fallback = default if default is not None else FALLBACK_DENSITY_KG_M3
+        return resolve_density(self.material_densities, material, default=fallback)
 
     def get_material_price(self, material, thickness, default=55.0):
         """Ціна металу за м², грн.
