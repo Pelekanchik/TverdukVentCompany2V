@@ -51,3 +51,9 @@ exports/*.csv
 !products_template.csv
 updates/
 *.zip
+
+# Службові логи локальних прогонів тестів
+*_out.txt
+*_log.txt
+min_*.txt
+dbg.txt
