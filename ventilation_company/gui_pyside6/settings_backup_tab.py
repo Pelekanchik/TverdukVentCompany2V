@@ -247,7 +247,7 @@ class BackupSettingsTab(QWidget):
         log_action(
             "backup.cloud_test",
             entity_type="database",
-            details=cloud_backup.summary_json(result),
+            details=result,
             actor=self.current_user,
         )
         return "\n".join(parts)
@@ -295,7 +295,7 @@ class BackupSettingsTab(QWidget):
                 log_action(
                     "backup.cloud_upload",
                     entity_type="database",
-                    details=cloud_backup.summary_json(result),
+                    details=result,
                     actor=self.current_user,
                 )
             return f"Бекап створено: {backup_path}"
