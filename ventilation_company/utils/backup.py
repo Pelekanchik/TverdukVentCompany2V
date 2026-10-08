@@ -48,7 +48,7 @@ def _database_url() -> str:
 def _find_pg_tool(name: str) -> str | None:
     """Знайти pg_dump/pg_restore: спочатку PATH, потім типові теки Windows.
 
-    Інсталятор PostgreSQL не додає bin\ у PATH, тому на чистих ПК
+    Інсталятор PostgreSQL не додає bin\\ у PATH, тому на чистих ПК
     інструменти недоступні за ім'ям — шукаємо їх самі.
     """
     from shutil import which
