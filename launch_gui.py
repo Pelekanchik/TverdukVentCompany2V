@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
 
 os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false")
 
@@ -34,6 +35,16 @@ def _log_unhandled(exc_type, exc, tb):
 sys.excepthook = _log_unhandled
 
 
+def _auto_backup() -> None:
+    """Резервна копія БД + налаштувань у фоні; не блокує і не ламає старт."""
+    try:
+        from ventilation_company.utils.backup import auto_backup_on_start
+
+        auto_backup_on_start(keep=7)
+    except Exception:
+        logging.exception("Auto backup failed")
+
+
 def main() -> None:
     app = QApplication(sys.argv)
     Theme.apply(app)
@@ -47,6 +58,8 @@ def main() -> None:
     if not user:
         sys.exit(0)
     login.hide()
+
+    threading.Thread(target=_auto_backup, daemon=True, name="autobackup").start()
 
     window = MainWindow(user)
     window.setAttribute(Qt.WA_DeleteOnClose, True)
