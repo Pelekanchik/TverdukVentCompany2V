@@ -138,9 +138,7 @@ class TestTabs:
         """Перемикання всіх вкладок не падає (regression для _build_*_tab)."""
         for i in range(card.tabs.count()):
             card.tabs.setCurrentIndex(i)
-            qtbot.waitUntil(
-                lambda i=i: card.tabs.currentIndex() == i, timeout=2000
-            )
+            qtbot.waitUntil(lambda i=i: card.tabs.currentIndex() == i, timeout=2000)
 
 
 class TestDrawingsTab:
