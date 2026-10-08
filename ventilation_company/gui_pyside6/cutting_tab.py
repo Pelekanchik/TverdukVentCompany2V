@@ -3,6 +3,8 @@
 Використовує ventilation_company.metal_cutting для розрахунку розгорток.
 """
 
+import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QBrush,
@@ -12,6 +14,7 @@ from PySide6.QtGui import (
     QMouseEvent,
     QPainter,
     QPen,
+    QPolygon,
     QStandardItem,
     QStandardItemModel,
     QWheelEvent,
@@ -156,9 +159,34 @@ class CuttingCanvas(QWidget):
         self.offset_y = 20.0
         self.dragging = False
         self.last_mouse = QPointF()
+        self.mouse_sheet_pos: QPointF | None = None  # позиція курсора в мм листа
         self.setMinimumSize(500, 800)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setMouseTracking(True)
         self.setStyleSheet(f"background-color: {Theme.BG_DARK}; border-radius: 8px;")
+
+    @staticmethod
+    def _arrow_head(p, x, y, angle_deg, size=6):
+        """Наконечник стрілки розмірної лінії."""
+        poly = QPolygon()
+        poly.append(QPointF(x, y).toPoint())
+        for delta in (150, -150):
+            rad = math.radians(angle_deg + delta)
+            poly.append(QPointF(x + size * math.cos(rad), y + size * math.sin(rad)).toPoint())
+        old_pen = p.pen()
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(old_pen.color()))
+        p.drawPolygon(poly)
+        p.setPen(old_pen)
+
+    def _dim_line(self, p, x1, y1, x2, y2, text="", text_dx=0, text_dy=0):
+        """Розмірна лінія зі стрілками на обох кінцях та підписом."""
+        angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        p.drawLine(int(x1), int(y1), int(x2), int(y2))
+        self._arrow_head(p, x2, y2, angle)
+        self._arrow_head(p, x1, y1, angle + 180)
+        mx, my = (x1 + x2) / 2 + text_dx, (y1 + y2) / 2 + text_dy
+        p.drawText(int(mx), int(my), text)
 
     def set_sheet(self, sheet):
         self.sheet_w = sheet.width
@@ -207,16 +235,29 @@ class CuttingCanvas(QWidget):
             y = oy + i * step
             painter.drawLine(int(ox), int(y), int(ox + sw), int(y))
 
-        # Розміри листа
+        # Розміри листа — розмірні лінії зі стрілками
         font_dim = QFont("Segoe UI", 10, QFont.Weight.Bold)
         painter.setFont(font_dim)
-        painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.drawText(int(ox + sw / 2 - 30), int(oy + sh + 18), f"{self.sheet_w:.0f} мм")
+        painter.setPen(QPen(QColor(Theme.TEXT_MUTED), 1))
+        dim_y = oy + sh + 16
+        painter.drawLine(int(ox), int(oy + sh), int(ox), int(dim_y + 4))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(ox + sw), int(dim_y + 4))
+        self._dim_line(painter, ox, dim_y, ox + sw, dim_y, f"{self.sheet_w:.0f} мм", text_dy=14)
+        dim_x = ox + sw + 16
+        painter.drawLine(int(ox + sw), int(oy), int(dim_x + 4), int(oy))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(dim_x + 4), int(oy + sh))
+        self._dim_line(painter, dim_x, oy, dim_x, oy + sh)
         painter.save()
-        painter.translate(int(ox + sw + 18), int(oy + sh / 2 + 30))
+        painter.translate(int(dim_x + 14), int(oy + sh / 2 + 25))
         painter.rotate(-90)
         painter.drawText(0, 0, f"{self.sheet_h:.0f} мм")
         painter.restore()
+
+        # Позначки осей X / Y
+        painter.setPen(QColor(Theme.TEXT_MUTED))
+        painter.drawText(int(ox + 4), int(oy + sh - 6), "0")
+        painter.drawText(int(ox + sw - 12), int(oy + sh - 6), "X →")
+        painter.drawText(int(ox + 4), int(oy + 14), "↑ Y")
 
         # Деталі
         fm = QFontMetrics(QFont("Segoe UI", 9))
@@ -271,15 +312,39 @@ class CuttingCanvas(QWidget):
                 painter.drawText(int(dx + 4), int(dy + 14), name)
                 painter.drawText(int(dx + 4), int(dy + 26), size_txt)
 
-        # Підказка
+            # Розмірні стрілки деталі (для великих прямокутників)
+            if dw >= 70 and dh >= 45:
+                dim_pen = QPen(color.darker(160), 1)
+                painter.setPen(dim_pen)
+                painter.setFont(QFont("Segoe UI", 8))
+                top_y = dy - 6
+                painter.drawLine(int(dx), int(dy), int(dx), int(top_y - 3))
+                painter.drawLine(int(dx + dw), int(dy), int(dx + dw), int(top_y - 3))
+                self._dim_line(painter, dx, top_y, dx + dw, top_y, f"Ш {p.width:.0f}", text_dy=-2)
+                left_x = dx - 6
+                painter.drawLine(int(dx), int(dy), int(left_x - 3), int(dy))
+                painter.drawLine(int(dx), int(dy + dh), int(left_x - 3), int(dy + dh))
+                self._dim_line(
+                    painter,
+                    left_x,
+                    dy,
+                    left_x,
+                    dy + dh,
+                    f"В {p.height:.0f}",
+                    text_dx=-52,
+                    text_dy=4,
+                )
+
+        # Підказка (+ координати курсора в мм)
         font_info = QFont("Segoe UI", 9)
         painter.setFont(font_info)
         painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.drawText(
-            10,
-            self.height() - 10,
-            f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб",
-        )
+        hint = f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб"
+        if self.mouse_sheet_pos is not None:
+            mx_mm = max(0.0, min(self.mouse_sheet_pos.x(), self.sheet_w))
+            my_mm = max(0.0, min(self.mouse_sheet_pos.y(), self.sheet_h))
+            hint = f"X: {mx_mm:.0f} мм   Y: {my_mm:.0f} мм   |   " + hint
+        painter.drawText(10, self.height() - 10, hint)
         painter.end()
 
     def wheelEvent(self, event: QWheelEvent):
@@ -300,17 +365,28 @@ class CuttingCanvas(QWidget):
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
     def mouseMoveEvent(self, event: QMouseEvent):
+        pos = event.position()
+        # Координати курсора в міліметрах листа (для підказки внизу)
+        self.mouse_sheet_pos = QPointF(
+            (pos.x() - self.offset_x) / self.scale,
+            (pos.y() - self.offset_y) / self.scale,
+        )
         if self.dragging:
-            delta = event.position() - self.last_mouse
+            delta = pos - self.last_mouse
             self.offset_x += delta.x()
             self.offset_y += delta.y()
-            self.last_mouse = event.position()
-            self.update()
+            self.last_mouse = pos
+        self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
             self.setCursor(Qt.CursorShape.OpenHandCursor)
+
+    def leaveEvent(self, event):
+        self.mouse_sheet_pos = None
+        self.update()
+        super().leaveEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
