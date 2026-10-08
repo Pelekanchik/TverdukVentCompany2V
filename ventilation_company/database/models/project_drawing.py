@@ -2,7 +2,8 @@
 
 На відміну від ProjectDocument (файл зберігається у БД як bytea),
 креслення — це посилання на файл на диску (DWG/DXF/PDF, моделі
-Revit/FreeCAD), який може бути великим і оновлюватися поза програмою.
+Revit/SolidWorks/FreeCAD: RVT/RFA, SLDPRT/SLDASM, FCSTD/STEP),
+який може бути великим і оновлюватися поза програмою.
 
 Таблиця: project_drawings
   • id — PK

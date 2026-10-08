@@ -56,3 +56,28 @@ class TestProjectDrawingRepository:
 
     def test_delete_unknown_id_noop(self, repo):
         repo.delete(999)  # не має підняти виняток
+
+    def test_update_type_and_notes(self, repo):
+        d = repo.create(project_id=1, filename="деталь.sldprt", file_path="/деталь.sldprt")
+        updated = repo.update(d["id"], drawing_type="деталювання", notes="замовнику на погодження")
+        assert updated["drawing_type"] == "деталювання"
+        assert updated["notes"] == "замовнику на погодження"
+        row = repo.get_by_project(1)[0]
+        assert row["drawing_type"] == "деталювання"
+        assert row["notes"] == "замовнику на погодження"
+
+    def test_update_unknown_id_returns_none(self, repo):
+        assert repo.update(999, drawing_type="модель") is None
+
+    def test_update_partial_keeps_other_fields(self, repo):
+        d = repo.create(
+            project_id=1,
+            filename="план.dwg",
+            file_path="/план.dwg",
+            drawing_type="креслення",
+            notes="старий поверх",
+        )
+        updated = repo.update(d["id"], notes="новий поверх")
+        assert updated["drawing_type"] == "креслення"  # не змінилось
+        assert updated["notes"] == "новий поверх"
+        assert updated["filename"] == "план.dwg"

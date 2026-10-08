@@ -29,6 +29,10 @@ class TestDrawingsTable:
         for ext in ("*.dwg", "*.dxf", "*.pdf", "*.rvt", "*.fcstd"):
             assert ext in DRAWING_FILE_FILTER
 
+    def test_file_filter_covers_solidworks_and_revit_family(self, qapp):
+        for ext in ("*.sldprt", "*.sldasm", "*.slddrw", "*.rfa", "*.rte"):
+            assert ext in DRAWING_FILE_FILTER
+
 
 class TestGuessDrawingType:
     def test_dwg_is_drawing(self):
@@ -42,3 +46,10 @@ class TestGuessDrawingType:
 
     def test_detailing_by_name(self):
         assert ProjectCardDialog._guess_drawing_type("C:/x/деталювання_вузла.pdf") == "деталювання"
+
+    def test_solidworks_part_and_assembly_are_models(self):
+        assert ProjectCardDialog._guess_drawing_type("C:/x/фланець.sldprt") == "модель"
+        assert ProjectCardDialog._guess_drawing_type("C:/x/вузол_заслінки.sldasm") == "модель"
+
+    def test_solidworks_drawing_is_drawing(self):
+        assert ProjectCardDialog._guess_drawing_type("C:/x/вид_збоку.slddrw") == "креслення"

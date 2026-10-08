@@ -15,10 +15,14 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableView,
@@ -531,8 +535,8 @@ class ProjectCardDocsMixin:
         layout.addLayout(top)
 
         hint = QLabel(
-            "DWG · DXF · PDF · Revit · FreeCAD. Можна перетягнути файли мишкою прямо в таблицю. "
-            "Подвійний клік — відкрити."
+            "DWG · DXF · PDF · Revit (RVT/RFA) · SolidWorks (SLDPRT/SLDASM/SLDDRW) · FreeCAD. "
+            "Можна перетягнути файли мишкою прямо в таблицю. Подвійний клік — відкрити."
         )
         hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
         layout.addWidget(hint)
@@ -550,6 +554,9 @@ class ProjectCardDocsMixin:
         btn_open = QPushButton("📂 Відкрити")
         btn_open.clicked.connect(self._on_open_drawing)
         actions.addWidget(btn_open)
+        btn_edit = QPushButton("✏️ Змінити")
+        btn_edit.clicked.connect(self._on_edit_drawing)
+        actions.addWidget(btn_edit)
         btn_del = QPushButton("🗑️ Видалити")
         btn_del.setStyleSheet(f"color: {Theme.DANGER};")
         btn_del.clicked.connect(self._on_delete_drawing)
@@ -606,7 +613,17 @@ class ProjectCardDocsMixin:
     @staticmethod
     def _guess_drawing_type(path: str) -> str:
         ext = os.path.splitext(path)[1].lower()
-        if ext in (".rvt", ".rfa", ".ifc", ".fcstd", ".step", ".stp"):
+        if ext in (
+            ".rvt",
+            ".rfa",
+            ".rte",
+            ".ifc",
+            ".fcstd",
+            ".step",
+            ".stp",
+            ".sldprt",
+            ".sldasm",
+        ):
             return "модель"
         if "детал" in os.path.basename(path).lower():
             return "деталювання"
@@ -638,6 +655,40 @@ class ProjectCardDocsMixin:
             )
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+
+    def _on_edit_drawing(self):
+        drawing = self._selected_drawing()
+        if not drawing:
+            QMessageBox.warning(self, "Увага", "Оберіть креслення для редагування")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Змінити — {drawing['filename']}")
+        layout = QFormLayout(dialog)
+        combo_type = QComboBox()
+        combo_type.addItems(["креслення", "модель", "деталювання"])
+        combo_type.setCurrentText(drawing["drawing_type"])
+        layout.addRow("Тип:", combo_type)
+        edit_notes = QLineEdit(drawing.get("notes") or "")
+        edit_notes.setPlaceholderText("Примітка (необов'язково)")
+        layout.addRow("Примітка:", edit_notes)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            ProjectDrawingRepository.update(
+                drawing["id"],
+                drawing_type=combo_type.currentText(),
+                notes=edit_notes.text().strip(),
+            )
+            self._reload_all()
+            QMessageBox.information(self, "Успіх", "Зміни збережено")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти зміни: {e}")
 
     def _on_delete_drawing(self):
         drawing = self._selected_drawing()

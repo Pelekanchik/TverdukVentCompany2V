@@ -354,6 +354,6 @@ class DrawingsTable(QTableWidget):
 
 
 DRAWING_FILE_FILTER = (
-    "Креслення та моделі (*.dwg *.dxf *.pdf *.rvt *.rfa *.ifc "
-    "*.fcstd *.step *.stp);;Всі файли (*)"
+    "Креслення та моделі (*.dwg *.dxf *.pdf *.rvt *.rfa *.rte *.ifc "
+    "*.fcstd *.step *.stp *.sldprt *.sldasm *.slddrw);;Всі файли (*)"
 )

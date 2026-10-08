@@ -75,6 +75,42 @@ class ProjectDrawingRepository:
             ]
 
     @staticmethod
+    def update(
+        drawing_id: int,
+        drawing_type: str | None = None,
+        notes: str | None = None,
+    ) -> dict | None:
+        """Оновити тип і/або примітку креслення. Повертає оновлений запис."""
+        with get_db() as session:
+            drawing = session.get(ProjectDrawing, drawing_id)
+            if drawing is None:
+                return None
+            if drawing_type is not None:
+                drawing.drawing_type = drawing_type
+            if notes is not None:
+                drawing.notes = notes
+            session.commit()
+            log_action(
+                "drawing.update",
+                entity_type="drawing",
+                entity_id=drawing.id,
+                details={
+                    "project_id": drawing.project_id,
+                    "filename": drawing.filename,
+                    "drawing_type": drawing.drawing_type,
+                },
+            )
+            return {
+                "id": drawing.id,
+                "project_id": drawing.project_id,
+                "filename": drawing.filename,
+                "file_path": drawing.file_path,
+                "drawing_type": drawing.drawing_type,
+                "notes": drawing.notes,
+                "created_at": drawing.created_at,
+            }
+
+    @staticmethod
     def delete(drawing_id: int) -> None:
         with get_db() as session:
             drawing = session.get(ProjectDrawing, drawing_id)
