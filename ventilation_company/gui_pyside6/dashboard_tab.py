@@ -62,14 +62,18 @@ class StatCard(QFrame):
 
     def __init__(self, icon, value, label, color, parent=None):
         super().__init__(parent)
+        # objectName + селектор з ім'ям: без цього правило QFrame {…}
+        # застосовується і до всіх QLabel усередині (QLabel — нащадок QFrame)
+        # — рамки навколо кожного напису та обрізаний текст.
+        self.setObjectName("statCard")
         self.setStyleSheet(f"""
-            QFrame {{
+            QFrame#statCard {{
                 background-color: {Theme.BG_CARD};
                 border: 1px solid {Theme.BORDER};
                 border-radius: 12px;
                 padding: 16px;
             }}
-            QFrame:hover {{
+            QFrame#statCard:hover {{
                 border-color: {color};
             }}
         """)
@@ -96,8 +100,11 @@ class _ChartCard(QFrame):
 
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
+        self.setObjectName(
+            "chartCard"
+        )  # див. коментар у StatCard — інакше QSS ліпить рамки на QLabel
         self.setStyleSheet(f"""
-            QFrame {{
+            QFrame#chartCard {{
                 background-color: {Theme.BG_CARD};
                 border: 1px solid {Theme.BORDER};
                 border-radius: 12px;
@@ -216,7 +223,9 @@ class DashboardTab(QWidget):
         series = QBarSeries()
         series.append(bar_set)
         series.setLabelsVisible(True)
-        series.setLabelsFormat("@Value")
+        series.setLabelsFormat(
+            "@value"
+        )  # Qt 6: лише нижній регістр, інакше друкує "@Value" буквально
         series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
         chart = QChart()
@@ -232,7 +241,7 @@ class DashboardTab(QWidget):
         axis_y = QValueAxis()
         axis_y.setLabelsColor(QColor(Theme.TEXT))
         axis_y.setGridLineColor(QColor(Theme.BORDER_LIGHT))
-        axis_y.setLabelFormat("%.0f")
+        axis_y.setLabelFormat("%.1f" if values and max(values) < 10 else "%.0f")
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
         axis_y.applyNiceNumbers()
