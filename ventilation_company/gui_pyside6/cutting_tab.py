@@ -4,6 +4,7 @@
 """
 
 import math
+from datetime import datetime
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -37,6 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.cutting_pdf_generator import generate_cutting_pdf
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.metal_cutting import MetalCutter
@@ -591,7 +594,8 @@ class CuttingTab(QWidget):
 
         nav.addSpacing(24)
 
-        btn_export = QPushButton("📤 Експорт PNG")
+        btn_export = QPushButton("📤 Експорт PDF")
+        btn_export.setToolTip("PDF: схема кожного листа + таблиця деталей для цеху")
         btn_export.clicked.connect(self._on_export)
         nav.addWidget(btn_export)
 
@@ -767,7 +771,34 @@ class CuttingTab(QWidget):
             self._show_sheet(self._current_sheet_idx)
 
     def _on_export(self):
-        QMessageBox.information(self, "Експорт", "Експорт плану розкрою (PNG/PDF) буде тут")
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Експорт", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF плану розкрою",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_cutting_pdf(
+                self._plan,
+                path,
+                meta={
+                    "sheet_size": self.combo_sheet.currentText(),
+                    "material": self.combo_material.currentText(),
+                    "thickness": self.combo_thick.currentText(),
+                },
+            )
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Експорт", f"PDF збережено:\n{path}")
 
     def refresh(self):
         pass
