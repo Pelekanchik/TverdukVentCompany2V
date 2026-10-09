@@ -4,6 +4,9 @@
 """
 
 import math
+import os
+import tempfile
+from contextlib import suppress
 from datetime import datetime
 
 from PySide6.QtCore import QPointF, QRectF, Qt
@@ -42,7 +45,12 @@ from PySide6.QtWidgets import (
 from ventilation_company.cutting_pdf_generator import generate_cutting_pdf
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.metal_cutting import MetalCutter
+from ventilation_company.utils.cloud_backup import (
+    cloud_backup_preferences,
+    send_telegram_document,
+)
 
 
 class AddProductDialog(QDialog):
@@ -599,6 +607,14 @@ class CuttingTab(QWidget):
         btn_export.clicked.connect(self._on_export)
         nav.addWidget(btn_export)
 
+        self._btn_tg = QPushButton("📨 В Telegram")
+        self._btn_tg.setToolTip(
+            "Надіслати PDF плану розкрою в Telegram-чат\n"
+            "(токен бота та chat_id — у Налаштування → Резервні копії → Telegram)"
+        )
+        self._btn_tg.clicked.connect(self._on_send_telegram)
+        nav.addWidget(self._btn_tg)
+
         layout.addLayout(nav)
 
     def _load_default_products(self):
@@ -786,19 +802,74 @@ class CuttingTab(QWidget):
         if not path.lower().endswith(".pdf"):
             path += ".pdf"
         try:
-            generate_cutting_pdf(
-                self._plan,
-                path,
-                meta={
-                    "sheet_size": self.combo_sheet.currentText(),
-                    "material": self.combo_material.currentText(),
-                    "thickness": self.combo_thick.currentText(),
-                },
-            )
+            generate_cutting_pdf(self._plan, path, meta=self._pdf_meta())
         except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
             QMessageBox.critical(self, "Помилка експорту", str(e))
             return
         QMessageBox.information(self, "Експорт", f"PDF збережено:\n{path}")
+
+    def _pdf_meta(self) -> dict:
+        return {
+            "sheet_size": self.combo_sheet.currentText(),
+            "material": self.combo_material.currentText(),
+            "thickness": self.combo_thick.currentText(),
+        }
+
+    def _on_send_telegram(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Telegram", "Спочатку розрахуйте план розкрою")
+            return
+        _enabled, token, chat = cloud_backup_preferences()
+        if not token or not chat:
+            QMessageBox.warning(
+                self,
+                "Telegram",
+                "Бот не налаштовано.\n\nВкажіть токен бота та chat_id у:\n"
+                "Налаштування → Резервні копії → Telegram.",
+            )
+            return
+
+        tmp_path = os.path.join(
+            tempfile.gettempdir(),
+            f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M%S}.pdf",
+        )
+        try:
+            generate_cutting_pdf(self._plan, tmp_path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            self._cleanup_tmp(tmp_path)
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зібрати PDF:\n{e}")
+            return
+
+        caption = (
+            f"📐 План розкрою: {self.combo_sheet.currentText()} | "
+            f"{self.combo_material.currentText()} {self.combo_thick.currentText()} мм"
+        )
+        self._btn_tg.setEnabled(False)
+        self._tg_worker = FunctionWorker(send_telegram_document, token, chat, tmp_path, caption)
+        self._tg_worker.result.connect(lambda ok: self._on_tg_sent(ok, tmp_path))
+        self._tg_worker.error.connect(lambda msg: self._on_tg_error(msg, tmp_path))
+        self._tg_worker.finished.connect(lambda: self._btn_tg.setEnabled(True))
+        self._tg_worker.start()
+
+    @staticmethod
+    def _cleanup_tmp(path: str):
+        with suppress(OSError):
+            os.unlink(path)
+
+    def _on_tg_sent(self, ok: bool, tmp_path: str):
+        self._cleanup_tmp(tmp_path)
+        if ok:
+            QMessageBox.information(self, "Telegram", "✅ PDF плану розкрою надіслано в чат")
+        else:
+            QMessageBox.warning(
+                self,
+                "Telegram",
+                "Не вдалося надіслати файл.\nПеревірте токен, chat_id та інтернет-з'єднання.",
+            )
+
+    def _on_tg_error(self, message: str, tmp_path: str):
+        self._cleanup_tmp(tmp_path)
+        QMessageBox.critical(self, "Telegram", f"Помилка відправки:\n{message}")
 
     def refresh(self):
         pass
