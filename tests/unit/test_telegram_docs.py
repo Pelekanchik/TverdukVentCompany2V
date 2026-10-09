@@ -106,7 +106,7 @@ def test_helper_warns_without_bot(qapp, monkeypatch):
     monkeypatch.setattr(telegram_send, "cloud_backup_preferences", lambda: (False, "", ""))
     monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: None))
     parent = QtWidgets.QWidget()
-    assert telegram_send.send_document_telegram(parent, "x.pdf", "cap") is False
+    assert telegram_send.send_document_telegram(parent, "x.pdf", "cap") is None
     assert not hasattr(parent, "_tg_doc_worker")
 
 
@@ -126,7 +126,7 @@ def test_helper_sends_file_in_background(qapp, monkeypatch, tmp_path):
     pdf = tmp_path / "doc.pdf"
     pdf.write_bytes(b"%PDF-fake")
     parent = QtWidgets.QWidget()
-    assert telegram_send.send_document_telegram(parent, str(pdf), "Підпис") is True
+    assert telegram_send.send_document_telegram(parent, str(pdf), "Підпис") is not None
     worker = parent._tg_doc_worker
     assert worker is not None
     worker.wait(5000)

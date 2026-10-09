@@ -832,12 +832,12 @@ class CuttingTab(QWidget):
             f"{self.combo_material.currentText()} {self.combo_thick.currentText()} мм"
         )
         self._btn_tg.setEnabled(False)
-        started = send_document_telegram(self, tmp_path, caption, delete_after=True)
-        if not started:  # бот не налаштовано — тимчасовий файл уже не потрібен
+        worker = send_document_telegram(self, tmp_path, caption, delete_after=True)
+        if worker is None:  # бот не налаштовано — тимчасовий файл уже не потрібен
             self._cleanup_tmp(tmp_path)
             self._btn_tg.setEnabled(True)
         else:  # повертаємо кнопку після завершення фонової відправки
-            self._tg_doc_worker.finished.connect(lambda: self._btn_tg.setEnabled(True))
+            worker.finished.connect(lambda: self._btn_tg.setEnabled(True))
 
     @staticmethod
     def _cleanup_tmp(path: str):

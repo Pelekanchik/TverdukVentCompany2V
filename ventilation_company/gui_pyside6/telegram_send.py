@@ -32,18 +32,16 @@ def telegram_prefs_or_warn(parent) -> tuple[str, str] | None:
     return token, chat
 
 
-def send_document_telegram(
-    parent, file_path: str, caption: str, delete_after: bool = False
-) -> bool:
+def send_document_telegram(parent, file_path: str, caption: str, delete_after: bool = False):
     """Запустити фонову відправку файлу в Telegram та показати результат.
 
-    Повертає False, якщо відправку не розпочато (бот не налаштовано).
-    Результат (успіх/помилка) повідомляється окремим діалогом.
-    delete_after=True — видалити тимчасовий файл після відправки.
+    Повертає worker (QThread) або None, якщо відправку не розпочато
+    (бот не налаштовано). Результат (успіх/помилка) повідомляється
+    окремим діалогом. delete_after=True — видалити тимчасовий файл після відправки.
     """
     prefs = telegram_prefs_or_warn(parent)
     if prefs is None:
-        return False
+        return None
     token, chat = prefs
     worker = FunctionWorker(send_telegram_document, token, chat, file_path, caption)
 
@@ -63,7 +61,7 @@ def send_document_telegram(
     parent._tg_doc_worker = worker
     worker.finished.connect(lambda: setattr(parent, "_tg_doc_worker", None))
     worker.start()
-    return True
+    return worker
 
 
 def _cleanup(path: str):
