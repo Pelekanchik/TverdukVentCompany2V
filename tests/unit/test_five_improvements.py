@@ -28,6 +28,8 @@ def _no_modal_boxes(monkeypatch):
         "PySide6.QtWidgets.QMessageBox.question",
         staticmethod(lambda *a, **k: QMessageBox.StandardButton.No),
     )
+    # Трикнопковий діалог після збереження документа — не відкривати реальний exec
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.exec", lambda self: 0)
 
 
 CARD_DATA = {

@@ -45,6 +45,7 @@ from ventilation_company.gui_pyside6.project_card_dialogs import (
     DrawingsTable,
 )
 from ventilation_company.gui_pyside6.table_utils import setup_table
+from ventilation_company.gui_pyside6.telegram_send import send_document_telegram
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.invoice_generator import generate_invoice
 from ventilation_company.material_order import (
@@ -84,6 +85,21 @@ class ProjectCardDocsMixin:
                 "Документи",
                 f"Файл збережено, але не вдалося додати його у «Документи»:\n{exc}",
             )
+
+    def _offer_after_save(self, path: str, caption: str):
+        """Після збереження документа: відкрити файл, надіслати в Telegram чи закрити."""
+        box = QMessageBox()
+        box.setWindowTitle("Готово")
+        box.setText(f"Файл збережено:\n{path}")
+        btn_open = box.addButton("📂 Відкрити", QMessageBox.ButtonRole.AcceptRole)
+        btn_tg = box.addButton("📨 В Telegram", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("Закрити", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is btn_open:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        elif clicked is btn_tg:
+            send_document_telegram(self, path, caption)
 
     def _on_contract_pdf(self):
         """Згенерувати договір (PDF) з реквізитами сторін."""
@@ -129,14 +145,10 @@ class ProjectCardDocsMixin:
             },
             message=f"Сформовано договір {project_data['contract_number']}",
         )
-        answer = QMessageBox.question(
-            self,
-            "Готово",
-            f"Договір {project_data['contract_number']} збережено:\n{path}\n\nВідкрити файл?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        self._offer_after_save(
+            path,
+            f"📄 Договір {project_data['contract_number']} — {name}",
         )
-        if answer == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _on_proposal_pdf(self):
         """Згенерувати комерційну пропозицію (PDF) для замовника."""
@@ -173,14 +185,7 @@ class ProjectCardDocsMixin:
             QMessageBox.critical(self, "Помилка", f"Не вдалося сформувати КП:\n{exc}")
             return
         self._register_document("кп", path)
-        answer = QMessageBox.question(
-            self,
-            "Готово",
-            f"Комерційну пропозицію збережено:\n{path}\n\nВідкрити файл?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        self._offer_after_save(path, f"📋 Комерційна пропозиція — {name}")
 
     def _on_proposal_excel(self):
         """Експорт комерційної пропозиції у Excel."""
@@ -274,14 +279,7 @@ class ProjectCardDocsMixin:
             },
             message=f"Сформовано акт {project_data['act_number']}",
         )
-        answer = QMessageBox.question(
-            self,
-            "Готово",
-            f"Акт {project_data['act_number']} збережено:\n{path}\n\nВідкрити файл?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        self._offer_after_save(path, f"✅ Акт {project_data['act_number']} — {name}")
 
     def _collect_document_items(self) -> list[dict]:
         """Позиції для КП/акта/рахунка: виробі (зі знижкою, якщо є) + роботи."""
@@ -362,14 +360,7 @@ class ProjectCardDocsMixin:
             },
             message=f"Сформовано рахунок {project_data['invoice_number']}",
         )
-        answer = QMessageBox.question(
-            self,
-            "Готово",
-            f"Рахунок {project_data['invoice_number']} збережено:\n{path}\n\nВідкрити файл?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        self._offer_after_save(path, f"🧾 Рахунок {project_data['invoice_number']} — {name}")
 
     def _on_material_order(self):
         """Розрахувати заявку на матеріали за виробами проєкту та зберегти в Excel."""

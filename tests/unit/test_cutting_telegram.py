@@ -14,16 +14,18 @@ def qapp():
 def _make_tab(
     qapp, monkeypatch, tmp_path, *, plan_ready: bool, token: str = "tok", chat: str = "1"
 ):
-    from ventilation_company.gui_pyside6 import cutting_tab
+    from ventilation_company.gui_pyside6 import telegram_send
 
-    monkeypatch.setattr(cutting_tab, "cloud_backup_preferences", lambda: (True, token, chat))
+    monkeypatch.setattr(telegram_send, "cloud_backup_preferences", lambda: (True, token, chat))
     sent: list[tuple] = []
 
     def fake_send(token_, chat_, file_path, caption=""):
         sent.append((token_, chat_, file_path, caption))
         return True
 
-    monkeypatch.setattr(cutting_tab, "send_telegram_document", fake_send)
+    monkeypatch.setattr(telegram_send, "send_telegram_document", fake_send)
+
+    from ventilation_company.gui_pyside6 import cutting_tab
 
     tab = cutting_tab.CuttingTab()
     if plan_ready:
@@ -79,8 +81,8 @@ def test_send_telegram_ok(qapp, monkeypatch, tmp_path):
     tab, sent = _make_tab(qapp, monkeypatch, tmp_path, plan_ready=True)
     tab._on_send_telegram()
     # чекаємо завершення фонового потоку
-    if tab._tg_worker is not None:
-        tab._tg_worker.wait(5000)
+    if tab._tg_doc_worker is not None:
+        tab._tg_doc_worker.wait(5000)
     assert len(sent) == 1
     token_, chat_, file_path, caption = sent[0]
     assert token_ == "tok" and chat_ == "1"

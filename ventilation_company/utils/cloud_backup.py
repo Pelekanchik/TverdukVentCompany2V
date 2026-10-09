@@ -20,6 +20,7 @@ import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
+from urllib import parse as urlparse
 from urllib import request as urlrequest
 
 from ventilation_company.utils.logging_config import get_logger
@@ -27,7 +28,28 @@ from ventilation_company.utils.logging_config import get_logger
 logger = get_logger("cloud_backup")
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/sendDocument"
+TELEGRAM_MESSAGE_API = "https://api.telegram.org/bot{token}/sendMessage"
 TELEGRAM_MAX_BYTES = 50 * 1024 * 1024  # ліміт Bot API на файл
+
+
+def send_telegram_message(token: str, chat_id: str, text: str) -> bool:
+    """Надіслати текстове повідомлення у Telegram-чат (sendMessage).
+
+    Повертає True при HTTP 200. Винятки не підіймає — лише лог + False.
+    """
+    body = urlparse.urlencode({"chat_id": chat_id, "text": text}).encode()
+    req = urlrequest.Request(
+        TELEGRAM_MESSAGE_API.format(token=token),
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=30) as resp:
+            return resp.status == 200
+    except Exception as exc:  # noqa: BLE001 — мережа недоступна, токен невалідний тощо
+        logger.error("Telegram message failed: %s", exc)
+        return False
+
 
 # Типові місця хмарних тек на Windows (відносно профілю користувача).
 CLOUD_FOLDER_CANDIDATES = (

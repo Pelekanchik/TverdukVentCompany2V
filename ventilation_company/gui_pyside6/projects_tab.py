@@ -35,7 +35,10 @@ from ventilation_company.database.repositories.project_repo import ProjectReposi
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
+from ventilation_company.services.project_notifications import notify_project_created
+from ventilation_company.utils.logging_config import get_logger
 
 
 class ProjectEditDialog(QDialog):
@@ -646,8 +649,27 @@ class ProjectsTab(QWidget):
                 if self.main_window:
                     self.main_window.set_active_project(project_id)
                 QMessageBox.information(self, "Успіх", f"Проєкт створено (ID: {project_id})")
+                self._notify_telegram_project_created({**data, "id": project_id})
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося створити: {e}")
+
+    def _notify_telegram_project_created(self, project: dict):
+        """Фонова відправка звіту про новий проєкт у Telegram (не блокує GUI)."""
+        worker = FunctionWorker(notify_project_created, project)
+        worker.result.connect(self._on_project_notify_result)
+        worker.error.connect(lambda _msg: None)  # сповіщення не критичне
+        self._tg_notify_worker = worker  # утримуємо посилання, щоб GC не зібрав
+        worker.finished.connect(lambda: setattr(self, "_tg_notify_worker", None))
+        worker.start()
+
+    @staticmethod
+    def _on_project_notify_result(ok: bool):
+        """Результат відправки звіту — лише лог, без діалогів (щоб не заважати)."""
+        logger = get_logger("projects_tab")
+        if ok:
+            logger.info("Telegram: звіт про новий проєкт надіслано")
+        else:
+            logger.warning("Telegram: звіт про новий проєкт НЕ надіслано (бот чи мережа)")
 
     def _on_edit(self):
         project_id = self._get_selected_id()

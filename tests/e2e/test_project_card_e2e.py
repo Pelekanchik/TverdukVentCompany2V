@@ -96,6 +96,8 @@ def _no_modal_boxes(monkeypatch):
         "question",
         staticmethod(lambda *a, **k: QMessageBox.StandardButton.No),
     )
+    # Трикнопковий діалог після збереження документа — не відкривати реальний exec
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
 
 
 @pytest.fixture
