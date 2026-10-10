@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtCharts import (
     QBarCategoryAxis,
     QBarSeries,
@@ -19,8 +21,18 @@ from PySide6.QtCharts import (
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
+from ventilation_company.dashboard_pdf_generator import generate_dashboard_pdf
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.dashboard_service import DashboardService
 
@@ -140,6 +152,7 @@ class DashboardTab(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._last_stats: dict | None = None
         self._build_ui()
         self.refresh()
         self._timer = QTimer(self)
@@ -164,6 +177,14 @@ class DashboardTab(QWidget):
         lbl_sub = QLabel("Огляд проєктів, оплат та дебіторки • оновлюється автоматично щохвилини")
         lbl_sub.setObjectName("subtitle")
         layout.addWidget(lbl_sub)
+
+        top_row = QHBoxLayout()
+        top_row.addStretch()
+        btn_pdf = QPushButton("📄 Експорт PDF")
+        btn_pdf.setToolTip("Односторінковий PDF-звіт поточних показників для друку")
+        btn_pdf.clicked.connect(self._on_export_pdf)
+        top_row.addWidget(btn_pdf)
+        layout.addLayout(top_row)
 
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(16)
@@ -289,6 +310,7 @@ class DashboardTab(QWidget):
         """Оновити дані дашборду через DashboardService."""
         try:
             stats = DashboardService.overview()
+            self._last_stats = stats
             self._set_stat(self.card_projects, f"{stats['total_count']} ({stats['active_count']})")
             self._set_stat(self.card_revenue, _fmt_uah(stats["total_revenue"]))
             self._set_stat(self.card_paid, _fmt_uah(stats["paid"]))
@@ -307,8 +329,41 @@ class DashboardTab(QWidget):
                 )
             )
         except Exception as e:  # noqa: BLE001 — дашборд не повинен падати
+            self._last_stats = None
             self._set_stat(self.card_projects, "—")
             self._set_stat(self.card_revenue, "—")
             self._set_stat(self.card_paid, "—")
             self._set_stat(self.card_debt, "—")
             self.lbl_footer.setText(f"Помилка завантаження даних: {e}")
+
+    def _on_export_pdf(self) -> None:
+        """Експорт поточних показників дашборду в односторінковий PDF."""
+        stats = getattr(self, "_last_stats", None)
+        if stats is None:
+            QMessageBox.warning(
+                self,
+                "Експорт PDF",
+                "Немає даних для експорту — спочатку дочекайтеся завантаження дашборду.",
+            )
+            return
+        default_name = f"dashboard_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF-звіт дашборду",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_dashboard_pdf(stats, path)
+        except Exception as e:  # noqa: BLE001 — показати користувачеві, не падаємо
+            QMessageBox.critical(self, "Експорт PDF", f"Не вдалося створити PDF:\n{e}")
+            return
+        QMessageBox.information(
+            self,
+            "Експорт PDF",
+            f"PDF-звіт збережено:\n{path}",
+        )

@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
@@ -24,7 +24,9 @@ from ventilation_company.gui_pyside6.specification_tab import SpecificationTab
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.update_checker import UpdateChecker
 from ventilation_company.gui_pyside6.warehouse_tab import WarehouseTab
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.auth_service import AuthUser
+from ventilation_company.services.project_notifications import check_stuck_projects
 
 _SETTINGS_ORG = "VentCompany"
 _SETTINGS_APP = "VentCompany"
@@ -96,6 +98,20 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(geometry)
         self.update_checker = UpdateChecker(self)
         self.update_checker.start()
+        # ⏰ Нагадування про «завислі» проєкти: при старті і раз на годину
+        self._stuck_timer = QTimer(self)
+        self._stuck_timer.setInterval(60 * 60 * 1000)
+        self._stuck_timer.timeout.connect(self._check_stuck_projects)
+        self._stuck_timer.start()
+        QTimer.singleShot(30_000, self._check_stuck_projects)
+
+    def _check_stuck_projects(self):
+        """Фонова перевірка проєктів без руху → Telegram (тихо при помилках)."""
+        worker = FunctionWorker(check_stuck_projects)
+        worker.error.connect(lambda _msg: None)
+        self._stuck_worker = worker  # захист від збирання сміття
+        worker.finished.connect(lambda: setattr(self, "_stuck_worker", None))
+        worker.start()
 
     def _activate_tab(self, tab_id: str):
         self.sidebar.set_active(tab_id)

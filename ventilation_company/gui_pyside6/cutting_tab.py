@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.cutting_labels_generator import generate_labels_pdf
 from ventilation_company.cutting_pdf_generator import generate_cutting_pdf
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.telegram_send import send_document_telegram
@@ -611,6 +612,14 @@ class CuttingTab(QWidget):
         self._btn_tg.clicked.connect(self._on_send_telegram)
         nav.addWidget(self._btn_tg)
 
+        btn_labels = QPushButton("🏷️ Етикетки")
+        btn_labels.setToolTip(
+            "PDF-етикетки з QR-кодами для всіх деталей розкрою (A4, 2×5 на аркуші)\n"
+            "— роздрукувати, нарізати й наклеїти на деталі для цеху"
+        )
+        btn_labels.clicked.connect(self._on_export_labels)
+        nav.addWidget(btn_labels)
+
         layout.addLayout(nav)
 
     def _load_default_products(self):
@@ -803,6 +812,28 @@ class CuttingTab(QWidget):
             QMessageBox.critical(self, "Помилка експорту", str(e))
             return
         QMessageBox.information(self, "Експорт", f"PDF збережено:\n{path}")
+
+    def _on_export_labels(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Етикетки", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"etykety_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF етикеток для деталей",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_labels_pdf(self._plan, path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Етикетки", f"PDF етикеток збережено:\n{path}")
 
     def _pdf_meta(self) -> dict:
         return {

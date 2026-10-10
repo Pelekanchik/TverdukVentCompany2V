@@ -12,8 +12,8 @@ import os
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QStandardItem, QStandardItemModel
+from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QPixmap, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -25,11 +25,17 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSplitter,
     QTableView,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+
+try:  # QtPdf існує не в усіх збірках Qt6
+    from PySide6.QtPdf import QPdfDocument
+except ImportError:  # pragma: no cover
+    QPdfDocument = None  # type: ignore[assignment, misc]
 
 from ventilation_company.act_generator import generate_act
 from ventilation_company.contract_generator import generate_contract
@@ -537,8 +543,27 @@ class ProjectCardDocsMixin:
         self.drawings_table.setHorizontalHeaderLabels(["Назва", "Тип", "Шлях", "Примітка", "Дата"])
         setup_table(self.drawings_table, select_rows=True, single_selection=True, read_only=True)
         self.drawings_table.itemDoubleClicked.connect(self._on_open_drawing)
+        self.drawings_table.itemSelectionChanged.connect(self._update_drawing_preview)
         self.drawings_table.filesDropped.connect(self._add_drawing_paths)
-        layout.addWidget(self.drawings_table)
+
+        # Попередній перегляд обраного креслення (PDF / картинки).
+        self._drawing_preview = QLabel("Оберіть креслення для перегляду")
+        self._drawing_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._drawing_preview.setMinimumWidth(300)
+        self._drawing_preview.setMinimumHeight(380)
+        self._drawing_preview.setWordWrap(True)
+        self._drawing_preview.setStyleSheet(
+            f"color: {Theme.TEXT_MUTED}; font-size: 12px; border: 1px dashed {Theme.BORDER};"
+        )
+        # Без parent — self не QObject; посилання зберігаємо у self._pdf_doc
+        self._pdf_doc = QPdfDocument() if QPdfDocument is not None else None
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(self.drawings_table)
+        splitter.addWidget(self._drawing_preview)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+        layout.addWidget(splitter)
 
         actions = QHBoxLayout()
         actions.addStretch()
@@ -630,6 +655,58 @@ class ProjectCardDocsMixin:
             if d["id"] == drawing_id:
                 return d
         return None
+
+    _PREVIEW_IMAGES = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
+
+    def _set_preview_message(self, text: str) -> None:
+        self._drawing_preview.setPixmap(QPixmap())
+        self._drawing_preview.setText(text)
+
+    def _update_drawing_preview(self) -> None:
+        """Показати мініатюру обраного креслення (PDF/картинки) у правій панелі."""
+        drawing = self._selected_drawing()
+        if not drawing:
+            self._set_preview_message("Оберіть креслення для перегляду")
+            return
+        path = drawing.get("file_path") or ""
+        if not path or not os.path.exists(path):
+            self._set_preview_message(f"Файл не знайдено:\n{path or '—'}")
+            return
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".pdf" and self._pdf_doc is not None:
+            try:
+                self._pdf_doc.load(path)
+                image = self._pdf_doc.render(0, QSize(760, 1100))
+                if image.isNull():
+                    self._set_preview_message("Не вдалося відрендерити сторінку PDF")
+                    return
+                self._drawing_preview.setPixmap(QPixmap.fromImage(image))
+                self._drawing_preview.setText("")
+                return
+            except Exception as e:  # noqa: BLE001 — попередній перегляд не критичний
+                self._set_preview_message(f"Помилка перегляду PDF:\n{e}")
+                return
+        if ext in self._PREVIEW_IMAGES:
+            pixmap = QPixmap(path)
+            if pixmap.isNull():
+                self._set_preview_message("Не вдалося завантажити зображення")
+                return
+            self._drawing_preview.setPixmap(
+                pixmap.scaled(
+                    self._drawing_preview.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+            self._drawing_preview.setText("")
+            return
+        if ext == ".pdf":
+            self._set_preview_message("Модуль QtPdf недоступний у цій збірці Qt")
+            return
+        self._set_preview_message(
+            f"Попередній перегляд недоступний для {ext.upper()}\n"
+            "Відкрийте файл кнопкою «📂 Відкрити»"
+        )
 
     def _on_open_drawing(self, *_args):
         drawing = self._selected_drawing()

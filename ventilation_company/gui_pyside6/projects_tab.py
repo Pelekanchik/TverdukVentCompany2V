@@ -37,7 +37,10 @@ from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
-from ventilation_company.services.project_notifications import notify_project_created
+from ventilation_company.services.project_notifications import (
+    notify_project_created,
+    notify_project_status_changed,
+)
 from ventilation_company.utils.logging_config import get_logger
 
 
@@ -696,8 +699,21 @@ class ProjectsTab(QWidget):
                 )
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Проєкт оновлено!")
+                old_status = project_data.get("status") or ""
+                if old_status != (data.get("status") or ""):
+                    self._notify_status_telegram({**data, "id": project_id}, old_status)
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося оновити: {e}")
+
+    def _notify_status_telegram(self, project: dict, old_status: str):
+        """Фонове сповіщення про зміну статусу проєкту (не критичне)."""
+        worker = FunctionWorker(
+            notify_project_status_changed, project, old_status, project.get("status") or ""
+        )
+        worker.error.connect(lambda _msg: None)
+        self._tg_status_worker = worker
+        worker.finished.connect(lambda: setattr(self, "_tg_status_worker", None))
+        worker.start()
 
     def _on_delete(self):
         project_id = self._get_selected_id()
