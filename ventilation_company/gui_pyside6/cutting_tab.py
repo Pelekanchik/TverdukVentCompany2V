@@ -48,6 +48,7 @@ from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.telegram_send import send_document_telegram
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.metal_cutting import MetalCutter
+from ventilation_company.services.dxf_import_service import parse_dxf_parts, parts_to_products
 
 
 class AddProductDialog(QDialog):
@@ -488,6 +489,11 @@ class CuttingTab(QWidget):
         btn_add.clicked.connect(self._on_add_product)
         order_btns.addWidget(btn_add)
 
+        btn_dxf = QPushButton("📐 Імпорт DXF")
+        btn_dxf.setToolTip("Розпізнати деталі з DXF-креслення та додати їх у замовлення на розкрій")
+        btn_dxf.clicked.connect(self._on_import_dxf)
+        order_btns.addWidget(btn_dxf)
+
         btn_del = QPushButton("🗑️ Видалити")
         btn_del.setStyleSheet(f"color: {Theme.DANGER};")
         btn_del.clicked.connect(self._on_del_product)
@@ -700,6 +706,49 @@ class CuttingTab(QWidget):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._products.append(dlg.get_data())
             self._refresh_order_table()
+
+    def _on_import_dxf(self):
+        """Імпорт деталей з DXF-креслення у замовлення на розкрій."""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Виберіть DXF-креслення",
+            "",
+            "Креслення DXF (*.dxf);;Усі файли (*.*)",
+        )
+        if not path:
+            return
+
+        try:
+            parts = parse_dxf_parts(path)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Імпорт DXF", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001 — неочікувані помилки парсера
+            QMessageBox.critical(self, "Імпорт DXF", f"Помилка розбору файлу:\n{exc}")
+            return
+
+        total_qty = sum(p["quantity"] for p in parts)
+        preview = "\n".join(
+            f"• {p['width']}×{p['height']} мм — {p['quantity']} шт" for p in parts[:10]
+        )
+        if len(parts) > 10:
+            preview += f"\n… та ще {len(parts) - 10} позицій"
+
+        answer = QMessageBox.question(
+            self,
+            "Імпорт DXF",
+            f"Розпізнано {len(parts)} унікальних деталей "
+            f"({total_qty} шт загалом):\n\n{preview}\n\n"
+            "Додати їх у замовлення на розкрій?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        prefix = os.path.splitext(os.path.basename(path))[0]
+        self._products.extend(parts_to_products(parts, prefix=prefix))
+        self._refresh_order_table()
 
     def _on_del_product(self):
         idx = self.table_order.currentIndex()

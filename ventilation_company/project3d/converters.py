@@ -778,7 +778,7 @@ class DXFConverter(BaseConverter):
 
             # Імпорт LWPOLYLINE як стін/перегородок
             for entity in msp.query("LWPOLYLINE"):
-                points = list(entity.vertices_in_wcs())
+                points = list(entity.vertices_in_wcs())  # type: ignore[attr-defined]
                 for i in range(len(points) - 1):
                     p1 = Point3D(points[i][0], points[i][1], 0)
                     p2 = Point3D(points[i + 1][0], points[i + 1][1], 0)
