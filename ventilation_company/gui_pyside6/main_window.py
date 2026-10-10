@@ -27,7 +27,10 @@ from ventilation_company.gui_pyside6.update_checker import UpdateChecker
 from ventilation_company.gui_pyside6.warehouse_tab import WarehouseTab
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.auth_service import AuthUser
-from ventilation_company.services.project_notifications import check_stuck_projects
+from ventilation_company.services.project_notifications import (
+    check_low_stock,
+    check_stuck_projects,
+)
 
 _SETTINGS_ORG = "VentCompany"
 _SETTINGS_APP = "VentCompany"
@@ -105,6 +108,20 @@ class MainWindow(QMainWindow):
         self._stuck_timer.timeout.connect(self._check_stuck_projects)
         self._stuck_timer.start()
         QTimer.singleShot(30_000, self._check_stuck_projects)
+        # 📦 Алерти складу (мінімальні залишки): при старті і раз на 6 годин
+        self._stock_timer = QTimer(self)
+        self._stock_timer.setInterval(6 * 60 * 60 * 1000)
+        self._stock_timer.timeout.connect(self._check_low_stock)
+        self._stock_timer.start()
+        QTimer.singleShot(10 * 60 * 1000, self._check_low_stock)
+
+    def _check_low_stock(self):
+        """Фонова перевірка мінімальних залишків складу → Telegram."""
+        worker = FunctionWorker(check_low_stock)
+        worker.error.connect(lambda _msg: None)
+        self._stock_worker = worker  # захист від збирання сміття
+        worker.finished.connect(lambda: setattr(self, "_stock_worker", None))
+        worker.start()
 
     def _check_stuck_projects(self):
         """Фонова перевірка проєктів без руху → Telegram (тихо при помилках)."""

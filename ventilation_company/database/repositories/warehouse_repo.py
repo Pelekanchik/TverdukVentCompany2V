@@ -15,14 +15,17 @@ def _to_date(value) -> date:
 
 
 def _item_to_dict(item: WarehouseItem) -> dict:
+    quantity = float(item.quantity or 0)
+    reserved = float(getattr(item, "reserved", 0) or 0)
     return {
         "id": item.id,
         "name": item.name,
         "unit": item.unit or "шт",
-        "quantity": float(item.quantity or 0),
+        "quantity": quantity,
         "min_quantity": float(item.min_quantity or 0),
-        "low": float(item.quantity or 0) <= float(item.min_quantity or 0)
-        and float(item.min_quantity or 0) > 0,
+        "reserved": reserved,
+        "available": max(quantity - reserved, 0.0),
+        "low": quantity <= float(item.min_quantity or 0) and float(item.min_quantity or 0) > 0,
     }
 
 
@@ -87,6 +90,41 @@ class WarehouseRepository:
         """Позиції на межі (залишок ≤ мінімального)."""
         return [i for i in WarehouseRepository.list_items() if i["low"]]
 
+    @staticmethod
+    def reserve(item_id: int, quantity: float) -> dict | None:
+        """Зарезервувати кількість під виробництво (доступно = залишок − резерв).
+
+        Не можна зарезервувати більше, ніж доступно. Повертає оновлену
+        позицію або None, якщо позицію не знайдено.
+        """
+        if quantity <= 0:
+            raise ValueError("Кількість має бути більшою за нуль")
+        with get_db() as session:
+            item = session.query(WarehouseItem).filter(WarehouseItem.id == item_id).first()
+            if not item:
+                return None
+            available = float(item.quantity or 0) - float(getattr(item, "reserved", 0) or 0)
+            if quantity > available:
+                raise ValueError(
+                    f"Доступно лише {available:g} {item.unit or 'шт'} позиції «{item.name}»"
+                )
+            item.reserved = float(getattr(item, "reserved", 0) or 0) + quantity
+            session.commit()
+            return _item_to_dict(item)
+
+    @staticmethod
+    def release(item_id: int, quantity: float) -> dict | None:
+        """Зняти резерв (повернути в доступний залишок)."""
+        if quantity <= 0:
+            raise ValueError("Кількість має бути більшою за нуль")
+        with get_db() as session:
+            item = session.query(WarehouseItem).filter(WarehouseItem.id == item_id).first()
+            if not item:
+                return None
+            item.reserved = max(float(getattr(item, "reserved", 0) or 0) - quantity, 0.0)
+            session.commit()
+            return _item_to_dict(item)
+
     # ── Рухи ──
 
     @staticmethod
@@ -115,6 +153,9 @@ class WarehouseRepository:
             )
             delta = -quantity if move.kind == "out" else quantity
             item.quantity = float(item.quantity or 0) + delta
+            # списання зі складу погашає резерв цієї позиції
+            if move.kind == "out" and float(getattr(item, "reserved", 0) or 0) > 0:
+                item.reserved = max(float(item.reserved or 0) - quantity, 0.0)
             session.add(move)
             session.flush()
             session.refresh(move)

@@ -22,6 +22,7 @@ class WarehouseItem(Base):
     unit: Mapped[str] = mapped_column(String(30), nullable=False, default="шт")
     quantity: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     min_quantity: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    reserved: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.now)
 
     moves: Mapped[list[WarehouseMove]] = relationship(

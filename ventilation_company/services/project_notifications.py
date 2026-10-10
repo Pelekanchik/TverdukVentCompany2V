@@ -267,3 +267,43 @@ def check_stuck_projects(now=None) -> bool:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Telegram: перевірка завислих проєктів не вдалася: %s", exc)
         return False
+
+
+def build_low_stock_text(items: list[dict]) -> str:
+    """Дайджест позицій складу на межі (залишок ≤ мінімального)."""
+    lines = ["📦 Склад — мінімальні залишки — VentCompany", ""]
+    for item in items:
+        reserved = float(item.get("reserved") or 0)
+        available = float(item.get("available", item.get("quantity", 0)))
+        line = (
+            f"• {item.get('name') or '—'}: залишок {item.get('quantity', 0):g} "
+            f"{item.get('unit') or 'шт'} (мін. {item.get('min_quantity', 0):g})"
+        )
+        if reserved > 0:
+            line += f", зарезервовано {reserved:g}, доступно {available:g}"
+        lines.append(line)
+    lines.append("")
+    lines.append(f"🕒 {datetime.now():%d.%m.%Y %H:%M}")
+    return "\n".join(lines)
+
+
+def check_low_stock() -> bool:
+    """Надіслати дайджест позицій складу на межі; False — нічого надсилати.
+
+    Без бота, без дефіцитних позицій або при помилці — False (тихо).
+    """
+    _enabled, token, chat = cloud_backup_preferences()
+    if not token or not chat:
+        return False
+    try:
+        from ventilation_company.database.repositories.warehouse_repo import (
+            WarehouseRepository,
+        )
+
+        low = WarehouseRepository.low_stock()
+        if not low:
+            return False
+        return send_telegram_message(token, chat, build_low_stock_text(low))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Telegram: перевірка складу не вдалася: %s", exc)
+        return False

@@ -38,7 +38,105 @@ from ventilation_company.database.repositories.production_task_repo import (
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.services import production_service
+from ventilation_company.services import production_materials_service, production_service
+
+_STATUS_LABELS = {
+    production_materials_service.STATUS_OK: "✅ вистачає",
+    production_materials_service.STATUS_PARTIAL: "⚠ частково",
+    production_materials_service.STATUS_MISSING: "❌ немає",
+}
+
+
+class MaterialsCheckDialog(QDialog):
+    """Звірка потреб черги виробництва зі складом + резервування."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("📦 Матеріали для виробництва")
+        self.setMinimumSize(720, 420)
+        self._rows: list[dict] = []
+        self._build_ui()
+        self._reload()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+
+        self.lbl_hint = QLabel("")
+        self.lbl_hint.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        layout.addWidget(self.lbl_hint)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(
+            ["Матеріал", "Потрібно", "На складі", "Зарезервовано", "Доступно", "Статус"]
+        )
+        setup_table(self.table, select_rows=False, single_selection=False, read_only=True)
+        layout.addWidget(self.table, 1)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        btn_reserve = QPushButton("🔒 Зарезервувати доступне")
+        btn_reserve.setToolTip(
+            "Зарезервувати під це виробництво мінімум із потрібного й доступного\n"
+            "по кожній позиції (резерв не списує матеріал, лише відмічає)"
+        )
+        btn_reserve.clicked.connect(self._on_reserve)
+        actions.addWidget(btn_reserve)
+        btn_close = QPushButton("Закрити")
+        btn_close.clicked.connect(self.accept)
+        actions.addWidget(btn_close)
+        layout.addLayout(actions)
+
+    def _reload(self):
+        self._rows = production_materials_service.check_materials()
+        self.table.setRowCount(0)
+        for row in self._rows:
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            status = row["status"]
+            label = _STATUS_LABELS.get(status, status)
+            color = {
+                production_materials_service.STATUS_OK: Theme.SUCCESS,
+                production_materials_service.STATUS_PARTIAL: Theme.WARNING,
+                production_materials_service.STATUS_MISSING: Theme.DANGER,
+            }.get(status, Theme.TEXT)
+            item_name = row["item_name"] or "— позицію не знайдено на складі —"
+            values = [
+                f"{row['material']}" + (f"  ({item_name})" if row["item_name"] else ""),
+                f"{row['needed']:g}",
+                f"{row['on_hand']:g} {row['unit']}",
+                f"{row['reserved']:g} {row['unit']}",
+                f"{row['available']:g} {row['unit']}",
+                label,
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col == 5:
+                    item.setForeground(QColor(color))
+                self.table.setItem(r, col, item)
+        self.table.resizeColumnsToContents()
+        self.table.horizontalHeader().setStretchLastSection(True)
+
+        total = len(self._rows)
+        ok = sum(1 for r in self._rows if r["status"] == production_materials_service.STATUS_OK)
+        missing = total - ok
+        self.lbl_hint.setText(
+            f"Потреби невиконаних завдань черги: {total} позицій, "
+            f"забезпечено: {ok}, дефіцит: {missing}. "
+            "Резерв відмічає матеріал під це виробництво, фактичне списання — зі вкладки «Склад»."
+        )
+
+    def _on_reserve(self):
+        if not self._rows:
+            QMessageBox.information(self, "Матеріали", "Немає потреб для резервування")
+            return
+        reserved, errors = production_materials_service.reserve_available(self._rows)
+        message = f"Зарезервовано позицій: {reserved}"
+        if errors:
+            message += "\n\nПомилки:\n" + "\n".join(errors)
+        QMessageBox.information(self, "Резервування", message)
+        self._reload()
 
 
 class AddToQueueDialog(QDialog):
@@ -192,6 +290,13 @@ class ProductionTab(QWidget):
         btn_add = QPushButton("➕ З проєкту…")
         btn_add.clicked.connect(self._on_add_from_project)
         top.addWidget(btn_add)
+
+        btn_materials = QPushButton("📦 Матеріали")
+        btn_materials.setToolTip(
+            "Звірка потреб невиконаних завдань зі складом + резервування матеріалів"
+        )
+        btn_materials.clicked.connect(self._on_check_materials)
+        top.addWidget(btn_materials)
         layout.addLayout(top)
 
         self.table = QTableWidget()
@@ -312,6 +417,10 @@ class ProductionTab(QWidget):
             message += f"\nПропущено (вже в черзі): {skipped}"
         QMessageBox.information(self, "Черга виробництва", message)
         self.refresh()
+
+    def _on_check_materials(self):
+        dialog = MaterialsCheckDialog(self)
+        dialog.exec()
 
     def _set_status(self, status: str):
         task = self._selected_task()
