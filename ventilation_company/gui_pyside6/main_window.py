@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
             "products": lambda: ProductsTab(main_window=self),
             "specification": lambda: SpecificationTab(main_window=self),
             "cutting": lambda: CuttingTab(),
-            "production": lambda: ProductionTab(),
+            "production": lambda: ProductionTab(current_user=self.user),
             "schedule": lambda: ScheduleTab(),
             "pricing": lambda: PricingTab(),
             "documents": lambda: DocumentsTab(main_window=self),

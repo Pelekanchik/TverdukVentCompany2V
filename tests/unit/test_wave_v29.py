@@ -600,8 +600,9 @@ class TestNewTabsGui:
         )
         tab = WarehouseTab()
         assert tab.table.rowCount() == 2
-        assert "⚠️" in tab.table.item(0, 4).text()
-        assert "✓" in tab.table.item(1, 4).text()
+        assert tab.table.columnCount() == 7  # + Зарезерв. + Доступно (склад у виробництві)
+        assert "⚠️" in tab.table.item(0, 6).text()
+        assert "✓" in tab.table.item(1, 6).text()
         assert "на межі: 1" in tab.lbl_total.text()
 
     def test_global_search_dialog(self, qapp, monkeypatch):

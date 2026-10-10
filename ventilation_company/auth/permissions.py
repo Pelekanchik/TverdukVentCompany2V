@@ -63,6 +63,7 @@ class Role(str, Enum):
     ACCOUNTANT = "accountant"
     VIEWER = "viewer"
     MONTER = "monter"
+    WORKSHOP = "workshop"  # цех (розділ 5.2)
 
 
 ROLE_LABELS = {
@@ -73,7 +74,8 @@ ROLE_LABELS = {
     Role.MASTER: "Майстер",
     Role.ACCOUNTANT: "Бухгалтер",
     Role.VIEWER: "Тільки перегляд",
-    Role.MONTER: "Монтажник",
+    Role.MONTER: "Бригадир",
+    Role.WORKSHOP: "Цех",
 }
 
 ROLE_PERMISSIONS = {
@@ -138,7 +140,24 @@ ROLE_PERMISSIONS = {
         Permission.SPEC_VIEW,
         Permission.PRODUCTION_VIEW,
     },
+    # Цех: бачить лише виробництво, склад і специфікацію, нічого не чіпає
+    Role.WORKSHOP: {
+        Permission.SPEC_VIEW,
+        Permission.PRODUCTION_VIEW,
+        Permission.PRODUCTION_EDIT,
+        Permission.WAREHOUSE_VIEW,
+        Permission.WAREHOUSE_EDIT,
+    },
 }
+
+
+def role_label_to_value(label: str) -> str:
+    """Переклад української мітки ролі у значення для БД (невідома → viewer)."""
+    for role, text in ROLE_LABELS.items():
+        if text == label:
+            return role.value
+    return Role.VIEWER.value
+
 
 # GUI tab -> canonical permission.
 TAB_PERMISSIONS = {

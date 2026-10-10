@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.auth.permissions import Permission, has_permission
 from ventilation_company.database.repositories.production_task_repo import (
     PRIORITY_ORDER,
     TASK_STATUSES,
@@ -251,12 +252,18 @@ class AddToQueueDialog(QDialog):
 class ProductionTab(QWidget):
     """Черга виробництва: проєкти в роботі, терміни, пріоритети."""
 
-    def __init__(self, parent=None):
+    def __init__(self, current_user=None, parent=None):
         super().__init__(parent)
+        self.current_user = current_user
         self._tasks: list[dict] = []
         self._projects_by_id: dict[int, str] = {}
         self._build_ui()
         self.refresh()
+
+    def _can_edit(self) -> bool:
+        if self.current_user is None:
+            return True  # тести / сумісність
+        return has_permission(self.current_user.role, Permission.PRODUCTION_EDIT)
 
     # ── UI ──
 
@@ -323,6 +330,17 @@ class ProductionTab(QWidget):
         btn_del.clicked.connect(self._on_delete)
         actions.addWidget(btn_del)
         layout.addLayout(actions)
+
+        if not self._can_edit():
+            for btn in (
+                btn_add,
+                btn_materials,
+                btn_start,
+                btn_done,
+                btn_back,
+                btn_del,
+            ):
+                btn.setEnabled(False)
 
     # ── Дані ──
 

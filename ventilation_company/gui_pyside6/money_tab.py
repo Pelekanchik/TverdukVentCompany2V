@@ -7,16 +7,24 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from datetime import date
+
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
+    QDateEdit,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
+    QMessageBox,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -25,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services import accounting_export_service
 from ventilation_company.services.receivables import (
     build_receivables,
     is_overdue,
@@ -52,6 +61,114 @@ COLUMNS = [
     "%",
     "Остання оплата",
 ]
+
+
+class AccountingExportDialog(QDialog):
+    """Експорт виписки оплат для бухгалтерії + звіт по ПДВ."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("💼 Для бухгалтерії")
+        self.setMinimumWidth(440)
+        layout = QFormLayout(self)
+
+        first = QDate.currentDate().addDays(1 - QDate.currentDate().day())
+        self.date_from = QDateEdit(first)
+        self.date_from.setCalendarPopup(True)
+        self.date_from.setDisplayFormat("dd.MM.yyyy")
+        layout.addRow("Період з:", self.date_from)
+
+        self.date_to = QDateEdit(QDate.currentDate())
+        self.date_to.setCalendarPopup(True)
+        self.date_to.setDisplayFormat("dd.MM.yyyy")
+        layout.addRow("по:", self.date_to)
+
+        self.combo_format = QComboBox()
+        self.combo_format.addItem("CSV для Excel (з BOM, роздільник ;) ", "csv")
+        self.combo_format.addItem("1С:Клієнт банку (TXT)", "1c")
+        layout.addRow("Формат виписки:", self.combo_format)
+
+        self.lbl_vat = QLabel("—")
+        self.lbl_vat.setWordWrap(True)
+        self.lbl_vat.setStyleSheet(f"color: {Theme.TEXT};")
+        layout.addRow(self.lbl_vat)
+
+        buttons = QHBoxLayout()
+        btn_export = QPushButton("📤 Експорт виписки")
+        btn_export.clicked.connect(self._on_export)
+        buttons.addWidget(btn_export)
+        btn_vat = QPushButton("📊 Розрахувати ПДВ")
+        btn_vat.clicked.connect(self._on_vat)
+        buttons.addWidget(btn_vat)
+        btn_vat_csv = QPushButton("💾 ПДВ у CSV")
+        btn_vat_csv.clicked.connect(self._on_vat_csv)
+        buttons.addWidget(btn_vat_csv)
+        btn_close = QPushButton("Закрити")
+        btn_close.clicked.connect(self.reject)
+        buttons.addWidget(btn_close)
+        layout.addRow(buttons)
+
+        self._last_report: tuple | None = None
+
+    def _period(self):
+        d = self.date_from.date()
+        date_from = date(d.year(), d.month(), d.day())
+        d = self.date_to.date()
+        date_to = date(d.year(), d.month(), d.day())
+        return date_from, date_to
+
+    def _on_export(self):
+        date_from, date_to = self._period()
+        payments = accounting_export_service.payments_between(date_from, date_to)
+        if not payments:
+            QMessageBox.information(self, "Виписка", "За вказаний період оплат не знайдено")
+            return
+        fmt = self.combo_format.currentData()
+        default = f"виписка_{date_from:%Y%m%d}_{date_to:%Y%m%d}." + (
+            "csv" if fmt == "csv" else "txt"
+        )
+        path, _ = QFileDialog.getSaveFileName(self, "Зберегти виписку", default)
+        if not path:
+            return
+        try:
+            if fmt == "csv":
+                accounting_export_service.export_payments_csv(payments, path)
+            else:
+                accounting_export_service.export_payments_1c(payments, path)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Виписка", f"Збережено {len(payments)} операцій:\n{path}")
+
+    def _calc_vat(self):
+        date_from, date_to = self._period()
+        report = accounting_export_service.vat_report(date_from, date_to)
+        self._last_report = (report, date_from, date_to)
+        self.lbl_vat.setText(
+            f"Операцій: {report['payments_count']}\n"
+            f"Надходження: {report['income']:,.2f} ₴ → ПДВ зобов'язання: {report['income_vat']:,.2f} ₴\n"
+            f"Витрати: {report['expense']:,.2f} ₴ → податковий кредит: {report['expense_vat']:,.2f} ₴\n"
+            f"ПДВ до сплати: {report['net_vat']:,.2f} ₴"
+        )
+
+    def _on_vat(self):
+        self._calc_vat()
+
+    def _on_vat_csv(self):
+        if self._last_report is None:
+            self._calc_vat()
+        assert self._last_report is not None
+        report, date_from, date_to = self._last_report
+        default = f"pdv_{date_from:%Y%m%d}_{date_to:%Y%m%d}.csv"
+        path, _ = QFileDialog.getSaveFileName(self, "Зберегти звіт ПДВ", default)
+        if not path:
+            return
+        try:
+            accounting_export_service.export_vat_csv(report, date_from, date_to, path)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", str(e))
+            return
+        QMessageBox.information(self, "ПДВ", f"Звіт збережено:\n{path}")
 
 
 class MoneyTab(QWidget):
@@ -98,6 +215,10 @@ class MoneyTab(QWidget):
         self.edit_search.textChanged.connect(self._refill_table)
         filters.addWidget(self.edit_search)
         filters.addStretch()
+        btn_accounting = QPushButton("💼 Для бухгалтерії")
+        btn_accounting.setToolTip("Виписка оплат за період (CSV / 1С:Клієнт банку) та звіт по ПДВ")
+        btn_accounting.clicked.connect(self._on_accounting_export)
+        filters.addWidget(btn_accounting)
         root.addLayout(filters)
 
         # ── Таблиця ──
@@ -224,6 +345,9 @@ class MoneyTab(QWidget):
         )
 
     # ── Дії ──
+
+    def _on_accounting_export(self):
+        AccountingExportDialog(self).exec()
 
     def _on_double_click(self):
         row = self.table.currentRow()

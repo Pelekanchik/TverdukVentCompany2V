@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.auth.permissions import ROLE_LABELS, role_label_to_value
 from ventilation_company.auth.service import auth
 from ventilation_company.database.repositories.app_settings_repository import get_role_label
 from ventilation_company.gui_pyside6.table_utils import setup_table
@@ -137,9 +138,7 @@ class UsersAdminTab(QWidget):
         lay.addRow("🔒 Підтвердіть пароль", pass2_edit)
 
         role_combo = QComboBox()
-        role_combo.addItems(
-            ["Адміністратор", "Менеджер", "Інженер", "Майстер", "Бухгалтер", "Перегляд"]
-        )
+        role_combo.addItems(list(ROLE_LABELS.values()))  # усі ролі з permissions.py
         if is_edit:
             role_combo.setCurrentText(get_role_label(user.role))
         lay.addRow("🛡️ Посада *", role_combo)
@@ -154,15 +153,7 @@ class UsersAdminTab(QWidget):
         lay.addRow(btns)
 
         def save():
-            role_map = {
-                "Адміністратор": "admin",
-                "Менеджер": "manager",
-                "Інженер": "engineer",
-                "Майстер": "master",
-                "Бухгалтер": "accountant",
-                "Перегляд": "viewer",
-            }
-            new_role = role_map.get(role_combo.currentText(), "viewer")
+            new_role = role_label_to_value(role_combo.currentText())
 
             if is_edit:
                 kwargs = {"full_name": name_edit.text(), "role": new_role}

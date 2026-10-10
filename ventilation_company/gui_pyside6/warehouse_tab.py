@@ -13,9 +13,11 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -27,11 +29,15 @@ from PySide6.QtWidgets import (
 )
 
 from ventilation_company.auth.permissions import Permission, has_permission
+from ventilation_company.database.repositories.purchase_price_repo import (
+    PurchasePriceRepository,
+)
 from ventilation_company.database.repositories.warehouse_repo import WarehouseRepository
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services import supplier_prices_service
 
-COLUMNS = ["Найменування", "Од. вим.", "Залишок", "Мін. залишок", "Статус"]
+COLUMNS = ["Найменування", "Од. вим.", "Залишок", "Зарезерв.", "Доступно", "Мін. залишок", "Статус"]
 
 _LOW_BG = "#fde8e8"
 
@@ -149,6 +155,16 @@ class WarehouseTab(QWidget):
         self.btn_history = QPushButton("🧾 Історія рухів")
         self.btn_history.clicked.connect(self._on_history)
         actions.addWidget(self.btn_history)
+        self.btn_price_import = QPushButton("📥 Прайс постачальника")
+        self.btn_price_import.setToolTip(
+            "Імпорт прайсу постачальника (CSV/XLSX): історія цін + сповіщення\n"
+            "у Telegram, якщо ціни зросли"
+        )
+        self.btn_price_import.clicked.connect(self._on_price_import)
+        actions.addWidget(self.btn_price_import)
+        self.btn_price_history = QPushButton("📈 Історія цін")
+        self.btn_price_history.clicked.connect(self._on_price_history)
+        actions.addWidget(self.btn_price_history)
         self.btn_del = QPushButton("🗑 Видалити")
         self.btn_del.setStyleSheet(f"color: {Theme.DANGER};")
         self.btn_del.clicked.connect(self._on_delete)
@@ -183,18 +199,20 @@ class WarehouseTab(QWidget):
                 r["name"],
                 r["unit"],
                 f"{r['quantity']:,.2f}",
+                f"{r.get('reserved', 0):,.2f}",
+                f"{r.get('available', r['quantity']):,.2f}",
                 f"{r['min_quantity']:,.2f}",
                 status,
             ]
             for col, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
-                if col in (2, 3):
+                if col in (2, 3, 4, 5):
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
                 if r["low"]:
                     item.setBackground(QColor(_LOW_BG))
-                    if col == 4:
+                    if col == 6:
                         item.setForeground(QColor(Theme.DANGER))
                 self.table.setItem(row, col, item)
             if r["low"]:
@@ -276,6 +294,86 @@ class WarehouseTab(QWidget):
         ]
         text = "\n".join(lines) if lines else "Рухів ще не було."
         QMessageBox.information(self, f"Історія рухів — {item['name']}", text)
+
+    def _on_price_import(self):
+        if not self._can_edit():
+            QMessageBox.warning(self, "Увага", "Недостатньо прав для імпорту прайсів")
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Оберіть прайс постачальника",
+            "",
+            "Прайси (*.csv *.xlsx);;CSV (*.csv);;Excel (*.xlsx)",
+        )
+        if not path:
+            return
+        try:
+            entries = supplier_prices_service.parse_price_file(path)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка читання", str(exc))
+            return
+        if not entries:
+            QMessageBox.information(
+                self, "Прайс", "У файлі не знайдено жодного рядка з назвою та ціною"
+            )
+            return
+        report = supplier_prices_service.import_prices(entries)
+        increased = report["increased"]
+        message = f"Імпортовано цін: {report['recorded']}" + (
+            f"\nПропущено рядків: {report['skipped']}" if report["skipped"] else ""
+        )
+        if increased:
+            message += f"\n\n⚠️ Здорожчало позицій: {len(increased)}\n" + "\n".join(
+                f"• {r['item']}: {r['old']:g} → {r['new']:g} ₴" for r in increased[:10]
+            )
+        QMessageBox.information(self, "Імпорт прайсу", message)
+        if (
+            increased
+            and QMessageBox.question(
+                self,
+                "Telegram",
+                "Надіслати дайджест здорожчань у Telegram?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            == QMessageBox.StandardButton.Yes
+        ):
+            sent = supplier_prices_service.notify_price_increases(increased)
+            if not sent:
+                QMessageBox.information(
+                    self,
+                    "Telegram",
+                    "Не надіслано — бота не налаштовано (Налаштування → Резервні копії → Telegram)",
+                )
+
+    def _on_price_history(self):
+        item = self._selected_row()
+        default_name = item["name"] if item else ""
+        name, ok = QInputDialog.getText(
+            self, "Історія цін", "Найменування матеріалу:", text=default_name
+        )
+        if not ok or not name.strip():
+            return
+        try:
+            history = PurchasePriceRepository.latest_for(name.strip(), limit=10)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити історію:\n{exc}")
+            return
+        if not history:
+            QMessageBox.information(
+                self, "Історія цін", f"За «{name.strip()}» історії цін ще немає"
+            )
+            return
+        best = PurchasePriceRepository.best_price_for(name.strip())
+        lines = [
+            f"{h['purchase_date'] or '—'}  {h['price']:g} ₴"
+            + (f"  ({h['supplier']})" if h["supplier"] else "")
+            for h in history
+        ]
+        QMessageBox.information(
+            self,
+            f"Історія цін — {name.strip()}",
+            f"Найкраща ціна: {best:g} ₴\n\n" + "\n".join(lines),
+        )
 
     def _on_delete(self):
         item = self._selected_row()
