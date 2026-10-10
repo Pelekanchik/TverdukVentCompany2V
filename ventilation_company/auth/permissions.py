@@ -147,6 +147,7 @@ TAB_PERMISSIONS = {
     "products": Permission.PRODUCTS_VIEW,
     "specification": Permission.SPEC_VIEW,
     "cutting": Permission.SPEC_VIEW,
+    "production": Permission.PRODUCTION_VIEW,
     "schedule": Permission.PRODUCTION_VIEW,
     "pricing": Permission.PRICE_LIST_VIEW,
     "documents": Permission.DOCUMENTS_VIEW,

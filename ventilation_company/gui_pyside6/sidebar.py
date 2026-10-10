@@ -113,6 +113,7 @@ class Sidebar(QFrame):
         self._add_item("🔧", "Вироби", "products")
         self._add_item("📋", "Специфікація", "specification")
         self._add_item("✂️", "Розкрій", "cutting")
+        self._add_item("🏭", "Виробництво", "production")
         self._add_item("📅", "Монтажі", "schedule")
 
         layout.addSpacing(12)

@@ -25,6 +25,7 @@ from ventilation_company.database.models.product import (
     SizeRange,
 )
 from ventilation_company.database.models.product_item import ProductItem
+from ventilation_company.database.models.production_task import ProductionTask
 from ventilation_company.database.models.project import (
     Project,
     ProjectComponent,
@@ -78,6 +79,7 @@ __all__ = [
     "UserORM",
     "CalcTemplate",
     "ProductItem",
+    "ProductionTask",
     "ProjectDocument",
     "ProjectDrawing",
     "WarehouseItem",

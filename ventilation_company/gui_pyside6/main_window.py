@@ -15,6 +15,7 @@ from ventilation_company.gui_pyside6.global_search_dialog import GlobalSearchDia
 from ventilation_company.gui_pyside6.login_dialog import LoginDialog
 from ventilation_company.gui_pyside6.money_tab import MoneyTab
 from ventilation_company.gui_pyside6.pricing_tab import PricingTab
+from ventilation_company.gui_pyside6.production_tab import ProductionTab
 from ventilation_company.gui_pyside6.products_tab import ProductsTab
 from ventilation_company.gui_pyside6.program_settings_tab import ProgramSettingsTab
 from ventilation_company.gui_pyside6.projects_tab import ProjectsTab
@@ -143,6 +144,7 @@ class MainWindow(QMainWindow):
             "products": lambda: ProductsTab(main_window=self),
             "specification": lambda: SpecificationTab(main_window=self),
             "cutting": lambda: CuttingTab(),
+            "production": lambda: ProductionTab(),
             "schedule": lambda: ScheduleTab(),
             "pricing": lambda: PricingTab(),
             "documents": lambda: DocumentsTab(main_window=self),
