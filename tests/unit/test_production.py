@@ -260,4 +260,3 @@ class TestProductionTabUI:
         # підсумок у шапці містить кількості
         assert "В черзі: 1" in tab.lbl_summary.text()
         assert "Прострочено: 1" in tab.lbl_summary.text()
-
