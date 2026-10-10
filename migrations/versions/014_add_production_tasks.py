@@ -39,9 +39,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_production_tasks_project_id", "production_tasks", ["project_id"]
-    )
+    op.create_index("ix_production_tasks_project_id", "production_tasks", ["project_id"])
 
 
 def downgrade() -> None:
