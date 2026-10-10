@@ -59,6 +59,7 @@ from ventilation_company.gui_pyside6.project_card_docs_mixin import ProjectCardD
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.services.project_notifications import notify_payment_created
 from ventilation_company.services.receivables import payment_summary
 
 
@@ -842,11 +843,20 @@ class ProjectCardDialog(ProjectCardDocsMixin, QDialog):
         dlg = PaymentEditDialog(self.project_id, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
-                PaymentRepository.create(dlg.get_data())
+                created = PaymentRepository.create(dlg.get_data())
                 self._reload_all()
                 QMessageBox.information(self, "Успіх", "Оплату додано")
+                self._notify_payment_telegram(created)
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати оплату: {e}")
+
+    def _notify_payment_telegram(self, payment: dict):
+        """Фонове сповіщення про вхідну оплату (не блокує GUI; не критичне)."""
+        worker = FunctionWorker(notify_payment_created, payment)
+        worker.error.connect(lambda _msg: None)
+        self._tg_payment_worker = worker  # захист від збирання сміття
+        worker.finished.connect(lambda: setattr(self, "_tg_payment_worker", None))
+        worker.start()
 
     def _on_edit_payment(self):
         payment = self._get_selected_payment()

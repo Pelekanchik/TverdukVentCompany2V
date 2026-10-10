@@ -133,3 +133,52 @@ def test_helper_sends_file_in_background(qapp, monkeypatch, tmp_path):
     assert len(sent) == 1
     assert sent[0][:3] == ("tok", "1", str(pdf))
     assert sent[0][3] == "Підпис"
+
+
+# ── Сповіщення про оплату ──
+
+
+def test_payment_text_contains_amount_and_project():
+    from ventilation_company.services.project_notifications import build_payment_received_text
+
+    text = build_payment_received_text(
+        {
+            "amount": 50000,
+            "project_name": "Вентиляція кафе",
+            "purpose": "Передоплата 50%",
+            "date": "2026-10-10",
+            "type": "вхідний",
+        }
+    )
+    assert "💵" in text
+    assert "50 000.00 ₴" in text
+    assert "Вентиляція кафе" in text
+    assert "Передоплата 50%" in text
+
+
+def test_notify_payment_ignores_outgoing():
+    from ventilation_company.services import project_notifications
+
+    # вихідний платіж не надсилається навіть із налаштованим ботом
+    assert (
+        project_notifications.notify_payment_created({"type": "вихідний", "amount": 100}) is False
+    )
+
+
+def test_notify_payment_created_sends(monkeypatch):
+    from ventilation_company.services import project_notifications
+
+    monkeypatch.setattr(
+        project_notifications, "cloud_backup_preferences", lambda: (True, "tok", "42")
+    )
+    sent: list[tuple] = []
+    monkeypatch.setattr(
+        project_notifications,
+        "send_telegram_message",
+        lambda token, chat, text: sent.append((token, chat, text)) or True,
+    )
+    ok = project_notifications.notify_payment_created(
+        {"id": 5, "type": "вхідний", "amount": 1000, "project_name": "П"}
+    )
+    assert ok is True
+    assert sent and "1 000.00 ₴" in sent[0][2]

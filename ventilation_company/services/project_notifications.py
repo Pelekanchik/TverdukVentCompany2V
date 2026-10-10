@@ -90,3 +90,41 @@ def notify_project_created(project: dict) -> bool:
             "Telegram: не вдалося надіслати звіт про проєкт %s", project.get("project_number")
         )
     return ok
+
+
+def build_payment_received_text(payment: dict) -> str:
+    """Текст звіту про вхідну оплату: сума, проєкт, замовник, призначення."""
+    client: dict = {}
+    client_id = payment.get("client_id")
+    if client_id:
+        with contextlib.suppress(Exception):
+            client = ClientRepository.get(client_id) or {}
+
+    lines = ["💵 Надходження оплати — VentCompany", ""]
+    lines.append(f"💰 Сума: {_fmt_money(payment.get('amount'))}")
+    lines.append(f"🏗 Проєкт: {payment.get('project_name') or '—'}")
+    lines.append(f"👤 Замовник: {client.get('name') or '—'}")
+    if payment.get("purpose"):
+        lines.append(f"📝 Призначення: {payment['purpose']}")
+    if payment.get("date"):
+        lines.append(f"📅 Дата: {payment['date']}")
+    return "\n".join(lines)
+
+
+def notify_payment_created(payment: dict) -> bool:
+    """Надіслати звіт про вхідну оплату у Telegram (вихідні платежі ігнорує).
+
+    Ніколи не підіймає винятки й не ламає основний сценарій додавання оплати.
+    """
+    if (payment.get("type") or "вхідний") != "вхідний":
+        return False
+    _enabled, token, chat = cloud_backup_preferences()
+    if not token or not chat:
+        logger.info("Telegram: звіт про оплату пропущено — бот не налаштовано")
+        return False
+    ok = send_telegram_message(token, chat, build_payment_received_text(payment))
+    if ok:
+        logger.info("Telegram: звіт про оплату %s надіслано", payment.get("id"))
+    else:
+        logger.warning("Telegram: не вдалося надіслати звіт про оплату %s", payment.get("id"))
+    return ok

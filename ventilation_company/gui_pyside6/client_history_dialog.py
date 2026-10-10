@@ -27,6 +27,7 @@ from ventilation_company.database.repositories.payment_repo import PaymentReposi
 from ventilation_company.gui_pyside6.calendar_picker import DatePicker
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.services.project_notifications import notify_payment_created
 
 
 def _to_qdate(value) -> QDate:
@@ -250,10 +251,19 @@ class ClientHistoryDialog(QDialog):
         dlg = AddPaymentDialog(self.client_id, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
-                PaymentRepository.create(dlg.get_data())
+                created = PaymentRepository.create(dlg.get_data())
                 self._start_load()
+                self._notify_payment_telegram(created)
             except Exception as exc:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати оплату: {exc}")
+
+    def _notify_payment_telegram(self, payment: dict):
+        """Фонове сповіщення про вхідну оплату (не блокує GUI; не критичне)."""
+        worker = FunctionWorker(notify_payment_created, payment)
+        worker.error.connect(lambda _msg: None)
+        self._tg_payment_worker = worker  # захист від збирання сміття
+        worker.finished.connect(lambda: setattr(self, "_tg_payment_worker", None))
+        worker.start()
 
     def _edit_payment(self):
         row = self.table_payments.currentRow()
