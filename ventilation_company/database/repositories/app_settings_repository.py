@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.calc import CalcSetting
 
 
@@ -14,9 +14,12 @@ class AppSettingsRepository:
     _CACHE: dict[str, str] = {}
 
     def __init__(self):
-        self._session_factory = SessionLocal
+        # Фабрика сесій — лінива: engine ініціалізується лише при першому запиті.
+        self._session_factory = None
 
     def _session(self):
+        if self._session_factory is None:
+            self._session_factory = get_session_local()
         return self._session_factory()
 
     def get(self, key: str, default: str = "") -> str:

@@ -8,11 +8,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ventilation_company.database.base import Base
@@ -57,6 +68,11 @@ class Project(Base):
     drawing_path: Mapped[str | None] = mapped_column(String, nullable=True)
     customer_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     discounted_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)  # ← v2.2
+    # Номер договору (v2.11): автонумерація ДГ-YYYYMMDD-NNN, зберігається в проєкті
+    contract_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Номери рахунку й акту (v2.11): Р-/АК-YYYYMMDD-NNN
+    invoice_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    act_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     salary_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     profit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
@@ -128,6 +144,11 @@ class ProjectWork(Base):
     unit: Mapped[str | None] = mapped_column(String, nullable=True)
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     total_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # Планування (v2.9): дата виконання/монтажу та бригада/виконавець
+    work_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    crew: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Статус виконання (v2.10): виконані роботи не потрапляють у активний план
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     project: Mapped[Project] = relationship(back_populates="works")
 

@@ -3,6 +3,7 @@
 Редагує:
   • ставку ПДВ
   • ціни на комплектуючі (вентилятори, фільтри, клапани тощо)
+  • типові роботи (монтаж, доставка, виїзд на замір тощо)
   • додаткові матеріали (ізоляція)
   • посади та ставки зарплат
 
@@ -15,12 +16,13 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDoubleSpinBox,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -30,6 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.audit_service import log_action
 from ventilation_company.services.business_settings import BusinessSettings
@@ -37,6 +40,25 @@ from ventilation_company.services.business_settings import BusinessSettings
 COLUMNS_KEY_VALUE_UNIT = ["Назва (ключ)", "Ціна, грн", "Одиниця"]
 COLUMNS_POSITIONS = ["Посада (ключ)", "Ставка, грн/міс", "Премія, %"]
 COLUMNS_FLANGES = ["Профіль", "Ціна, грн/шт"]
+
+# Поля реквізитів фірми: (ключ у JSON, підпис, placeholder).
+COMPANY_FIELDS = [
+    ("name", "Назва фірми:", "ТОВ «ВентКомпані»"),
+    ("edrpou", "ЄДРПОУ:", "12345678"),
+    ("address", "Адреса:", "м. Київ, вул. Промислова, 15"),
+    ("phone", "Телефон:", "+38 (044) 123-45-67"),
+    ("email", "E-mail:", "info@ventcompany.ua"),
+    ("website", "Сайт:", "www.ventcompany.ua"),
+    (
+        "signatory",
+        "Підписант (посада, П.І.Б.):",
+        "Директор Іваненко І.І.",
+    ),
+    ("city", "Місто (для договору):", "м. Київ"),
+    ("bank_name", "Банк:", "АТ «Ощадбанк»"),
+    ("iban", "IBAN (р/р):", "UA00 0000 0000 0000 0000 0000 00"),
+    ("mfo", "МФО:", "300465"),
+]
 
 
 class BusinessSettingsTab(QWidget):
@@ -61,11 +83,11 @@ class BusinessSettingsTab(QWidget):
 
         container = QWidget()
         vlay = QVBoxLayout(container)
-        vlay.setAlignment(Qt.AlignTop)
+        vlay.setAlignment(Qt.AlignmentFlag.AlignTop)
         vlay.setSpacing(12)
 
         header = QLabel("💼 Бізнес-налаштування: ПДВ, ціни, ставки")
-        header.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         vlay.addWidget(header)
 
         if not self.can_edit:
@@ -88,12 +110,29 @@ class BusinessSettingsTab(QWidget):
         h_vat.addStretch()
         vlay.addWidget(grp_vat)
 
+        # ── Реквізити фірми ──
+        grp_company = QGroupBox("🏢 Реквізити фірми (підставляються у КП, договір, акти)")
+        form_company = QFormLayout(grp_company)
+        self.company_edits: dict[str, QLineEdit] = {}
+        for key, label, placeholder in COMPANY_FIELDS:
+            edit = QLineEdit()
+            edit.setPlaceholderText(placeholder)
+            self.company_edits[key] = edit
+            form_company.addRow(label, edit)
+        vlay.addWidget(grp_company)
+
         # ── Комплектуючі ──
         self.tbl_components = self._make_table(COLUMNS_KEY_VALUE_UNIT)
         vlay.addWidget(
             self._table_group(
                 "Комплектуючі (вентилятори, фільтри, клапани...)", self.tbl_components
             )
+        )
+
+        # ── Типові роботи ──
+        self.tbl_works = self._make_table(COLUMNS_KEY_VALUE_UNIT)
+        vlay.addWidget(
+            self._table_group("Типові роботи (монтаж, доставка, виїзд на замір...)", self.tbl_works)
         )
 
         # ── Додаткові матеріали ──
@@ -114,17 +153,19 @@ class BusinessSettingsTab(QWidget):
             for w in (
                 self.spin_vat,
                 self.tbl_components,
+                self.tbl_works,
                 self.tbl_materials,
                 self.tbl_positions,
                 self.tbl_flanges,
+                *self.company_edits.values(),
             ):
                 w.setEnabled(False)
 
     def _make_table(self, headers: list[str]) -> QTableWidget:
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
-        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        setup_table(table, select_rows=True, stretch_last=False, excel_keys=True)
         table.setMinimumHeight(160)
         return table
 
@@ -157,7 +198,11 @@ class BusinessSettingsTab(QWidget):
     def load(self):
         s = BusinessSettings.get_instance()
         self.spin_vat.setValue(s.get_vat_rate())
+        company = s.get_company()
+        for key, edit in self.company_edits.items():
+            edit.setText(str(company.get(key, "")))
         self._fill_table(self.tbl_components, s.components, ("ціна", "одиниця"))
+        self._fill_table(self.tbl_works, s.work_rates, ("ціна", "одиниця"))
         self._fill_table(self.tbl_materials, s.extra_materials, ("ціна_за_м2", "одиниця"))
         self._fill_table(self.tbl_positions, s.positions, ("ставка", "премія_%"))
         self._fill_table(self.tbl_flanges, s.flange_prices, ("ціна",))
@@ -180,16 +225,13 @@ class BusinessSettingsTab(QWidget):
             s = BusinessSettings.get_instance()
             s.vat_rate = float(self.spin_vat.value())
             s.components = self._read_table(self.tbl_components, ("ціна", "одиниця"))
+            s.work_rates = self._read_table(self.tbl_works, ("ціна", "одиниця"))
             s.extra_materials = self._read_table(self.tbl_materials, ("ціна_за_м2", "одиниця"))
             s.positions = self._read_table(
                 self.tbl_positions, ("ставка", "премія_%"), numeric=("ставка", "премія_%")
             )
-            s.flange_prices = {
-                key: values["ціна"]
-                for key, values in self._read_table(
-                    self.tbl_flanges, ("ціна",), numeric=("ціна",)
-                ).items()
-            }
+            s.flange_prices = self._read_table(self.tbl_flanges, ("ціна",), numeric=("ціна",))
+            s.company = {key: edit.text().strip() for key, edit in self.company_edits.items()}
             s.save()
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти бізнес-налаштування:\n{e}")
@@ -201,9 +243,11 @@ class BusinessSettingsTab(QWidget):
             details={
                 "vat_rate": s.vat_rate,
                 "components": len(s.components),
+                "work_rates": len(s.work_rates),
                 "extra_materials": len(s.extra_materials),
                 "positions": len(s.positions),
                 "flange_prices": len(s.flange_prices),
+                "company_fields": len(s.company),
             },
             actor=self.current_user,
         )

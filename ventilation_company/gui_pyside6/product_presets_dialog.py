@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.calculations.cost_engine import CostEngine
 from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.paths import APP_ROOT
 from ventilation_company.product_presets_manager import PresetsManager
 from ventilation_company.standard_products import StandardProduct
@@ -80,9 +81,8 @@ class ProductPresetsDialog(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Назва", "Тип", "Розміри", "Матеріал"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        setup_table(self.table, select_rows=True, read_only=True, stretch_last=False)
         right.addWidget(self.table)
 
         btn_row = QHBoxLayout()

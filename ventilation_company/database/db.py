@@ -88,6 +88,22 @@ def _init_engine() -> None:
     logger.info("PostgreSQL engine ініціалізовано: %s", DATABASE_URL.split("@")[-1])
 
 
+def get_session_local():
+    """Ліниво повернути фабрику сесій (ініціалізує engine при першому виклику).
+
+    Навідміну від ``from db import SessionLocal``, цей виклик не спрацьовує
+    на імпорті модуля — лише коли сесію справді потрібно відкрити.
+    """
+    _init_engine()
+    return _SessionLocal
+
+
+def get_engine():
+    """Ліниво повернути engine (ініціалізує при першому виклику)."""
+    _init_engine()
+    return _engine
+
+
 def __getattr__(name: str):
     """PEP 562: лінивий доступ до engine / SessionLocal / db_session."""
     if name in ("engine", "SessionLocal", "db_session"):
@@ -100,6 +116,7 @@ def __getattr__(name: str):
 def get_db():
     """Контекстний менеджер для сесії БД. Автоматично commit/rollback/close."""
     _init_engine()
+    assert _SessionLocal is not None
     session = _SessionLocal()
     try:
         yield session
@@ -115,7 +132,7 @@ def check_db_connection() -> bool:
     """Перевіряє чи доступна БД."""
     try:
         _init_engine()
-        with _engine.connect() as conn:
+        with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
@@ -133,4 +150,5 @@ def get_calc_db():
         stacklevel=2,
     )
     _init_engine()
+    assert _engine is not None
     return _engine.raw_connection()

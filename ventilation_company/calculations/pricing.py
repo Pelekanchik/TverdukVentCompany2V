@@ -10,7 +10,7 @@ from ventilation_company.services.business_settings import BusinessSettings
 class PricingEngine:
     """Розрахунок ціни виробу/проєкту різними методами."""
 
-    def __init__(self, base_cost: float = 10000, markup_percent: float = None):
+    def __init__(self, base_cost: float = 10000, markup_percent: float | None = None):
         self.base_cost = float(base_cost)
         self.markup_percent = markup_percent if markup_percent is not None else 30.0
 

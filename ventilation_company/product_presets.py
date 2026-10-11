@@ -18,6 +18,7 @@ from ventilation_company.standard_products import (
     RoundFlange,
     RoundTee,
     RoundTransition,
+    StandardProduct,
     Thickness,
 )
 
@@ -285,9 +286,9 @@ FLEXIBLE_PRESETS = [
 ]
 
 
-def get_all_presets() -> list:
+def get_all_presets() -> list[StandardProduct]:
     """Повернути всі пресети як список StandardProduct."""
-    presets = []
+    presets: list[StandardProduct] = []
     for name, w, h, l in RECT_DUCT_PRESETS:
         presets.append(
             RectDuct(
@@ -464,10 +465,10 @@ def get_all_presets() -> list:
     return presets
 
 
-def get_preset_categories() -> dict[str, list]:
+def get_preset_categories() -> dict[str, list[StandardProduct]]:
     """Повернути пресети згруповані за категоріями."""
     all_presets = get_all_presets()
-    categories = {
+    categories: dict[str, list[StandardProduct]] = {
         "Прямокутні повітропроводи": [],
         "Круглі повітропроводи": [],
         "Коліна / Відводи": [],

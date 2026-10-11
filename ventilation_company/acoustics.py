@@ -296,7 +296,7 @@ class AcousticCalculator:
             duct_area_m2: площа перерізу, м²
         """
         if velocity_ms < 3:
-            lwa = 0  # нижче 3 м/с шум незначний
+            lwa = 0.0  # нижче 3 м/с шум незначний
         else:
             # Емпірична формула
             lwa = (
@@ -317,7 +317,7 @@ class AcousticCalculator:
         Високошвидкісні решітки створюють значний шум.
         """
         if velocity_ms < 2:
-            lwa = 0
+            lwa = 0.0
         else:
             # Lw = 10*log10(v^6 * A) + const
             lwa = 10 * math.log10(velocity_ms**6 * grille_area_m2) - 45

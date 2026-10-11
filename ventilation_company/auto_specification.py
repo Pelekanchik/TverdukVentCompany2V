@@ -10,6 +10,7 @@ import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -95,7 +96,9 @@ class Specification:
         return result
 
     def get_summary_by_material(self) -> list[dict]:
-        grouped = defaultdict(lambda: {"quantity": 0, "weight": 0.0, "area": 0.0, "price": 0.0})
+        grouped: dict[tuple, dict[str, Any]] = defaultdict(
+            lambda: {"quantity": 0, "weight": 0.0, "area": 0.0, "price": 0.0}
+        )
         for item in self.items:
             key = (item.material, item.thickness)
             grouped[key]["quantity"] += item.quantity
@@ -507,7 +510,7 @@ def build_specification_from_library(
 def merge_specifications(specs: list[Specification], new_project_name: str) -> Specification:
     """Об'єднати кілька специфікацій в одну."""
     merged = Specification(project_name=new_project_name)
-    grouped = defaultdict(
+    grouped: dict[tuple, dict[str, Any]] = defaultdict(
         lambda: {
             "name": "",
             "type": "",

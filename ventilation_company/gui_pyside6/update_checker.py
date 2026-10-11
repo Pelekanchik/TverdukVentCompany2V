@@ -10,11 +10,18 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.paths import APP_ROOT
 from ventilation_company.services.update_service import check_for_update, download_release_asset
+
+
+def _parent_widget(obj: QObject) -> QWidget | None:
+    """Батьківський віджет QObject або None (для QMessageBox.setParent)."""
+    parent = obj.parent()
+    return parent if isinstance(parent, QWidget) else None
+
 
 UPDATER_BAT = r"""@echo off
 set PID=%1
@@ -58,23 +65,23 @@ class UpdateChecker(QObject):
     def _on_result(self, info) -> None:
         if not info:
             return
-        parent = self.parent()
+        parent = _parent_widget(self)
         answer = QMessageBox.question(
             parent,
             "Доступне оновлення",
             f"Доступна нова версія: {info.get('tag') or info.get('name')}. "
             f"Поточна версія: {info.get('current_version')}. "
             "Завантажити файл оновлення?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
         )
-        if answer == QMessageBox.Yes:
+        if answer == QMessageBox.StandardButton.Yes:
             self._download(info)
         else:
             QDesktopServices.openUrl(QUrl(info.get("url", "")))
 
     def _download(self, info):
-        parent = self.parent()
+        parent = _parent_widget(self)
         self._pending_release = info
         QMessageBox.information(parent, "Оновлення", "Завантаження почалося у фоні.")
         self._worker = FunctionWorker(download_release_asset, info)
@@ -87,7 +94,7 @@ class UpdateChecker(QObject):
         self._worker.start()
 
     def _on_downloaded(self, path: str):
-        parent = self.parent()
+        parent = _parent_widget(self)
         file_path = Path(path)
         if not file_path.exists() or file_path.stat().st_size == 0:
             QMessageBox.critical(parent, "Помилка", "Файл оновлення не завантажився або порожній.")
@@ -99,11 +106,11 @@ class UpdateChecker(QObject):
         size_mb = file_path.stat().st_size / 1024 / 1024
         msg = QMessageBox(parent)
         msg.setWindowTitle("Оновлення завантажено")
-        msg.setIcon(QMessageBox.Information)
+        msg.setIcon(QMessageBox.Icon.Information)
         msg.setText(f"Файл оновлення завантажено: {file_path.name} | Розмір: {size_mb:.1f} МБ")
-        extract_btn = msg.addButton("Розпакувати", QMessageBox.AcceptRole)
-        open_btn = msg.addButton("Відкрити папку", QMessageBox.AcceptRole)
-        msg.addButton(QMessageBox.Ok)
+        extract_btn = msg.addButton("Розпакувати", QMessageBox.ButtonRole.AcceptRole)
+        open_btn = msg.addButton("Відкрити папку", QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton(QMessageBox.StandardButton.Ok)
         msg.exec()
 
         if msg.clickedButton() == extract_btn:
@@ -112,7 +119,7 @@ class UpdateChecker(QObject):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file_path.parent)))
 
     def _extract_update(self, file_path: Path):
-        parent = self.parent()
+        parent = _parent_widget(self)
         tag = (self._pending_release or {}).get("tag") or "update"
         safe_tag = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in tag)
         target_dir = file_path.parent / f"extracted_{safe_tag}"
@@ -128,16 +135,16 @@ class UpdateChecker(QObject):
             parent,
             "Оновлення розпаковано",
             f"Оновлення розпаковано у:\n{target_dir}\n\nВстановити оновлення зараз?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
         )
-        if answer == QMessageBox.Yes:
+        if answer == QMessageBox.StandardButton.Yes:
             self._start_self_update(target_dir)
         else:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_dir)))
 
     def _start_self_update(self, extracted_dir: Path):
-        parent = self.parent()
+        parent = _parent_widget(self)
         if not getattr(sys, "frozen", False):
             QMessageBox.information(
                 parent,

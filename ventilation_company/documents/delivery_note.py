@@ -15,9 +15,11 @@ class DeliveryNote(BaseDocument):
 
     def header(self):
         self.set_font("DejaVu", "B", 14)
-        self.cell(0, 10, self.doc_title, ln=True, align="C")
+        self.cell(0, 10, self.doc_title, new_x="RIGHT", new_y="NEXT", align="C")
         self.set_font("DejaVu", "", 10)
-        self.cell(0, 6, f"№ {self.doc_number} від {self.doc_date}", ln=True, align="C")
+        self.cell(
+            0, 6, f"№ {self.doc_number} від {self.doc_date}", new_x="RIGHT", new_y="NEXT", align="C"
+        )
         self.ln(4)
 
         self._draw_company_block("Вантажовідправник:", self.company, 10, self.get_y(), 90)

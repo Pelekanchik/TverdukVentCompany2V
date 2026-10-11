@@ -3,6 +3,7 @@
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Sequence
 
 from fpdf import FPDF
 
@@ -28,8 +29,8 @@ class BaseDocument(FPDF, ABC):
             from ventilation_company.pdf_generator import _find_fonts
 
             regular, bold = _find_fonts()
-            self.add_font("DejaVu", "", regular, uni=True)
-            self.add_font("DejaVu", "B", bold, uni=True)
+            self.add_font("DejaVu", "", regular)
+            self.add_font("DejaVu", "B", bold)
         except Exception as exc:
             _logger.warning(
                 "Не вдалося завантажити Unicode-шрифт: %s. PDF може не відображати кирилицю.", exc
@@ -51,7 +52,7 @@ class BaseDocument(FPDF, ABC):
         self.set_xy(x, y)
         self.set_font("DejaVu", "B", 9)
         self.set_text_color(0, 0, 0)
-        self.cell(w, 5, label, ln=True)
+        self.cell(w, 5, label, new_x="RIGHT", new_y="NEXT")
 
         self.set_font("DejaVu", "", 9)
         lines = [
@@ -64,9 +65,9 @@ class BaseDocument(FPDF, ABC):
         for line in lines:
             if line:
                 self.set_x(x)
-                self.cell(w, 4.5, line, ln=True)
+                self.cell(w, 4.5, line, new_x="RIGHT", new_y="NEXT")
 
-    def _draw_table_header(self, headers: list[str], widths: list[float], y: float):
+    def _draw_table_header(self, headers: list[str], widths: Sequence[float | int], y: float):
         """Намалювати заголовок таблиці."""
         self.set_xy(10, y)
         self.set_fill_color(230, 230, 230)
@@ -75,7 +76,7 @@ class BaseDocument(FPDF, ABC):
             self.cell(width, 7, header, border=1, align="C", fill=True)
         self.ln()
 
-    def _draw_table_row(self, cells: list[str], widths: list[float], align: str = "C"):
+    def _draw_table_row(self, cells: list[str], widths: Sequence[float | int], align: str = "C"):
         """Намалювати рядок таблиці."""
         self.set_font("DejaVu", "", 9)
         for cell, width in zip(cells, widths):
@@ -92,14 +93,16 @@ class BaseDocument(FPDF, ABC):
         d_total = d_subtotal + d_vat
 
         self.set_font("DejaVu", "B", 10)
-        self.cell(0, 8, f"Разом без ПДВ: {d_subtotal} грн", ln=True, align="R")
-        self.cell(0, 8, f"ПДВ ({vat_rate}%): {d_vat} грн", ln=True, align="R")
+        self.cell(0, 8, f"Разом без ПДВ: {d_subtotal} грн", new_x="RIGHT", new_y="NEXT", align="R")
+        self.cell(0, 8, f"ПДВ ({vat_rate}%): {d_vat} грн", new_x="RIGHT", new_y="NEXT", align="R")
         self.set_font("DejaVu", "B", 12)
-        self.cell(0, 10, f"ВСЬОГО ДО СПЛАТИ: {d_total} грн", ln=True, align="R")
+        self.cell(0, 10, f"ВСЬОГО ДО СПЛАТИ: {d_total} грн", new_x="RIGHT", new_y="NEXT", align="R")
 
         # Прописом
         self.set_font("DejaVu", "", 9)
-        self.cell(0, 6, f"( {self._number_to_words(d_total)} )", ln=True, align="R")
+        self.cell(
+            0, 6, f"( {self._number_to_words(d_total)} )", new_x="RIGHT", new_y="NEXT", align="R"
+        )
 
     def _number_to_words(self, amount) -> str:
         """Сума прописом (спрощено)."""
@@ -111,11 +114,11 @@ class BaseDocument(FPDF, ABC):
         self.set_y(y)
         self.set_font("DejaVu", "", 10)
 
-        self.cell(90, 8, f"Від постачальника: {self.company.director}", ln=False)
-        self.cell(0, 8, f"Від замовника: _________________", ln=True)
+        self.cell(90, 8, f"Від постачальника: {self.company.director}", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 8, f"Від замовника: _________________", new_x="RIGHT", new_y="NEXT")
 
-        self.cell(90, 8, "_________________ / підпис /", ln=False)
-        self.cell(0, 8, "_________________ / підпис /", ln=True)
+        self.cell(90, 8, "_________________ / підпис /", new_x="RIGHT", new_y="TOP")
+        self.cell(0, 8, "_________________ / підпис /", new_x="RIGHT", new_y="NEXT")
 
     @abstractmethod
     def build(self, items: list[dict], filepath: str) -> str:

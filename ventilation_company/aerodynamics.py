@@ -12,6 +12,7 @@
 import math
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 # ── ФІЗИЧНІ КОНСТАНТИ ──
 AIR_DENSITY = 1.2  # кг/м³ — густина повітря при 20°C
@@ -263,7 +264,7 @@ class AerodynamicRoute:
 
 
 # ── КАТАЛОГ ВЕНТИЛЯТОРІВ ──
-FAN_CATALOG = [
+FAN_CATALOG: list[dict[str, Any]] = [
     {
         "name": "Вентилятор осьовий ВО-300",
         "type": "осьовий",

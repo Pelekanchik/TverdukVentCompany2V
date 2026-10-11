@@ -28,10 +28,10 @@ class ThemeSettingsTab(QWidget):
 
     def _build_ui(self):
         vlay = QVBoxLayout(self)
-        vlay.setAlignment(Qt.AlignTop)
+        vlay.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         lbl = QLabel("🎨 Оформлення інтерфейсу")
-        lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         vlay.addWidget(lbl)
         vlay.addSpacing(10)
 

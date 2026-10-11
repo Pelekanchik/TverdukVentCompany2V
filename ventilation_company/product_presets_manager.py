@@ -79,7 +79,8 @@ def _dict_to_product(data: dict) -> StandardProduct:
     ptype = data.get("_preset_type", data.get("product_type", "").replace(" ", "_"))
     cls = PRODUCT_CLASSES.get(ptype)
     if cls is None:
-        cls = PRODUCT_CLASSES.get(_UA_TO_EN.get(ptype))
+        en_type = _UA_TO_EN.get(ptype)
+        cls = PRODUCT_CLASSES.get(en_type) if en_type else None
     if cls is None:
         # fallback
         cls = StandardProduct

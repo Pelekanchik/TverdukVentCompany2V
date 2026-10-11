@@ -11,6 +11,7 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from ventilation_company.project3d.project_model import VentProject
 from ventilation_company.project3d.vent_system import Point3D
@@ -41,10 +42,10 @@ class Project3DPreview:
         self._show_labels = True
         self._show_equipment = True
         self._wireframe = False
-        self._view_angle = (25, -60)
+        self._view_angle: tuple[float, float] = (25.0, -60.0)
         self._show_collisions = True
-        self._collision_ids = set()
-        self.ax = None  # === ВИПРАВЛЕННЯ: ініціалізуємо ax ===
+        self._collision_ids: set[str] = set()
+        self.ax: Axes3D | None = None  # === ВИПРАВЛЕННЯ: ініціалізуємо ax ===
         self._build_ui()
         self._connect_events()
 
@@ -285,6 +286,8 @@ class Project3DPreview:
         self.canvas.draw()
 
     def _draw_wall(self, wall, show_labels: bool):
+        if self.ax is None:
+            return
         n = wall.normal
         hw = wall.thickness / 2
         h = wall.height
@@ -337,6 +340,8 @@ class Project3DPreview:
             self.ax.text(cx, cy, cz, wall.name, fontsize=6, color="#444", ha="center", va="bottom")
 
     def _draw_opening(self, opening):
+        if self.ax is None:
+            return
         cx, cy, cz = opening.position.x, opening.position.y, opening.position.z
         w, h = opening.width / 2, opening.height / 2
         verts = [
@@ -361,6 +366,8 @@ class Project3DPreview:
     def _draw_duct_segment(
         self, seg, system_type: str, show_labels: bool, is_collision: bool = False
     ):
+        if self.ax is None:
+            return
         color_key = "duct_supply"
         if "витяж" in system_type.lower() or "exhaust" in system_type.lower():
             color_key = "duct_exhaust"
@@ -413,6 +420,8 @@ class Project3DPreview:
             )
 
     def _draw_equipment(self, eq, show_labels: bool, is_collision: bool = False):
+        if self.ax is None:
+            return
         cx, cy, cz = eq.position.x, eq.position.y, eq.position.z
         w, h, l = eq.width / 2, eq.height / 2, eq.length
         color = self.COLORS["collision"] if is_collision else self.COLORS["equipment"]

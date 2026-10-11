@@ -52,7 +52,9 @@ class GanttChart:
         self.ax = self.fig.add_subplot(111)
         self.ax.set_facecolor("#fafafa")
 
-    def _format_datetime(self, dt: datetime) -> str:
+    def _format_datetime(self, dt: datetime | None) -> str:
+        if dt is None:
+            return "—"
         return dt.strftime("%d.%m %H:%M")
 
     def _hours_since_start(self, dt: datetime) -> float:

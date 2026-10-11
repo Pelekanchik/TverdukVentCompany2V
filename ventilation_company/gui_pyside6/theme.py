@@ -100,15 +100,22 @@ class Theme:
         QPushButton#primary:hover {{
             background-color: {cls.ACCENT_HOVER};
         }}
-        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {{
             background-color: {cls.BG_CARD};
             color: {cls.TEXT};
             border: 1px solid {cls.BORDER};
             border-radius: 6px;
             padding: 6px 10px;
         }}
-        QLineEdit:focus, QComboBox:focus {{
+        QLineEdit:focus, QComboBox:focus, QDateEdit:focus {{
             border-color: {cls.ACCENT};
+        }}
+        /* Редактори всередині таблиць — компактні, щоб поміщалися у висоту рядка */
+        QTableView QLineEdit, QTableView QComboBox,
+        QTableView QSpinBox, QTableView QDoubleSpinBox {{
+            padding: 1px 4px;
+            border-radius: 2px;
+            min-height: 0;
         }}
         QTableView {{
             background-color: {cls.BG_CARD};

@@ -1,0 +1,496 @@
+"""Вкладка "Документи" (PySide6) — генерація Excel і зберігання в PostgreSQL.
+
+ВИПРАВЛЕННЯ: документи зберігаються в БД (project_documents), а не у файловій системі.
+"""
+
+import io
+from datetime import datetime
+
+import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from PySide6.QtWidgets import (
+    QComboBox,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ventilation_company.database.repositories.product_repo import ProductRepository
+from ventilation_company.database.repositories.project_document_repo import (
+    ProjectDocumentRepository,
+)
+from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
+from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
+
+
+class DocumentsTab(QWidget):
+    """Вкладка генерації документів зі зберіганням у БД."""
+
+    def __init__(self, parent=None, main_window=None):
+        super().__init__(parent)
+        self.main_window = main_window
+        self._current_project_id = None
+        self._build_ui()
+        self._load_projects()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        top = QHBoxLayout()
+        lbl_title = QLabel("📄 Документи")
+        lbl_title.setObjectName("title")
+        top.addWidget(lbl_title)
+        top.addSpacing(24)
+
+        lbl_proj = QLabel("Проєкт:")
+        lbl_proj.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
+        top.addWidget(lbl_proj)
+
+        self.combo_project = QComboBox()
+        self.combo_project.setMinimumWidth(300)
+        self.combo_project.setMinimumHeight(32)
+        self.combo_project.currentIndexChanged.connect(self._on_project_changed)
+        top.addWidget(self.combo_project)
+        top.addStretch()
+        layout.addLayout(top)
+
+        lbl_docs = QLabel("Оберіть тип документа для генерації:")
+        lbl_docs.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
+        layout.addWidget(lbl_docs)
+
+        docs_grid = QGridLayout()
+        docs_grid.setSpacing(12)
+
+        self.btn_spec = QPushButton("📋 Специфікація\nдля замовника")
+        self.btn_spec.setMinimumHeight(80)
+        self.btn_spec.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_spec.clicked.connect(lambda: self._generate("spec"))
+        docs_grid.addWidget(self.btn_spec, 0, 0)
+
+        self.btn_calc = QPushButton("🧮 Калькуляція\nсобівартості")
+        self.btn_calc.setMinimumHeight(80)
+        self.btn_calc.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_calc.clicked.connect(lambda: self._generate("calc"))
+        docs_grid.addWidget(self.btn_calc, 0, 1)
+
+        self.btn_metal = QPushButton("🔩 Замовлення\nна метал")
+        self.btn_metal.setMinimumHeight(80)
+        self.btn_metal.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_metal.clicked.connect(lambda: self._generate("metal"))
+        docs_grid.addWidget(self.btn_metal, 1, 0)
+
+        self.btn_order = QPushButton("🏭 Наряд на\nвиробництво")
+        self.btn_order.setMinimumHeight(80)
+        self.btn_order.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_order.clicked.connect(lambda: self._generate("order"))
+        docs_grid.addWidget(self.btn_order, 1, 1)
+
+        self.btn_client = QPushButton("💼 Повний кошторис\nдля замовника")
+        self.btn_client.setMinimumHeight(80)
+        self.btn_client.setStyleSheet(
+            f"font-size: 13px; background: {Theme.BG_CARD}; border: 1px solid {Theme.BORDER}; border-radius: 8px;"
+        )
+        self.btn_client.clicked.connect(lambda: self._generate("client"))
+        docs_grid.addWidget(self.btn_client, 2, 0, 1, 2)
+
+        layout.addLayout(docs_grid)
+
+        info = QLabel(
+            "💡 Документи зберігаються в базі даних PostgreSQL\n"
+            "Перегляньте їх у картці проєкту (вкладка 'Проєкти' → двічі клікніть на проєкт)"
+        )
+        info.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 8px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        layout.addStretch()
+
+    def _load_projects(self):
+        self.combo_project.clear()
+        try:
+            projects = ProjectRepository.list_all()
+            for p in projects:
+                display = f"{p.get('project_number') or '—'} — {p.get('name') or 'Без назви'}"
+                self.combo_project.addItem(display, p["id"])
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкти: {e}")
+
+    def _on_project_changed(self, index):
+        self._current_project_id = self.combo_project.itemData(index)
+
+    def _get_project_data(self):
+        if not self._current_project_id:
+            return None, []
+        try:
+            p = ProjectRepository.get(self._current_project_id)
+            if not p:
+                return None, []
+            products = ProductRepository.get_all(project_id=p["id"])
+            project = {
+                "id": p["id"],
+                "project_number": p.get("project_number"),
+                "name": p.get("name"),
+                "client": p.get("client"),
+                "address": p.get("address"),
+            }
+            return project, products
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт: {e}")
+            return None, []
+
+    def _generate(self, doc_type: str):
+        project, products = self._get_project_data()
+        if not project:
+            return
+        if not products:
+            QMessageBox.warning(self, "Увага", "У проєкті немає виробів.")
+            return
+
+        self._worker = FunctionWorker(self._generate_job, project, products, doc_type)
+        self._worker.result.connect(self._on_document_generated)
+        self._worker.error.connect(
+            lambda err: QMessageBox.critical(
+                self, "Помилка", f"Не вдалося згенерувати документ: {err}"
+            )
+        )
+        self._worker.start()
+
+    def _on_document_generated(self, payload):
+        filename, size_kb = payload
+        QMessageBox.information(
+            self,
+            "Успіх",
+            f"Документ збережено в базі даних! Файл: {filename} Розмір: {size_kb:.1f} КБ. Перегляньте у картці проєкту.",
+        )
+
+    def _generate_job(self, project, products, doc_type: str):
+        buffer = io.BytesIO()
+        filename = (
+            f"{doc_type}_{project['project_number']}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        )
+
+        if doc_type == "spec":
+            self._gen_spec(project, products, buffer)
+        elif doc_type == "calc":
+            self._gen_calc(project, products, buffer)
+        elif doc_type == "metal":
+            self._gen_metal(project, products, buffer)
+        elif doc_type == "order":
+            self._gen_order(project, products, buffer)
+        elif doc_type == "client":
+            self._gen_client(project, products, buffer)
+
+        content = buffer.getvalue()
+        ProjectDocumentRepository.create(
+            project_id=project["id"],
+            doc_type=doc_type,
+            filename=filename,
+            content=content,
+        )
+        return filename, len(content) / 1024
+
+    def _style_header(self, ws, row, headers, fill_color="4472C4"):
+        fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+        font = Font(bold=True, color="FFFFFF")
+        border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.fill = fill
+            cell.font = font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = border
+
+    def _gen_client(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Кошторис для замовника"
+        ws.merge_cells("A1:F1")
+        ws["A1"] = f"КОШТОРИС ДЛЯ ЗАМОВНИКА № {project['project_number']}"
+        ws["A1"].font = Font(bold=True, size=16)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.merge_cells("A2:F2")
+        ws["A2"] = f"Проєкт: {project.get('name') or ''} | Клієнт: {project.get('client') or '—'}"
+        ws["A2"].alignment = Alignment(horizontal="center")
+
+        headers = ["№", "Назва", "Опис / розміри", "К-ть", "Ціна", "Сума"]
+        self._style_header(ws, 4, headers)
+        row = 5
+        idx = 1
+        total = 0.0
+
+        def dims(item):
+            w = float(item.get("width") or 0)
+            h = float(item.get("height") or 0)
+            l = float(item.get("length") or 0)
+            if h:
+                return f"{w:.0f}×{h:.0f}×{l:.0f}"
+            return f"Ø{w:.0f}×{l:.0f}" if l else f"Ø{w:.0f}"
+
+        for item in products:
+            qty = float(item.get("quantity") or 1)
+            line_total = float(item.get("discounted_price") or 0)
+            if line_total <= 0:
+                line_total = float(item.get("total_price") or 0)
+            unit_price = line_total / qty if qty else line_total
+            ws.cell(row=row, column=1, value=idx)
+            ws.cell(row=row, column=2, value=item.get("name"))
+            ws.cell(row=row, column=3, value=dims(item))
+            ws.cell(row=row, column=4, value=qty)
+            ws.cell(row=row, column=5, value=round(unit_price, 2))
+            ws.cell(row=row, column=6, value=round(line_total, 2))
+            total += line_total
+            row += 1
+            idx += 1
+
+        works = ProjectWorkRepository.get_all(project["id"])
+        if works:
+            row += 1
+            ws.cell(row=row, column=2, value="ДОДАТКОВІ РОБОТИ / МОНТАЖ").font = Font(bold=True)
+            row += 1
+            for w in works:
+                qty = float(w.get("quantity") or 1)
+                price = float(w.get("unit_price") or 0)
+                line_total = float(w.get("total_price") or qty * price)
+                ws.cell(row=row, column=1, value=idx)
+                ws.cell(row=row, column=2, value=w.get("work_name"))
+                ws.cell(row=row, column=3, value=w.get("work_type") or "")
+                ws.cell(row=row, column=4, value=qty)
+                ws.cell(row=row, column=5, value=price)
+                ws.cell(row=row, column=6, value=line_total)
+                total += line_total
+                row += 1
+                idx += 1
+
+        expenses = [
+            e
+            for e in ProjectExpenseRepository.get_all(project["id"])
+            if (e.get("direction") or "minus") == "plus"
+        ]
+        if expenses:
+            row += 1
+            ws.cell(row=row, column=2, value="ДОСТАВКА / ДОДАТКОВІ ПОСЛУГИ").font = Font(bold=True)
+            row += 1
+            for e in expenses:
+                qty = float(e.get("quantity") or 1)
+                price = float(e.get("unit_price") or 0)
+                line_total = float(e.get("total_price") or qty * price)
+                ws.cell(row=row, column=1, value=idx)
+                ws.cell(row=row, column=2, value=e.get("expense_name"))
+                ws.cell(row=row, column=3, value="")
+                ws.cell(row=row, column=4, value=qty)
+                ws.cell(row=row, column=5, value=price)
+                ws.cell(row=row, column=6, value=line_total)
+                total += line_total
+                row += 1
+                idx += 1
+
+        row += 1
+        ws.cell(row=row, column=5, value="РАЗОМ").font = Font(bold=True)
+        ws.cell(row=row, column=6, value=round(total, 2)).font = Font(bold=True)
+        for col, width in {"A": 6, "B": 34, "C": 24, "D": 10, "E": 14, "F": 16}.items():
+            ws.column_dimensions[col].width = width
+        wb.save(buffer)
+
+    def _gen_spec(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Специфікація"
+        ws.merge_cells("A1:H1")
+        ws["A1"] = f"СПЕЦИФІКАЦІЯ № {project['project_number']}"
+        ws["A1"].font = Font(bold=True, size=16)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.merge_cells("A2:H2")
+        ws["A2"] = f"Проєкт: {project['name']} | Клієнт: {project['client']}"
+        ws["A2"].alignment = Alignment(horizontal="center")
+        headers = ["№", "Назва", "Тип", "Розміри", "Матеріал", "К-ть", "Ціна", "Сума"]
+        self._style_header(ws, 4, headers)
+        total = 0
+        for i, item in enumerate(products, 1):
+            w = item.get("width", 0) or 0
+            h = item.get("height", 0) or 0
+            l = item.get("length", 0) or 0
+            dims = f"Ø{w:.0f} x {l:.0f}" if h == 0 else f"{w:.0f}x{h:.0f}x{l:.0f}"
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("product_type"),
+                dims,
+                item.get("material"),
+                item.get("quantity", 1),
+                item.get("unit_price", 0),
+                item.get("total_price", 0),
+            ]
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=4 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
+            total += item.get("total_price", 0)
+        row = 4 + len(products) + 1
+        ws.merge_cells(f"A{row}:G{row}")
+        ws.cell(row=row, column=1, value="ВСЬОГО:").font = Font(bold=True)
+        ws.cell(row=row, column=1).alignment = Alignment(horizontal="right")
+        ws.cell(row=row, column=8, value=total).font = Font(bold=True)
+        for col in range(1, 9):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
+        ws.column_dimensions["B"].width = 25
+        ws.column_dimensions["D"].width = 18
+        wb.save(buffer)
+
+    def _gen_calc(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Калькуляція"
+        ws.merge_cells("A1:F1")
+        ws["A1"] = f"КАЛЬКУЛЯЦІЯ СОБІВАРТОСТІ — {project['name']}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        headers = ["№", "Назва", "Матеріал", "К-ть", "Собівартість", "Кінцева ціна"]
+        self._style_header(ws, 3, headers, "70AD47")
+        total_cost = 0
+        total_price = 0
+        for i, item in enumerate(products, 1):
+            cost = item.get("unit_price", 0) * 0.7
+            price = item.get("total_price", 0)
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("material"),
+                item.get("quantity", 1),
+                round(cost, 2),
+                price,
+            ]
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
+            total_cost += cost
+            total_price += price
+        row = 3 + len(products) + 1
+        ws.merge_cells(f"A{row}:D{row}")
+        ws.cell(row=row, column=1, value="ВСЬОГО:").font = Font(bold=True)
+        ws.cell(row=row, column=5, value=round(total_cost, 2)).font = Font(bold=True)
+        ws.cell(row=row, column=6, value=total_price).font = Font(bold=True)
+        profit = total_price - total_cost
+        row += 1
+        ws.merge_cells(f"A{row}:D{row}")
+        ws.cell(row=row, column=1, value="ПРИБУТОК:").font = Font(bold=True, color="006100")
+        ws.cell(row=row, column=5, value=round(profit, 2)).font = Font(bold=True, color="006100")
+        wb.save(buffer)
+
+    def _gen_metal(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Метал"
+        ws.merge_cells("A1:E1")
+        ws["A1"] = f"ЗАМОВЛЕННЯ НА МЕТАЛ — {project['name']}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        metal_summary = {}
+        for item in products:
+            mat = item.get("material", "—")
+            thick = item.get("thickness", "—")
+            area = item.get("metal_area_m2", 0) or 0
+            weight = item.get("weight_kg", 0) or 0
+            key = f"{mat} | {thick} мм"
+            if key not in metal_summary:
+                metal_summary[key] = {"area": 0, "weight": 0, "qty": 0}
+            metal_summary[key]["area"] += area * item.get("quantity", 1)
+            metal_summary[key]["weight"] += weight * item.get("quantity", 1)
+            metal_summary[key]["qty"] += item.get("quantity", 1)
+        headers = ["№", "Матеріал | Товщина", "Площа м²", "Вага кг", "К-ть виробів"]
+        self._style_header(ws, 3, headers, "FFC000")
+        total_area = 0
+        total_weight = 0
+        for i, (key, data) in enumerate(metal_summary.items(), 1):
+            row_data = [i, key, round(data["area"], 2), round(data["weight"], 2), data["qty"]]
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
+            total_area += data["area"]
+            total_weight += data["weight"]
+        row = 3 + len(metal_summary) + 1
+        ws.merge_cells(f"A{row}:B{row}")
+        ws.cell(row=row, column=1, value="ВСЬОГО:").font = Font(bold=True)
+        ws.cell(row=row, column=3, value=round(total_area, 2)).font = Font(bold=True)
+        ws.cell(row=row, column=4, value=round(total_weight, 2)).font = Font(bold=True)
+        wb.save(buffer)
+
+    def _gen_order(self, project, products, buffer):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Наряд"
+        ws.merge_cells("A1:G1")
+        ws["A1"] = f"НАРЯД НА ВИРОБНИЦТВО — {project['name']}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        headers = ["№", "Назва", "Тип", "Розміри", "Матеріал", "Товщ.", "К-ть"]
+        self._style_header(ws, 3, headers, "C65911")
+        for i, item in enumerate(products, 1):
+            w = item.get("width", 0) or 0
+            h = item.get("height", 0) or 0
+            l = item.get("length", 0) or 0
+            dims = f"Ø{w:.0f} x {l:.0f}" if h == 0 else f"{w:.0f}x{h:.0f}x{l:.0f}"
+            row_data = [
+                i,
+                item.get("name"),
+                item.get("product_type"),
+                dims,
+                item.get("material"),
+                item.get("thickness", "—"),
+                item.get("quantity", 1),
+            ]
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=3 + i, column=col, value=val)
+                cell.border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
+        wb.save(buffer)
+
+    def refresh(self):
+        self._load_projects()
+
+    def on_project_changed(self, project_id):
+        if project_id:
+            idx = self.combo_project.findData(project_id)
+            if idx >= 0:
+                self.combo_project.setCurrentIndex(idx)
+        else:
+            self.combo_project.setCurrentIndex(-1)
+            self._current_project_id = None

@@ -20,6 +20,23 @@ SETTINGS_FILE = str(DATA_DIR / "business_settings.json")
 
 DEFAULT_VAT_RATE = 20.0
 
+# Реквізити фірми (Виконавця) — підставляються у КП, договір, акти.
+# Дефолти — шаблонні значення; редагуються у «Налаштування → Бізнес».
+DEFAULT_COMPANY = {
+    "name": "ТОВ «ВентКомпані»",
+    "address": "м. Київ, вул. Промислова, 15",
+    "phone": "+38 (044) 123-45-67",
+    "email": "info@ventcompany.ua",
+    "website": "www.ventcompany.ua",
+    "edrpou": "12345678",
+    "signatory": "Директор Іваненко І.І.",
+    "city": "м. Київ",
+    # Банківські реквізити для рахунків на оплату.
+    "bank_name": "АТ «Ощадбанк»",
+    "iban": "UA00 0000 0000 0000 0000 0000 00",
+    "mfo": "300465",
+}
+
 # Комплектуючі (вентилятори, фільтри, клапани тощо) — ключ: назва з _ замість пробілів.
 DEFAULT_COMPONENTS = {
     "вентилятор_осьовий": {"ціна": 3500, "одиниця": "шт"},
@@ -63,12 +80,27 @@ DEFAULT_FLANGE_PRICES = {
     "P40": {"ціна": 200.0},
 }
 
+# Типові роботи для проєктів (монтаж, доставка, заміри), грн за одиницю.
+# Ціни орієнтовні (ринок України, 2026) — коригуються у «Налаштування → Бізнес».
+DEFAULT_WORK_RATES = {
+    "монтаж_повітропроводів": {"ціна": 280, "одиниця": "м2"},
+    "монтаж_обладнання": {"ціна": 2000, "одиниця": "шт"},
+    "ізоляція_повітропроводів": {"ціна": 130, "одиниця": "м2"},
+    "проходка_отворів": {"ціна": 450, "одиниця": "отвір"},
+    "демонтаж_повітропроводів": {"ціна": 90, "одиниця": "м2"},
+    "доставка": {"ціна": 1200, "одиниця": "рейс"},
+    "виїзд_на_замір": {"ціна": 700, "одиниця": "виїзд"},
+    "пусконалагодження": {"ціна": 3500, "одиниця": "об'єкт"},
+}
+
 
 class BusinessSettings:
     """Менеджер бізнес-налаштувань (Singleton, файлове блокування)."""
 
     _instance: BusinessSettings | None = None
     _lock = threading.Lock()
+    # Встановлюється в __new__; анотація тут — для mypy.
+    _initialized: bool
 
     def __new__(cls, filepath: str = SETTINGS_FILE) -> BusinessSettings:
         if cls._instance is None:
@@ -97,6 +129,8 @@ class BusinessSettings:
         self.extra_materials: dict = {}
         self.positions: dict = {}
         self.flange_prices: dict = {}
+        self.work_rates: dict = {}
+        self.company: dict = {}
 
         self.load()
 
@@ -140,6 +174,19 @@ class BusinessSettings:
         self.flange_prices = data.get(
             "flange_prices", json.loads(json.dumps(DEFAULT_FLANGE_PRICES))
         )
+        # Міграція: старий формат {"P30": 150.0} → канонічний {"P30": {"ціна": 150.0}}
+        self.flange_prices = {
+            key: ({"ціна": float(value)} if not isinstance(value, dict) else value)
+            for key, value in self.flange_prices.items()
+        }
+        self.work_rates = data.get("work_rates", json.loads(json.dumps(DEFAULT_WORK_RATES)))
+        # Реквізити фірми: злиття з дефолтами, щоб нові поля з'являлись у старих файлах.
+        stored_company = data.get("company", {})
+        self.company = json.loads(json.dumps(DEFAULT_COMPANY))
+        if isinstance(stored_company, dict):
+            for key, value in stored_company.items():
+                if key in self.company and value is not None:
+                    self.company[key] = str(value)
         if not data:
             self.save()
 
@@ -151,6 +198,8 @@ class BusinessSettings:
             "extra_materials": self.extra_materials,
             "positions": self.positions,
             "flange_prices": self.flange_prices,
+            "work_rates": self.work_rates,
+            "company": self.company,
         }
         with self._file_lock:
             self._atomic_write(data)
@@ -168,9 +217,17 @@ class BusinessSettings:
         return self.components.get(key, {})
 
     def get_extra_material_price(self, key: str, default: float = 0.0) -> float:
-        """Ціна за м² додаткового матеріалу (ізоляція тощо)."""
+        """Ціна за м² додаткового матеріалу (ізоляція тощо).
+
+        У JSON ціна може бути збережена рядком («180») — безпечно
+        перетворюємо на float, при помилці повертаємо default.
+        """
         self.reload()
-        return self.extra_materials.get(key, {}).get("ціна_за_м2", default)
+        raw = self.extra_materials.get(key, {}).get("ціна_за_м2", default)
+        try:
+            return float(str(raw).replace(",", ".").replace(" ", ""))
+        except (TypeError, ValueError):
+            return float(default)
 
     def get_position(self, name: str) -> dict:
         """Ставка та премія посади; нульові значення, якщо невідомо."""
@@ -184,3 +241,21 @@ class BusinessSettings:
         if isinstance(raw, dict):
             return float(raw.get("ціна", default))
         return float(raw) if raw else default
+
+    def get_work_rate(self, key: str) -> dict:
+        """Ціна та одиниця типової роботи; порожній dict, якщо невідомо."""
+        self.reload()
+        return self.work_rates.get(key, {})
+
+    def get_company(self) -> dict:
+        """Реквізити фірми (Виконавця) для КП, договорів і актів.
+
+        Завжди повертає копію з усіма ключами DEFAULT_COMPANY;
+        значення, не задані користувачем, — дефолтні (шаблонні).
+        """
+        self.reload()
+        company = json.loads(json.dumps(DEFAULT_COMPANY))
+        for key, value in self.company.items():
+            if key in company and value is not None:
+                company[key] = str(value)
+        return company

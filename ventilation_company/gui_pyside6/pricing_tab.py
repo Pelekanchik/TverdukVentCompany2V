@@ -7,57 +7,104 @@
   • Ставки робіт (грн/м²)
   • Націнки по категоріях (%)
 
-Зміни зберігаються в data/pricing_settings.json
+Єдине джерело правди — сервіс PricingSettings
+(ventilation_company/services/pricing_settings.py, файл data/pricing_settings.json).
+Функції load_settings/save_settings нижче — тонкі адаптери між GUI і сервісом.
 """
 
-import json
-import shutil
+import copy
 from pathlib import Path
 
-from PySide6.QtGui import QColor, QPalette, QStandardItem, QStandardItemModel
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
+    QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
-    QStyledItemDelegate,
     QTableView,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
-from ventilation_company.paths import DATA_DIR
+from ventilation_company.services import pricing_settings as _pricing
 
-OLD_SETTINGS_PATH = Path(__file__).parent.parent.parent / "data" / "pricing_settings.json"
-SETTINGS_PATH = DATA_DIR / "pricing_settings.json"
+PricingSettings = _pricing.PricingSettings
 
-# Migrate old settings file if present.
-if OLD_SETTINGS_PATH.exists() and not SETTINGS_PATH.exists():
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(OLD_SETTINGS_PATH, SETTINGS_PATH)
+# Категорії націнок (назва, значення за замовчуванням, %) — реекспорт з сервісу.
+MARKUP_CATEGORIES = list(_pricing.MARKUP_CATEGORY_NAMES)
+MARKUP_DEFAULTS = dict(_pricing.DEFAULT_MARKUP_CATEGORIES)
 
 
 def load_settings() -> dict:
-    """Завантажити налаштування цін."""
-    try:
-        with open(SETTINGS_PATH, encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return get_default_settings()
+    """Завантажити налаштування цін через єдиний сервіс PricingSettings."""
+    pricing = PricingSettings.get_instance()
+    pricing.reload()
+    labor_rates = {}
+    for name, data in (pricing.labor_rates or {}).items():
+        if isinstance(data, dict):
+            labor_rates[name] = {
+                "rate_per_m2": data.get("rate_per_m2", 0.0),
+                "difficulty_percent": data.get("difficulty_percent", data.get("difficulty", 0.0)),
+            }
+    return {
+        "material_prices": copy.deepcopy(pricing.material_prices),
+        "material_densities": copy.deepcopy(pricing.material_densities),
+        "overhead": copy.deepcopy(pricing.overhead),
+        "depreciation": copy.deepcopy(pricing.depreciation),
+        "markup_percent": pricing.markup_percent,
+        "labor_rates": labor_rates,
+        "markup_categories": {
+            name: float(pricing.markup_categories.get(name, MARKUP_DEFAULTS[name]))
+            for name in MARKUP_CATEGORIES
+        },
+    }
+
+
+def get_markup_categories() -> list[tuple[str, float]]:
+    """Категорії націнок (назва, %) з поточних збережених налаштувань.
+
+    Делегує до сервісу — це обгортка для зворотної сумісності імпортів.
+    """
+    return _pricing.get_markup_categories()
 
 
 def save_settings(data: dict):
-    """Зберегти налаштування цін і скинути кеш розрахунків."""
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    """Зберегти налаштування цін через сервіс і скинути кеш розрахунків."""
+    pricing = PricingSettings.get_instance()
+    for attr in (
+        "material_prices",
+        "material_densities",
+        "overhead",
+        "depreciation",
+        "markup_percent",
+    ):
+        if attr in data:
+            setattr(pricing, attr, data[attr])
+    pricing.sync_material_densities()
+    if "labor_rates" in data:
+        pricing.labor_rates = {
+            name: {
+                "rate_per_m2": d.get("rate_per_m2", 0.0),
+                "difficulty_percent": d.get("difficulty_percent", d.get("difficulty", 0.0)),
+            }
+            for name, d in data["labor_rates"].items()
+            if isinstance(d, dict)
+        }
+    if "markup_categories" in data:
+        pricing.markup_categories = {
+            name: float(value) for name, value in data["markup_categories"].items()
+        }
+    pricing.save()
 
-    # ── ВИПРАВЛЕННЯ: скидаємо кеш, щоб CostEngine бачив нові ціни одразу ──
+    # ── Скидаємо кеш, щоб CostEngine бачив нові ціни одразу ──
     try:
         from ventilation_company.calculations.cost_engine import clear_cache as clear_cost_cache
         from ventilation_company.manufacturing_params import clear_cache as clear_manuf_cache
@@ -69,75 +116,15 @@ def save_settings(data: dict):
 
 
 def get_default_settings() -> dict:
-    """Початкові налаштування."""
+    """Початкові налаштування (з канонічних дефолтів сервісу)."""
     return {
-        "material_prices": {
-            "оцинкована сталь": {
-                "0.5": 450.0,
-                "0.7": 580.0,
-                "0.9": 650.0,
-                "1.0": 750.0,
-                "1.2": 850.0,
-                "1.5": 950.0,
-                "2.0": 1200.0,
-            },
-            "нержавіюча сталь": {
-                "0.5": 950.0,
-                "0.7": 1100.0,
-                "0.9": 1200.0,
-                "1.0": 1200.0,
-                "1.2": 1400.0,
-                "1.5": 1600.0,
-                "2.0": 2000.0,
-            },
-            "алюміній": {
-                "0.5": 320.0,
-                "0.7": 380.0,
-                "0.9": 420.0,
-                "1.0": 450.0,
-                "1.2": 500.0,
-                "1.5": 600.0,
-                "2.0": 750.0,
-            },
-        },
-        "overhead": {
-            "waste_percent": 8.0,
-            "electricity_per_kg": 2.5,
-            "rent_per_month": 15000.0,
-            "transport_per_project": 500.0,
-        },
-        "depreciation": {
-            "guillotine_percent": 5.0,
-            "bending_percent": 4.0,
-            "welding_percent": 3.0,
-            "plasma_percent": 6.0,
-        },
-        "labor_rates": {
-            "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty": 0.0},
-            "повітропровід круглий": {"rate_per_m2": 130.0, "difficulty": 5.0},
-            "відвод прямокутний": {"rate_per_m2": 180.0, "difficulty": 20.0},
-            "відвод круглий": {"rate_per_m2": 200.0, "difficulty": 25.0},
-            "трійник прямокутний": {"rate_per_m2": 250.0, "difficulty": 25.0},
-            "трійник круглий": {"rate_per_m2": 280.0, "difficulty": 30.0},
-            "перехід прямокутний": {"rate_per_m2": 180.0, "difficulty": 15.0},
-            "перехід круглий": {"rate_per_m2": 200.0, "difficulty": 20.0},
-            "фланець прямокутний": {"rate_per_m2": 200.0, "difficulty": 15.0},
-            "фланець круглий": {"rate_per_m2": 180.0, "difficulty": 10.0},
-            "заглушка прямокутна": {"rate_per_m2": 150.0, "difficulty": 5.0},
-            "заглушка кругла": {"rate_per_m2": 150.0, "difficulty": 5.0},
-            "гнучка вставка": {"rate_per_m2": 100.0, "difficulty": 0.0},
-        },
-        "markup_percent": 30.0,
-        "markup_matrix": {
-            "Стандартна": 30.0,
-            "Преміум": 40.0,
-            "Економ": 20.0,
-            "Спецзамовлення": 50.0,
-        },
-        "flange_price": {
-            "P30": 150.0,
-            "P40": 200.0,
-        },
+        "material_prices": copy.deepcopy(_pricing.DEFAULT_MATERIAL_PRICES),
+        "material_densities": copy.deepcopy(_pricing.DEFAULT_MATERIAL_DENSITIES),
+        "overhead": copy.deepcopy(_pricing.DEFAULT_OVERHEAD),
+        "depreciation": copy.deepcopy(_pricing.DEFAULT_DEPRECIATION),
+        "markup_percent": _pricing.DEFAULT_MARKUP_PERCENT,
+        "labor_rates": copy.deepcopy(_pricing.DEFAULT_LABOR_RATES),
+        "markup_categories": dict(_pricing.DEFAULT_MARKUP_CATEGORIES),
     }
 
 
@@ -146,21 +133,44 @@ def get_default_settings() -> dict:
 # ═══════════════════════════════════════════════════════════
 
 
-class DarkEditorDelegate(QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
-        editor = super().createEditor(parent, option, index)
-        palette = editor.palette()
-        palette.setColor(QPalette.ColorRole.Base, QColor("#232946"))
-        palette.setColor(QPalette.ColorRole.Text, QColor("#f4f4f4"))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor("#ff8c00"))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#111111"))
-        editor.setPalette(palette)
-        if hasattr(editor, "setStyleSheet"):
-            editor.setStyleSheet(
-                "background-color: #232946; color: #f4f4f4; "
-                "selection-background-color: #ff8c00; selection-color: #111111;"
-            )
-        return editor
+def parse_price_grid(text: str, thicknesses: list[str]) -> tuple[dict[str, dict[str, float]], int]:
+    """Розібрати таблицю цін з буфера обміну (TSV/CSV із Excel).
+
+    Кожен рядок: матеріал у першій колонці, далі ціни за товщинами
+    позиційно у порядку thicknesses. Приймає кому чи крапку, пробіли.
+    Повертає (дані, кількість пропущених нечислових комірок).
+    """
+    data: dict[str, dict[str, float]] = {}
+    skipped = 0
+    for line in text.replace("\r", "").split("\n"):
+        if not line.strip():
+            continue
+        cells = line.split("\t") if "\t" in line else line.split(";")
+        material = cells[0].strip()
+        if not material:
+            continue
+        entry = data.setdefault(material, {})
+        for thick, raw in zip(thicknesses, cells[1:], strict=False):
+            raw = raw.strip().replace(" ", "").replace(",", ".")
+            if not raw:
+                continue
+            try:
+                entry[thick] = float(raw)
+            except ValueError:
+                skipped += 1
+    return data, skipped
+
+
+def metal_prices_to_csv(model: QStandardItemModel, thicknesses: list[str]) -> str:
+    """Звести модель цін у текст CSV (роздільник «;», для українського Excel)."""
+    lines = ["Матеріал;" + ";".join(thicknesses)]
+    for row in range(model.rowCount()):
+        cells = [model.item(row, 0).text() if model.item(row, 0) else ""]
+        for col in range(1, 1 + len(thicknesses)):
+            item = model.item(row, col)
+            cells.append(item.text() if item else "")
+        lines.append(";".join(cells))
+    return "\n".join(lines)
 
 
 class MetalPricesTab(QWidget):
@@ -182,13 +192,7 @@ class MetalPricesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setItemDelegate(DarkEditorDelegate(self.table))
-        self.table.setStyleSheet(
-            "QTableView { color: #f4f4f4; } QTableView QLineEdit { background: #232946; color: #f4f4f4; selection-background-color: #ff8c00; selection-color: #111; }"
-        )
-        self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, excel_keys=True)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -197,25 +201,159 @@ class MetalPricesTab(QWidget):
 
         self._load_data()
 
+        actions = QHBoxLayout()
+        btn_add = QPushButton("➕ Додати матеріал")
+        btn_add.setToolTip(
+            "Новий матеріал (напр. мідь, титан) — з'явиться у всіх списках "
+            "програми: вироби, розкрій, фільтри"
+        )
+        btn_add.clicked.connect(self._on_add_material)
+        actions.addWidget(btn_add)
+        btn_del = QPushButton("✖ Видалити матеріал")
+        btn_del.setToolTip("Видалити вибраний рядок матеріалу (з цінами)")
+        btn_del.clicked.connect(self._on_remove_material)
+        actions.addWidget(btn_del)
+        actions.addStretch()
+        btn_paste = QPushButton("📋 Вставити з Excel")
+        btn_paste.setToolTip(
+            "Скопіюйте у Excel блок: перший стовпець — матеріал, "
+            "далі ціни за товщинами (0.5; 0.7; 0.9; …) — і натисніть"
+        )
+        btn_paste.clicked.connect(self._on_paste)
+        actions.addWidget(btn_paste)
+        btn_export = QPushButton("⬇ Експорт CSV")
+        btn_export.setToolTip("Зберегти ціни у CSV-файлі (відкривається в Excel)")
+        btn_export.clicked.connect(self._on_export)
+        actions.addWidget(btn_export)
+        actions.addStretch()
         btn_save = QPushButton("💾 Зберегти зміни")
         btn_save.setObjectName("primary")
         btn_save.clicked.connect(self._on_save)
-        layout.addWidget(btn_save)
+        actions.addWidget(btn_save)
+        layout.addLayout(actions)
+
+    def _on_paste(self):
+        text = QGuiApplication.clipboard().text()
+        if not text.strip():
+            QMessageBox.information(
+                self, "Вставка з Excel", "Буфер обміну порожній. Скопіюйте блок цін у Excel."
+            )
+            return
+        data, skipped = parse_price_grid(text, self.THICKNESSES)
+        if not data:
+            QMessageBox.warning(
+                self,
+                "Вставка з Excel",
+                "Не вдалося розпізнати дані. Потрібен формат: матеріал у першому "
+                "стовпці, далі ціни за товщинами.",
+            )
+            return
+        by_key = {k.casefold(): v for k, v in data.items()}
+        applied = 0
+        for row in range(self.model.rowCount()):
+            name_item = self.model.item(row, 0)
+            if name_item is None:
+                continue
+            entry = by_key.get(name_item.text().casefold())
+            if not entry:
+                continue
+            for col, thick in enumerate(self.THICKNESSES, 1):
+                if thick in entry:
+                    item = self.model.item(row, col)
+                    if item is not None:
+                        item.setText(f"{entry[thick]:.2f}")
+                        applied += 1
+        msg = f"Вставлено цін: {applied}."
+        if skipped:
+            msg += f" Пропущено нечислових комірок: {skipped}."
+        if not applied:
+            msg += " Матеріали у буфері не збігаються з таблицею."
+        QMessageBox.information(self, "Вставка з Excel", msg)
+
+    def _on_export(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт цін на метал", "ціни_метал.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+        Path(path).write_text(
+            metal_prices_to_csv(self.model, self.THICKNESSES),
+            encoding="utf-8-sig",
+        )
+        QMessageBox.information(self, "Експорт", f"Ціни збережено у файл:\n{path}")
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())
-        prices = self.settings.get("material_prices", {})
-        for material in ["оцинкована сталь", "нержавіюча сталь", "алюміній"]:
-            row = [QStandardItem(material)]
-            for thick in self.THICKNESSES:
-                price = prices.get(material, {}).get(thick, 0)
-                item = QStandardItem(f"{price:.2f}")
-                item.setEditable(True)
-                row.append(item)
-            self.model.appendRow(row)
+        # Порожні налаштування (тести/перший запуск) → стандартні три матеріали
+        # з цінами 0.00; порядок рядків — як у налаштуваннях, нові — в кінець.
+        saved = self.settings.get("material_prices") or {}
+        names = [m for m in saved if str(m).strip()] or list(_pricing.DEFAULT_MATERIAL_PRICES)
+        for material in names:
+            self._append_material_row(material, saved.get(material, {}))
+
+    def _append_material_row(self, material: str, prices: dict) -> None:
+        name_item = QStandardItem(material)
+        name_item.setEditable(False)  # назву матеріалу не змінюємо (видалення — кнопкою)
+        row = [name_item]
+        for thick in self.THICKNESSES:
+            try:
+                price = float(prices.get(thick, 0) or 0)
+            except (TypeError, ValueError):
+                price = 0.0
+            item = QStandardItem(f"{price:.2f}")
+            item.setEditable(True)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            row.append(item)
+        self.model.appendRow(row)
+
+    def _on_add_material(self):
+        from PySide6.QtWidgets import QInputDialog
+
+        name, ok = QInputDialog.getText(self, "Новий матеріал", "Назва матеріалу:")
+        name = name.strip()
+        if not ok or not name:
+            return
+        existing = {self.model.item(r, 0).text().casefold() for r in range(self.model.rowCount())}
+        if name.casefold() in existing:
+            QMessageBox.warning(self, "Дублікат", f"Матеріал «{name}» уже є у таблиці.")
+            return
+        density, ok = QInputDialog.getDouble(
+            self,
+            "Густина матеріалу",
+            f"Густина «{name}», кг/м³\n(потрібна для розрахунку ваги виробу)",
+            7850.0,
+            1.0,
+            30000.0,
+            0,
+        )
+        if not ok:
+            return
+        self._append_material_row(name, {})
+        densities = self.settings.setdefault("material_densities", {})
+        densities[name] = float(density)
+        self.model.layoutChanged.emit()
+
+    def _on_remove_material(self):
+        row = self.table.currentIndex().row()
+        if row < 0:
+            QMessageBox.information(self, "Видалення", "Спочатку виділіть рядок матеріалу.")
+            return
+        material = self.model.item(row, 0).text()
+        reply = QMessageBox.question(
+            self,
+            "Видалення матеріалу",
+            f"Видалити «{material}» зі списку цін?\n\n"
+            "У виробах, де він використовується, назва залишиться, "
+            "але цін для розрахунку не буде.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self.model.removeRow(row)
+        self.settings.get("material_densities", {}).pop(material, None)
 
     def _on_save(self):
-        prices = {}
+        prices: dict[str, dict[str, float]] = {}
         for row in range(self.model.rowCount()):
             material = self.model.item(row, 0).text()
             prices[material] = {}
@@ -231,7 +369,7 @@ class MetalPricesTab(QWidget):
         QMessageBox.information(
             self,
             "Успіх",
-            "Ціни на метал збережено! Тепер розрахунок використовує нові ціни одразу.",
+            "Ціни на метал збережено! Нові матеріали доступні у всіх вкладках.",
         )
 
 
@@ -369,13 +507,7 @@ class LaborRatesTab(QWidget):
         layout.addWidget(lbl)
 
         self.table = QTableView()
-        self.table.setItemDelegate(DarkEditorDelegate(self.table))
-        self.table.setStyleSheet(
-            "QTableView { color: #f4f4f4; } QTableView QLineEdit { background: #232946; color: #f4f4f4; selection-background-color: #ff8c00; selection-color: #111; }"
-        )
-        self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, excel_keys=True)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -397,13 +529,16 @@ class LaborRatesTab(QWidget):
         self.model.removeRows(0, self.model.rowCount())
         rates = self.settings.get("labor_rates", {})
         for product_type, data in rates.items():
+            name_item = QStandardItem(product_type)
+            name_item.setEditable(False)  # тип виробу не змінюємо
             row = [
-                QStandardItem(product_type),
+                name_item,
                 QStandardItem(f"{data.get('rate_per_m2', 0):.2f}"),
-                QStandardItem(f"{data.get('difficulty', 0):.1f}"),
+                QStandardItem(f"{data.get('difficulty_percent', data.get('difficulty', 0)):.1f}"),
             ]
             for cell in row[1:]:
                 cell.setEditable(True)
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.model.appendRow(row)
 
     def _on_save(self):
@@ -413,7 +548,7 @@ class LaborRatesTab(QWidget):
             try:
                 rate = float(self.model.item(row, 1).text().replace(",", "."))
                 diff = float(self.model.item(row, 2).text().replace(",", "."))
-                rates[ptype] = {"rate_per_m2": rate, "difficulty": diff}
+                rates[ptype] = {"rate_per_m2": rate, "difficulty_percent": diff}
             except ValueError:
                 QMessageBox.warning(self, "Помилка", f"Невірне значення для {ptype}")
                 return
@@ -430,8 +565,8 @@ class LaborRatesTab(QWidget):
 class MarkupTab(QWidget):
     """Націнки по категоріях."""
 
-    CATEGORIES = ["Стандартна", "Преміум", "Економ", "Спецзамовлення"]
-    DEFAULTS = {"Стандартна": 30.0, "Преміум": 40.0, "Економ": 20.0, "Спецзамовлення": 50.0}
+    CATEGORIES = MARKUP_CATEGORIES
+    DEFAULTS = MARKUP_DEFAULTS
 
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
@@ -458,7 +593,7 @@ class MarkupTab(QWidget):
         group_matrix = QGroupBox("📂 Категорії націнок")
         mat_layout = QGridLayout(group_matrix)
 
-        matrix = self.settings.get("markup_matrix", self.DEFAULTS)
+        matrix = self.settings.get("markup_categories", self.DEFAULTS)
         self.markup_spins = {}
 
         for i, name in enumerate(self.CATEGORIES):
@@ -473,28 +608,6 @@ class MarkupTab(QWidget):
 
         layout.addWidget(group_matrix)
 
-        group_flange = QGroupBox("🔩 Ціни фланців")
-        fl_layout = QHBoxLayout(group_flange)
-
-        flange_prices = self.settings.get("flange_price", {})
-
-        self.spin_p30 = QDoubleSpinBox()
-        self.spin_p30.setRange(0, 1000)
-        self.spin_p30.setSuffix(" ₴")
-        self.spin_p30.setValue(flange_prices.get("P30", 150.0))
-        fl_layout.addWidget(QLabel("P30:"))
-        fl_layout.addWidget(self.spin_p30)
-
-        self.spin_p40 = QDoubleSpinBox()
-        self.spin_p40.setRange(0, 1000)
-        self.spin_p40.setSuffix(" ₴")
-        self.spin_p40.setValue(flange_prices.get("P40", 200.0))
-        fl_layout.addWidget(QLabel("P40:"))
-        fl_layout.addWidget(self.spin_p40)
-        fl_layout.addStretch()
-
-        layout.addWidget(group_flange)
-
         btn_save = QPushButton("💾 Зберегти")
         btn_save.setObjectName("primary")
         btn_save.clicked.connect(self._on_save)
@@ -507,12 +620,7 @@ class MarkupTab(QWidget):
         matrix = {}
         for name, spin in self.markup_spins.items():
             matrix[name] = spin.value()
-        self.settings["markup_matrix"] = matrix
-
-        self.settings["flange_price"] = {
-            "P30": self.spin_p30.value(),
-            "P40": self.spin_p40.value(),
-        }
+        self.settings["markup_categories"] = matrix
 
         save_settings(self.settings)
         QMessageBox.information(self, "Успіх", "Націнки збережено!")

@@ -6,7 +6,6 @@
 
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QHBoxLayout,
@@ -20,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.products_tab import ProductDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.specification_service import SpecificationService
 
@@ -76,13 +76,16 @@ class SpecificationTab(QWidget):
 
         # ── Таблиця виробів ──
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(
+            self.table,
+            select_rows=True,
+            single_selection=True,
+            sorting=True,
+            read_only=True,
+        )
         self.table.setMinimumHeight(400)
+        # activated = Enter або подвійний клік → діалог виробу
+        self.table.activated.connect(lambda *_: self._on_edit())
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -358,12 +361,17 @@ class SpecificationTab(QWidget):
         """При зміні проєкту ззовні."""
         if project_id:
             idx = self.combo_project.findData(project_id)
-            if idx >= 0:
-                self.combo_project.blockSignals(True)
-                self.combo_project.setCurrentIndex(idx)
-                self.combo_project.blockSignals(False)
-                self._current_project_id = project_id
-                self._load_specification()
+            if idx < 0:
+                # Проєкту немає у combo — список застарів (наприклад, проєкт
+                # щойно створено у вкладці «Проєкти»). Перезавантажуємо;
+                # _load_projects() сам обере активний проєкт.
+                self._load_projects()
+                return
+            self.combo_project.blockSignals(True)
+            self.combo_project.setCurrentIndex(idx)
+            self.combo_project.blockSignals(False)
+            self._current_project_id = project_id
+            self._load_specification()
         else:
             self.combo_project.setCurrentIndex(-1)
             self._current_project_id = None

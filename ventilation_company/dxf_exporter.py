@@ -29,7 +29,7 @@ class DXFSettings:
 class DXFExporter:
     """Генератор DXF-файлу для плану розкрою."""
 
-    def __init__(self, settings: DXFSettings = None):
+    def __init__(self, settings: DXFSettings | None = None):
         self.settings = settings or DXFSettings()
 
     def export_cutting_plan(self, plan, filepath: str):

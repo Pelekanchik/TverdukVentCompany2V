@@ -21,6 +21,18 @@ from ventilation_company.services.business_settings import BusinessSettings
 from ventilation_company.services.pricing_settings import PricingSettings
 
 
+def _to_float(value: object, default: float = 0.0) -> float:
+    """Безпечне перетворення у float.
+
+    Ціни/кількості у файлах налаштувань можуть бути збережені рядками
+    («180», «1 598,15») — інакше float × str давав би TypeError.
+    """
+    try:
+        return float(str(value).replace(",", ".").replace(" ", ""))
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class MaterialItem:
     """Один рядок заявки на матеріали."""
@@ -107,9 +119,9 @@ class MaterialCalculator:
 
         # Агрегація по металу
         metal_summary = {}  # (material, thickness) -> (total_area_m2, count)
-        flange_summary = {}  # (width, height) -> count
+        flange_summary: dict[tuple, int] = {}  # (width, height) -> count
         insulation_m2 = 0.0
-        components_needed = {}  # component_name -> quantity
+        components_needed: dict[str, float] = {}  # component_name -> quantity
 
         for p in products:
             qty = int(p.get("quantity", 1))
@@ -164,9 +176,9 @@ class MaterialCalculator:
 
             # Ціни листового металу — з PricingSettings (матеріал + товщина).
             # Невідомий матеріал/товщина → ціна 0, як і раніше.
+            # Пошук нечутливий до регістру («Оцинкована сталь» = «оцинкована сталь»).
             pricing = PricingSettings.get_instance()
-            pricing.reload()
-            price = pricing.material_prices.get(material, {}).get(str(thickness), 0)
+            price = pricing.get_material_price(material, thickness, default=0)
 
             self.items.append(
                 MaterialItem(
@@ -181,7 +193,7 @@ class MaterialCalculator:
             )
 
         # 2. Ущільнювачі для фланців
-        total_gasket_m = 0
+        total_gasket_m = 0.0
         total_bolts = 0
         total_nuts = 0
         total_washers = 0
@@ -251,8 +263,10 @@ class MaterialCalculator:
                     specification="ISOVER Венті 50 мм, 1000×600 мм",
                     unit="м²",
                     quantity=round(insulated_m2, 1),
-                    price_per_unit=BusinessSettings.get_instance().get_extra_material_price(
-                        "ізоляція_мінвата", default=180
+                    price_per_unit=_to_float(
+                        BusinessSettings.get_instance().get_extra_material_price(
+                            "ізоляція_мінвата", default=180
+                        )
                     ),
                     notes="З урахуванням 15% відходів",
                 )
@@ -270,10 +284,10 @@ class MaterialCalculator:
             )
 
         # 5. Комплектуючі
-        for comp_name, qty in components_needed.items():
+        for comp_name, comp_qty in components_needed.items():
             comp_key = comp_name.lower().replace(" ", "_")
             comp_data = BusinessSettings.get_instance().get_component(comp_key)
-            price = comp_data.get("ціна", 0)
+            price = _to_float(comp_data.get("ціна", 0))
             unit = comp_data.get("одиниця", "шт")
             self.items.append(
                 MaterialItem(
@@ -281,7 +295,7 @@ class MaterialCalculator:
                     name=comp_name,
                     specification="Згідно специфікації проєкту",
                     unit=unit,
-                    quantity=qty,
+                    quantity=comp_qty,
                     price_per_unit=price,
                 )
             )
@@ -430,7 +444,7 @@ class MaterialOrderExporter:
         ws.row_dimensions[row].height = 25
 
         # ── ДАНІ ──
-        categories = {}
+        categories: dict[str, list] = {}
         for item in self.order.items:
             cat = item.category
             if cat not in categories:

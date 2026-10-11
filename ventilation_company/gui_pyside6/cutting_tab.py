@@ -3,6 +3,12 @@
 Використовує ventilation_company.metal_cutting для розрахунку розгорток.
 """
 
+import math
+import os
+import tempfile
+from contextlib import suppress
+from datetime import datetime
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QBrush,
@@ -12,16 +18,17 @@ from PySide6.QtGui import (
     QMouseEvent,
     QPainter,
     QPen,
+    QPolygon,
     QStandardItem,
     QStandardItemModel,
     QWheelEvent,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -35,8 +42,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.cutting_labels_generator import generate_labels_pdf
+from ventilation_company.cutting_pdf_generator import generate_cutting_pdf
+from ventilation_company.gui_pyside6.table_utils import setup_table
+from ventilation_company.gui_pyside6.telegram_send import send_document_telegram
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.metal_cutting import MetalCutter
+from ventilation_company.services.dxf_import_service import parse_dxf_parts, parts_to_products
 
 
 class AddProductDialog(QDialog):
@@ -156,9 +168,34 @@ class CuttingCanvas(QWidget):
         self.offset_y = 20.0
         self.dragging = False
         self.last_mouse = QPointF()
+        self.mouse_sheet_pos: QPointF | None = None  # позиція курсора в мм листа
         self.setMinimumSize(500, 800)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setMouseTracking(True)
         self.setStyleSheet(f"background-color: {Theme.BG_DARK}; border-radius: 8px;")
+
+    @staticmethod
+    def _arrow_head(p, x, y, angle_deg, size=6):
+        """Наконечник стрілки розмірної лінії."""
+        poly = QPolygon()
+        poly.append(QPointF(x, y).toPoint())
+        for delta in (150, -150):
+            rad = math.radians(angle_deg + delta)
+            poly.append(QPointF(x + size * math.cos(rad), y + size * math.sin(rad)).toPoint())
+        old_pen = p.pen()
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(old_pen.color()))
+        p.drawPolygon(poly)
+        p.setPen(old_pen)
+
+    def _dim_line(self, p, x1, y1, x2, y2, text="", text_dx=0, text_dy=0):
+        """Розмірна лінія зі стрілками на обох кінцях та підписом."""
+        angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        p.drawLine(int(x1), int(y1), int(x2), int(y2))
+        self._arrow_head(p, x2, y2, angle)
+        self._arrow_head(p, x1, y1, angle + 180)
+        mx, my = (x1 + x2) / 2 + text_dx, (y1 + y2) / 2 + text_dy
+        p.drawText(int(mx), int(my), text)
 
     def set_sheet(self, sheet):
         self.sheet_w = sheet.width
@@ -207,16 +244,29 @@ class CuttingCanvas(QWidget):
             y = oy + i * step
             painter.drawLine(int(ox), int(y), int(ox + sw), int(y))
 
-        # Розміри листа
+        # Розміри листа — розмірні лінії зі стрілками
         font_dim = QFont("Segoe UI", 10, QFont.Weight.Bold)
         painter.setFont(font_dim)
-        painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.drawText(int(ox + sw / 2 - 30), int(oy + sh + 18), f"{self.sheet_w:.0f} мм")
+        painter.setPen(QPen(QColor(Theme.TEXT_MUTED), 1))
+        dim_y = oy + sh + 16
+        painter.drawLine(int(ox), int(oy + sh), int(ox), int(dim_y + 4))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(ox + sw), int(dim_y + 4))
+        self._dim_line(painter, ox, dim_y, ox + sw, dim_y, f"{self.sheet_w:.0f} мм", text_dy=14)
+        dim_x = ox + sw + 16
+        painter.drawLine(int(ox + sw), int(oy), int(dim_x + 4), int(oy))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(dim_x + 4), int(oy + sh))
+        self._dim_line(painter, dim_x, oy, dim_x, oy + sh)
         painter.save()
-        painter.translate(int(ox + sw + 18), int(oy + sh / 2 + 30))
+        painter.translate(int(dim_x + 14), int(oy + sh / 2 + 25))
         painter.rotate(-90)
         painter.drawText(0, 0, f"{self.sheet_h:.0f} мм")
         painter.restore()
+
+        # Позначки осей X / Y
+        painter.setPen(QColor(Theme.TEXT_MUTED))
+        painter.drawText(int(ox + 4), int(oy + sh - 6), "0")
+        painter.drawText(int(ox + sw - 12), int(oy + sh - 6), "X →")
+        painter.drawText(int(ox + 4), int(oy + 14), "↑ Y")
 
         # Деталі
         fm = QFontMetrics(QFont("Segoe UI", 9))
@@ -271,15 +321,39 @@ class CuttingCanvas(QWidget):
                 painter.drawText(int(dx + 4), int(dy + 14), name)
                 painter.drawText(int(dx + 4), int(dy + 26), size_txt)
 
-        # Підказка
+            # Розмірні стрілки деталі (для великих прямокутників)
+            if dw >= 70 and dh >= 45:
+                dim_pen = QPen(color.darker(160), 1)
+                painter.setPen(dim_pen)
+                painter.setFont(QFont("Segoe UI", 8))
+                top_y = dy - 6
+                painter.drawLine(int(dx), int(dy), int(dx), int(top_y - 3))
+                painter.drawLine(int(dx + dw), int(dy), int(dx + dw), int(top_y - 3))
+                self._dim_line(painter, dx, top_y, dx + dw, top_y, f"Ш {p.width:.0f}", text_dy=-2)
+                left_x = dx - 6
+                painter.drawLine(int(dx), int(dy), int(left_x - 3), int(dy))
+                painter.drawLine(int(dx), int(dy + dh), int(left_x - 3), int(dy + dh))
+                self._dim_line(
+                    painter,
+                    left_x,
+                    dy,
+                    left_x,
+                    dy + dh,
+                    f"В {p.height:.0f}",
+                    text_dx=-52,
+                    text_dy=4,
+                )
+
+        # Підказка (+ координати курсора в мм)
         font_info = QFont("Segoe UI", 9)
         painter.setFont(font_info)
         painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.drawText(
-            10,
-            self.height() - 10,
-            f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб",
-        )
+        hint = f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб"
+        if self.mouse_sheet_pos is not None:
+            mx_mm = max(0.0, min(self.mouse_sheet_pos.x(), self.sheet_w))
+            my_mm = max(0.0, min(self.mouse_sheet_pos.y(), self.sheet_h))
+            hint = f"X: {mx_mm:.0f} мм   Y: {my_mm:.0f} мм   |   " + hint
+        painter.drawText(10, self.height() - 10, hint)
         painter.end()
 
     def wheelEvent(self, event: QWheelEvent):
@@ -300,17 +374,28 @@ class CuttingCanvas(QWidget):
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
     def mouseMoveEvent(self, event: QMouseEvent):
+        pos = event.position()
+        # Координати курсора в міліметрах листа (для підказки внизу)
+        self.mouse_sheet_pos = QPointF(
+            (pos.x() - self.offset_x) / self.scale,
+            (pos.y() - self.offset_y) / self.scale,
+        )
         if self.dragging:
-            delta = event.position() - self.last_mouse
+            delta = pos - self.last_mouse
             self.offset_x += delta.x()
             self.offset_y += delta.y()
-            self.last_mouse = event.position()
-            self.update()
+            self.last_mouse = pos
+        self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
             self.setCursor(Qt.CursorShape.OpenHandCursor)
+
+    def leaveEvent(self, event):
+        self.mouse_sheet_pos = None
+        self.update()
+        super().leaveEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -363,7 +448,11 @@ class CuttingTab(QWidget):
         header.addWidget(lbl_mat)
 
         self.combo_material = QComboBox()
-        self.combo_material.addItems(["оцинкована сталь", "нержавіюча сталь", "алюміній"])
+        # Матеріали — з «Ціноутворення» (користувач може додавати свої)
+        from ventilation_company.gui_pyside6.pricing_tab import load_settings
+
+        _materials = [m.lower() for m in load_settings().get("material_prices", {})]
+        self.combo_material.addItems(sorted(_materials, key=str.lower))
         header.addWidget(self.combo_material)
 
         btn_calc = QPushButton("🧮 Розрахувати")
@@ -384,10 +473,7 @@ class CuttingTab(QWidget):
         order_left.addWidget(lbl_order)
 
         self.table_order = QTableView()
-        self.table_order.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_order.setAlternatingRowColors(True)
-        self.table_order.horizontalHeader().setStretchLastSection(True)
-        self.table_order.verticalHeader().setVisible(False)
+        setup_table(self.table_order, select_rows=True, read_only=True)
         self.table_order.setMaximumHeight(200)
         order_left.addWidget(self.table_order)
 
@@ -402,6 +488,11 @@ class CuttingTab(QWidget):
         btn_add = QPushButton("➕ Додати")
         btn_add.clicked.connect(self._on_add_product)
         order_btns.addWidget(btn_add)
+
+        btn_dxf = QPushButton("📐 Імпорт DXF")
+        btn_dxf.setToolTip("Розпізнати деталі з DXF-креслення та додати їх у замовлення на розкрій")
+        btn_dxf.clicked.connect(self._on_import_dxf)
+        order_btns.addWidget(btn_dxf)
 
         btn_del = QPushButton("🗑️ Видалити")
         btn_del.setStyleSheet(f"color: {Theme.DANGER};")
@@ -462,11 +553,7 @@ class CuttingTab(QWidget):
         left_layout.addWidget(lbl_tbl)
 
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(self.table, select_rows=True, sorting=True, read_only=True)
         self.table.setMinimumWidth(440)
         left_layout.addWidget(self.table)
 
@@ -518,9 +605,26 @@ class CuttingTab(QWidget):
 
         nav.addSpacing(24)
 
-        btn_export = QPushButton("📤 Експорт PNG")
+        btn_export = QPushButton("📤 Експорт PDF")
+        btn_export.setToolTip("PDF: схема кожного листа + таблиця деталей для цеху")
         btn_export.clicked.connect(self._on_export)
         nav.addWidget(btn_export)
+
+        self._btn_tg = QPushButton("📨 В Telegram")
+        self._btn_tg.setToolTip(
+            "Надіслати PDF плану розкрою в Telegram-чат\n"
+            "(токен бота та chat_id — у Налаштування → Резервні копії → Telegram)"
+        )
+        self._btn_tg.clicked.connect(self._on_send_telegram)
+        nav.addWidget(self._btn_tg)
+
+        btn_labels = QPushButton("🏷️ Етикетки")
+        btn_labels.setToolTip(
+            "PDF-етикетки з QR-кодами для всіх деталей розкрою (A4, 2×5 на аркуші)\n"
+            "— роздрукувати, нарізати й наклеїти на деталі для цеху"
+        )
+        btn_labels.clicked.connect(self._on_export_labels)
+        nav.addWidget(btn_labels)
 
         layout.addLayout(nav)
 
@@ -602,6 +706,49 @@ class CuttingTab(QWidget):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._products.append(dlg.get_data())
             self._refresh_order_table()
+
+    def _on_import_dxf(self):
+        """Імпорт деталей з DXF-креслення у замовлення на розкрій."""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Виберіть DXF-креслення",
+            "",
+            "Креслення DXF (*.dxf);;Усі файли (*.*)",
+        )
+        if not path:
+            return
+
+        try:
+            parts = parse_dxf_parts(path)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Імпорт DXF", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001 — неочікувані помилки парсера
+            QMessageBox.critical(self, "Імпорт DXF", f"Помилка розбору файлу:\n{exc}")
+            return
+
+        total_qty = sum(p["quantity"] for p in parts)
+        preview = "\n".join(
+            f"• {p['width']}×{p['height']} мм — {p['quantity']} шт" for p in parts[:10]
+        )
+        if len(parts) > 10:
+            preview += f"\n… та ще {len(parts) - 10} позицій"
+
+        answer = QMessageBox.question(
+            self,
+            "Імпорт DXF",
+            f"Розпізнано {len(parts)} унікальних деталей "
+            f"({total_qty} шт загалом):\n\n{preview}\n\n"
+            "Додати їх у замовлення на розкрій?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        prefix = os.path.splitext(os.path.basename(path))[0]
+        self._products.extend(parts_to_products(parts, prefix=prefix))
+        self._refresh_order_table()
 
     def _on_del_product(self):
         idx = self.table_order.currentIndex()
@@ -694,7 +841,88 @@ class CuttingTab(QWidget):
             self._show_sheet(self._current_sheet_idx)
 
     def _on_export(self):
-        QMessageBox.information(self, "Експорт", "Експорт плану розкрою (PNG/PDF) буде тут")
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Експорт", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF плану розкрою",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_cutting_pdf(self._plan, path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Експорт", f"PDF збережено:\n{path}")
+
+    def _on_export_labels(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Етикетки", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"etykety_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF етикеток для деталей",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_labels_pdf(self._plan, path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Етикетки", f"PDF етикеток збережено:\n{path}")
+
+    def _pdf_meta(self) -> dict:
+        return {
+            "sheet_size": self.combo_sheet.currentText(),
+            "material": self.combo_material.currentText(),
+            "thickness": self.combo_thick.currentText(),
+        }
+
+    def _on_send_telegram(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Telegram", "Спочатку розрахуйте план розкрою")
+            return
+
+        tmp_path = os.path.join(
+            tempfile.gettempdir(),
+            f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M%S}.pdf",
+        )
+        try:
+            generate_cutting_pdf(self._plan, tmp_path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            self._btn_tg.setEnabled(True)
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зібрати PDF:\n{e}")
+            return
+
+        caption = (
+            f"📐 План розкрою: {self.combo_sheet.currentText()} | "
+            f"{self.combo_material.currentText()} {self.combo_thick.currentText()} мм"
+        )
+        self._btn_tg.setEnabled(False)
+        worker = send_document_telegram(self, tmp_path, caption, delete_after=True)
+        if worker is None:  # бот не налаштовано — тимчасовий файл уже не потрібен
+            self._cleanup_tmp(tmp_path)
+            self._btn_tg.setEnabled(True)
+        else:  # повертаємо кнопку після завершення фонової відправки
+            worker.finished.connect(lambda: self._btn_tg.setEnabled(True))
+
+    @staticmethod
+    def _cleanup_tmp(path: str):
+        with suppress(OSError):
+            os.unlink(path)
 
     def refresh(self):
         pass

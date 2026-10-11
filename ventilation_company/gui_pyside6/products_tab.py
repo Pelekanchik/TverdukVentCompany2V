@@ -13,7 +13,6 @@ from PySide6.QtGui import (
     QStandardItemModel,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -33,24 +32,14 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
+from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories, load_settings
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.services.business_settings import BusinessSettings
+from ventilation_company.services.pricing_settings import DEFAULT_MARKUP_PERCENT
 
-SCHEMAS = {
-    "Відвод круглий": "",
-    "Відвод прямокутний": "",
-    "Трійник круглий": "",
-    "Трійник прямокутний": "",
-    "Перехід круглий": "",
-    "Перехід прямокутний": "",
-    "Повітропровід круглий": "",
-    "Повітропровід прямокутний": "",
-    "Фланець круглий": "",
-    "Фланець прямокутний": "",
-    "Заглушка кругла": "",
-    "Заглушка прямокутна": "",
-    "Гнучка вставка": "",
-}
+# SCHEMAS імпортовано з product_dialog — єдине джерело списку типів.
 
 
 class ProductsTab(QWidget):
@@ -82,6 +71,13 @@ class ProductsTab(QWidget):
         btn_new.setMinimumHeight(36)
         btn_new.clicked.connect(self._on_add)
         left_layout.addWidget(btn_new)
+        btn_duplicate = QPushButton("⧉ Дублювати вибраний")
+        btn_duplicate.setToolTip(
+            "Створити копію вибраного виробу в цьому ж проєкті "
+            "(зручно для схожих виробів: труби різної довжини тощо)"
+        )
+        btn_duplicate.clicked.connect(self._on_duplicate)
+        left_layout.addWidget(btn_duplicate)
 
         filters_group = QGroupBox("🔍 Фільтри")
         filters_layout = QVBoxLayout(filters_group)
@@ -110,7 +106,9 @@ class ProductsTab(QWidget):
         mat_row = QHBoxLayout()
         self.filter_material = QComboBox()
         self.filter_material.addItem("Всі матеріали")
-        self.filter_material.addItems(["Оцинкована сталь", "Нержавіюча сталь", "Алюміній"])
+        # Матеріали — з «Ціноутворення» (користувач може додавати свої)
+        _materials = [m.capitalize() for m in load_settings().get("material_prices", {})]
+        self.filter_material.addItems(sorted(_materials, key=str.lower))
         self.filter_material.currentTextChanged.connect(self._apply_filters)
         mat_row.addWidget(QLabel("Мат.:"))
         mat_row.addWidget(self.filter_material)
@@ -127,13 +125,15 @@ class ProductsTab(QWidget):
         right_layout.setSpacing(12)
         right_layout.setContentsMargins(0, 0, 0, 0)
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.doubleClicked.connect(self._on_edit)
+        setup_table(
+            self.table,
+            select_rows=True,
+            extended_selection=True,
+            sorting=True,
+            read_only=True,
+        )
+        # activated = Enter або подвійний клік → діалог редагування
+        self.table.activated.connect(self._on_edit)
         right_layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -184,13 +184,15 @@ class ProductsTab(QWidget):
         actions.setSpacing(4)
         for idx in range(actions.count()):
             item = actions.itemAt(idx)
-            if item is not None and item.widget() is not None:
-                btn = item.widget()
-                btn.setMaximumHeight(26)
-                btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
+            if item is None:
+                continue
+            action_btn = item.widget()
+            if action_btn is not None:
+                action_btn.setMaximumHeight(26)
+                action_btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
         if hasattr(self, "table"):
             self.table.setMinimumHeight(520)
-            self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.lbl_summary = QLabel("Всього: 0 виробів | Сума: ₴ 0")
         self.lbl_summary.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 12px; padding: 4px;")
@@ -512,17 +514,17 @@ class ProductsTab(QWidget):
             self,
             "Перерахунок цін",
             f"Перерахувати ціни для {len(items)} виробів за поточними налаштуваннями?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if answer != QMessageBox.Yes:
+        if answer != QMessageBox.StandardButton.Yes:
             return
 
+        # Націнки з поточних налаштувань «Ціноутворення → Націнки».
+        # Ключі — обидва формати: повний лейбл і голі назви категорій.
         markup_map = {
-            "Стандартна (30%)": 30,
-            "Преміум (40%)": 40,
-            "Економ (20%)": 20,
-            "Спецзамовлення (50%)": 50,
+            **{f"{name} ({value:g}%)": value for name, value in get_markup_categories()},
+            **dict(get_markup_categories()),
         }
 
         updated = 0
@@ -560,14 +562,23 @@ class ProductsTab(QWidget):
                     branch_height=branch_h,
                     branch_length=branch_l,
                 )
-                blank = surface * 1.15
-                material_area = blank * 1.05
+                from ventilation_company.manufacturing_params import (
+                    blank_area,
+                    material_area_from_blank,
+                )
+
+                blank = blank_area(surface)
+                material_area = material_area_from_blank(blank)
 
                 with_flanges = bool(params.get("with_flanges"))
                 flange_count = int(params.get("flange_count") or 0) if with_flanges else 0
                 flange_profile = params.get("flange_profile") or "P30"
-                flange_price = 150.0 if flange_profile == "P30" else 200.0
-                markup = markup_map.get(params.get("category"), 30)
+                flange_price = (
+                    BusinessSettings.get_instance().get_flange_price(flange_profile)
+                    if with_flanges
+                    else 0.0
+                )
+                markup = markup_map.get(params.get("category") or "", DEFAULT_MARKUP_PERCENT)
 
                 breakdown = engine.calculate(
                     product_type=product_type,
@@ -619,10 +630,10 @@ class ProductsTab(QWidget):
                     self,
                     "Можливий дублікат",
                     f"Схожий виріб уже є: {duplicate.get('name')}. Додати ще один?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
                 )
-                if answer != QMessageBox.Yes:
+                if answer != QMessageBox.StandardButton.Yes:
                     return
             try:
                 ProductRepository.create(data)
@@ -672,6 +683,25 @@ class ProductsTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося оновити: {e}")
 
+    def _on_duplicate(self):
+        """Створити копію вибраного виробу в цьому ж проєкті."""
+        item_id = self._get_selected_id()
+        if not item_id:
+            QMessageBox.warning(self, "Увага", "Виберіть виріб для дублювання")
+            return
+        try:
+            item = ProductRepository.get_by_id(item_id)
+            if not item:
+                QMessageBox.warning(self, "Увага", "Виріб не знайдено")
+                return
+            copy_data = {k: v for k, v in item.items() if k != "id"}
+            copy_data["name"] = f"{item.get('name', 'Виріб')} (копія)"
+            created = ProductRepository.create(copy_data)
+            self._load_data()
+            QMessageBox.information(self, "Успіх", f"Створено копію виробу #{created.get('id')}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося дублювати: {e}")
+
     def _on_delete(self):
         item_id = self._get_selected_id()
         if not item_id:
@@ -692,7 +722,14 @@ class ProductsTab(QWidget):
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
     def on_project_changed(self, project_id: int | None):
+        # v2.8.1-fix: після створення/дублювання проєкту у вкладці «Проєкти»
+        # main_window викликає цей метод. Без _reload_projects() новий проєкт
+        # не з'являвся у combo_project — список наповнювався лише раз у __init__.
+        self._reload_projects()
         self._load_data()
 
     def refresh(self):
+        # Викликається при кожному перемиканні на вкладку — список проєктів
+        # міг змінитися (створення/видалення), тому combo теж оновлюємо.
+        self._reload_projects()
         self._load_data()

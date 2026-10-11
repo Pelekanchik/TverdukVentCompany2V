@@ -19,7 +19,7 @@ def test_db_stats_returns_error_string_when_db_fails(monkeypatch):
         def connect(self):
             return BrokenConnection()
 
-    monkeypatch.setattr(svc, "engine", BrokenEngine())
+    monkeypatch.setattr(svc, "get_engine", lambda: BrokenEngine())
 
     assert svc.SystemService.db_stats().startswith("❌ Помилка:")
 
@@ -28,6 +28,6 @@ def test_system_stats_returns_error_string_when_session_fails(monkeypatch):
     def broken_session_local():
         raise RuntimeError("db down")
 
-    monkeypatch.setattr(svc, "SessionLocal", broken_session_local)
+    monkeypatch.setattr(svc, "get_session_local", lambda: broken_session_local)
 
     assert svc.SystemService.system_stats().startswith("❌ Помилка:")

@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.calc import CalcMaterial, SubtypeMaterial
 
 
@@ -91,7 +91,14 @@ class MaterialRepository:
         return sm
 
 
-# Зворотна сумісність
-MaterialRepo = MaterialRepository
+# Зворотна сумісність — лінивий синглтон (сесія створюється при першому зверненні).
+_MaterialRepo = None
 
-MaterialRepo = MaterialRepository(SessionLocal())
+
+def __getattr__(name: str):
+    if name == "MaterialRepo":
+        global _MaterialRepo
+        if _MaterialRepo is None:
+            _MaterialRepo = MaterialRepository(get_session_local()())
+        return _MaterialRepo
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

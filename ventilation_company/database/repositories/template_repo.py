@@ -42,7 +42,7 @@ class TemplateRepo:
             }
 
     @staticmethod
-    def add(name: str, description: str = "", items_data: list[dict] = None) -> int:
+    def add(name: str, description: str = "", items_data: list[dict] | None = None) -> int:
         with get_db() as session:
             tmpl = CalcTemplate(
                 name=name,

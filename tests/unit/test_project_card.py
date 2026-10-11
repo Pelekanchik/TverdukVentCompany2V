@@ -1,5 +1,7 @@
 """Тести діалогу картки проєкту (async-завантаження через FunctionWorker)."""
 
+import time
+
 import pytest
 
 pytest.importorskip("PySide6")
@@ -69,6 +71,7 @@ FAKE_DATA = {
         }
     ],
     "expenses": [],
+    "drawings": [],
     "payments": [
         {
             "id": 1,
@@ -87,6 +90,9 @@ def _wait_worker(qapp, dlg, iterations=500):
         qapp.processEvents()
         if dlg._worker is None:
             return True
+        # Коротка пауза віддає GIL worker-потоку — інакше тісний цикл
+        # processEvents може його голодувати (флакі на повному наборі).
+        time.sleep(0.001)
     return False
 
 
@@ -138,4 +144,19 @@ class TestProjectCardDialog:
         dlg._reload_all()
         assert _wait_worker(qapp, dlg)
         assert dlg._project_data["name"] == "Тестовий проєкт"
+        dlg.close()
+
+    def test_payments_summary_panel(self, qapp, monkeypatch):
+        """Панель підсумку: вартість = ціна + роботи; сплачено/залишок/% коректні."""
+        from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+
+        monkeypatch.setattr(ProjectCardDialog, "_fetch_data", lambda self: FAKE_DATA)
+        dlg = ProjectCardDialog(1)
+        assert _wait_worker(qapp, dlg)
+        # Вартість: customer_price 8000 + works_total 1000 = 9000; сплачено 4000.
+        assert "9,000.00" in dlg.lbl_pay_price.text()
+        assert "4,000.00" in dlg.lbl_pay_paid.text()
+        assert "5,000.00" in dlg.lbl_pay_left.text()
+        assert dlg.lbl_pay_percent.text() == "44 %"
+        assert dlg.progress_pay.value() == 44
         dlg.close()

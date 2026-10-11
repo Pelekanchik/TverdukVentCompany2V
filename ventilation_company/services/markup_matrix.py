@@ -75,7 +75,7 @@ def classify_product(name="", product_type="", material=""):
 
 def build_default_markup_matrix():
     """Побудувати матрицю націнок за замовчуванням."""
-    matrix = {}
+    matrix: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
     for mat in MATERIALS:
         matrix[mat] = {}
         for ptype in PRODUCT_TYPES:

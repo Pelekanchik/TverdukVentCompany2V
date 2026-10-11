@@ -489,8 +489,14 @@ class DocumentsTab(QWidget):
     def on_project_changed(self, project_id):
         if project_id:
             idx = self.combo_project.findData(project_id)
-            if idx >= 0:
-                self.combo_project.setCurrentIndex(idx)
+            if idx < 0:
+                # Проєкту немає у combo — список застарів (наприклад, проєкт
+                # щойно створено у вкладці «Проєкти»). Оновлюємо список.
+                self._load_projects()
+                idx = self.combo_project.findData(project_id)
+                if idx < 0:
+                    return
+            self.combo_project.setCurrentIndex(idx)
         else:
             self.combo_project.setCurrentIndex(-1)
             self._current_project_id = None

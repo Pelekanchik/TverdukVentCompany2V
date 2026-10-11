@@ -8,6 +8,16 @@ import threading
 from dataclasses import dataclass, field
 
 from ventilation_company.calculations.safe_evaluator import SafeFormulaEvaluator
+from ventilation_company.materials import (
+    DEFAULT_MATERIAL_DENSITIES as _DEFAULT_DENSITIES,
+)
+from ventilation_company.materials import (
+    FALLBACK_DENSITY_KG_M3,
+    resolve_density,
+)
+from ventilation_company.materials import (
+    list_materials as _material_names,
+)
 from ventilation_company.paths import DATA_DIR
 from ventilation_company.services.markup_matrix import (
     PRODUCT_TYPE_LABELS,
@@ -15,6 +25,8 @@ from ventilation_company.services.markup_matrix import (
     classify_product,
     is_standard_size,
 )
+
+DEFAULT_MATERIAL_DENSITIES: dict = dict(_DEFAULT_DENSITIES)
 
 SETTINGS_FILE = str(DATA_DIR / "pricing_settings.json")
 
@@ -72,6 +84,73 @@ DEFAULT_CATEGORY_WASTE_FACTORS = {
 DEFAULT_MARKUP_PERCENT = 30.0
 DEFAULT_MARKUP_MATRIX = build_default_markup_matrix()
 
+# Плоскі категорії націнок (вибираються на виробі у вкладці «Вироби»).
+# Ключ «markup_categories» у файлі — канонічне сховище; властивість
+# «markup_matrix» — окрема вкладена матриця для покрокового розрахунку.
+DEFAULT_MARKUP_CATEGORIES = {
+    "Стандартна": 30.0,
+    "Преміум": 40.0,
+    "Економ": 20.0,
+    "Спецзамовлення": 50.0,
+}
+
+# Назви категорій у фіксованому порядку (для GUI-списків).
+MARKUP_CATEGORY_NAMES = tuple(DEFAULT_MARKUP_CATEGORIES)
+
+
+def get_markup_categories() -> list[tuple[str, float]]:
+    """Категорії націнок (назва, %) з поточних збережених налаштувань.
+
+    Єдине джерело правди для діалогів виробів — щоб зміна націнок
+    у «Ціноутворенні» одразу відображалася у розрахунках.
+    """
+    settings = PricingSettings.get_instance()
+    settings.reload()
+    return [
+        (name, float(settings.markup_categories.get(name, DEFAULT_MARKUP_CATEGORIES[name])))
+        for name in MARKUP_CATEGORY_NAMES
+    ]
+
+
+def _normalize_labor_rates(rates: dict) -> dict:
+    """Привести ставки до канонічного ключа «difficulty_percent».
+
+    Стара GUI-закладка писала ключ «difficulty» — без нормалізації
+    розрахунок мовчки ігнорував коефіцієнт важкості (0.0).
+    """
+    normalized = {}
+    for key, value in (rates or {}).items():
+        if not isinstance(value, dict):
+            continue
+        entry = dict(value)
+        if "difficulty_percent" not in entry and "difficulty" in entry:
+            entry["difficulty_percent"] = entry["difficulty"]
+        normalized[key] = entry
+    return normalized
+
+
+def _extract_markup_categories(data: dict) -> dict:
+    """Категорії націнок з сирих даних файлу (з міграцією старих схем).
+
+    Історично GUI писало плоскі значення у ключ «markup_matrix»;
+    канонічна вкладена матриця зберігається там само. Якщо бачимо
+    плоску схему — це категорії, для матриці беремо дефолт.
+    """
+    raw_matrix = data.get("markup_matrix")
+    if isinstance(raw_matrix, dict) and any(k in raw_matrix for k in MARKUP_CATEGORY_NAMES):
+        return {
+            name: float(raw_matrix.get(name, DEFAULT_MARKUP_CATEGORIES[name]))
+            for name in MARKUP_CATEGORY_NAMES
+        }
+    saved = data.get("markup_categories")
+    if isinstance(saved, dict):
+        return {
+            name: float(saved.get(name, DEFAULT_MARKUP_CATEGORIES[name]))
+            for name in MARKUP_CATEGORY_NAMES
+        }
+    return dict(DEFAULT_MARKUP_CATEGORIES)
+
+
 DEFAULT_LABOR_RATES = {
     "повітропровід прямокутний": {"rate_per_m2": 120.0, "difficulty_percent": 0.0},
     "повітропровід круглий": {"rate_per_m2": 130.0, "difficulty_percent": 5.0},
@@ -86,6 +165,16 @@ DEFAULT_LABOR_RATES = {
     "заглушка прямокутна": {"rate_per_m2": 150.0, "difficulty_percent": 5.0},
     "заглушка кругла": {"rate_per_m2": 160.0, "difficulty_percent": 5.0},
     "гнучка вставка": {"rate_per_m2": 80.0, "difficulty_percent": 0.0},
+    "решітка прямокутна": {"rate_per_m2": 170.0, "difficulty_percent": 10.0},
+    "решітка кругла": {"rate_per_m2": 170.0, "difficulty_percent": 10.0},
+    "дифузор круглий": {"rate_per_m2": 190.0, "difficulty_percent": 15.0},
+    "раструб прямокутний": {"rate_per_m2": 140.0, "difficulty_percent": 5.0},
+    "раструб круглий": {"rate_per_m2": 140.0, "difficulty_percent": 5.0},
+    "зворотний клапан прямокутний": {"rate_per_m2": 260.0, "difficulty_percent": 25.0},
+    "зворотний клапан круглий": {"rate_per_m2": 260.0, "difficulty_percent": 25.0},
+    "хрестовина прямокутна": {"rate_per_m2": 270.0, "difficulty_percent": 30.0},
+    "хрестовина кругла": {"rate_per_m2": 290.0, "difficulty_percent": 30.0},
+    "відгалуження кругле 45°": {"rate_per_m2": 240.0, "difficulty_percent": 25.0},
 }
 
 DEFAULT_CUSTOM_PARAMS = {
@@ -207,6 +296,14 @@ class PriceBreakdown:
         }
 
 
+def _norm_thickness(value) -> str:
+    """Нормалізація товщини: 0.5 = «0.50» = «0,5» = 0.5 → «0.5»."""
+    try:
+        return f"{float(str(value).strip().replace(',', '.')):g}"
+    except (TypeError, ValueError):
+        return str(value).strip()
+
+
 class PricingSettings:
     """Менеджер налаштувань ціноутворення (Singleton з файловим блокуванням).
 
@@ -216,6 +313,8 @@ class PricingSettings:
 
     _instance: PricingSettings | None = None
     _lock = threading.Lock()
+    # Встановлюється в __new__; анотація тут — для mypy.
+    _initialized: bool
 
     def __new__(cls, filepath: str = SETTINGS_FILE) -> PricingSettings:
         if cls._instance is None:
@@ -242,10 +341,12 @@ class PricingSettings:
 
         # Дані
         self.material_prices: dict = {}
+        self.material_densities: dict = {}
         self.overhead: dict = {}
         self.depreciation: dict = {}
         self.markup_percent: float = DEFAULT_MARKUP_PERCENT
         self.markup_matrix: dict = {}
+        self.markup_categories: dict = {}
         self.products: list = []
         self.custom_params: dict = {}
         self.labor_rates: dict = {}
@@ -286,13 +387,25 @@ class PricingSettings:
         data = self._read_file()
         if data:
             self.material_prices = data.get("material_prices", DEFAULT_MATERIAL_PRICES)
+            self.material_densities = data.get(
+                "material_densities", DEFAULT_MATERIAL_DENSITIES.copy()
+            )
+            self.sync_material_densities()
             self.overhead = data.get("overhead", DEFAULT_OVERHEAD)
             self.depreciation = data.get("depreciation", DEFAULT_DEPRECIATION)
             self.markup_percent = data.get("markup_percent", DEFAULT_MARKUP_PERCENT)
-            self.markup_matrix = data.get("markup_matrix", build_default_markup_matrix())
+            raw_matrix = data.get("markup_matrix", build_default_markup_matrix())
+            # Плоска (GUI) схема в «markup_matrix» → це категорії, матриця — дефолт
+            if any(k in raw_matrix for k in MARKUP_CATEGORY_NAMES):
+                self.markup_matrix = build_default_markup_matrix()
+            else:
+                self.markup_matrix = raw_matrix
+            self.markup_categories = _extract_markup_categories(data)
             self.products = data.get("products", DEFAULT_PRODUCTS)
             self.custom_params = data.get("custom_params", DEFAULT_CUSTOM_PARAMS.copy())
-            self.labor_rates = data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
+            self.labor_rates = _normalize_labor_rates(
+                data.get("labor_rates", DEFAULT_LABOR_RATES.copy())
+            )
             self.category_waste_factors = data.get(
                 "category_waste_factors", DEFAULT_CATEGORY_WASTE_FACTORS.copy()
             )
@@ -300,10 +413,12 @@ class PricingSettings:
             self.save()
         else:
             self.material_prices = DEFAULT_MATERIAL_PRICES.copy()
+            self.material_densities = DEFAULT_MATERIAL_DENSITIES.copy()
             self.overhead = DEFAULT_OVERHEAD.copy()
             self.depreciation = DEFAULT_DEPRECIATION.copy()
             self.markup_percent = DEFAULT_MARKUP_PERCENT
             self.markup_matrix = build_default_markup_matrix()
+            self.markup_categories = dict(DEFAULT_MARKUP_CATEGORIES)
             self.products = [p.copy() for p in DEFAULT_PRODUCTS]
             self.custom_params = DEFAULT_CUSTOM_PARAMS.copy()
             self.labor_rates = DEFAULT_LABOR_RATES.copy()
@@ -314,10 +429,12 @@ class PricingSettings:
         """Зберегти налаштування атомарно."""
         data = {
             "material_prices": self.material_prices,
+            "material_densities": self.material_densities,
             "overhead": self.overhead,
             "depreciation": self.depreciation,
             "markup_percent": self.markup_percent,
             "markup_matrix": self.markup_matrix,
+            "markup_categories": self.markup_categories,
             "products": self.products,
             "custom_params": self.custom_params,
             "labor_rates": self.labor_rates,
@@ -326,10 +443,53 @@ class PricingSettings:
         with self._file_lock:
             self._atomic_write(data)
 
-    def get_material_price(self, material, thickness):
+    def sync_material_densities(self) -> None:
+        """У кожного матеріалу з material_prices має бути густина.
+
+        Нові матеріали (додані у вкладці «Ціни на метал») отримують
+        дефолтну густину сталі, якщо користувач не задав іншу.
+        """
+        for material in self.material_prices:
+            key = str(material).strip().lower()
+            if any(str(k).strip().lower() == key for k in self.material_densities):
+                continue
+            default = resolve_density(DEFAULT_MATERIAL_DENSITIES, material)
+            self.material_densities[str(material)] = default
+
+    def list_materials(self) -> list[str]:
+        """Усі матеріали з цінами, у порядку відображення (за абеткою)."""
         self.reload()
-        mat = self.material_prices.get(material, {})
-        return mat.get(str(thickness), 55.0)
+        return _material_names(self.material_prices)
+
+    def get_material_density(self, material, default=None) -> float:
+        """Густина матеріалу, кг/м³ (нечутливо до регістру)."""
+        self.reload()
+        fallback = default if default is not None else FALLBACK_DENSITY_KG_M3
+        return resolve_density(self.material_densities, material, default=fallback)
+
+    def get_material_price(self, material, thickness, default=55.0):
+        """Ціна металу за м², грн.
+
+        Пошук нечутливий до регістру назви матеріалу («Оцинкована сталь» =
+        «оцинкована сталь») та формату товщини (0.5 = 0.50 = «0,5»).
+        Якщо не знайдено — default.
+        """
+        self.reload()
+        wanted = str(material or "").strip().lower()
+        wanted_th = _norm_thickness(thickness)
+        for mat_name, thicknesses in self.material_prices.items():
+            if not isinstance(thicknesses, dict):
+                continue
+            if str(mat_name).strip().lower() != wanted:
+                continue
+            for th_key, price in thicknesses.items():
+                if _norm_thickness(th_key) != wanted_th:
+                    continue
+                try:
+                    return float(str(price).replace(",", ".").replace(" ", ""))
+                except (TypeError, ValueError):
+                    return float(default)
+        return float(default)
 
     def get_labor_rate(self, product_type: str) -> dict:
         """Отримати ставку зарплати та %% важкості для типу виробу.

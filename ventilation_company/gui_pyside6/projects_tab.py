@@ -13,7 +13,6 @@ from datetime import datetime
 
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -34,8 +33,15 @@ from ventilation_company.database.repositories.client_repo import ClientReposito
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.gui_pyside6.workers import FunctionWorker
 from ventilation_company.services.audit_service import log_action
+from ventilation_company.services.project_notifications import (
+    notify_project_created,
+    notify_project_status_changed,
+)
+from ventilation_company.utils.logging_config import get_logger
 
 
 class ProjectEditDialog(QDialog):
@@ -80,6 +86,21 @@ class ProjectEditDialog(QDialog):
         self.edit_number.setText(self.project_data.get("project_number", ""))
         layout.addRow("Номер", self.edit_number)
 
+        self.edit_contract = QLineEdit()
+        self.edit_contract.setText(self.project_data.get("contract_number") or "")
+        self.edit_contract.setPlaceholderText("Автоматично при формуванні договору")
+        layout.addRow("Договір", self.edit_contract)
+
+        self.edit_invoice = QLineEdit()
+        self.edit_invoice.setText(self.project_data.get("invoice_number") or "")
+        self.edit_invoice.setPlaceholderText("Автоматично при формуванні рахунку")
+        layout.addRow("Рахунок", self.edit_invoice)
+
+        self.edit_act = QLineEdit()
+        self.edit_act.setText(self.project_data.get("act_number") or "")
+        self.edit_act.setPlaceholderText("Автоматично при формуванні акту")
+        layout.addRow("Акт", self.edit_act)
+
         self.combo_client = QComboBox()
         self.combo_client.setEditable(True)
         try:
@@ -97,7 +118,7 @@ class ProjectEditDialog(QDialog):
             if idx >= 0:
                 self.combo_client.setCurrentIndex(idx)
         elif self.project_data.get("client"):
-            self.combo_client.setCurrentText(self.project_data.get("client"))
+            self.combo_client.setCurrentText(str(self.project_data.get("client")))
         layout.addRow("Клієнт", self.combo_client)
 
         self.combo_status = QComboBox()
@@ -186,6 +207,9 @@ class ProjectEditDialog(QDialog):
         return {
             "name": self.edit_name.text().strip(),
             "project_number": self.edit_number.text().strip(),
+            "contract_number": self.edit_contract.text().strip(),
+            "invoice_number": self.edit_invoice.text().strip(),
+            "act_number": self.edit_act.text().strip(),
             "client": self.combo_client.currentText().strip(),
             "client_id": self.combo_client.currentData(),
             "status": self.combo_status.currentText(),
@@ -236,9 +260,13 @@ class ProjectsTab(QWidget):
         btn_refresh = QPushButton("🔄 Оновити")
         btn_export_csv = QPushButton("💾 CSV")
         btn_export_csv.clicked.connect(self._export_csv)
+        btn_export_excel = QPushButton("📊 Excel")
+        btn_export_excel.setToolTip("Експорт списку проєктів у Excel з сумами та прибутком")
+        btn_export_excel.clicked.connect(self._export_excel)
         btn_refresh.clicked.connect(self._load_data)
         buttons_row.addWidget(btn_refresh)
         buttons_row.addWidget(btn_export_csv)
+        buttons_row.addWidget(btn_export_excel)
 
         btn_new = QPushButton("➕ Новий")
         btn_new.setObjectName("primary")
@@ -261,14 +289,16 @@ class ProjectsTab(QWidget):
         layout.addLayout(buttons_row)
 
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(
+            self.table,
+            select_rows=True,
+            single_selection=True,
+            sorting=True,
+            read_only=True,
+        )
         self.table.setMinimumHeight(400)
-        self.table.doubleClicked.connect(self._on_double_click)
+        # activated = Enter або подвійний клік → картка проєкту
+        self.table.activated.connect(self._on_double_click)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -279,6 +309,7 @@ class ProjectsTab(QWidget):
                 "Назва",
                 "Клієнт",
                 "Статус",
+                "Договір",
                 "Дата створення",
                 "Сума виробів",
                 "Ціна зам.",
@@ -292,11 +323,12 @@ class ProjectsTab(QWidget):
         self.table.setColumnWidth(2, 180)
         self.table.setColumnWidth(3, 130)
         self.table.setColumnWidth(4, 90)
-        self.table.setColumnWidth(5, 90)
+        self.table.setColumnWidth(5, 120)
         self.table.setColumnWidth(6, 90)
         self.table.setColumnWidth(7, 90)
         self.table.setColumnWidth(8, 90)
         self.table.setColumnWidth(9, 90)
+        self.table.setColumnWidth(10, 90)
 
         actions = QHBoxLayout()
         actions.addStretch()
@@ -334,6 +366,7 @@ class ProjectsTab(QWidget):
             "name",
             "client",
             "status",
+            "contract_number",
             "created_at",
             "cost_price",
             "customer_price",
@@ -350,6 +383,72 @@ class ProjectsTab(QWidget):
             QMessageBox.information(self, "Успіх", f"Експортовано проєктів: {len(rows)}")
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати CSV: {e}")
+
+    def _export_excel(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Експорт проєктів у Excel", "projects.xlsx", "Excel (*.xlsx)"
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".xlsx"):
+            path += ".xlsx"
+        rows = getattr(self, "_projects", [])
+        headers = [
+            "ID",
+            "Номер",
+            "Назва",
+            "Клієнт",
+            "Статус",
+            "Договір",
+            "Дата створення",
+            "Собівартість",
+            "Ціна замовника",
+            "Зі знижкою",
+            "Прибуток",
+        ]
+        keys = [
+            "id",
+            "project_number",
+            "name",
+            "client",
+            "status",
+            "contract_number",
+            "created_at",
+            "cost_price",
+            "customer_price",
+            "discounted_price",
+            "profit",
+        ]
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Alignment, Font, PatternFill
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Проєкти"
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+            for col, title in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=title)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center")
+            money_cols = {8, 9, 10, 11}
+            for r, row in enumerate(rows, 2):
+                for col, key in enumerate(keys, 1):
+                    value = row.get(key, "")
+                    cell = ws.cell(row=r, column=col, value=value)
+                    if col in money_cols:
+                        cell.number_format = "#,##0.00"
+                        cell.alignment = Alignment(horizontal="right")
+            widths = [6, 14, 30, 24, 12, 16, 14, 14, 16, 12, 14]
+            for col, width in enumerate(widths, 1):
+                ws.column_dimensions[chr(64 + col)].width = width
+            ws.freeze_panes = "A2"
+            wb.save(path)
+            QMessageBox.information(self, "Успіх", f"Експортовано проєктів: {len(rows)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося експортувати Excel: {e}")
 
     def _load_data(self):
         self.model.removeRows(0, self.model.rowCount())
@@ -381,6 +480,7 @@ class ProjectsTab(QWidget):
                     "project_number": p.get("project_number") or "—",
                     "client": p.get("client") or "—",
                     "status": p.get("status") or "Новий",
+                    "contract_number": p.get("contract_number") or "",
                     "created_at": str(p.get("created_at"))[:10] if p.get("created_at") else "—",
                     "cost_price": cost,
                     "customer_price": base,
@@ -396,6 +496,7 @@ class ProjectsTab(QWidget):
                     QStandardItem(data["name"]),
                     QStandardItem(data["client"]),
                     QStandardItem(data["status"]),
+                    QStandardItem(data["contract_number"] or "—"),
                     QStandardItem(data["created_at"]),
                     QStandardItem("₴ " + f"{cost:,.0f}"),
                     QStandardItem("₴ " + f"{base:,.0f}"),
@@ -470,10 +571,10 @@ class ProjectsTab(QWidget):
             self,
             "Дублювання проєкту",
             f"Створити копію проєкту '{source.get('name')}' з {len(products)} виробами?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if answer != QMessageBox.Yes:
+        if answer != QMessageBox.StandardButton.Yes:
             return
         data = {
             "name": f"{source.get('name') or 'Проєкт'} (копія)",
@@ -551,8 +652,27 @@ class ProjectsTab(QWidget):
                 if self.main_window:
                     self.main_window.set_active_project(project_id)
                 QMessageBox.information(self, "Успіх", f"Проєкт створено (ID: {project_id})")
+                self._notify_telegram_project_created({**data, "id": project_id})
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося створити: {e}")
+
+    def _notify_telegram_project_created(self, project: dict):
+        """Фонова відправка звіту про новий проєкт у Telegram (не блокує GUI)."""
+        worker = FunctionWorker(notify_project_created, project)
+        worker.result.connect(self._on_project_notify_result)
+        worker.error.connect(lambda _msg: None)  # сповіщення не критичне
+        self._tg_notify_worker = worker  # утримуємо посилання, щоб GC не зібрав
+        worker.finished.connect(lambda: setattr(self, "_tg_notify_worker", None))
+        worker.start()
+
+    @staticmethod
+    def _on_project_notify_result(ok: bool):
+        """Результат відправки звіту — лише лог, без діалогів (щоб не заважати)."""
+        logger = get_logger("projects_tab")
+        if ok:
+            logger.info("Telegram: звіт про новий проєкт надіслано")
+        else:
+            logger.warning("Telegram: звіт про новий проєкт НЕ надіслано (бот чи мережа)")
 
     def _on_edit(self):
         project_id = self._get_selected_id()
@@ -579,8 +699,21 @@ class ProjectsTab(QWidget):
                 )
                 self._load_data()
                 QMessageBox.information(self, "Успіх", "Проєкт оновлено!")
+                old_status = project_data.get("status") or ""
+                if old_status != (data.get("status") or ""):
+                    self._notify_status_telegram({**data, "id": project_id}, old_status)
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося оновити: {e}")
+
+    def _notify_status_telegram(self, project: dict, old_status: str):
+        """Фонове сповіщення про зміну статусу проєкту (не критичне)."""
+        worker = FunctionWorker(
+            notify_project_status_changed, project, old_status, project.get("status") or ""
+        )
+        worker.error.connect(lambda _msg: None)
+        self._tg_status_worker = worker
+        worker.finished.connect(lambda: setattr(self, "_tg_status_worker", None))
+        worker.start()
 
     def _on_delete(self):
         project_id = self._get_selected_id()

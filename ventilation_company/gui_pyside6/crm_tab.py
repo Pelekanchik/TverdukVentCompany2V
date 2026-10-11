@@ -5,7 +5,6 @@
 
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QDialog,
     QHBoxLayout,
@@ -14,7 +13,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QTableView,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -24,6 +22,7 @@ from ventilation_company.gui_pyside6.client_card_dialog import ClientCardDialog
 from ventilation_company.gui_pyside6.client_dialog import ClientDialog
 from ventilation_company.gui_pyside6.client_history_dialog import ClientHistoryDialog
 from ventilation_company.gui_pyside6.crm_dashboard_dialog import CRMDashboardDialog
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 
 
@@ -118,14 +117,16 @@ class CRMTab(QWidget):
         layout.addLayout(filter_row)
 
         self.table = QTableView()
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
+        setup_table(
+            self.table,
+            select_rows=True,
+            single_selection=True,
+            sorting=True,
+            read_only=True,
+        )
         self.table.setMinimumHeight(400)
-        self.table.doubleClicked.connect(self._on_edit)
+        # activated = Enter або подвійний клік → картка клієнта
+        self.table.activated.connect(self._on_edit)
         layout.addWidget(self.table)
 
         self.model = QStandardItemModel()
@@ -174,34 +175,22 @@ class CRMTab(QWidget):
     def _fill_table(self, clients):
         self._visible_clients = clients
         headers = ["ID", "Назва", "Контакт", "Телефон", "Email", "Статус", "Адреса"]
-        if hasattr(self, "model") and self.model is not None:
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(headers)
-            for c in clients:
-                self.model.appendRow(
-                    [
-                        QStandardItem(str(c["id"])),
-                        QStandardItem(c["name"]),
-                        QStandardItem(c.get("contact_person") or "—"),
-                        QStandardItem(c.get("phone") or "—"),
-                        QStandardItem(c.get("email") or "—"),
-                        QStandardItem(c.get("status") or "—"),
-                        QStandardItem(c.get("address") or "—"),
-                    ]
-                )
+        if not hasattr(self, "model") or self.model is None:
             return
-
-        self.table.setRowCount(0)
+        self.model.clear()
+        self.model.setHorizontalHeaderLabels(headers)
         for c in clients:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            self.table.setItem(row, 0, QTableWidgetItem(str(c["id"])))
-            self.table.setItem(row, 1, QTableWidgetItem(c["name"]))
-            self.table.setItem(row, 2, QTableWidgetItem(c.get("contact_person") or "—"))
-            self.table.setItem(row, 3, QTableWidgetItem(c.get("phone") or "—"))
-            self.table.setItem(row, 4, QTableWidgetItem(c.get("email") or "—"))
-            self.table.setItem(row, 5, QTableWidgetItem(c.get("status") or "—"))
-            self.table.setItem(row, 6, QTableWidgetItem(c.get("address") or "—"))
+            self.model.appendRow(
+                [
+                    QStandardItem(str(c["id"])),
+                    QStandardItem(c["name"]),
+                    QStandardItem(c.get("contact_person") or "—"),
+                    QStandardItem(c.get("phone") or "—"),
+                    QStandardItem(c.get("email") or "—"),
+                    QStandardItem(c.get("status") or "—"),
+                    QStandardItem(c.get("address") or "—"),
+                ]
+            )
 
     def _apply_filters(self):
         search = self.edit_search.text().lower()
@@ -278,10 +267,10 @@ class CRMTab(QWidget):
                     self,
                     "Можливий дублікат",
                     f"Схожий клієнт вже існує: {duplicate.get('name')} ({duplicate.get('phone') or '—'}). Додати ще одного?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
                 )
-                if answer != QMessageBox.Yes:
+                if answer != QMessageBox.StandardButton.Yes:
                     return
             ClientRepository.create(data)
             self._load_data()
@@ -319,7 +308,7 @@ class CRMTab(QWidget):
             return
         name = self._client_name(cid)
         reply = QMessageBox.question(self, "Підтвердження", f'Видалити клієнта "{name}"?')
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             ClientRepository.delete(cid)
             self._load_data()
             QMessageBox.information(self, "Успіх", "Клієнта видалено")

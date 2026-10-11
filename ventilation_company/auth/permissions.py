@@ -46,6 +46,13 @@ class Permission(str, Enum):
     DOCUMENTS_EDIT = "documents.edit"
     DOCUMENTS_DELETE = "documents.delete"
 
+    # Гроші (дебіторка)
+    MONEY_VIEW = "money.view"
+
+    # Склад (v2.9)
+    WAREHOUSE_VIEW = "warehouse.view"
+    WAREHOUSE_EDIT = "warehouse.edit"
+
 
 class Role(str, Enum):
     ADMIN = "admin"
@@ -56,6 +63,7 @@ class Role(str, Enum):
     ACCOUNTANT = "accountant"
     VIEWER = "viewer"
     MONTER = "monter"
+    WORKSHOP = "workshop"  # цех (розділ 5.2)
 
 
 ROLE_LABELS = {
@@ -66,7 +74,8 @@ ROLE_LABELS = {
     Role.MASTER: "Майстер",
     Role.ACCOUNTANT: "Бухгалтер",
     Role.VIEWER: "Тільки перегляд",
-    Role.MONTER: "Монтажник",
+    Role.MONTER: "Бригадир",
+    Role.WORKSHOP: "Цех",
 }
 
 ROLE_PERMISSIONS = {
@@ -83,6 +92,8 @@ ROLE_PERMISSIONS = {
         Permission.PRODUCTS_EDIT,
         Permission.PRICE_LIST_VIEW,
         Permission.PRICE_LIST_EDIT,
+        Permission.MONEY_VIEW,
+        Permission.WAREHOUSE_VIEW,
     },
     Role.ENGINEER: {
         Permission.PROJECTS_VIEW,
@@ -94,6 +105,7 @@ ROLE_PERMISSIONS = {
         Permission.PRODUCTS_VIEW,
         Permission.PRODUCTS_EDIT,
         Permission.SETTINGS_VIEW,
+        Permission.WAREHOUSE_VIEW,
     },
     Role.MASTER: {
         Permission.PROJECTS_VIEW,
@@ -101,6 +113,8 @@ ROLE_PERMISSIONS = {
         Permission.SPEC_EDIT,
         Permission.PRODUCTION_VIEW,
         Permission.PRODUCTION_EDIT,
+        Permission.WAREHOUSE_VIEW,
+        Permission.WAREHOUSE_EDIT,
     },
     Role.ACCOUNTANT: {
         Permission.PROJECTS_VIEW,
@@ -109,6 +123,7 @@ ROLE_PERMISSIONS = {
         Permission.CRM_EDIT,
         Permission.PRICE_LIST_EDIT,
         Permission.PROJECTS_EDIT,
+        Permission.MONEY_VIEW,
     },
     Role.VIEWER: {
         Permission.SPEC_VIEW,
@@ -125,7 +140,24 @@ ROLE_PERMISSIONS = {
         Permission.SPEC_VIEW,
         Permission.PRODUCTION_VIEW,
     },
+    # Цех: бачить лише виробництво, склад і специфікацію, нічого не чіпає
+    Role.WORKSHOP: {
+        Permission.SPEC_VIEW,
+        Permission.PRODUCTION_VIEW,
+        Permission.PRODUCTION_EDIT,
+        Permission.WAREHOUSE_VIEW,
+        Permission.WAREHOUSE_EDIT,
+    },
 }
+
+
+def role_label_to_value(label: str) -> str:
+    """Переклад української мітки ролі у значення для БД (невідома → viewer)."""
+    for role, text in ROLE_LABELS.items():
+        if text == label:
+            return role.value
+    return Role.VIEWER.value
+
 
 # GUI tab -> canonical permission.
 TAB_PERMISSIONS = {
@@ -134,8 +166,12 @@ TAB_PERMISSIONS = {
     "products": Permission.PRODUCTS_VIEW,
     "specification": Permission.SPEC_VIEW,
     "cutting": Permission.SPEC_VIEW,
+    "production": Permission.PRODUCTION_VIEW,
+    "schedule": Permission.PRODUCTION_VIEW,
     "pricing": Permission.PRICE_LIST_VIEW,
     "documents": Permission.DOCUMENTS_VIEW,
+    "money": Permission.MONEY_VIEW,
+    "warehouse": Permission.WAREHOUSE_VIEW,
     "crm": Permission.CRM_VIEW,
     "settings": Permission.SETTINGS_VIEW,
 }

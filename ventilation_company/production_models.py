@@ -132,7 +132,7 @@ class ProductionPlan:
 
     def get_equipment_load(self) -> dict[str, list[tuple[datetime, datetime]]]:
         """Розклад завантаження обладнання."""
-        load = {}
+        load: dict[str, list[tuple[datetime, datetime]]] = {}
         for op in self.operations:
             eq_id = op.equipment.id
             if eq_id not in load:

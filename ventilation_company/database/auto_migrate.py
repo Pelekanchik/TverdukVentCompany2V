@@ -11,7 +11,7 @@ import logging
 from sqlalchemy import inspect, text
 
 from ventilation_company.database.base import Base
-from ventilation_company.database.db import engine
+from ventilation_company.database.db import get_engine
 
 _logger = logging.getLogger("auto_migrate")
 
@@ -46,7 +46,7 @@ def _sqlite_type(col_type) -> str:
 
 def auto_add_missing_columns() -> None:
     """Автоматично додати відсутні колонки до існуючих таблиць SQLite."""
-    inspector = inspect(engine)
+    inspector = inspect(get_engine())
     existing_tables = set(inspector.get_table_names())
 
     for table_name, table in Base.metadata.tables.items():
@@ -73,7 +73,7 @@ def auto_add_missing_columns() -> None:
                 f'ADD COLUMN "{col.name}" {sqlite_type}{default} {nullable}'
             )
             try:
-                with engine.connect() as conn:
+                with get_engine().connect() as conn:
                     conn.execute(text(sql))
                     conn.commit()
                 _logger.info(

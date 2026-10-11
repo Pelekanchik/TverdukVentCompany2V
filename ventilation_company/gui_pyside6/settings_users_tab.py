@@ -21,8 +21,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ventilation_company.auth.permissions import ROLE_LABELS, role_label_to_value
 from ventilation_company.auth.service import auth
 from ventilation_company.database.repositories.app_settings_repository import get_role_label
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 
 
@@ -40,9 +42,9 @@ class UsersAdminTab(QWidget):
 
         if not self.is_director:
             lbl = QLabel("🚫 Доступ тільки для адміністратора")
-            lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
+            lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
             lbl.setStyleSheet(f"color: {Theme.DANGER};")
-            vlay.addWidget(lbl, alignment=Qt.AlignCenter)
+            vlay.addWidget(lbl, alignment=Qt.AlignmentFlag.AlignCenter)
             return
 
         btn_row = QHBoxLayout()
@@ -65,10 +67,11 @@ class UsersAdminTab(QWidget):
         self.users_table.setHorizontalHeaderLabels(
             ["ID", "Логін", "ПІБ", "Роль", "Активний", "Останній вхід"]
         )
-        self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.users_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.users_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.users_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.users_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.ResizeToContents
+        )
+        setup_table(self.users_table, select_rows=True, read_only=True, stretch_last=False)
         vlay.addWidget(self.users_table)
 
         self._refresh_users()
@@ -96,7 +99,8 @@ class UsersAdminTab(QWidget):
         if row < 0:
             QMessageBox.warning(self, "Увага", "Оберіть користувача")
             return None
-        username = self.users_table.item(row, 1).text()
+        item = self.users_table.item(row, 1)
+        username = item.text() if item is not None else ""
         return auth.get_user_by_username(username)
 
     def _add_user_dialog(self):
@@ -124,19 +128,17 @@ class UsersAdminTab(QWidget):
         lay.addRow("📝 Повне ім'я *", name_edit)
 
         pass_edit = QLineEdit()
-        pass_edit.setEchoMode(QLineEdit.Password)
+        pass_edit.setEchoMode(QLineEdit.EchoMode.Password)
         lay.addRow("🔒 Пароль" + ("" if is_edit else " *"), pass_edit)
         if is_edit:
             lay.addRow(QLabel("(залиште порожнім, щоб не змінювати)"))
 
         pass2_edit = QLineEdit()
-        pass2_edit.setEchoMode(QLineEdit.Password)
+        pass2_edit.setEchoMode(QLineEdit.EchoMode.Password)
         lay.addRow("🔒 Підтвердіть пароль", pass2_edit)
 
         role_combo = QComboBox()
-        role_combo.addItems(
-            ["Адміністратор", "Менеджер", "Інженер", "Майстер", "Бухгалтер", "Перегляд"]
-        )
+        role_combo.addItems(list(ROLE_LABELS.values()))  # усі ролі з permissions.py
         if is_edit:
             role_combo.setCurrentText(get_role_label(user.role))
         lay.addRow("🛡️ Посада *", role_combo)
@@ -145,19 +147,13 @@ class UsersAdminTab(QWidget):
         status_lbl.setStyleSheet(f"color: {Theme.DANGER};")
         lay.addRow(status_lbl)
 
-        btns = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         lay.addRow(btns)
 
         def save():
-            role_map = {
-                "Адміністратор": "admin",
-                "Менеджер": "manager",
-                "Інженер": "engineer",
-                "Майстер": "master",
-                "Бухгалтер": "accountant",
-                "Перегляд": "viewer",
-            }
-            new_role = role_map.get(role_combo.currentText(), "viewer")
+            new_role = role_label_to_value(role_combo.currentText())
 
             if is_edit:
                 kwargs = {"full_name": name_edit.text(), "role": new_role}
@@ -205,7 +201,7 @@ class UsersAdminTab(QWidget):
         reply = QMessageBox.question(
             self, "Підтвердження", f'Видалити користувача "{user.username}"?'
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             auth.delete_user(user.id)
             self._refresh_users()
             QMessageBox.information(self, "Успіх", f"Користувача {user.username} видалено")

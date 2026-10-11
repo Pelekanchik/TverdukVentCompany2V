@@ -42,6 +42,15 @@ DENSITIES = {
 }
 
 
+def _resolve_density(densities: dict | None, material: str) -> float:
+    """Густина: користувацькі налаштування → відомі матеріали → сталь."""
+    from ventilation_company.materials import resolve_density
+
+    merged = dict(DENSITIES)
+    merged.update(densities or {})
+    return resolve_density(merged, material)
+
+
 @dataclass
 class PriceRecord:
     """Один запис ціни з файлу постачальника."""
@@ -57,7 +66,7 @@ class PriceRecord:
         return (
             bool(self.material)
             and self.thickness > 0
-            and (self.price_per_m2 > 0 or self.price_per_kg > 0)
+            and ((self.price_per_m2 or 0) > 0 or self.price_per_kg > 0)
         )
 
 
@@ -200,7 +209,9 @@ class PriceImporter:
         if header_map:
             # Excel формат з мапою
             idx = header_map.get("material")
-            record.material = self._normalize_material(row.get(idx, "")) if idx is not None else ""
+            record.material = (
+                self._normalize_material(row.get(idx, "")) or "" if idx is not None else ""
+            )
             idx = header_map.get("thickness")
             record.thickness = self._parse_thickness(row.get(idx, 0)) if idx is not None else 0
             idx = header_map.get("price_m2")
@@ -212,7 +223,7 @@ class PriceImporter:
         else:
             # CSV формат з іменованими колонками
             material_raw = row.get("Матеріал", row.get("Material", row.get("матеріал", "")))
-            record.material = self._normalize_material(material_raw)
+            record.material = self._normalize_material(material_raw) or ""
             record.thickness = self._parse_thickness(
                 row.get("Товщина", row.get("Thickness", row.get("товщина", 0)))
             )
@@ -259,7 +270,7 @@ class PriceImporter:
                 price_to_save = record.price_per_m2
             else:
                 # Обчислити з грн/кг
-                density = DENSITIES.get(record.material, 7850)
+                density = _resolve_density(data.get("material_densities"), record.material)
                 weight_per_m2 = (record.thickness / 1000) * density
                 price_to_save = record.price_per_kg * weight_per_m2
 

@@ -191,8 +191,11 @@ class CalcDetailsDialog(QDialog):
     def _show_result(self):
         while self.result_layout.count():
             item = self.result_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            if item is None:
+                break
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
         r = self._result
         if not r:

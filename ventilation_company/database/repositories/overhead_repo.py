@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from ventilation_company.database.db import SessionLocal
+from ventilation_company.database.db import get_session_local
 from ventilation_company.database.models.calc import OverheadItem
 
 
@@ -55,6 +55,14 @@ class OverheadRepository:
         return self.get_all_items()
 
 
-# Зворотна сумісність
-OverheadRepo = OverheadRepository
-OverheadRepo = OverheadRepository(SessionLocal())
+# Зворотна сумісність — лінивий синглтон (сесія створюється при першому зверненні).
+_OverheadRepo = None
+
+
+def __getattr__(name: str):
+    if name == "OverheadRepo":
+        global _OverheadRepo
+        if _OverheadRepo is None:
+            _OverheadRepo = OverheadRepository(get_session_local()())
+        return _OverheadRepo
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

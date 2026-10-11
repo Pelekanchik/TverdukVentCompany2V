@@ -6,27 +6,24 @@
   Роботи = сума з project_works
   Витрати = сума з project_expenses
   Прибуток = ціна (зі знижкою) − собівартість − роботи − витрати
+
+Рефакторинг v2.10: допоміжні діалоги — у project_card_dialogs.py, документи/
+креслення/PDF — у міксині project_card_docs_mixin.py. Цей файл — ядро
+(життєвий цикл + вкладки інфо/вироби/роботи/витрати/оплати).
 """
 
-import os
-import tempfile
-from pathlib import Path
-
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
-    QDateEdit,
     QDialog,
-    QDialogButtonBox,
-    QDoubleSpinBox,
-    QFileDialog,
     QFormLayout,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QTableView,
     QTableWidget,
@@ -41,164 +38,32 @@ from ventilation_company.database.repositories.product_repo import ProductReposi
 from ventilation_company.database.repositories.project_document_repo import (
     ProjectDocumentRepository,
 )
+from ventilation_company.database.repositories.project_drawing_repo import (
+    ProjectDrawingRepository,
+)
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.material_order_dialog import (  # noqa: F401  (реекспорт: тести патчать за цим шляхом)
+    MaterialOrderPreviewDialog,
+)
+from ventilation_company.gui_pyside6.project_card_dialogs import (  # noqa: F401
+    DRAWING_FILE_FILTER,
+    ComponentPickerDialog,
+    DrawingsTable,
+    ExpenseEditDialog,
+    PaymentEditDialog,
+    WorkEditDialog,
+)
+from ventilation_company.gui_pyside6.project_card_docs_mixin import ProjectCardDocsMixin
+from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
+from ventilation_company.services.project_notifications import notify_payment_created
+from ventilation_company.services.receivables import payment_summary
 
 
-class WorkEditDialog(QDialog):
-    def __init__(self, project_id: int, work_data=None, parent=None):
-        super().__init__(parent)
-        self.project_id = project_id
-        self.work_id = work_data.get("id") if work_data else None
-        self.setWindowTitle("Редагувати роботу" if work_data else "Нова робота")
-        self.setMinimumWidth(350)
-        self._build_ui(work_data)
-
-    def _build_ui(self, work_data):
-        layout = QFormLayout(self)
-        self.edit_name = QLineEdit()
-        self.edit_name.setText(work_data.get("work_name", "") if work_data else "")
-        layout.addRow("Назва роботи *", self.edit_name)
-        self.spin_qty = QDoubleSpinBox()
-        self.spin_qty.setRange(0.01, 99999)
-        self.spin_qty.setValue(work_data.get("quantity", 1) if work_data else 1)
-        layout.addRow("Кількість", self.spin_qty)
-        self.edit_unit = QLineEdit()
-        self.edit_unit.setText(work_data.get("unit", "год") if work_data else "год")
-        layout.addRow("Од. виміру", self.edit_unit)
-        self.spin_price = QDoubleSpinBox()
-        self.spin_price.setRange(0, 999999)
-        self.spin_price.setSuffix(" ₴")
-        self.spin_price.setDecimals(2)
-        self.spin_price.setValue(work_data.get("unit_price", 0) if work_data else 0)
-        layout.addRow("Ціна за од.", self.spin_price)
-        btn = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
-        btn.accepted.connect(self.accept)
-        btn.rejected.connect(self.reject)
-        layout.addRow(btn)
-
-    def get_data(self):
-        qty = self.spin_qty.value()
-        price = self.spin_price.value()
-        return {
-            "project_id": self.project_id,
-            "work_name": self.edit_name.text().strip(),
-            "quantity": qty,
-            "unit": self.edit_unit.text().strip(),
-            "unit_price": price,
-            "total_price": round(qty * price, 2),
-            "direction": self.direction_combo.currentData(),
-        }
-
-
-class ExpenseEditDialog(QDialog):
-    def __init__(self, project_id: int, expense_data=None, parent=None):
-        super().__init__(parent)
-        self.project_id = project_id
-        self.expense_id = expense_data.get("id") if expense_data else None
-        self.setWindowTitle("Редагувати витрату" if expense_data else "Нова витрата")
-        self.setMinimumWidth(350)
-        self._build_ui(expense_data)
-
-    def _build_ui(self, expense_data):
-        layout = QFormLayout(self)
-        self.direction_combo = QComboBox()
-        self.direction_combo.addItem("➖ Витрата", "minus")
-        self.direction_combo.addItem("➕ Плюс", "plus")
-        current_direction = expense_data.get("direction", "minus") if expense_data else "minus"
-        self.direction_combo.setCurrentIndex(1 if current_direction == "plus" else 0)
-        layout.addRow("Тип:", self.direction_combo)
-        self.edit_name = QLineEdit()
-        self.edit_name.setText(expense_data.get("expense_name", "") if expense_data else "")
-        layout.addRow("Назва витрати *", self.edit_name)
-        self.spin_qty = QDoubleSpinBox()
-        self.spin_qty.setRange(0.01, 99999)
-        self.spin_qty.setValue(expense_data.get("quantity", 1) if expense_data else 1)
-        layout.addRow("Кількість", self.spin_qty)
-        self.edit_unit = QLineEdit()
-        self.edit_unit.setText(expense_data.get("unit", "шт") if expense_data else "шт")
-        layout.addRow("Од. виміру", self.edit_unit)
-        self.spin_price = QDoubleSpinBox()
-        self.spin_price.setRange(0, 999999)
-        self.spin_price.setSuffix(" ₴")
-        self.spin_price.setDecimals(2)
-        self.spin_price.setValue(expense_data.get("unit_price", 0) if expense_data else 0)
-        layout.addRow("Ціна за од.", self.spin_price)
-        btn = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
-        btn.accepted.connect(self.accept)
-        btn.rejected.connect(self.reject)
-        layout.addRow(btn)
-
-    def get_data(self):
-        qty = self.spin_qty.value()
-        price = self.spin_price.value()
-        return {
-            "project_id": self.project_id,
-            "expense_name": self.edit_name.text().strip(),
-            "quantity": qty,
-            "unit": self.edit_unit.text().strip(),
-            "unit_price": price,
-            "total_price": round(qty * price, 2),
-            "direction": self.direction_combo.currentData(),
-        }
-
-
-class PaymentEditDialog(QDialog):
-    def __init__(self, project_id: int, payment_data=None, parent=None):
-        super().__init__(parent)
-        self.project_id = project_id
-        self.payment_data = payment_data or {}
-        self.setWindowTitle("Редагувати оплату" if payment_data else "Нова оплата")
-        self.setMinimumWidth(380)
-        layout = QFormLayout(self)
-        self.date_edit = QDateEdit(QDate.currentDate())
-        self.date_edit.setCalendarPopup(True)
-        value = self.payment_data.get("date")
-        if value:
-            try:
-                self.date_edit.setDate(QDate(value.year, value.month, value.day))
-            except Exception:
-                self.date_edit.setDate(QDate.fromString(str(value)[:10], "yyyy-MM-dd"))
-        layout.addRow("Дата:", self.date_edit)
-        self.spin_amount = QDoubleSpinBox()
-        self.spin_amount.setRange(0, 999999999)
-        self.spin_amount.setDecimals(2)
-        self.spin_amount.setSuffix(" ₴")
-        self.spin_amount.setValue(float(self.payment_data.get("amount") or 0))
-        layout.addRow("Сума:", self.spin_amount)
-        self.combo_type = QComboBox()
-        self.combo_type.addItems(["вхідний", "вихідний"])
-        self.combo_type.setCurrentText(self.payment_data.get("type") or "вхідний")
-        layout.addRow("Тип:", self.combo_type)
-        self.edit_purpose = QLineEdit(self.payment_data.get("purpose") or "Оплата за проєкт")
-        layout.addRow("Призначення:", self.edit_purpose)
-        self.edit_notes = QLineEdit(self.payment_data.get("notes") or "")
-        layout.addRow("Нотатки:", self.edit_notes)
-        btn = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        btn.accepted.connect(self.accept)
-        btn.rejected.connect(self.reject)
-        layout.addRow(btn)
-
-    def get_data(self):
-        return {
-            "project_id": self.project_id,
-            "date": self.date_edit.date().toPython(),
-            "amount": self.spin_amount.value(),
-            "currency": "UAH",
-            "type": self.combo_type.currentText(),
-            "purpose": self.edit_purpose.text().strip(),
-            "notes": self.edit_notes.text().strip(),
-        }
-
-
-class ProjectCardDialog(QDialog):
+class ProjectCardDialog(ProjectCardDocsMixin, QDialog):
     def __init__(self, project_id: int, parent=None):
         super().__init__(parent)
         self.project_id = project_id
@@ -206,13 +71,14 @@ class ProjectCardDialog(QDialog):
         self.setMinimumWidth(900)
         self.setMinimumHeight(600)
         self.resize(1000, 700)
-        self._project_data = {}
-        self._products = []
-        self._documents = []
-        self._works = []
-        self._expenses = []
-        self._payments = []
-        self._worker = None
+        self._project_data: dict = {}
+        self._products: list[dict] = []
+        self._documents: list[dict] = []
+        self._works: list[dict] = []
+        self._expenses: list[dict] = []
+        self._payments: list[dict] = []
+        self._drawings: list[dict] = []
+        self._worker: FunctionWorker | None = None
         self._build_ui()
         self._start_load()
 
@@ -231,6 +97,7 @@ class ProjectCardDialog(QDialog):
         works = ProjectWorkRepository.get_all(self.project_id)
         expenses = ProjectExpenseRepository.get_all(self.project_id)
         documents = ProjectDocumentRepository.get_by_project(self.project_id)
+        drawings = ProjectDrawingRepository.get_by_project(self.project_id)
         payments = PaymentRepository.list_by_project(self.project_id)
         paid_total = sum(
             float(p.get("amount") or 0)
@@ -274,6 +141,7 @@ class ProjectCardDialog(QDialog):
             "project": project_data,
             "products": products,
             "documents": documents,
+            "drawings": drawings,
             "works": works,
             "expenses": expenses,
             "payments": payments,
@@ -285,12 +153,20 @@ class ProjectCardDialog(QDialog):
         worker = FunctionWorker(self._fetch_data)
         worker.result.connect(self._on_data_loaded)
         worker.error.connect(self._on_load_error)
+        # Життєвий цикл worker'а прив'язано до finished потоку (а не до result):
+        # посилання знімається лише після того, як run() справді завершився,
+        # інакше можливий крах "QThread: Destroyed while thread is still running".
         worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(self._on_worker_finished)
         self._worker = worker  # захист від збирання сміття
         worker.start()
 
+    def _on_worker_finished(self):
+        """Потік завершився — знімаємо посилання (лише якщо це поточний worker)."""
+        if self._worker is self.sender():
+            self._worker = None
+
     def _on_data_loaded(self, result: dict):
-        self._worker = None
         project = result.get("project")
         if project is None:
             self._set_busy(False)
@@ -299,9 +175,12 @@ class ProjectCardDialog(QDialog):
         self._project_data = project
         self._products = result["products"]
         self._documents = result["documents"]
+        self._drawings = result["drawings"]
         self._works = result["works"]
         self._expenses = result["expenses"]
         self._payments = result["payments"]
+        # Новіші оплати — зверху (відповідність порядку рядків таблиці).
+        self._payments.sort(key=lambda p: str(p.get("date") or ""), reverse=True)
 
         name = self._project_data.get("name", "Проєкт")
         self.setWindowTitle(f"📁 {name} (#{self.project_id})")
@@ -311,7 +190,6 @@ class ProjectCardDialog(QDialog):
         self._set_busy(False)
 
     def _on_load_error(self, message: str):
-        self._worker = None
         self._set_busy(False)
         QMessageBox.critical(self, "Помилка", f"Не вдалося завантажити проєкт:\n{message}")
 
@@ -328,6 +206,7 @@ class ProjectCardDialog(QDialog):
         self._populate_info_tab()
         self._populate_products()
         self._populate_documents()
+        self._populate_drawings()
         self._populate_works()
         self._populate_expenses()
         self._populate_payments()
@@ -348,6 +227,7 @@ class ProjectCardDialog(QDialog):
         self.tabs.addTab(self._build_info_tab(), "ℹ️ Інформація")
         self.tabs.addTab(self._build_products_tab(), "🔧 Деталі")
         self.tabs.addTab(self._build_documents_tab(), "📄 Документи")
+        self.tabs.addTab(self._build_drawings_tab(), "📐 Креслення")
         self.tabs.addTab(self._build_works_tab(), "🔨 Роботи")
         self.tabs.addTab(self._build_expenses_tab(), "💸 Витрати")
         self.tabs.addTab(self._build_payments_tab(), "💳 Оплати")
@@ -454,9 +334,10 @@ class ProjectCardDialog(QDialog):
         set_text("paid_total", f"₴ {paid_total:,.2f}")
         set_text("balance", f"₴ {balance:,.2f}")
         if display_profit >= 0:
+            margin = display_profit / total_customer * 100 if total_customer > 0 else 0.0
             set_text(
                 "profit",
-                f"₴ {display_profit:,.2f}  ✅",
+                f"₴ {display_profit:,.2f}  ·  маржа {margin:.1f} %  ✅",
                 f"color: {Theme.SUCCESS}; font-weight: bold; font-size: 16px; "
                 f"padding: 8px 16px; background: #1a3a1a; border-radius: 8px;",
             )
@@ -479,9 +360,7 @@ class ProjectCardDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         self.products_table = QTableView()
-        self.products_table.setAlternatingRowColors(True)
-        self.products_table.horizontalHeader().setStretchLastSection(True)
-        self.products_table.verticalHeader().setVisible(False)
+        setup_table(self.products_table, read_only=True)
         layout.addWidget(self.products_table)
         self.products_model = QStandardItemModel()
         # ← v2.4: додано колонку "Зі знижкою"
@@ -501,6 +380,49 @@ class ProjectCardDialog(QDialog):
         )
         self.products_table.setModel(self.products_model)
         self._populate_products()
+        actions = QHBoxLayout()
+        actions.addStretch()
+        btn_contract = QPushButton("📑 Договір (PDF)…")
+        btn_contract.setToolTip(
+            "Згенерувати типовий договір на виготовлення та монтаж "
+            "з реквізитами сторін і сумою проєкту"
+        )
+        btn_contract.clicked.connect(self._on_contract_pdf)
+        actions.addWidget(btn_contract)
+        btn_proposal = QPushButton("📄 КП (PDF)…")
+        btn_proposal.setToolTip(
+            "Згенерувати комерційну пропозицію для замовника: вироби, роботи, "
+            "підсумки з ПДВ, терміни та гарантія"
+        )
+        btn_proposal.clicked.connect(self._on_proposal_pdf)
+        actions.addWidget(btn_proposal)
+        btn_proposal_xls = QPushButton("📗 КП (Excel)…")
+        btn_proposal_xls.setToolTip(
+            "Експорт комерційної пропозиції у Excel (зручно для редагування)"
+        )
+        btn_proposal_xls.clicked.connect(self._on_proposal_excel)
+        actions.addWidget(btn_proposal_xls)
+        btn_act = QPushButton("✅ Акт (PDF)…")
+        btn_act.setToolTip(
+            "Згенерувати акт виконаних робіт для підписання: перелік робіт та "
+            "виробів, сума прописом, реквізити та підписи сторін"
+        )
+        btn_act.clicked.connect(self._on_act_pdf)
+        actions.addWidget(btn_act)
+        btn_invoice = QPushButton("🧾 Рахунок (PDF)…")
+        btn_invoice.setToolTip(
+            "Згенерувати рахунок на оплату з банківськими реквізитами " "та призначенням платежу"
+        )
+        btn_invoice.clicked.connect(self._on_invoice_pdf)
+        actions.addWidget(btn_invoice)
+        btn_materials = QPushButton("📦 Замовлення матеріалів…")
+        btn_materials.setToolTip(
+            "Розрахувати потребу в матеріалах за виробами проєкту "
+            "(метал, ущільнювачі, кріплення, ізоляція) та зберегти заявку в Excel"
+        )
+        btn_materials.clicked.connect(self._on_material_order)
+        actions.addWidget(btn_materials)
+        layout.addLayout(actions)
         return tab
 
     def _populate_products(self):
@@ -531,159 +453,13 @@ class ProjectCardDialog(QDialog):
             ]
             for cell in row:
                 cell.setEditable(False)
+            # Числові колонки (к-ть, ціни, сума) — вирівнювання праворуч
+            for cell in (row[5], row[6], row[7], row[8], row[9]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             # Зафарбовуємо знижку жовтим, якщо вона є
             if disc > 0:
                 row[8].setForeground(QBrush(QColor(Theme.WARNING)))
             self.products_model.appendRow(row)
-
-    def _build_documents_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        top = QHBoxLayout()
-        self._lbl_docs_count = QLabel("📄 Документи проєкту (…)")
-        self._lbl_docs_count.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-size: 14px;")
-        top.addWidget(self._lbl_docs_count)
-        top.addStretch()
-        btn_refresh = QPushButton("🔄 Оновити")
-        btn_refresh.clicked.connect(self._refresh_documents)
-        top.addWidget(btn_refresh)
-        layout.addLayout(top)
-        self.docs_table = QTableView()
-        self.docs_table.setAlternatingRowColors(True)
-        self.docs_table.horizontalHeader().setStretchLastSection(True)
-        self.docs_table.verticalHeader().setVisible(False)
-        layout.addWidget(self.docs_table)
-        self.docs_model = QStandardItemModel()
-        self.docs_model.setHorizontalHeaderLabels(["ID", "Тип", "Файл", "Розмір", "Дата", "Дії"])
-        self.docs_table.setModel(self.docs_model)
-        self.docs_table.clicked.connect(self._on_docs_table_clicked)
-        self.docs_table.doubleClicked.connect(lambda _idx: self._open_document())
-        self.docs_table.setColumnWidth(0, 40)
-        self.docs_table.setColumnWidth(1, 120)
-        self.docs_table.setColumnWidth(2, 250)
-        self.docs_table.setColumnWidth(3, 80)
-        self.docs_table.setColumnWidth(4, 120)
-        self.docs_table.setColumnWidth(5, 100)
-        self._populate_documents()
-        actions = QHBoxLayout()
-        actions.addStretch()
-        btn_export = QPushButton("💾 Експортувати вибраний")
-        btn_export.clicked.connect(self._export_document)
-        actions.addWidget(btn_export)
-        btn_delete = QPushButton("🗑️ Видалити вибраний")
-        btn_delete.setStyleSheet(f"color: {Theme.DANGER};")
-        btn_delete.clicked.connect(self._delete_document)
-        actions.addWidget(btn_delete)
-        layout.addLayout(actions)
-        return tab
-
-    def _populate_documents(self):
-        self._lbl_docs_count.setText(f"📄 Документи проєкту ({len(self._documents)})")
-        self.docs_model.removeRows(0, self.docs_model.rowCount())
-        type_names = {
-            "spec": "Специфікація",
-            "calc": "Калькуляція",
-            "metal": "Метал",
-            "order": "Наряд",
-        }
-        for doc in self._documents:
-            row = [
-                QStandardItem(str(doc["id"])),
-                QStandardItem(type_names.get(doc["doc_type"], doc["doc_type"])),
-                QStandardItem(doc["filename"]),
-                QStandardItem(f"{doc['file_size'] / 1024:.1f} КБ"),
-                QStandardItem(str(doc["created_at"])[:16] if doc["created_at"] else "—"),
-                QStandardItem("📥 Завантажити"),
-            ]
-            for cell in row:
-                cell.setEditable(False)
-            self.docs_model.appendRow(row)
-
-    def _refresh_documents(self):
-        self._documents = ProjectDocumentRepository.get_by_project(self.project_id)
-        self._populate_documents()
-
-    def _get_selected_doc_id(self):
-        idx = self.docs_table.currentIndex()
-        if not idx.isValid():
-            return None
-        row = idx.row()
-        if 0 <= row < len(self._documents):
-            return self._documents[row]["id"]
-        return None
-
-    def _on_docs_table_clicked(self, index):
-        if not index.isValid():
-            return
-        if index.column() == self.docs_model.columnCount() - 1:
-            self._open_document()
-
-    def _open_document(self):
-        doc_id = self._get_selected_doc_id()
-        if not doc_id:
-            QMessageBox.warning(self, "Увага", "Оберіть документ")
-            return
-        get_doc = (
-            getattr(ProjectDocumentRepository, "get_by_id", None) or ProjectDocumentRepository.get
-        )
-        doc = get_doc(doc_id)
-        if not doc:
-            QMessageBox.warning(self, "Увага", "Документ не знайдено")
-            return
-        content = doc.get("content") or b""
-        if isinstance(content, str):
-            content = content.encode("utf-8")
-        filename = doc.get("filename") or f"document_{doc_id}.xlsx"
-        filename = Path(filename).name
-        suffix = Path(filename).suffix or ".xlsx"
-        try:
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=suffix, prefix="ventcompany_doc_"
-            ) as tmp:
-                tmp.write(content)
-                tmp_path = tmp.name
-            os.startfile(tmp_path)
-        except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося відкрити документ: {e}")
-
-    def _export_document(self):
-        doc_id = self._get_selected_doc_id()
-        if not doc_id:
-            QMessageBox.warning(self, "Увага", "Виберіть документ для експорту")
-            return
-        doc = ProjectDocumentRepository.get_by_id(doc_id)
-        if not doc:
-            QMessageBox.warning(self, "Увага", "Документ не знайдено")
-            return
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Зберегти документ", doc["filename"], "Excel files (*.xlsx);;All files (*.*)"
-        )
-        if path:
-            try:
-                with open(path, "wb") as f:
-                    f.write(doc["content"])
-                QMessageBox.information(self, "Успіх", f"Документ збережено:\n{path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти: {e}")
-
-    def _delete_document(self):
-        doc_id = self._get_selected_doc_id()
-        if not doc_id:
-            QMessageBox.warning(self, "Увага", "Виберіть документ для видалення")
-            return
-        reply = QMessageBox.question(
-            self,
-            "Видалення",
-            "Видалити документ з бази даних?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                ProjectDocumentRepository.delete(doc_id)
-                self._refresh_documents()
-                QMessageBox.information(self, "Успіх", "Документ видалено!")
-            except Exception as e:
-                QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
     def _build_works_tab(self):
         tab = QWidget()
@@ -698,13 +474,11 @@ class ProjectCardDialog(QDialog):
         top.addWidget(btn_add)
         layout.addLayout(top)
         self.works_table = QTableView()
-        self.works_table.setAlternatingRowColors(True)
-        self.works_table.horizontalHeader().setStretchLastSection(True)
-        self.works_table.verticalHeader().setVisible(False)
+        setup_table(self.works_table, read_only=True)
         layout.addWidget(self.works_table)
         self.works_model = QStandardItemModel()
         self.works_model.setHorizontalHeaderLabels(
-            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", ""]
+            ["ID", "Назва", "К-ть", "Од.", "Ціна за од.", "Сума", "Дата", "Бригада", ""]
         )
         self.works_table.setModel(self.works_model)
         self.works_table.setColumnWidth(0, 40)
@@ -713,7 +487,9 @@ class ProjectCardDialog(QDialog):
         self.works_table.setColumnWidth(3, 60)
         self.works_table.setColumnWidth(4, 100)
         self.works_table.setColumnWidth(5, 100)
-        self.works_table.setColumnWidth(6, 80)
+        self.works_table.setColumnWidth(6, 90)
+        self.works_table.setColumnWidth(7, 120)
+        self.works_table.setColumnWidth(8, 40)
         self._populate_works()
         actions = QHBoxLayout()
         actions.addStretch()
@@ -738,10 +514,15 @@ class ProjectCardDialog(QDialog):
                 QStandardItem(w["unit"]),
                 QStandardItem(f"₴ {w['unit_price']:,.2f}"),
                 QStandardItem(f"₴ {w['total_price']:,.2f}"),
+                QStandardItem(str(w.get("work_date") or "")),
+                QStandardItem(str(w.get("crew") or "")),
                 QStandardItem(""),
             ]
             for cell in row:
                 cell.setEditable(False)
+            # К-ть, ціна, сума — праворуч
+            for cell in (row[2], row[4], row[5]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.works_model.appendRow(row)
 
     def _on_add_work(self):
@@ -809,11 +590,15 @@ class ProjectCardDialog(QDialog):
         btn_add = QPushButton("➕ Додати витрату")
         btn_add.clicked.connect(self._on_add_expense)
         top.addWidget(btn_add)
+        btn_components = QPushButton("🔩 Комплектуючі…")
+        btn_components.setToolTip(
+            "Додати комплектуючу з бізнес-налаштувань (вентилятор, фільтр, клапан…)"
+        )
+        btn_components.clicked.connect(self._on_add_component)
+        top.addWidget(btn_components)
         layout.addLayout(top)
         self.expenses_table = QTableView()
-        self.expenses_table.setAlternatingRowColors(True)
-        self.expenses_table.horizontalHeader().setStretchLastSection(True)
-        self.expenses_table.verticalHeader().setVisible(False)
+        setup_table(self.expenses_table, read_only=True)
         layout.addWidget(self.expenses_table)
         self.expenses_model = QStandardItemModel()
         self.expenses_model.setHorizontalHeaderLabels(
@@ -858,6 +643,9 @@ class ProjectCardDialog(QDialog):
             ]
             for cell in row:
                 cell.setEditable(False)
+            # К-ть, ціна, сума — праворуч
+            for cell in (row[3], row[5], row[6]):
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.expenses_model.appendRow(row)
 
     def _on_add_expense(self):
@@ -873,6 +661,23 @@ class ProjectCardDialog(QDialog):
                 QMessageBox.information(self, "Успіх", "Витрату додано!")
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати: {e}")
+
+    def _on_add_component(self):
+        dlg = ComponentPickerDialog(self.project_id, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        data = dlg.get_data()
+        if not data:
+            QMessageBox.warning(self, "Увага", "Оберіть комплектуючу зі списку")
+            return
+        try:
+            ProjectExpenseRepository.create(data)
+            self._reload_all()
+            QMessageBox.information(
+                self, "Успіх", f"Додано: {data['expense_name']} × {data['quantity']:g}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати: {e}")
 
     def _on_edit_expense(self):
         idx = self.expenses_table.currentIndex()
@@ -917,6 +722,31 @@ class ProjectCardDialog(QDialog):
     def _build_payments_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+
+        # ── Підсумок по оплатах ──
+        summary = QGroupBox("Підсумок по оплатах")
+        sgrid = QGridLayout(summary)
+        sgrid.addWidget(QLabel("Вартість проєкту:"), 0, 0)
+        self.lbl_pay_price = QLabel("—")
+        self.lbl_pay_price.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_price, 0, 1)
+        sgrid.addWidget(QLabel("Сплачено:"), 0, 2)
+        self.lbl_pay_paid = QLabel("—")
+        self.lbl_pay_paid.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_paid, 0, 3)
+        sgrid.addWidget(QLabel("Залишок:"), 1, 0)
+        self.lbl_pay_left = QLabel("—")
+        self.lbl_pay_left.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_left, 1, 1)
+        sgrid.addWidget(QLabel("Оплачено:"), 1, 2)
+        self.lbl_pay_percent = QLabel("—")
+        self.lbl_pay_percent.setStyleSheet("font-weight: bold;")
+        sgrid.addWidget(self.lbl_pay_percent, 1, 3)
+        self.progress_pay = QProgressBar()
+        self.progress_pay.setRange(0, 100)
+        sgrid.addWidget(self.progress_pay, 2, 0, 1, 4)
+        layout.addWidget(summary)
+
         top = QHBoxLayout()
         btn_add = QPushButton("➕ Додати оплату")
         btn_add.clicked.connect(self._on_add_payment)
@@ -928,8 +758,7 @@ class ProjectCardDialog(QDialog):
         self.payments_table.setHorizontalHeaderLabels(
             ["Дата", "Тип", "Сума", "Призначення", "Нотатки"]
         )
-        self.payments_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.payments_table.setSelectionBehavior(QTableWidget.SelectRows)
+        setup_table(self.payments_table, select_rows=True, read_only=True)
         layout.addWidget(self.payments_table)
         self._populate_payments()
         bottom = QHBoxLayout()
@@ -944,8 +773,46 @@ class ProjectCardDialog(QDialog):
         layout.addLayout(bottom)
         return tab
 
+    def _update_payments_summary(self):
+        """Оновити панель підсумку оплат (вартість/сплачено/залишок/%)."""
+        if not hasattr(self, "lbl_pay_price"):
+            return
+        d = self._project_data or {}
+        base = float(d.get("customer_price") or 0)
+        discounted = float(d.get("discounted_price") or 0)
+        effective = discounted if discounted > 0 else base
+        total_customer = (
+            effective + float(d.get("works_total") or 0) + float(d.get("plus_expenses_total") or 0)
+        )
+        s = payment_summary(getattr(self, "_payments", []), total_customer)
+
+        self.lbl_pay_price.setText(f"₴ {total_customer:,.2f}")
+        self.lbl_pay_paid.setText(f"₴ {s['paid']:,.2f}")
+        if s["overpaid"]:
+            self.lbl_pay_left.setText(f"Переплата ₴ {-s['balance']:,.2f}")
+            self.lbl_pay_left.setStyleSheet(f"color: {Theme.ACCENT}; font-weight: bold;")
+        else:
+            self.lbl_pay_left.setText(f"₴ {s['balance']:,.2f}")
+            self.lbl_pay_left.setStyleSheet(
+                f"color: {Theme.SUCCESS if s['balance'] <= 0 else Theme.DANGER}; font-weight: bold;"
+            )
+        self.lbl_pay_percent.setText(f"{s['percent']:.0f} %")
+        self.progress_pay.setValue(int(s["percent"]))
+        if s["overpaid"] or (s["balance"] <= 0 and total_customer > 0):
+            color, label = Theme.SUCCESS, "Оплачено повністю"
+        elif s["paid"] > 0:
+            color, label = Theme.WARNING, "Частково оплачено"
+        else:
+            color, label = Theme.DANGER, "Не оплачено"
+        self.progress_pay.setStyleSheet(
+            f"QProgressBar::chunk {{ background-color: {color}; }}"
+            "QProgressBar { text-align: center; }"
+        )
+        self.progress_pay.setFormat(label + " — %p%")
+
     def _populate_payments(self):
         self.payments_table.setRowCount(0)
+        # self._payments відсортовано за датою (новіші — зверху) при завантаженні.
         for p in getattr(self, "_payments", []):
             row = self.payments_table.rowCount()
             self.payments_table.insertRow(row)
@@ -957,7 +824,13 @@ class ProjectCardDialog(QDialog):
                 p.get("notes") or "",
             ]
             for col, value in enumerate(values):
-                self.payments_table.setItem(row, col, QTableWidgetItem(str(value)))
+                cell = QTableWidgetItem(str(value))
+                if col == 2:  # сума — праворуч
+                    cell.setTextAlignment(
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.payments_table.setItem(row, col, cell)
+        self._update_payments_summary()
 
     def _get_selected_payment(self):
         row = self.payments_table.currentRow()
@@ -970,11 +843,20 @@ class ProjectCardDialog(QDialog):
         dlg = PaymentEditDialog(self.project_id, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
-                PaymentRepository.create(dlg.get_data())
+                created = PaymentRepository.create(dlg.get_data())
                 self._reload_all()
                 QMessageBox.information(self, "Успіх", "Оплату додано")
+                self._notify_payment_telegram(created)
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося додати оплату: {e}")
+
+    def _notify_payment_telegram(self, payment: dict):
+        """Фонове сповіщення про вхідну оплату (не блокує GUI; не критичне)."""
+        worker = FunctionWorker(notify_payment_created, payment)
+        worker.error.connect(lambda _msg: None)
+        self._tg_payment_worker = worker  # захист від збирання сміття
+        worker.finished.connect(lambda: setattr(self, "_tg_payment_worker", None))
+        worker.start()
 
     def _on_edit_payment(self):
         payment = self._get_selected_payment()
@@ -997,10 +879,10 @@ class ProjectCardDialog(QDialog):
             self,
             "Видалення",
             "Видалити обрану оплату?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 PaymentRepository.delete(payment["id"])
                 self._reload_all()

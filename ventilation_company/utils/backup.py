@@ -20,11 +20,50 @@ logger = get_logger("backup")
 DEFAULT_SQLITE_DB = "data/company.db"
 DEFAULT_BACKUP_DIR = "backups"
 
+# JSON-файли з цінами/реквізитами — копіюються поруч із dump (той самий штамп часу).
+SETTINGS_FILES = ("pricing_settings.json", "business_settings.json")
+
+
+def _settings_data_dir() -> Path:
+    """Тека з JSON-налаштуваннями (винесено для тестованості)."""
+    from ventilation_company.paths import DATA_DIR
+
+    return DATA_DIR
+
+
+def _copy_settings(out_dir: Path, stamp: str) -> None:
+    """Скопіювати JSON-налаштування у теку бекапів із загальним штампом."""
+    for name in SETTINGS_FILES:
+        src = _settings_data_dir() / name
+        if src.exists():
+            shutil.copy2(src, out_dir / f"ventcompany_{stamp}_settings_{name}")
+
 
 def _database_url() -> str:
     from ventilation_company.database.db import DATABASE_URL
 
     return DATABASE_URL
+
+
+def find_pg_tool(name: str) -> str | None:
+    """Знайти pg_dump/pg_restore: спочатку PATH, потім типові теки Windows.
+
+    Інсталятор PostgreSQL не додає bin\\ у PATH, тому на чистих ПК
+    інструменти недоступні за ім'ям — шукаємо їх самі.
+    """
+    from shutil import which
+
+    found = which(name)
+    if found:
+        return found
+    prog_files = os.environ.get("PROGRAMFILES", r"C:\Program Files")
+    pg_dir = Path(prog_files) / "PostgreSQL"
+    if pg_dir.is_dir():
+        for version_dir in sorted(pg_dir.iterdir(), reverse=True):
+            candidate = version_dir / "bin" / f"{name}.exe"
+            if candidate.exists():
+                return str(candidate)
+    return None
 
 
 def _is_postgres(url: str) -> bool:
@@ -41,6 +80,12 @@ def _run_pg_tool(args: list[str], url: str) -> subprocess.CompletedProcess:
     if parsed.password:
         env["PGPASSWORD"] = parsed.password
 
+    tool = find_pg_tool(args[0])
+    if tool is None:
+        raise FileNotFoundError(
+            f"Інструмент {args[0]} не знайдено ні в PATH, ні у {os.environ.get('PROGRAMFILES')}\\PostgreSQL"
+        )
+
     base = [
         "-h",
         parsed.hostname or "localhost",
@@ -50,7 +95,7 @@ def _run_pg_tool(args: list[str], url: str) -> subprocess.CompletedProcess:
         parsed.username or "postgres",
     ]
     return subprocess.run(
-        [args[0], *base, *args[1:]],
+        [tool, *base, *args[1:]],
         env=env,
         capture_output=True,
         text=True,
@@ -71,15 +116,29 @@ def create_backup(
     if _is_postgres(url):
         out_dir = Path(backup_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        backup_path = out_dir / f"ventcompany_{_timestamp()}.dump"
+        stamp = _timestamp()
+        backup_path = out_dir / f"ventcompany_{stamp}.dump"
 
-        result = _run_pg_tool(
-            ["pg_dump", "-d", urlparse(url).path.lstrip("/"), "-F", "c", "-f", str(backup_path)],
-            url,
-        )
+        try:
+            result = _run_pg_tool(
+                [
+                    "pg_dump",
+                    "-d",
+                    urlparse(url).path.lstrip("/"),
+                    "-F",
+                    "c",
+                    "-f",
+                    str(backup_path),
+                ],
+                url,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            logger.error("pg_dump unavailable: %s", exc)
+            return None
         if result.returncode != 0:
             logger.error("pg_dump failed: %s", result.stderr)
             return None
+        _copy_settings(out_dir, stamp)
         logger.info("PostgreSQL backup created: %s", backup_path)
         return str(backup_path)
 
@@ -87,11 +146,11 @@ def create_backup(
         logger.warning("Database not found for backup: %s", db_path)
         return None
 
-    backup_path = f"{db_path}.backup.{_timestamp()}"
+    sqlite_backup_path = f"{db_path}.backup.{_timestamp()}"
     try:
-        shutil.copy2(db_path, backup_path)
-        logger.info("SQLite backup created: %s", backup_path)
-        return backup_path
+        shutil.copy2(db_path, sqlite_backup_path)
+        logger.info("SQLite backup created: %s", sqlite_backup_path)
+        return sqlite_backup_path
     except Exception as e:
         logger.error("Backup failed: %s", e)
         return None
@@ -107,6 +166,7 @@ def list_backups(
         if not out_dir.is_dir():
             return []
         files = [str(p) for p in out_dir.glob("*.dump")]
+        files += [str(p) for p in out_dir.glob("ventcompany_*_settings_*.json")]
         files.sort(reverse=True)
         return files
 
@@ -127,17 +187,126 @@ def cleanup_old_backups(
     backup_dir: str = DEFAULT_BACKUP_DIR,
     keep: int = 10,
 ) -> int:
-    """Видалити старі backups, залишивши `keep` найновіших."""
-    backups = list_backups(db_path=db_path, backup_dir=backup_dir)
+    """Видалити старі backups, залишивши `keep` найновіших комплектів.
+
+    Комплект = dump + JSON-копії налаштувань з тим самим штампом часу.
+    """
+    url = _database_url()
     deleted = 0
-    for path in backups[keep:]:
+
+    if _is_postgres(url):
+        out_dir = Path(backup_dir)
+        if not out_dir.is_dir():
+            return 0
+        stamps = sorted(
+            {p.name[len("ventcompany_") : -len(".dump")] for p in out_dir.glob("*.dump")},
+            reverse=True,
+        )
+        for stamp in stamps[keep:]:
+            candidates = [
+                out_dir / f"ventcompany_{stamp}.dump",
+                *out_dir.glob(f"ventcompany_{stamp}_settings_*.json"),
+            ]
+            for path in candidates:
+                try:
+                    os.remove(path)
+                    logger.info("Deleted old backup: %s", path)
+                    deleted += 1
+                except Exception as e:
+                    logger.warning("Cannot delete %s: %s", path, e)
+        return deleted
+
+    backups = list_backups(db_path=db_path, backup_dir=backup_dir)
+    for old_path in backups[keep:]:
         try:
-            os.remove(path)
-            logger.info("Deleted old backup: %s", path)
+            os.remove(old_path)
+            logger.info("Deleted old backup: %s", old_path)
             deleted += 1
         except Exception as e:
-            logger.warning("Cannot delete %s: %s", path, e)
+            logger.warning("Cannot delete %s: %s", old_path, e)
     return deleted
+
+
+def _auto_backup_preferences() -> tuple[bool, int, str | None]:
+    """Налаштування автобекапу з БД (app.backup_*); дефолти: увімкнено, 7 копій.
+
+    Повертає (enabled, keep, path|None). Якщо БД недоступна — дефолти.
+    """
+    enabled, keep, path = True, 7, None
+    try:
+        from ventilation_company.database.repositories.app_settings_repository import (
+            AppSettingsRepository,
+        )
+
+        repo = AppSettingsRepository()
+        enabled = repo.get("app.backup_auto", "1") == "1"
+        raw_keep = repo.get("app.backup_keep", "7")
+        keep = max(1, int(raw_keep))
+        raw_path = repo.get("app.backup_path", "").strip()
+        if raw_path:
+            path = raw_path
+    except Exception as exc:  # noqa: BLE001 — автобекап працює і на дефолтах
+        logger.warning("Backup preferences unreadable, using defaults: %s", exc)
+    return enabled, keep, path
+
+
+def auto_backup_on_start(backup_dir: str | None = None, keep: int | None = None) -> str | None:
+    """Автобекап при запуску програми (dump БД + JSON-налаштування, ротація).
+
+    Виконується у фоновому потоці з launch_gui: ніколи не піднімає винятки —
+    у разі помилки лише пише у лог і повертає None, щоб не блокувати старт.
+
+    Коли backup_dir/keep не передані — читає налаштування з БД
+    (вкладка «Резервні копії»); автобекап можна вимкнути там само.
+    """
+    enabled, pref_keep, pref_path = _auto_backup_preferences()
+    if not enabled:
+        logger.info("Auto backup disabled in settings")
+        return None
+    if keep is None:
+        keep = pref_keep
+    if backup_dir is None:
+        if pref_path:
+            backup_dir = pref_path
+        else:
+            from ventilation_company.bootstrap import BACKUP_DIR
+
+            backup_dir = str(BACKUP_DIR)
+    try:
+        path = create_backup(backup_dir=backup_dir)
+    except Exception as exc:  # noqa: BLE001 — автобекап не повинен ламати старт
+        logger.warning("Auto backup skipped: %s", exc)
+        return None
+    try:
+        cleanup_old_backups(backup_dir=backup_dir, keep=keep)
+    except Exception as exc:  # noqa: BLE001 — ротація некритична
+        logger.warning("Backup rotation skipped: %s", exc)
+    _cloud_upload(path, keep)
+    return path
+
+
+def _cloud_upload(path: str | None, keep: int) -> None:
+    """Надіслати щойно створений дамп у хмару (якщо увімкнено в налаштуваннях).
+
+    Працює у тому самому фоновому потоці, що й автобекап; будь-яка помилка
+    лише пише у лог — старт програми і локальний бекап не зачіпає.
+    """
+    if not path:
+        return
+    try:
+        from ventilation_company.utils import cloud_backup
+
+        enabled, token, chat = cloud_backup.cloud_backup_preferences()
+        if not enabled:
+            return
+        result = cloud_backup.upload_backup(path, token=token, chat=chat)
+        logger.info("Cloud backup result: %s", cloud_backup.summary_json(result))
+        try:
+            cloud_backup.cleanup_cloud_folders(keep=keep)
+        except Exception as exc:  # noqa: BLE001 — ротація у хмарі некритична
+            logger.warning("Cloud rotation skipped: %s", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Cloud upload skipped: %s", exc)
 
 
 def restore_backup(backup_path: str, db_path: str = DEFAULT_SQLITE_DB) -> bool:
