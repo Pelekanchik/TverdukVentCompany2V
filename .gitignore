@@ -58,6 +58,9 @@ updates/
 min_*.txt
 dbg.txt
 backups/
+<<<<<<< HEAD
 
 .env
 data/backups/
+=======
+>>>>>>> 71d58204287acafe89ef4ad4699318a9436bb6f8
