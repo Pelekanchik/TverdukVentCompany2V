@@ -58,3 +58,6 @@ updates/
 min_*.txt
 dbg.txt
 backups/
+
+.env
+data/backups/
