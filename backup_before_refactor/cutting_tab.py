@@ -1,0 +1,928 @@
+"""Вкладка "Розкрій" (PySide6) — з реальним MetalCutter + канвас.
+
+Використовує ventilation_company.metal_cutting для розрахунку розгорток.
+"""
+
+import math
+import os
+import tempfile
+from contextlib import suppress
+from datetime import datetime
+
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QFontMetrics,
+    QMouseEvent,
+    QPainter,
+    QPen,
+    QPolygon,
+    QStandardItem,
+    QStandardItemModel,
+    QWheelEvent,
+)
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ventilation_company.cutting_labels_generator import generate_labels_pdf
+from ventilation_company.cutting_pdf_generator import generate_cutting_pdf
+from ventilation_company.gui_pyside6.table_utils import setup_table
+from ventilation_company.gui_pyside6.telegram_send import send_document_telegram
+from ventilation_company.gui_pyside6.theme import Theme
+from ventilation_company.metal_cutting import MetalCutter
+from ventilation_company.services.dxf_import_service import parse_dxf_parts, parts_to_products
+
+
+class AddProductDialog(QDialog):
+    """Діалог додавання виробу для розкрою."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("➕ Додати виріб")
+        self.setMinimumWidth(400)
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QFormLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        self.edit_name = QLineEdit()
+        self.edit_name.setPlaceholderText("Напр.: Повітропровід 400×200×1000")
+        layout.addRow("Назва", self.edit_name)
+
+        self.combo_type = QComboBox()
+        self.combo_type.addItems(
+            [
+                "повітропровід прямокутний",
+                "повітропровід круглий",
+                "відвод прямокутний",
+                "відвод круглий",
+                "трійник прямокутний",
+                "трійник круглий",
+                "перехід прямокутний",
+                "перехід круглий",
+                "фланець прямокутний",
+                "фланець круглий",
+                "заглушка прямокутна",
+                "заглушка кругла",
+            ]
+        )
+        layout.addRow("Тип", self.combo_type)
+
+        sizes = QHBoxLayout()
+        self.spin_a = QDoubleSpinBox()
+        self.spin_a.setRange(50, 5000)
+        self.spin_a.setSuffix(" мм")
+        self.spin_a.setDecimals(0)
+        sizes.addWidget(QLabel("A/Ш:"))
+        sizes.addWidget(self.spin_a)
+
+        self.spin_b = QDoubleSpinBox()
+        self.spin_b.setRange(50, 5000)
+        self.spin_b.setSuffix(" мм")
+        self.spin_b.setDecimals(0)
+        sizes.addWidget(QLabel("B/В:"))
+        sizes.addWidget(self.spin_b)
+
+        self.spin_l = QDoubleSpinBox()
+        self.spin_l.setRange(0, 10000)
+        self.spin_l.setSuffix(" мм")
+        self.spin_l.setDecimals(0)
+        sizes.addWidget(QLabel("L/Д:"))
+        sizes.addWidget(self.spin_l)
+        layout.addRow("Розміри", sizes)
+
+        self.spin_qty = QSpinBox()
+        self.spin_qty.setRange(1, 999)
+        self.spin_qty.setValue(1)
+        layout.addRow("Кількість", self.spin_qty)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._on_save)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def _on_save(self):
+        if not self.edit_name.text().strip():
+            QMessageBox.warning(self, "Помилка", "Введіть назву")
+            return
+        self.accept()
+
+    def get_data(self) -> dict:
+        return {
+            "name": self.edit_name.text().strip(),
+            "type": self.combo_type.currentText(),
+            "width": self.spin_a.value(),
+            "height": self.spin_b.value(),
+            "length": self.spin_l.value(),
+            "quantity": self.spin_qty.value(),
+        }
+
+
+class CuttingCanvas(QWidget):
+    """Канвас для візуалізації плану розкрою."""
+
+    DETAIL_COLORS = [
+        "#89b4fa",
+        "#a6e3a1",
+        "#f9e2af",
+        "#f38ba8",
+        "#cba6f7",
+        "#74c7ec",
+        "#fab387",
+        "#94e2d5",
+        "#b4befe",
+        "#f5e0dc",
+        "#a6adc8",
+        "#f2cdcd",
+    ]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.sheet_w = 1250.0
+        self.sheet_h = 2500.0
+        self.placed_details = []
+        self.scale = 0.25
+        self.offset_x = 20.0
+        self.offset_y = 20.0
+        self.dragging = False
+        self.last_mouse = QPointF()
+        self.mouse_sheet_pos: QPointF | None = None  # позиція курсора в мм листа
+        self.setMinimumSize(500, 800)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setMouseTracking(True)
+        self.setStyleSheet(f"background-color: {Theme.BG_DARK}; border-radius: 8px;")
+
+    @staticmethod
+    def _arrow_head(p, x, y, angle_deg, size=6):
+        """Наконечник стрілки розмірної лінії."""
+        poly = QPolygon()
+        poly.append(QPointF(x, y).toPoint())
+        for delta in (150, -150):
+            rad = math.radians(angle_deg + delta)
+            poly.append(QPointF(x + size * math.cos(rad), y + size * math.sin(rad)).toPoint())
+        old_pen = p.pen()
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(old_pen.color()))
+        p.drawPolygon(poly)
+        p.setPen(old_pen)
+
+    def _dim_line(self, p, x1, y1, x2, y2, text="", text_dx=0, text_dy=0):
+        """Розмірна лінія зі стрілками на обох кінцях та підписом."""
+        angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        p.drawLine(int(x1), int(y1), int(x2), int(y2))
+        self._arrow_head(p, x2, y2, angle)
+        self._arrow_head(p, x1, y1, angle + 180)
+        mx, my = (x1 + x2) / 2 + text_dx, (y1 + y2) / 2 + text_dy
+        p.drawText(int(mx), int(my), text)
+
+    def set_sheet(self, sheet):
+        self.sheet_w = sheet.width
+        self.sheet_h = sheet.height
+        self.placed_details = sheet.placed_details
+        self._fit_to_view()
+        self.update()
+
+    def _fit_to_view(self):
+        margin = 20
+        avail_w = max(self.width() - margin, 100)
+        avail_h = max(self.height() - margin, 100)
+        sc_w = avail_w / self.sheet_w
+        sc_h = avail_h / self.sheet_h
+        self.scale = min(sc_w, sc_h) * 0.98
+        self.offset_x = (self.width() - self.sheet_w * self.scale) / 2
+        self.offset_y = (self.height() - self.sheet_h * self.scale) / 2
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(Theme.BG_DARK))
+
+        sw = self.sheet_w * self.scale
+        sh = self.sheet_h * self.scale
+        ox = self.offset_x
+        oy = self.offset_y
+
+        # Тінь
+        painter.fillRect(int(ox + 3), int(oy + 3), int(sw), int(sh), QColor(0, 0, 0, 60))
+        # Лист
+        pen_sheet = QPen(QColor("#45475a"), 2)
+        brush_sheet = QBrush(QColor("#1e1e2e"))
+        painter.setPen(pen_sheet)
+        painter.setBrush(brush_sheet)
+        painter.drawRect(int(ox), int(oy), int(sw), int(sh))
+
+        # Сітка 100 мм
+        pen_grid = QPen(QColor(Theme.BORDER), 1)
+        painter.setPen(pen_grid)
+        step = 100 * self.scale
+        for i in range(1, int(self.sheet_w / 100) + 1):
+            x = ox + i * step
+            painter.drawLine(int(x), int(oy), int(x), int(oy + sh))
+        for i in range(1, int(self.sheet_h / 100) + 1):
+            y = oy + i * step
+            painter.drawLine(int(ox), int(y), int(ox + sw), int(y))
+
+        # Розміри листа — розмірні лінії зі стрілками
+        font_dim = QFont("Segoe UI", 10, QFont.Weight.Bold)
+        painter.setFont(font_dim)
+        painter.setPen(QPen(QColor(Theme.TEXT_MUTED), 1))
+        dim_y = oy + sh + 16
+        painter.drawLine(int(ox), int(oy + sh), int(ox), int(dim_y + 4))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(ox + sw), int(dim_y + 4))
+        self._dim_line(painter, ox, dim_y, ox + sw, dim_y, f"{self.sheet_w:.0f} мм", text_dy=14)
+        dim_x = ox + sw + 16
+        painter.drawLine(int(ox + sw), int(oy), int(dim_x + 4), int(oy))
+        painter.drawLine(int(ox + sw), int(oy + sh), int(dim_x + 4), int(oy + sh))
+        self._dim_line(painter, dim_x, oy, dim_x, oy + sh)
+        painter.save()
+        painter.translate(int(dim_x + 14), int(oy + sh / 2 + 25))
+        painter.rotate(-90)
+        painter.drawText(0, 0, f"{self.sheet_h:.0f} мм")
+        painter.restore()
+
+        # Позначки осей X / Y
+        painter.setPen(QColor(Theme.TEXT_MUTED))
+        painter.drawText(int(ox + 4), int(oy + sh - 6), "0")
+        painter.drawText(int(ox + sw - 12), int(oy + sh - 6), "X →")
+        painter.drawText(int(ox + 4), int(oy + 14), "↑ Y")
+
+        # Деталі
+        fm = QFontMetrics(QFont("Segoe UI", 9))
+        for i, p in enumerate(self.placed_details):
+            idx = i + 1
+            dx = ox + p.x * self.scale
+            dy = oy + p.y * self.scale
+            dw = p.width * self.scale
+            dh = p.height * self.scale
+
+            if dw < 2 or dh < 2:
+                continue
+
+            color = QColor(self.DETAIL_COLORS[i % len(self.DETAIL_COLORS)])
+            color_dark = color.darker(130)
+            color_light = QColor(color)
+            color_light.setAlpha(90)
+
+            # Заливка
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(color_light))
+            painter.drawRect(int(dx), int(dy), int(dw), int(dh))
+
+            # Рамка
+            pen_frame = QPen(color_dark, max(1.5, self.scale * 0.8))
+            painter.setPen(pen_frame)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(int(dx), int(dy), int(dw), int(dh))
+
+            # Номер позиції
+            font_num = QFont("Segoe UI", max(8, int(min(dw, dh) / 6)), QFont.Weight.Bold)
+            painter.setFont(font_num)
+            num_text = str(idx)
+            tw = fm.horizontalAdvance(num_text)
+            th = fm.height()
+            tx = dx + dw / 2 - tw / 2
+            ty = dy + dh / 2 + th / 4
+            bg_rect = QRectF(tx - 4, ty - th + 2, tw + 8, th + 4)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(color))
+            painter.drawRoundedRect(bg_rect, 4, 4)
+            painter.setPen(QColor(Theme.BG_DARK))
+            painter.drawText(int(tx), int(ty), num_text)
+
+            # Назва + розміри
+            if dw > 60 and dh > 40:
+                font_text = QFont("Segoe UI", max(7, int(min(dw, dh) / 10)))
+                painter.setFont(font_text)
+                painter.setPen(QColor(Theme.BG_DARK))
+                name = p.detail.name[:18]
+                size_txt = f"{p.width:.0f}×{p.height:.0f}"
+                painter.drawText(int(dx + 4), int(dy + 14), name)
+                painter.drawText(int(dx + 4), int(dy + 26), size_txt)
+
+            # Розмірні стрілки деталі (для великих прямокутників)
+            if dw >= 70 and dh >= 45:
+                dim_pen = QPen(color.darker(160), 1)
+                painter.setPen(dim_pen)
+                painter.setFont(QFont("Segoe UI", 8))
+                top_y = dy - 6
+                painter.drawLine(int(dx), int(dy), int(dx), int(top_y - 3))
+                painter.drawLine(int(dx + dw), int(dy), int(dx + dw), int(top_y - 3))
+                self._dim_line(painter, dx, top_y, dx + dw, top_y, f"Ш {p.width:.0f}", text_dy=-2)
+                left_x = dx - 6
+                painter.drawLine(int(dx), int(dy), int(left_x - 3), int(dy))
+                painter.drawLine(int(dx), int(dy + dh), int(left_x - 3), int(dy + dh))
+                self._dim_line(
+                    painter,
+                    left_x,
+                    dy,
+                    left_x,
+                    dy + dh,
+                    f"В {p.height:.0f}",
+                    text_dx=-52,
+                    text_dy=4,
+                )
+
+        # Підказка (+ координати курсора в мм)
+        font_info = QFont("Segoe UI", 9)
+        painter.setFont(font_info)
+        painter.setPen(QColor(Theme.TEXT_MUTED))
+        hint = f"Масштаб: 1:{1/self.scale:.0f}  |  ЛКМ — перетягування  |  Колесо — масштаб"
+        if self.mouse_sheet_pos is not None:
+            mx_mm = max(0.0, min(self.mouse_sheet_pos.x(), self.sheet_w))
+            my_mm = max(0.0, min(self.mouse_sheet_pos.y(), self.sheet_h))
+            hint = f"X: {mx_mm:.0f} мм   Y: {my_mm:.0f} мм   |   " + hint
+        painter.drawText(10, self.height() - 10, hint)
+        painter.end()
+
+    def wheelEvent(self, event: QWheelEvent):
+        delta = event.angleDelta().y()
+        factor = 1.15 if delta > 0 else 0.87
+        old_scale = self.scale
+        self.scale *= factor
+        self.scale = max(0.05, min(self.scale, 2.0))
+        mouse_pos = event.position()
+        self.offset_x = mouse_pos.x() - (mouse_pos.x() - self.offset_x) * (self.scale / old_scale)
+        self.offset_y = mouse_pos.y() - (mouse_pos.y() - self.offset_y) * (self.scale / old_scale)
+        self.update()
+
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.last_mouse = event.position()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        pos = event.position()
+        # Координати курсора в міліметрах листа (для підказки внизу)
+        self.mouse_sheet_pos = QPointF(
+            (pos.x() - self.offset_x) / self.scale,
+            (pos.y() - self.offset_y) / self.scale,
+        )
+        if self.dragging:
+            delta = pos - self.last_mouse
+            self.offset_x += delta.x()
+            self.offset_y += delta.y()
+            self.last_mouse = pos
+        self.update()
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = False
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+
+    def leaveEvent(self, event):
+        self.mouse_sheet_pos = None
+        self.update()
+        super().leaveEvent(event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_to_view()
+        self.update()
+
+
+class CuttingTab(QWidget):
+    """Вкладка розкрою з реальним MetalCutter + канвас."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._products = []
+        self._plan = None
+        self._current_sheet_idx = 0
+        self._build_ui()
+        self._load_default_products()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        # Заголовок
+        header = QHBoxLayout()
+        lbl_title = QLabel("✂️ Розкрій металу")
+        lbl_title.setObjectName("title")
+        header.addWidget(lbl_title)
+        header.addStretch()
+
+        lbl_sheet = QLabel("Лист:")
+        lbl_sheet.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
+        header.addWidget(lbl_sheet)
+
+        self.combo_sheet = QComboBox()
+        self.combo_sheet.addItems(["1250×2500 мм", "1000×2000 мм", "1500×3000 мм", "1250×3000 мм"])
+        header.addWidget(self.combo_sheet)
+
+        lbl_thick = QLabel("Товщина:")
+        lbl_thick.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
+        header.addWidget(lbl_thick)
+
+        self.combo_thick = QComboBox()
+        self.combo_thick.addItems(["0.5", "0.7", "1.0", "1.2", "1.5", "2.0"])
+        self.combo_thick.setCurrentText("0.7")
+        header.addWidget(self.combo_thick)
+
+        lbl_mat = QLabel("Матеріал:")
+        lbl_mat.setStyleSheet(f"color: {Theme.TEXT_MUTED};")
+        header.addWidget(lbl_mat)
+
+        self.combo_material = QComboBox()
+        # Матеріали — з «Ціноутворення» (користувач може додавати свої)
+        from ventilation_company.gui_pyside6.pricing_tab import load_settings
+
+        _materials = [m.lower() for m in load_settings().get("material_prices", {})]
+        self.combo_material.addItems(sorted(_materials, key=str.lower))
+        header.addWidget(self.combo_material)
+
+        btn_calc = QPushButton("🧮 Розрахувати")
+        btn_calc.setObjectName("primary")
+        btn_calc.setMinimumHeight(32)
+        btn_calc.clicked.connect(self._calculate)
+        header.addWidget(btn_calc)
+
+        layout.addLayout(header)
+
+        # Замовлення
+        order = QHBoxLayout()
+        order.setSpacing(12)
+
+        order_left = QVBoxLayout()
+        lbl_order = QLabel("📋 Замовлення")
+        lbl_order.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; padding: 4px;")
+        order_left.addWidget(lbl_order)
+
+        self.table_order = QTableView()
+        setup_table(self.table_order, select_rows=True, read_only=True)
+        self.table_order.setMaximumHeight(200)
+        order_left.addWidget(self.table_order)
+
+        self.model_order = QStandardItemModel()
+        self.model_order.setHorizontalHeaderLabels(["Назва", "Тип", "A", "B", "L", "К-ть"])
+        self.table_order.setModel(self.model_order)
+
+        for i, w in enumerate([200, 150, 55, 55, 55, 50]):
+            self.table_order.setColumnWidth(i, w)
+
+        order_btns = QHBoxLayout()
+        btn_add = QPushButton("➕ Додати")
+        btn_add.clicked.connect(self._on_add_product)
+        order_btns.addWidget(btn_add)
+
+        btn_dxf = QPushButton("📐 Імпорт DXF")
+        btn_dxf.setToolTip("Розпізнати деталі з DXF-креслення та додати їх у замовлення на розкрій")
+        btn_dxf.clicked.connect(self._on_import_dxf)
+        order_btns.addWidget(btn_dxf)
+
+        btn_del = QPushButton("🗑️ Видалити")
+        btn_del.setStyleSheet(f"color: {Theme.DANGER};")
+        btn_del.clicked.connect(self._on_del_product)
+        order_btns.addWidget(btn_del)
+
+        btn_clear = QPushButton("♻️ Очистити")
+        btn_clear.clicked.connect(self._on_clear_products)
+        order_btns.addWidget(btn_clear)
+        order_btns.addStretch()
+        order_left.addLayout(order_btns)
+
+        order.addLayout(order_left, 1)
+
+        # Результати
+        order_right = QVBoxLayout()
+        lbl_res = QLabel("📊 Результати")
+        lbl_res.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; padding: 4px;")
+        order_right.addWidget(lbl_res)
+
+        self.lbl_sheets = QLabel("Листів: —")
+        self.lbl_sheets.setStyleSheet(
+            f"color: {Theme.TEXT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
+        order_right.addWidget(self.lbl_sheets)
+
+        self.lbl_util = QLabel("Використання: — %")
+        self.lbl_util.setStyleSheet(
+            f"color: {Theme.SUCCESS}; font-weight: bold; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
+        order_right.addWidget(self.lbl_util)
+
+        self.lbl_waste = QLabel("Відходи: — %")
+        self.lbl_waste.setStyleSheet(
+            f"color: {Theme.WARNING}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
+        order_right.addWidget(self.lbl_waste)
+
+        self.lbl_area = QLabel("Площа деталей: — м²")
+        self.lbl_area.setStyleSheet(
+            f"color: {Theme.ACCENT}; padding: 8px 12px; background: {Theme.BG_CARD}; border-radius: 8px;"
+        )
+        order_right.addWidget(self.lbl_area)
+
+        order_right.addStretch()
+        order.addLayout(order_right, 0)
+        layout.addLayout(order)
+
+        # Спліттер
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        left = QWidget()
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+
+        lbl_tbl = QLabel("📋 Деталі на листі")
+        lbl_tbl.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; padding: 4px;")
+        left_layout.addWidget(lbl_tbl)
+
+        self.table = QTableView()
+        setup_table(self.table, select_rows=True, sorting=True, read_only=True)
+        self.table.setMinimumWidth(440)
+        left_layout.addWidget(self.table)
+
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(["№", "Назва", "Шир.", "Вис.", "X", "Y", "Повернуто"])
+        self.table.setModel(self.model)
+
+        for i, w in enumerate([40, 190, 55, 55, 50, 50, 70]):
+            self.table.setColumnWidth(i, w)
+
+        left_layout.addWidget(self.table)
+        splitter.addWidget(left)
+
+        right = QWidget()
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        lbl_vis = QLabel("🎨 Візуалізація плану розкрою")
+        lbl_vis.setStyleSheet(f"color: {Theme.TEXT_BRIGHT}; font-weight: bold; padding: 4px;")
+        right_layout.addWidget(lbl_vis)
+
+        self.canvas = CuttingCanvas()
+        right_layout.addWidget(self.canvas, 1)
+
+        splitter.addWidget(right)
+        splitter.setSizes([480, 720])
+
+        layout.addWidget(splitter, 1)
+
+        # Навігація
+        nav = QHBoxLayout()
+        nav.addStretch()
+
+        btn_fit = QPushButton("🔍 Вмістити в екран")
+        btn_fit.clicked.connect(self._fit_view)
+        nav.addWidget(btn_fit)
+
+        btn_prev = QPushButton("◀ Попередній лист")
+        btn_prev.clicked.connect(self._prev_sheet)
+        nav.addWidget(btn_prev)
+
+        self.lbl_sheet_num = QLabel("Лист 1 / 1")
+        self.lbl_sheet_num.setStyleSheet(f"color: {Theme.TEXT}; padding: 0 12px;")
+        nav.addWidget(self.lbl_sheet_num)
+
+        btn_next = QPushButton("Наступний лист ▶")
+        btn_next.clicked.connect(self._next_sheet)
+        nav.addWidget(btn_next)
+
+        nav.addSpacing(24)
+
+        btn_export = QPushButton("📤 Експорт PDF")
+        btn_export.setToolTip("PDF: схема кожного листа + таблиця деталей для цеху")
+        btn_export.clicked.connect(self._on_export)
+        nav.addWidget(btn_export)
+
+        self._btn_tg = QPushButton("📨 В Telegram")
+        self._btn_tg.setToolTip(
+            "Надіслати PDF плану розкрою в Telegram-чат\n"
+            "(токен бота та chat_id — у Налаштування → Резервні копії → Telegram)"
+        )
+        self._btn_tg.clicked.connect(self._on_send_telegram)
+        nav.addWidget(self._btn_tg)
+
+        btn_labels = QPushButton("🏷️ Етикетки")
+        btn_labels.setToolTip(
+            "PDF-етикетки з QR-кодами для всіх деталей розкрою (A4, 2×5 на аркуші)\n"
+            "— роздрукувати, нарізати й наклеїти на деталі для цеху"
+        )
+        btn_labels.clicked.connect(self._on_export_labels)
+        nav.addWidget(btn_labels)
+
+        layout.addLayout(nav)
+
+    def _load_default_products(self):
+        self._products = [
+            {
+                "name": "Повітропровід 400×200×500",
+                "type": "повітропровід прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 500,
+                "quantity": 4,
+            },
+            {
+                "name": "Відвод 400×200 90°",
+                "type": "відвод прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 2,
+            },
+            {
+                "name": "Трійник 400×200",
+                "type": "трійник прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 300,
+                "quantity": 1,
+                "branch_width": 200,
+                "branch_height": 200,
+                "branch_length": 200,
+            },
+            {
+                "name": "Фланець 400×200",
+                "type": "фланець прямокутний",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 8,
+                "flange_border": 30,
+            },
+            {
+                "name": "Заглушка 400×200",
+                "type": "заглушка прямокутна",
+                "width": 400,
+                "height": 200,
+                "length": 0,
+                "quantity": 2,
+                "flange_border": 25,
+            },
+            {
+                "name": "Повітропровід Ø315×500",
+                "type": "повітропровід круглий",
+                "width": 315,
+                "height": 315,
+                "length": 500,
+                "quantity": 2,
+            },
+        ]
+        self._refresh_order_table()
+
+    def _refresh_order_table(self):
+        self.model_order.removeRows(0, self.model_order.rowCount())
+        for p in self._products:
+            row = [
+                QStandardItem(p.get("name", "")),
+                QStandardItem(p.get("type", "")),
+                QStandardItem(str(p.get("width", 0))),
+                QStandardItem(str(p.get("height", 0))),
+                QStandardItem(str(p.get("length", 0))),
+                QStandardItem(str(p.get("quantity", 1))),
+            ]
+            for cell in row:
+                cell.setEditable(False)
+            self.model_order.appendRow(row)
+
+    def _on_add_product(self):
+        dlg = AddProductDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._products.append(dlg.get_data())
+            self._refresh_order_table()
+
+    def _on_import_dxf(self):
+        """Імпорт деталей з DXF-креслення у замовлення на розкрій."""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Виберіть DXF-креслення",
+            "",
+            "Креслення DXF (*.dxf);;Усі файли (*.*)",
+        )
+        if not path:
+            return
+
+        try:
+            parts = parse_dxf_parts(path)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Імпорт DXF", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001 — неочікувані помилки парсера
+            QMessageBox.critical(self, "Імпорт DXF", f"Помилка розбору файлу:\n{exc}")
+            return
+
+        total_qty = sum(p["quantity"] for p in parts)
+        preview = "\n".join(
+            f"• {p['width']}×{p['height']} мм — {p['quantity']} шт" for p in parts[:10]
+        )
+        if len(parts) > 10:
+            preview += f"\n… та ще {len(parts) - 10} позицій"
+
+        answer = QMessageBox.question(
+            self,
+            "Імпорт DXF",
+            f"Розпізнано {len(parts)} унікальних деталей "
+            f"({total_qty} шт загалом):\n\n{preview}\n\n"
+            "Додати їх у замовлення на розкрій?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        prefix = os.path.splitext(os.path.basename(path))[0]
+        self._products.extend(parts_to_products(parts, prefix=prefix))
+        self._refresh_order_table()
+
+    def _on_del_product(self):
+        idx = self.table_order.currentIndex()
+        if not idx.isValid():
+            QMessageBox.warning(self, "Увага", "Виберіть виріб для видалення")
+            return
+        self._products.pop(idx.row())
+        self._refresh_order_table()
+
+    def _on_clear_products(self):
+        self._products.clear()
+        self._refresh_order_table()
+
+    def _calculate(self):
+        if not self._products:
+            QMessageBox.warning(self, "Увага", "Додайте вироби для розкрою")
+            return
+
+        try:
+            sheet_text = self.combo_sheet.currentText()
+            sheet_size = {
+                "1250×2500 мм": (1250, 2500),
+                "1000×2000 мм": (1000, 2000),
+                "1500×3000 мм": (1500, 3000),
+                "1250×3000 мм": (1250, 3000),
+            }.get(sheet_text, (1250, 2500))
+
+            cutter = MetalCutter(
+                sheet_width=sheet_size[0],
+                sheet_height=sheet_size[1],
+                thickness=float(self.combo_thick.currentText()),
+                material=self.combo_material.currentText(),
+            )
+
+            self._plan = cutter.calculate_from_products(self._products, allow_rotation=True)
+            self._current_sheet_idx = 0
+            self._update_display()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка розрахунку", str(e))
+
+    def _update_display(self):
+        if not self._plan or not self._plan.sheets:
+            return
+
+        s = self._plan.get_summary()
+        self.lbl_sheets.setText(f"Листів: {s['total_sheets']}")
+        self.lbl_util.setText(f"Використання: {s['utilization_percent']:.1f} %")
+        self.lbl_waste.setText(f"Відходи: {s['waste_percent']:.1f} %")
+        self.lbl_area.setText(f"Площа деталей: {s['used_area_m2']:.3f} м²")
+
+        self._show_sheet(self._current_sheet_idx)
+
+    def _show_sheet(self, idx: int):
+        if not self._plan or idx < 0 or idx >= len(self._plan.sheets):
+            return
+
+        sheet = self._plan.sheets[idx]
+        self.lbl_sheet_num.setText(f"Лист {idx + 1} / {len(self._plan.sheets)}")
+
+        self.model.removeRows(0, self.model.rowCount())
+        for i, p in enumerate(sheet.placed_details, 1):
+            row = [
+                QStandardItem(str(i)),
+                QStandardItem(p.detail.name),
+                QStandardItem(f"{p.width:.0f}"),
+                QStandardItem(f"{p.height:.0f}"),
+                QStandardItem(f"{p.x:.0f}"),
+                QStandardItem(f"{p.y:.0f}"),
+                QStandardItem("Так" if p.rotated else "Ні"),
+            ]
+            for cell in row:
+                cell.setEditable(False)
+            self.model.appendRow(row)
+
+        self.canvas.set_sheet(sheet)
+
+    def _fit_view(self):
+        self.canvas._fit_to_view()
+        self.canvas.update()
+
+    def _prev_sheet(self):
+        if self._plan and self._current_sheet_idx > 0:
+            self._current_sheet_idx -= 1
+            self._show_sheet(self._current_sheet_idx)
+
+    def _next_sheet(self):
+        if self._plan and self._current_sheet_idx < len(self._plan.sheets) - 1:
+            self._current_sheet_idx += 1
+            self._show_sheet(self._current_sheet_idx)
+
+    def _on_export(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Експорт", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF плану розкрою",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_cutting_pdf(self._plan, path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Експорт", f"PDF збережено:\n{path}")
+
+    def _on_export_labels(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Етикетки", "Спочатку розрахуйте план розкрою")
+            return
+        default_name = f"etykety_{datetime.now():%Y%m%d_%H%M}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти PDF етикеток для деталей",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".pdf"):
+            path += ".pdf"
+        try:
+            generate_labels_pdf(self._plan, path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            QMessageBox.critical(self, "Помилка експорту", str(e))
+            return
+        QMessageBox.information(self, "Етикетки", f"PDF етикеток збережено:\n{path}")
+
+    def _pdf_meta(self) -> dict:
+        return {
+            "sheet_size": self.combo_sheet.currentText(),
+            "material": self.combo_material.currentText(),
+            "thickness": self.combo_thick.currentText(),
+        }
+
+    def _on_send_telegram(self):
+        if not self._plan or not self._plan.sheets:
+            QMessageBox.warning(self, "Telegram", "Спочатку розрахуйте план розкрою")
+            return
+
+        tmp_path = os.path.join(
+            tempfile.gettempdir(),
+            f"plan_rozkroju_{datetime.now():%Y%m%d_%H%M%S}.pdf",
+        )
+        try:
+            generate_cutting_pdf(self._plan, tmp_path, meta=self._pdf_meta())
+        except Exception as e:  # noqa: BLE001 — показуємо причину користувачу
+            self._btn_tg.setEnabled(True)
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зібрати PDF:\n{e}")
+            return
+
+        caption = (
+            f"📐 План розкрою: {self.combo_sheet.currentText()} | "
+            f"{self.combo_material.currentText()} {self.combo_thick.currentText()} мм"
+        )
+        self._btn_tg.setEnabled(False)
+        worker = send_document_telegram(self, tmp_path, caption, delete_after=True)
+        if worker is None:  # бот не налаштовано — тимчасовий файл уже не потрібен
+            self._cleanup_tmp(tmp_path)
+            self._btn_tg.setEnabled(True)
+        else:  # повертаємо кнопку після завершення фонової відправки
+            worker.finished.connect(lambda: self._btn_tg.setEnabled(True))
+
+    @staticmethod
+    def _cleanup_tmp(path: str):
+        with suppress(OSError):
+            os.unlink(path)
+
+    def refresh(self):
+        pass

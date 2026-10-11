@@ -11,7 +11,7 @@ import contextlib
 import csv
 from datetime import datetime
 
-from PySide6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
+from PySide6.QtGui import QBrush, QColor, QStandardItem
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -33,6 +33,7 @@ from ventilation_company.database.repositories.client_repo import ClientReposito
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.project_card_dialog import ProjectCardDialog
+from ventilation_company.gui_pyside6.table_sort import NumericSortModel, numeric_item
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
@@ -301,7 +302,7 @@ class ProjectsTab(QWidget):
         self.table.activated.connect(self._on_double_click)
         layout.addWidget(self.table)
 
-        self.model = QStandardItemModel()
+        self.model = NumericSortModel()
         self.model.setHorizontalHeaderLabels(
             [
                 "ID",
@@ -454,23 +455,10 @@ class ProjectsTab(QWidget):
         self.model.removeRows(0, self.model.rowCount())
         self._projects = []
         try:
-            projects = ProjectRepository.list_all()
-            for p in projects:
-                try:
-                    products = ProductRepository.get_all(project_id=p["id"])
-                    cost = sum(pr.get("cost_price", 0) * pr.get("quantity", 1) for pr in products)
-                    base = sum(
-                        (
-                            pr.get("discounted_price", 0)
-                            if pr.get("discounted_price", 0) > 0
-                            else pr.get("total_price", 0)
-                        )
-                        for pr in products
-                    )
-                except Exception:
-                    cost = 0
-                    base = 0
-
+            # Один агрегуючий запит до БД замість N+1 окремих запитів на вироби
+            for p in ProjectRepository.list_with_stats():
+                cost = float(p.get("cost_sum") or 0)
+                base = float(p.get("base_sum") or 0)
                 discounted = float(p.get("discounted_price") or 0)
                 effective = discounted if discounted > 0 else base
                 profit = effective - cost
@@ -491,17 +479,17 @@ class ProjectsTab(QWidget):
 
                 profit_color = Theme.SUCCESS if profit >= 0 else Theme.DANGER
                 row = [
-                    QStandardItem(str(p["id"])),
+                    numeric_item(p["id"], str(p["id"])),
                     QStandardItem(data["project_number"]),
                     QStandardItem(data["name"]),
                     QStandardItem(data["client"]),
                     QStandardItem(data["status"]),
                     QStandardItem(data["contract_number"] or "—"),
                     QStandardItem(data["created_at"]),
-                    QStandardItem("₴ " + f"{cost:,.0f}"),
-                    QStandardItem("₴ " + f"{base:,.0f}"),
-                    QStandardItem("₴ " + f"{discounted:,.0f}"),
-                    QStandardItem("₴ " + f"{profit:,.0f}"),
+                    numeric_item(cost, "₴ " + f"{cost:,.0f}"),
+                    numeric_item(base, "₴ " + f"{base:,.0f}"),
+                    numeric_item(discounted, "₴ " + f"{discounted:,.0f}"),
+                    numeric_item(profit, "₴ " + f"{profit:,.0f}"),
                 ]
                 for cell in row:
                     cell.setEditable(False)

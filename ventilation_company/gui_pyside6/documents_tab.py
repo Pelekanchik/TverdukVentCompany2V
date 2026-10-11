@@ -26,11 +26,12 @@ from ventilation_company.database.repositories.project_document_repo import (
 from ventilation_company.database.repositories.project_expense_repo import ProjectExpenseRepository
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.database.repositories.project_work_repo import ProjectWorkRepository
+from ventilation_company.gui_pyside6.project_aware_tab import ProjectAwareTab
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.gui_pyside6.workers import FunctionWorker
 
 
-class DocumentsTab(QWidget):
+class DocumentsTab(ProjectAwareTab):
     """Вкладка генерації документів зі зберіганням у БД."""
 
     def __init__(self, parent=None, main_window=None):
@@ -486,17 +487,9 @@ class DocumentsTab(QWidget):
     def refresh(self):
         self._load_projects()
 
-    def on_project_changed(self, project_id):
-        if project_id:
-            idx = self.combo_project.findData(project_id)
-            if idx < 0:
-                # Проєкту немає у combo — список застарів (наприклад, проєкт
-                # щойно створено у вкладці «Проєкти»). Оновлюємо список.
-                self._load_projects()
-                idx = self.combo_project.findData(project_id)
-                if idx < 0:
-                    return
-            self.combo_project.setCurrentIndex(idx)
-        else:
-            self.combo_project.setCurrentIndex(-1)
-            self._current_project_id = None
+    # ── Хуки ProjectAwareTab ──
+    def _reload_project_list(self):
+        self._load_projects()
+
+    def _after_project_changed(self, project_id):
+        self._current_project_id = project_id

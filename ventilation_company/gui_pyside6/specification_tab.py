@@ -4,7 +4,7 @@
 Всі операції (додавання, редагування, видалення) працюють з БД через ProductRepository.
 """
 
-from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtGui import QStandardItem
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -19,12 +19,14 @@ from PySide6.QtWidgets import (
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
 from ventilation_company.gui_pyside6.products_tab import ProductDialog
+from ventilation_company.gui_pyside6.project_aware_tab import ProjectAwareTab
+from ventilation_company.gui_pyside6.table_sort import NumericSortModel, numeric_item
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.specification_service import SpecificationService
 
 
-class SpecificationTab(QWidget):
+class SpecificationTab(ProjectAwareTab):
     """Вкладка специфікації проєкту — реальні дані з PostgreSQL."""
 
     def __init__(self, parent=None, main_window=None):
@@ -88,7 +90,7 @@ class SpecificationTab(QWidget):
         self.table.activated.connect(lambda *_: self._on_edit())
         layout.addWidget(self.table)
 
-        self.model = QStandardItemModel()
+        self.model = NumericSortModel()
         self.model.setHorizontalHeaderLabels(
             [
                 "№",
@@ -239,17 +241,23 @@ class SpecificationTab(QWidget):
             dims = SpecificationService.format_dimensions(item)
 
             row = [
-                QStandardItem(str(pos)),
+                numeric_item(pos, str(pos)),
                 QStandardItem(item.get("name", "—")),
                 QStandardItem(item.get("product_type", "—")),
                 QStandardItem(dims),
                 QStandardItem(item.get("material", "—")),
                 QStandardItem(str(item.get("thickness", "—"))),
-                QStandardItem(str(item.get("quantity", 1))),
-                QStandardItem(f"{item.get('metal_area_m2', 0):.2f}"),
-                QStandardItem(f"{item.get('weight_kg', 0):.2f}"),
-                QStandardItem(f"₴ {item.get('unit_price', 0):,.2f}"),
-                QStandardItem(f"₴ {item.get('total_price', 0):,.2f}"),
+                numeric_item(item.get("quantity") or 0, str(item.get("quantity", 1))),
+                numeric_item(
+                    item.get("metal_area_m2") or 0, f"{item.get('metal_area_m2', 0):.2f}"
+                ),
+                numeric_item(item.get("weight_kg") or 0, f"{item.get('weight_kg', 0):.2f}"),
+                numeric_item(
+                    item.get("unit_price") or 0, f"₴ {item.get('unit_price', 0):,.2f}"
+                ),
+                numeric_item(
+                    item.get("total_price") or 0, f"₴ {item.get('total_price', 0):,.2f}"
+                ),
             ]
             for cell in row:
                 cell.setEditable(False)
@@ -357,23 +365,15 @@ class SpecificationTab(QWidget):
         """Повне оновлення (проєкти + специфікація)."""
         self._load_projects()
 
-    def on_project_changed(self, project_id: int | None):
-        """При зміні проєкту ззовні."""
+    # ── Хуки ProjectAwareTab ──
+    def _reload_project_list(self):
+        self._load_projects()
+
+    def _after_project_changed(self, project_id: int | None):
         if project_id:
-            idx = self.combo_project.findData(project_id)
-            if idx < 0:
-                # Проєкту немає у combo — список застарів (наприклад, проєкт
-                # щойно створено у вкладці «Проєкти»). Перезавантажуємо;
-                # _load_projects() сам обере активний проєкт.
-                self._load_projects()
-                return
-            self.combo_project.blockSignals(True)
-            self.combo_project.setCurrentIndex(idx)
-            self.combo_project.blockSignals(False)
             self._current_project_id = project_id
             self._load_specification()
         else:
-            self.combo_project.setCurrentIndex(-1)
             self._current_project_id = None
             self.model.removeRows(0, self.model.rowCount())
             self._items = []

@@ -35,6 +35,62 @@ class ProjectRepository:
             return [_to_dict(p) for p in projects]
 
     @staticmethod
+    def list_with_stats() -> list[dict]:
+        """Список проєктів з агрегованою статистикою виробів — ОДИН запит (без N+1).
+
+        Для кожного проєкту додатково повертає:
+          products_count — кількість виробів;
+          cost_sum       — сума cost_price × quantity (собівартість);
+          base_sum       — сума discounted_price (якщо > 0), інакше total_price.
+        """
+        from sqlalchemy import func
+
+        from ventilation_company.database.models.product_item import ProductItem
+
+        with get_db() as session:
+            cost_expr = func.sum(ProductItem.cost_price * func.coalesce(ProductItem.quantity, 1))
+            price_expr = func.sum(
+                func.coalesce(
+                    func.nullif(ProductItem.discounted_price, 0), ProductItem.total_price
+                )
+            )
+            rows = (
+                session.query(
+                    Project.id,
+                    Project.project_number,
+                    Project.name,
+                    Project.client,
+                    Project.status,
+                    Project.contract_number,
+                    Project.created_at,
+                    Project.discounted_price,
+                    func.count(ProductItem.id),
+                    func.coalesce(cost_expr, 0.0),
+                    func.coalesce(price_expr, 0.0),
+                )
+                .outerjoin(ProductItem, ProductItem.project_id == Project.id)
+                .group_by(Project.id)
+                .order_by(Project.created_at.desc())
+                .all()
+            )
+            return [
+                {
+                    "id": row[0],
+                    "project_number": row[1],
+                    "name": row[2],
+                    "client": row[3],
+                    "status": row[4],
+                    "contract_number": row[5],
+                    "created_at": row[6],
+                    "discounted_price": float(row[7]) if row[7] else 0,
+                    "products_count": row[8],
+                    "cost_sum": float(row[9]),
+                    "base_sum": float(row[10]),
+                }
+                for row in rows
+            ]
+
+    @staticmethod
     def get(project_id: int) -> dict | None:
         with get_db() as session:
             project = session.get(Project, project_id)

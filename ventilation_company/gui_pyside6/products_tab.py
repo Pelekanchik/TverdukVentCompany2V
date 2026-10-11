@@ -6,12 +6,7 @@ v2.4b: знижка вводиться у відсотках, кінцева ц�
 import csv
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import (
-    QBrush,
-    QColor,
-    QStandardItem,
-    QStandardItemModel,
-)
+from PySide6.QtGui import QBrush, QColor, QStandardItem
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -34,6 +29,8 @@ from ventilation_company.database.repositories.product_repo import ProductReposi
 from ventilation_company.database.repositories.project_repo import ProjectRepository
 from ventilation_company.gui_pyside6.pricing_tab import get_markup_categories, load_settings
 from ventilation_company.gui_pyside6.product_dialog import SCHEMAS, ProductDialog
+from ventilation_company.gui_pyside6.project_aware_tab import ProjectAwareTab
+from ventilation_company.gui_pyside6.table_sort import NumericSortModel, numeric_item
 from ventilation_company.gui_pyside6.table_utils import setup_table
 from ventilation_company.gui_pyside6.theme import Theme
 from ventilation_company.services.business_settings import BusinessSettings
@@ -42,7 +39,7 @@ from ventilation_company.services.pricing_settings import DEFAULT_MARKUP_PERCENT
 # SCHEMAS імпортовано з product_dialog — єдине джерело списку типів.
 
 
-class ProductsTab(QWidget):
+class ProductsTab(ProjectAwareTab):
     """Вкладка управління виробами."""
 
     def __init__(self, parent=None, main_window=None):
@@ -136,7 +133,7 @@ class ProductsTab(QWidget):
         self.table.activated.connect(self._on_edit)
         right_layout.addWidget(self.table)
 
-        self.model = QStandardItemModel()
+        self.model = NumericSortModel()
         self.model.setHorizontalHeaderLabels(
             [
                 "ID",
@@ -261,16 +258,19 @@ class ProductsTab(QWidget):
             discount_pct = round((1 - disc / total) * 100, 1) if disc > 0 and total > 0 else 0
             effective = disc if disc > 0 else total
             row = [
-                QStandardItem(str(item.get("id", ""))),
+                numeric_item(item.get("id") or 0, str(item.get("id", ""))),
                 QStandardItem(item.get("name", "")),
                 QStandardItem(item.get("product_type", "")),
                 QStandardItem(sizes),
                 QStandardItem(item.get("material", "")),
                 QStandardItem(str(item.get("thickness", ""))),
-                QStandardItem(str(item.get("quantity", 1))),
-                QStandardItem(f"{float(item.get('unit_price', 0)):.2f}"),
+                numeric_item(item.get("quantity") or 0, str(item.get("quantity", 1))),
+                numeric_item(
+                    float(item.get("unit_price", 0) or 0),
+                    f"{float(item.get('unit_price', 0)):.2f}",
+                ),
                 QStandardItem(f"{discount_pct:.1f}%" if discount_pct > 0 else "—"),
-                QStandardItem(f"{effective:.2f}"),
+                numeric_item(effective, f"{effective:.2f}"),
             ]
             for cell in row:
                 cell.setEditable(False)
@@ -721,11 +721,11 @@ class ProductsTab(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося видалити: {e}")
 
-    def on_project_changed(self, project_id: int | None):
-        # v2.8.1-fix: після створення/дублювання проєкту у вкладці «Проєкти»
-        # main_window викликає цей метод. Без _reload_projects() новий проєкт
-        # не з'являвся у combo_project — список наповнювався лише раз у __init__.
+    # ── Хуки ProjectAwareTab ──
+    def _reload_project_list(self):
         self._reload_projects()
+
+    def _after_project_changed(self, project_id: int | None):
         self._load_data()
 
     def refresh(self):
