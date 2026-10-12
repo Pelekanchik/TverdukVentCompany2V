@@ -45,9 +45,7 @@ def products_tab_ctx(monkeypatch):
     monkeypatch.setattr(ProductRepository, "get_all", staticmethod(lambda project_id=None: []))
     monkeypatch.setattr(ProductRepository, "search", staticmethod(lambda **kwargs: []))
     # load_settings читає data/pricing_settings.json — у тестах не потрібен
-    monkeypatch.setattr(
-        products_tab_module, "load_settings", lambda: {"material_prices": {}}
-    )
+    monkeypatch.setattr(products_tab_module, "load_settings", lambda: {"material_prices": {}})
 
     main_window = _FakeMainWindow()
     tab = ProductsTab(main_window=main_window)

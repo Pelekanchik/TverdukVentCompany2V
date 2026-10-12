@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableView,
     QVBoxLayout,
-    QWidget,
 )
 
 from ventilation_company.database.repositories.product_repo import ProductRepository
@@ -248,16 +247,10 @@ class SpecificationTab(ProjectAwareTab):
                 QStandardItem(item.get("material", "—")),
                 QStandardItem(str(item.get("thickness", "—"))),
                 numeric_item(item.get("quantity") or 0, str(item.get("quantity", 1))),
-                numeric_item(
-                    item.get("metal_area_m2") or 0, f"{item.get('metal_area_m2', 0):.2f}"
-                ),
+                numeric_item(item.get("metal_area_m2") or 0, f"{item.get('metal_area_m2', 0):.2f}"),
                 numeric_item(item.get("weight_kg") or 0, f"{item.get('weight_kg', 0):.2f}"),
-                numeric_item(
-                    item.get("unit_price") or 0, f"₴ {item.get('unit_price', 0):,.2f}"
-                ),
-                numeric_item(
-                    item.get("total_price") or 0, f"₴ {item.get('total_price', 0):,.2f}"
-                ),
+                numeric_item(item.get("unit_price") or 0, f"₴ {item.get('unit_price', 0):,.2f}"),
+                numeric_item(item.get("total_price") or 0, f"₴ {item.get('total_price', 0):,.2f}"),
             ]
             for cell in row:
                 cell.setEditable(False)

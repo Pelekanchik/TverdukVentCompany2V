@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from ventilation_company.database.repositories.product_repo import ProductRepository

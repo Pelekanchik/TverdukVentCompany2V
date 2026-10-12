@@ -11,6 +11,8 @@ numeric_item() — текстове відображення при цьому �
     row = [numeric_item(price, f"{price:,.2f}"), QStandardItem("назва")]
 """
 
+import contextlib
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
@@ -46,8 +48,6 @@ class NumericSortModel(QStandardItemModel):
 def numeric_item(value, text: str) -> QStandardItem:
     """Елемент таблиці: виглядає як text, сортується як число value."""
     item = QStandardItem(text)
-    try:
+    with contextlib.suppress(TypeError, ValueError):
         item.setData(float(value), Qt.ItemDataRole.UserRole)
-    except (TypeError, ValueError):
-        pass
     return item

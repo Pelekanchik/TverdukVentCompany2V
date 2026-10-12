@@ -50,9 +50,7 @@ class ProjectRepository:
         with get_db() as session:
             cost_expr = func.sum(ProductItem.cost_price * func.coalesce(ProductItem.quantity, 1))
             price_expr = func.sum(
-                func.coalesce(
-                    func.nullif(ProductItem.discounted_price, 0), ProductItem.total_price
-                )
+                func.coalesce(func.nullif(ProductItem.discounted_price, 0), ProductItem.total_price)
             )
             rows = (
                 session.query(
